@@ -40,15 +40,21 @@ Blocks / Code buttons in the toolbar:
 
 Both buttons are always clickable - the secondary view is simply read-only.
 
-### Five new semantic blocks
+### Composable Scratch-style blocks
 
-- `if_else_block` - if / else with separate block sockets for each branch
-- `break_loop_block` - emits `break` to stop a `while True` loop
-- `telemetry_update_block` - formatted label update
-- `cylinder_expr_block` - cylinder with expression-based pos/axis/radius
-- `sphere_expr_block` - sphere with expression-based pos, trail support, emissive option
+All object, motion, and variable blocks now use **input_value slots** (puzzle-piece connectors)
+instead of inline text fields. Small **value blocks** snap into these slots:
 
-These blocks eliminate all remaining `python_raw_block` usage in the built-in templates.
+- `vector_block` — `vector(x, y, z)` value
+- `colour_block` — visual colour picker → `vector(r, g, b)`
+- `expr_block` — any freeform Python expression
+
+Additional semantic blocks:
+- `if_else_block` — if / else with separate block sockets
+- `break_loop_block` — emits `break`
+- `telemetry_update_block` — formatted label update
+
+Shadow blocks provide sensible defaults in every slot.
 
 ### String-escaping fix (`escPy` helper)
 
@@ -59,7 +65,7 @@ to prevent "End of line while scanning string literal" runtime errors.
 
 - `blocks_projectile` - uses `break_loop_block` for stop condition, `if_else_block` for bounce logic
 - `blocks_spring` (**new**) - complete spring-mass oscillator in pure blocks
-- `blocks_orbits` - uses `sphere_expr_block` / `cylinder_expr_block` for dynamic objects
+- `blocks_orbits` - uses `sphere_emissive_block` / `expr_block` for dynamic objects
 
 All three templates are 100% semantic blocks - no `python_raw_block` anywhere.
 
@@ -171,11 +177,9 @@ Defined in `src/utils/blocklyGenerator.js` and exposed via toolbox in `src/compo
 - `sphere_block`
 - `sphere_trail_block`
 - `sphere_emissive_block`
-- `sphere_expr_block` (**new** — expression-based pos, trail, emissive)
 - `box_block`
 - `box_opacity_block`
 - `cylinder_block`
-- `cylinder_expr_block` (**new** — expression-based pos/axis/radius)
 - `arrow_block`
 - `helix_block`
 - `helix_full_block`
@@ -196,11 +200,16 @@ Defined in `src/utils/blocklyGenerator.js` and exposed via toolbox in `src/compo
 - `if_else_block` (**new** — if/else with two block sockets)
 - `break_loop_block` (**new** — emits `break`)
 
+## Value Blocks (snap-in)
+
+- `vector_block` — `vector(x, y, z)`
+- `colour_block` — colour picker → `vector(r, g, b)`
+- `expr_block` — freeform Python expression
+
 ## Utility/Expression Blocks
 
 - `comment_block`
 - `set_scalar_block`
-- `set_vector_expr_block`
 - `set_attr_expr_block`
 - `add_attr_expr_block`
 - `telemetry_update_block` (**new** — formatted label text update)

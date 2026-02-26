@@ -405,33 +405,36 @@ export default function HelpPage({ onClose }) {
                     <Pre>spring = helix(pos=anchor, axis=vector(4.0,0,0), radius=0.36, coils=16, thickness=0.055, color=...)</Pre>
                   </div>
                 </div>
-                <div className="help-block-row">
-                  <div className="help-block-name">sphere_expr_block</div>
-                  <div className="help-block-desc">
-                    Creates a sphere whose <Code>pos</Code> is a free Python expression (e.g. <Code>planet.pos</Code>).
-                    Used inside animation loops to create objects that track another body's position.
-                    Also supports <Code>make_trail</Code>, <Code>retain</Code>, <Code>trail_radius</Code>, <Code>emissive</Code>, and <Code>shininess</Code>.
-                    <Pre>moon = sphere(pos=planet.pos + vector(0.95, 0, 0), radius=0.18, color=...,{"\n"}       make_trail=True, trail_radius=0.018, retain=1200)</Pre>
-                  </div>
-                </div>
-                <div className="help-block-row">
-                  <div className="help-block-name">cylinder_expr_block</div>
-                  <div className="help-block-desc">
-                    Creates a cylinder whose <Code>pos</Code>, <Code>axis</Code>, and <Code>radius</Code> are free Python expressions.
-                    Ideal for dynamically positioned geometry such as launch rails or connecting rods
-                    where the position depends on another object.
-                    <Pre>rail = cylinder(pos=vector(0, ground_y, 0), axis=vector(2.5*cos(angle), 2.5*sin(angle), 0), radius=0.06, color=...)</Pre>
-                  </div>
-                </div>
+
               </div>
 
-              <h3 className="help-h3">Vectors <Tag color="teal">colour 180</Tag></h3>
+              <h3 className="help-h3">Values <Tag color="purple">snap-in blocks</Tag></h3>
+              <p className="help-tip">
+                Value blocks are small blocks that <strong>snap into input slots</strong> on
+                larger blocks. Drag a vector, colour, or expression block and plug it
+                into any empty slot.
+              </p>
               <div className="help-block-table">
                 <div className="help-block-row">
                   <div className="help-block-name">vector_block</div>
                   <div className="help-block-desc">
-                    Creates a <Code>vector(x, y, z)</Code> expression. Used as an output connector
-                    (plug into any field that accepts a vector expression).
+                    Creates a <Code>vector(x, y, z)</Code> value. Snap into pos, axis, size,
+                    velocity, or colour slots on other blocks.
+                  </div>
+                </div>
+                <div className="help-block-row">
+                  <div className="help-block-name">colour_block</div>
+                  <div className="help-block-desc">
+                    Pick a colour from a visual colour palette. Outputs a VPython
+                    <Code>vector(r, g, b)</Code> colour. Snap into any colour slot.
+                  </div>
+                </div>
+                <div className="help-block-row">
+                  <div className="help-block-name">expr_block</div>
+                  <div className="help-block-desc">
+                    Type any Python expression. Snaps into number, vector, or colour
+                    slots. Use for formulas like <Code>mag(ball.velocity)</Code> or
+                    <Code>pi * r**2</Code>.
                   </div>
                 </div>
               </div>
@@ -480,13 +483,7 @@ export default function HelpPage({ onClose }) {
                     The value field accepts any Python expression (e.g. <Code>pi * r**2</Code>).
                   </div>
                 </div>
-                <div className="help-block-row">
-                  <div className="help-block-name">set_vector_expr_block</div>
-                  <div className="help-block-desc">
-                    Assigns a <Code>vector(...)</Code> to a variable.
-                    <Pre>g = vector(0, -9.81, 0)</Pre>
-                  </div>
-                </div>
+
                 <div className="help-block-row">
                   <div className="help-block-name">set_attr_expr_block</div>
                   <div className="help-block-desc">

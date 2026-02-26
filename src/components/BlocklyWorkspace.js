@@ -12,29 +12,98 @@ import * as dialogService from "../utils/dialogService";
    ──────────────────────────────────────────────────────────── */
 const TOOLBOX_XML = `
 <xml>
-  <category name="Scene Objects" colour="#4a90d9">
-    <block type="sphere_block"></block>
-    <block type="sphere_trail_block"></block>
-    <block type="sphere_emissive_block"></block>
-    <block type="sphere_expr_block"></block>
-    <block type="box_block"></block>
-    <block type="box_opacity_block"></block>
-    <block type="cylinder_block"></block>
-    <block type="cylinder_expr_block"></block>
-    <block type="arrow_block"></block>
-    <block type="helix_block"></block>
-    <block type="helix_full_block"></block>
-    <block type="label_block"></block>
-    <block type="label_full_block"></block>
-  </category>
-  <category name="Vectors" colour="#3bbfa0">
+  <category name="Values" colour="#7c68c6">
     <block type="vector_block"></block>
+    <block type="colour_block"></block>
+    <block type="expr_block"></block>
+  </category>
+  <category name="Objects" colour="#4a90d9">
+    <block type="sphere_block">
+      <value name="POS"><shadow type="vector_block"><field name="X">0</field><field name="Y">0</field><field name="Z">0</field></shadow></value>
+      <value name="RADIUS"><shadow type="math_number"><field name="NUM">1</field></shadow></value>
+      <value name="COL"><shadow type="colour_block"><field name="COL">#ff0000</field></shadow></value>
+    </block>
+    <block type="sphere_trail_block">
+      <value name="POS"><shadow type="vector_block"><field name="X">0</field><field name="Y">0</field><field name="Z">0</field></shadow></value>
+      <value name="RADIUS"><shadow type="math_number"><field name="NUM">0.5</field></shadow></value>
+      <value name="COL"><shadow type="colour_block"><field name="COL">#ff0000</field></shadow></value>
+      <value name="TRAIL_R"><shadow type="math_number"><field name="NUM">0.03</field></shadow></value>
+      <value name="TRAIL_COL"><shadow type="colour_block"><field name="COL">#ffff00</field></shadow></value>
+      <value name="RETAIN"><shadow type="math_number"><field name="NUM">200</field></shadow></value>
+    </block>
+    <block type="sphere_emissive_block">
+      <value name="POS"><shadow type="vector_block"><field name="X">0</field><field name="Y">0</field><field name="Z">0</field></shadow></value>
+      <value name="RADIUS"><shadow type="math_number"><field name="NUM">0.5</field></shadow></value>
+      <value name="COL"><shadow type="colour_block"><field name="COL">#ffffff</field></shadow></value>
+      <value name="OPACITY"><shadow type="math_number"><field name="NUM">1</field></shadow></value>
+    </block>
+    <block type="box_block">
+      <value name="POS"><shadow type="vector_block"><field name="X">0</field><field name="Y">0</field><field name="Z">0</field></shadow></value>
+      <value name="SIZE"><shadow type="vector_block"><field name="X">1</field><field name="Y">1</field><field name="Z">1</field></shadow></value>
+      <value name="COL"><shadow type="colour_block"><field name="COL">#0000ff</field></shadow></value>
+    </block>
+    <block type="box_opacity_block">
+      <value name="POS"><shadow type="vector_block"><field name="X">0</field><field name="Y">0</field><field name="Z">0</field></shadow></value>
+      <value name="SIZE"><shadow type="vector_block"><field name="X">1</field><field name="Y">1</field><field name="Z">1</field></shadow></value>
+      <value name="COL"><shadow type="colour_block"><field name="COL">#333333</field></shadow></value>
+      <value name="OPACITY"><shadow type="math_number"><field name="NUM">0.5</field></shadow></value>
+    </block>
+    <block type="cylinder_block">
+      <value name="POS"><shadow type="vector_block"><field name="X">0</field><field name="Y">0</field><field name="Z">0</field></shadow></value>
+      <value name="AXIS"><shadow type="vector_block"><field name="X">1</field><field name="Y">0</field><field name="Z">0</field></shadow></value>
+      <value name="RADIUS"><shadow type="math_number"><field name="NUM">0.5</field></shadow></value>
+      <value name="COL"><shadow type="colour_block"><field name="COL">#00ff00</field></shadow></value>
+    </block>
+    <block type="arrow_block">
+      <value name="POS"><shadow type="vector_block"><field name="X">0</field><field name="Y">0</field><field name="Z">0</field></shadow></value>
+      <value name="AXIS"><shadow type="vector_block"><field name="X">1</field><field name="Y">0</field><field name="Z">0</field></shadow></value>
+      <value name="COL"><shadow type="colour_block"><field name="COL">#ffff00</field></shadow></value>
+    </block>
+    <block type="helix_block">
+      <value name="POS"><shadow type="vector_block"><field name="X">0</field><field name="Y">0</field><field name="Z">0</field></shadow></value>
+      <value name="AXIS"><shadow type="vector_block"><field name="X">1</field><field name="Y">0</field><field name="Z">0</field></shadow></value>
+      <value name="RADIUS"><shadow type="math_number"><field name="NUM">0.3</field></shadow></value>
+      <value name="COL"><shadow type="colour_block"><field name="COL">#cccccc</field></shadow></value>
+    </block>
+    <block type="helix_full_block">
+      <value name="POS"><shadow type="vector_block"><field name="X">0</field><field name="Y">0</field><field name="Z">0</field></shadow></value>
+      <value name="AXIS"><shadow type="vector_block"><field name="X">1</field><field name="Y">0</field><field name="Z">0</field></shadow></value>
+      <value name="RADIUS"><shadow type="math_number"><field name="NUM">0.3</field></shadow></value>
+      <value name="COILS"><shadow type="math_number"><field name="NUM">10</field></shadow></value>
+      <value name="THICK"><shadow type="math_number"><field name="NUM">0.05</field></shadow></value>
+      <value name="COL"><shadow type="colour_block"><field name="COL">#cccccc</field></shadow></value>
+    </block>
+    <block type="label_block">
+      <value name="POS"><shadow type="vector_block"><field name="X">0</field><field name="Y">0</field><field name="Z">0</field></shadow></value>
+    </block>
+    <block type="label_full_block">
+      <value name="POS"><shadow type="vector_block"><field name="X">0</field><field name="Y">5</field><field name="Z">0</field></shadow></value>
+      <value name="HEIGHT"><shadow type="math_number"><field name="NUM">12</field></shadow></value>
+    </block>
   </category>
   <category name="Motion" colour="#d9a54a">
-    <block type="set_velocity_block"></block>
-    <block type="update_position_block"></block>
-    <block type="apply_force_block"></block>
+    <block type="set_velocity_block">
+      <value name="VEL"><shadow type="vector_block"><field name="X">0</field><field name="Y">0</field><field name="Z">0</field></shadow></value>
+    </block>
+    <block type="update_position_block">
+      <value name="DT"><shadow type="expr_block"><field name="EXPR">dt</field></shadow></value>
+    </block>
+    <block type="apply_force_block">
+      <value name="ACCEL"><shadow type="vector_block"><field name="X">0</field><field name="Y">-9.81</field><field name="Z">0</field></shadow></value>
+      <value name="DT"><shadow type="expr_block"><field name="EXPR">dt</field></shadow></value>
+    </block>
     <block type="set_gravity_block"></block>
+  </category>
+  <category name="Variables" colour="#d97b4a">
+    <block type="set_scalar_block">
+      <value name="VALUE"><shadow type="math_number"><field name="NUM">0</field></shadow></value>
+    </block>
+    <block type="set_attr_expr_block">
+      <value name="VALUE"><shadow type="expr_block"><field name="EXPR">0</field></shadow></value>
+    </block>
+    <block type="add_attr_expr_block">
+      <value name="VALUE"><shadow type="expr_block"><field name="EXPR">a * dt</field></shadow></value>
+    </block>
   </category>
   <category name="Control" colour="#9b59b6">
     <block type="rate_block"></block>
@@ -48,19 +117,22 @@ const TOOLBOX_XML = `
   <category name="Scene" colour="#27ae60">
     <block type="scene_setup_block"></block>
     <block type="scene_range_block"></block>
-    <block type="scene_forward_block"></block>
-    <block type="scene_center_block"></block>
+    <block type="scene_forward_block">
+      <value name="VEC"><shadow type="vector_block"><field name="X">0</field><field name="Y">0</field><field name="Z">-1</field></shadow></value>
+    </block>
+    <block type="scene_center_block">
+      <value name="VEC"><shadow type="vector_block"><field name="X">0</field><field name="Y">0</field><field name="Z">0</field></shadow></value>
+    </block>
     <block type="scene_caption_block"></block>
     <block type="scene_ambient_block"></block>
-    <block type="local_light_block"></block>
+    <block type="local_light_block">
+      <value name="POS"><shadow type="vector_block"><field name="X">0</field><field name="Y">5</field><field name="Z">0</field></shadow></value>
+      <value name="COL"><shadow type="colour_block"><field name="COL">#ffffff</field></shadow></value>
+    </block>
     <block type="comment_block"></block>
     <block type="telemetry_update_block"></block>
   </category>
   <category name="Advanced" colour="#d35400">
-    <block type="set_scalar_block"></block>
-    <block type="set_vector_expr_block"></block>
-    <block type="set_attr_expr_block"></block>
-    <block type="add_attr_expr_block"></block>
     <block type="exec_block"></block>
     <block type="python_raw_block"></block>
     <block type="python_raw_expr_block"></block>
