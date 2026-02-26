@@ -15,6 +15,7 @@ import { runPython, stopPython } from "./utils/glowRunner";
 import { loadState, saveState } from "./utils/storage";
 import { EXAMPLES } from "./utils/precodedExamples";
 import { BLOCK_TEMPLATES } from "./utils/blockTemplates";
+import html2canvas from "html2canvas";
 
 const DEFAULT_CODE = "# Build your model in blocks, or write VPython here.\n";
 
@@ -29,6 +30,7 @@ function App() {
   const [workspaceXml, setWorkspaceXml] = useState("");
   const [running, setRunning] = useState(false);
   const [status, setStatus] = useState({ text: "Ready", type: "" });
+  const [blocklyZoom, setBlocklyZoom] = useState(90); // percentage (startScale 0.9 = 90%)
 
   const handleHelp = useCallback(() => setShowHelp(true), []);
 
@@ -121,7 +123,7 @@ function App() {
   const handleExportBlocksPdf = useCallback(async () => {
     setStatus({ text: "Generating blocks PDF...", type: "" });
     try {
-      await exportBlocksPdf();
+      await exportBlocksPdf(workspaceRef.current);
       setStatus({ text: "Blocks PDF saved", type: "success" });
     } catch (err) {
       console.error(err);
@@ -150,6 +152,54 @@ function App() {
       setPythonCode(code || DEFAULT_CODE);
     }
     setStatus({ text: "Reset to blocks mode", type: "" });
+  }, []);
+
+  /* ── Clear workspace (trash all blocks) ────────────────── */
+  const handleClearWorkspace = useCallback(() => {
+    if (!workspaceRef.current) return;
+    if (!window.confirm("Clear all blocks from the workspace?")) return;
+    workspaceRef.current.clear();
+    setPythonCode(DEFAULT_CODE);
+    setStatus({ text: "Workspace cleared", type: "" });
+  }, []);
+
+  /* ── Copy code to clipboard ────────────────────────────── */
+  const handleCopyCode = useCallback(() => {
+    const code = mode === "text" ? pythonCode : syncFromBlocks();
+    navigator.clipboard.writeText(code).then(() => {
+      setStatus({ text: "Code copied to clipboard", type: "success" });
+    }).catch(() => {
+      setStatus({ text: "Failed to copy", type: "error" });
+    });
+  }, [mode, pythonCode, syncFromBlocks]);
+
+  /* ── Export screenshot of 3D viewport ──────────────────── */
+  const handleExportScreenshot = useCallback(async () => {
+    const host = document.getElementById("glowscript-host");
+    if (!host) { setStatus({ text: "No viewport to capture", type: "error" }); return; }
+    setStatus({ text: "Capturing screenshot...", type: "" });
+    try {
+      const canvas = await html2canvas(host, { backgroundColor: "#0a0a0f", useCORS: true });
+      const link = document.createElement("a");
+      link.download = "viewport.png";
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+      setStatus({ text: "Screenshot saved", type: "success" });
+    } catch (err) {
+      console.error(err);
+      setStatus({ text: "Screenshot failed", type: "error" });
+    }
+  }, []);
+
+  /* ── Zoom handler for Blockly workspace ────────────────── */
+  const handleZoomChange = useCallback((pct) => {
+    setBlocklyZoom(pct);
+    const ws = workspaceRef.current;
+    if (ws) {
+      const scale = pct / 100;
+      ws.setScale(scale);
+      ws.resize();
+    }
   }, []);
 
   /* ── Mode toggle ───────────────────────────────────────── */
@@ -259,6 +309,10 @@ function App() {
   return (
     <div className="app-shell">
       {showHelp && <HelpPage onClose={() => setShowHelp(false)} />}
+      {/* VS Code title bar */}
+      <div className="titlebar">
+        <span className="titlebar-text"><strong>Physics IDE</strong> — {mode === "blocks" ? "Block Editor" : "Code Editor"}</span>
+      </div>
       <Toolbar
         onRun={handleRun}
         onStop={handleStop}
@@ -266,12 +320,18 @@ function App() {
         onExportBlocks={handleExportBlocks}
         onExportBlocksPdf={handleExportBlocksPdf}
         onExportCodePdf={handleExportCodePdf}
+        onExportScreenshot={handleExportScreenshot}
+        onCopyCode={handleCopyCode}
         onReset={handleResetToBlocks}
+        onClearWorkspace={handleClearWorkspace}
         onToggleTheme={toggleTheme}
         onHome={handleHome}
         onHelp={handleHelp}
         isDark={isDark}
         running={running}
+        mode={mode}
+        zoom={blocklyZoom}
+        onZoomChange={handleZoomChange}
       >
         <ModeToggle
           mode={mode}

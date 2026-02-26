@@ -11,6 +11,7 @@ import {
   HelpIcon,
   FileCodeIcon,
   FileBlocksIcon,
+  PlusIcon,
 } from "./Icons";
 
 const CARD_ICONS = {
@@ -36,145 +37,182 @@ const ACCENT_COLORS = {
 };
 
 const FILTERS = [
-  { key: "all",    label: "All",             Icon: AtomIcon },
+  { key: "all",    label: "All",             Icon: null },
   { key: "code",   label: "Code Examples",   Icon: CodeIcon },
   { key: "blocks", label: "Block Templates", Icon: BlocksIcon },
 ];
 
 export default function StartMenu({ onSelect, onHelp }) {
-  const [filter, setFilter] = useState("all");  // default: show everything
+  const [filter, setFilter] = useState("all");
 
   const showCode   = filter === "all" || filter === "code";
   const showBlocks = filter === "all" || filter === "blocks";
 
   return (
     <div className="start-menu-overlay">
+      {/* VS Code title bar */}
+      <div className="start-titlebar">
+        <span className="start-titlebar-text"><strong>Physics IDE</strong> — Welcome</span>
+      </div>
+
       <div className="start-menu">
-        {/* Header */}
-        <div className="start-header">
-          <div className="start-logo">
-            <AtomIcon size={36} />
+        {/* ── Sidebar ── */}
+        <aside className="start-sidebar">
+          <div className="start-sidebar-header">
+            <div className="start-sidebar-logo">
+              <div className="start-sidebar-logo-icon">
+                <AtomIcon size={18} />
+              </div>
+              <div>
+                <h1 className="start-sidebar-title">Physics IDE</h1>
+                <p className="start-sidebar-sub">Simulation Environment</p>
+              </div>
+            </div>
+            <span className="start-sidebar-version">v1.0 • VPython 3.2</span>
           </div>
-          <h1 className="start-title">Physics IDE</h1>
-          <p className="start-subtitle">
-            Build, simulate, and explore physics with blocks and code
-          </p>
-          {onHelp && (
-            <button className="start-help-btn" onClick={onHelp}>
-              <HelpIcon size={13} /> Documentation &amp; Help
+
+          <nav className="start-actions">
+            <p className="start-actions-label">Quick Actions</p>
+            <button className="start-action-btn" onClick={() => onSelect({ type: "code_blank" })}>
+              <FileCodeIcon size={16} /> New Code File
             </button>
-          )}
-        </div>
-
-        {/* Filter bar */}
-        <div className="start-filter-bar">
-          {FILTERS.map(({ key, label, Icon }) => (
-            <button
-              key={key}
-              className={`start-filter-btn${filter === key ? " start-filter-btn--active" : ""}`}
-              onClick={() => setFilter(key)}
-            >
-              {Icon && <Icon size={13} />}
-              {label}
+            <button className="start-action-btn" onClick={() => onSelect({ type: "blocks_blank" })}>
+              <FileBlocksIcon size={16} /> New Block Project
             </button>
-          ))}
-        </div>
-
-        {/* Cards grid */}
-        <div className="start-grid">
-          {showCode && EXAMPLES.map((ex) => {
-            const Icon = CARD_ICONS[ex.id] || RocketIcon;
-            const accent = ACCENT_COLORS[ex.id] || "var(--accent)";
-            return (
-              <button
-                key={ex.id}
-                className="start-card"
-                style={{ "--card-accent": accent }}
-                onClick={() => onSelect({ type: "code", code: ex.code, id: ex.id })}
-              >
-                <div className="start-card-icon">
-                  <Icon size={28} />
-                </div>
-                <div className="start-card-body">
-                  <span className="start-card-badge start-card-badge--code">Code</span>
-                  <h3 className="start-card-title">{ex.title}</h3>
-                  <p className="start-card-sub">{ex.subtitle}</p>
-                  <p className="start-card-desc">{ex.description}</p>
-                </div>
+            {onHelp && (
+              <button className="start-action-btn" onClick={onHelp}>
+                <HelpIcon size={16} /> Documentation
               </button>
-            );
-          })}
+            )}
+          </nav>
+        </aside>
 
-          {showBlocks && BLOCK_TEMPLATES.map((tpl) => {
-            const Icon = CARD_ICONS[tpl.id] || BlocksIcon;
-            const accent = ACCENT_COLORS[tpl.id] || "var(--accent)";
-            return (
+        {/* ── Main Content ── */}
+        <main className="start-content">
+          <div className="start-welcome">
+            <h2>Welcome</h2>
+            <p>Choose a template to get started, or create a blank project.</p>
+          </div>
+
+          {/* Filter bar (VS Code tabs style) */}
+          <div className="start-filter-bar">
+            {FILTERS.map(({ key, label, Icon }) => (
               <button
-                key={tpl.id}
-                className="start-card"
-                style={{ "--card-accent": accent }}
-                onClick={() => onSelect({ type: "blocks", xml: tpl.xml, id: tpl.id })}
+                key={key}
+                className={`start-filter-btn${filter === key ? " start-filter-btn--active" : ""}`}
+                onClick={() => setFilter(key)}
               >
-                <div className="start-card-icon">
-                  <Icon size={28} />
-                </div>
-                <div className="start-card-body">
-                  <span className="start-card-badge start-card-badge--blocks">Blocks</span>
-                  <h3 className="start-card-title">{tpl.title}</h3>
-                  <p className="start-card-sub">{tpl.subtitle}</p>
-                  <p className="start-card-desc">{tpl.description}</p>
-                </div>
+                {Icon && <Icon size={12} />}
+                {label}
               </button>
-            );
-          })}
+            ))}
+          </div>
 
-          {/* ── Blank / New project section ── */}
-          {(showCode || showBlocks) && (
-            <div className="start-blank-section">New Project</div>
-          )}
-
+          {/* Code Examples */}
           {showCode && (
-            <button
-              className="start-card start-card--blank"
-              style={{ "--card-accent": "var(--accent-blue)" }}
-              onClick={() => onSelect({ type: "code_blank" })}
-            >
-              <div className="start-card-icon">
-                <FileCodeIcon size={28} />
+            <>
+              <p className="start-section-label">Code Examples</p>
+              <div className="start-grid">
+                {EXAMPLES.map((ex) => {
+                  const Icon = CARD_ICONS[ex.id] || RocketIcon;
+                  const accent = ACCENT_COLORS[ex.id] || "var(--accent)";
+                  return (
+                    <button
+                      key={ex.id}
+                      className="start-card"
+                      style={{ "--card-accent": accent }}
+                      onClick={() => onSelect({ type: "code", code: ex.code, id: ex.id })}
+                    >
+                      <div className="start-card-icon">
+                        <Icon size={20} />
+                      </div>
+                      <div className="start-card-body">
+                        <span className="start-card-badge start-card-badge--code">Code</span>
+                        <h3 className="start-card-title">{ex.title}</h3>
+                        <p className="start-card-desc">{ex.description}</p>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
-              <div className="start-card-body">
-                <span className="start-card-badge start-card-badge--code">Code</span>
-                <h3 className="start-card-title">Code Blank</h3>
-                <p className="start-card-sub">Write VPython from scratch</p>
-                <p className="start-card-desc">
-                  Full code editor, empty workspace. The blocks panel shows a
-                  read-only structural view of your code.
-                </p>
-              </div>
-            </button>
+            </>
           )}
 
+          {/* Block Templates */}
           {showBlocks && (
-            <button
-              className="start-card start-card--blank"
-              style={{ "--card-accent": "var(--mauve)" }}
-              onClick={() => onSelect({ type: "blocks_blank" })}
-            >
-              <div className="start-card-icon">
-                <FileBlocksIcon size={28} />
+            <>
+              <p className="start-section-label">Block Templates</p>
+              <div className="start-grid">
+                {BLOCK_TEMPLATES.map((tpl) => {
+                  const Icon = CARD_ICONS[tpl.id] || BlocksIcon;
+                  const accent = ACCENT_COLORS[tpl.id] || "var(--accent)";
+                  return (
+                    <button
+                      key={tpl.id}
+                      className="start-card"
+                      style={{ "--card-accent": accent }}
+                      onClick={() => onSelect({ type: "blocks", xml: tpl.xml, id: tpl.id })}
+                    >
+                      <div className="start-card-icon">
+                        <Icon size={20} />
+                      </div>
+                      <div className="start-card-body">
+                        <span className="start-card-badge start-card-badge--blocks">Blocks</span>
+                        <h3 className="start-card-title">{tpl.title}</h3>
+                        <p className="start-card-desc">{tpl.description}</p>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
-              <div className="start-card-body">
-                <span className="start-card-badge start-card-badge--blocks">Blocks</span>
-                <h3 className="start-card-title">Blocks Blank</h3>
-                <p className="start-card-sub">Build with drag-and-drop blocks</p>
-                <p className="start-card-desc">
-                  Empty block canvas. The code panel shows a read-only preview
-                  of the generated VPython.
-                </p>
-              </div>
-            </button>
+            </>
           )}
-        </div>
+
+          {/* Blank project cards */}
+          {(showCode || showBlocks) && (
+            <>
+              <p className="start-section-label">New Blank Project</p>
+              <div className="start-grid">
+                {showCode && (
+                  <button
+                    className="start-card start-card--blank"
+                    style={{ "--card-accent": "var(--accent-blue)" }}
+                    onClick={() => onSelect({ type: "code_blank" })}
+                  >
+                    <div className="start-card-icon">
+                      <PlusIcon size={20} />
+                    </div>
+                    <div className="start-card-body">
+                      <span className="start-card-badge start-card-badge--code">Code</span>
+                      <h3 className="start-card-title">Blank Code</h3>
+                      <p className="start-card-desc">
+                        Empty VPython editor with read-only blocks preview.
+                      </p>
+                    </div>
+                  </button>
+                )}
+                {showBlocks && (
+                  <button
+                    className="start-card start-card--blank"
+                    style={{ "--card-accent": "var(--mauve)" }}
+                    onClick={() => onSelect({ type: "blocks_blank" })}
+                  >
+                    <div className="start-card-icon">
+                      <PlusIcon size={20} />
+                    </div>
+                    <div className="start-card-body">
+                      <span className="start-card-badge start-card-badge--blocks">Blocks</span>
+                      <h3 className="start-card-title">Blank Blocks</h3>
+                      <p className="start-card-desc">
+                        Empty block canvas with read-only code preview.
+                      </p>
+                    </div>
+                  </button>
+                )}
+              </div>
+            </>
+          )}
+        </main>
       </div>
     </div>
   );

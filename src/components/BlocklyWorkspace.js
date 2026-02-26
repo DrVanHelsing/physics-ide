@@ -207,7 +207,7 @@ function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, isD
       sounds: false,
       grid: { spacing: 25, length: 3, colour: "#2a2c40", snap: true },
       zoom: {
-        controls: true,
+        controls: false,
         wheel: true,
         startScale: 0.9,
         maxScale: 2,

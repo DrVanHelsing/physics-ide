@@ -217,16 +217,16 @@ while True:
   },
   {
     id: "orbits",
-    title: "Planetary Orbit",
-    subtitle: "Gravitational two-body simulation",
+    title: "Sun, Earth & Moon",
+    subtitle: "Three-body gravitational orbit",
     description:
-    "A cinematic orbital scene with starfield, glowing sun, planet + moon dynamics, and orbital telemetry under Newtonian gravity.",
+    "Moon orbits Earth while Earth orbits the Sun. Uses velocity-Verlet integration for long-term orbital stability.",
     code: `GlowScript 3.2 VPython
-scene.title = "Planetary Orbit"
+scene.title = "Sun, Earth & Moon"
 scene.background = vector(0.02, 0.03, 0.09)
-scene.range = 12
-scene.forward = vector(-0.2, -0.08, -1)
-scene.caption = "Two-body + moon gravity system\\n"
+scene.range = 14
+scene.forward = vector(-0.2, -0.3, -1)
+scene.caption = "Three-body gravity: Moon orbits Earth, Earth orbits Sun\\n"
 scene.ambient = color.gray(0.22)
 
 # Background stars
@@ -240,13 +240,13 @@ for i in range(120):
   p = 34 * norm(p)
   sphere(pos=p, radius=0.05 + 0.05 * random(), color=vector(0.7 + 0.3 * random(), 0.7 + 0.3 * random(), 1), emissive=True, opacity=0.9)
 
-# Star
-star = sphere(pos=vector(0, 0, 0), radius=1.05, color=vector(1, 0.87, 0.35), emissive=True, shininess=1)
-corona = sphere(pos=star.pos, radius=1.45, color=vector(1, 0.7, 0.25), opacity=0.15, emissive=True)
+# Sun
+sun = sphere(pos=vector(0, 0, 0), radius=1.05, color=vector(1, 0.87, 0.35), emissive=True, shininess=1)
+corona = sphere(pos=sun.pos, radius=1.45, color=vector(1, 0.7, 0.25), opacity=0.15, emissive=True)
 local_light(pos=vector(0, 0, 0), color=vector(1, 0.97, 0.85))
 
-# Planet and moon
-planet = sphere(
+# Earth
+earth = sphere(
   pos=vector(8.2, 0, 0),
   radius=0.42,
   color=vector(0.26, 0.72, 1),
@@ -256,8 +256,10 @@ planet = sphere(
   trail_radius=0.04,
   trail_color=vector(0.45, 0.75, 1),
 )
+
+# Moon (starts above Earth)
 moon = sphere(
-  pos=planet.pos + vector(0, 0.95, 0),
+  pos=earth.pos + vector(0, 0.9, 0),
   radius=0.13,
   color=vector(0.88, 0.88, 0.94),
   shininess=0.28,
@@ -267,53 +269,67 @@ moon = sphere(
   trail_color=vector(0.8, 0.8, 0.9),
 )
 
-planet.velocity = vector(0, 3.55, 0)
-# Moon orbits CCW around planet: relative velocity perpendicular to radius vector(0,0.95,0)
-# v_rel = sqrt(G*M_planet/r_moon) = sqrt(10*0.16/0.95) = 1.30 m/s in -x direction
-moon.velocity = planet.velocity + vector(-1.3, 0, 0)
-
 # Gravitational parameters
-# G=10, M_star=10.33 chosen so circular orbit speed = sqrt(G*M/r) = sqrt(10*10.33/8.2) ≈ 3.55
-# and moon circular speed around planet = sqrt(G*M_planet/0.95) ≈ 1.30
+# G=10, M_sun=10.33 => Earth circular speed = sqrt(G*M_sun/r) = sqrt(10*10.33/8.2) ≈ 3.55
+# M_earth=1.0 => Moon circular speed around Earth = sqrt(G*M_earth/0.9) ≈ 3.33
+# Hill sphere = 8.2*(1.0/(3*10.33))^(1/3) ≈ 2.6, moon orbit at 0.9 = 35% of Hill sphere (stable)
 G = 10
-M_star = 10.33
-M_planet = 0.16
+M_sun = 10.33
+M_earth = 1.0
 
-dt = 0.0016
+earth.velocity = vector(0, 3.55, 0)
+# Moon orbits CCW around Earth: relative velocity perpendicular to offset
+moon.velocity = earth.velocity + vector(-3.33, 0, 0)
+
+dt = 0.0008
 t = 0
 
-planet_arrow = arrow(pos=planet.pos, axis=vector(0, 0, 0), shaftwidth=0.08, color=vector(1, 0.45, 0.3))
-telemetry = label(pos=vector(-10.8, 9.5, 0), text="", height=12, box=False, opacity=0, color=color.white)
+# Compute initial accelerations for velocity-Verlet
+r_es = earth.pos - sun.pos
+d_es = max(mag(r_es), 1.2)
+a_earth = -G * M_sun / d_es**2 * norm(r_es)
+
+r_ms = moon.pos - sun.pos
+d_ms = max(mag(r_ms), 1.2)
+r_me = moon.pos - earth.pos
+d_me = max(mag(r_me), 0.22)
+a_moon = -G * M_sun / d_ms**2 * norm(r_ms) - G * M_earth / d_me**2 * norm(r_me)
+
+earth_arrow = arrow(pos=earth.pos, axis=vector(0, 0, 0), shaftwidth=0.08, color=vector(1, 0.45, 0.3))
+telemetry = label(pos=vector(-12, 11, 0), text="", height=12, box=False, opacity=0, color=color.white)
 
 while True:
   rate(900)
 
-  # Planet around star
-  r_ps = planet.pos - star.pos
-  d_ps = max(mag(r_ps), 1.2)
-  a_planet = -G * M_star / d_ps**2 * norm(r_ps)
+  # Velocity-Verlet integration (symplectic — conserves energy)
+  # Half-step velocity
+  earth.velocity = earth.velocity + a_earth * dt / 2
+  moon.velocity = moon.velocity + a_moon * dt / 2
 
-  # Moon experiences gravity from star and planet
-  r_ms = moon.pos - star.pos
-  d_ms = max(mag(r_ms), 1.2)
-  r_mp = moon.pos - planet.pos
-  d_mp = max(mag(r_mp), 0.22)
-
-  a_moon_star = -G * M_star / d_ms**2 * norm(r_ms)
-  a_moon_planet = -G * M_planet / d_mp**2 * norm(r_mp)
-  a_moon = a_moon_star + a_moon_planet
-
-  planet.velocity = planet.velocity + a_planet * dt
-  moon.velocity = moon.velocity + a_moon * dt
-
-  planet.pos = planet.pos + planet.velocity * dt
+  # Full-step position
+  earth.pos = earth.pos + earth.velocity * dt
   moon.pos = moon.pos + moon.velocity * dt
 
-  corona.pos = star.pos
-  planet_arrow.pos = planet.pos
-  planet_arrow.axis = 1.2 * a_planet
+  # Recompute accelerations at new positions
+  r_es = earth.pos - sun.pos
+  d_es = max(mag(r_es), 1.2)
+  a_earth = -G * M_sun / d_es**2 * norm(r_es)
 
-  telemetry.text = "t = " + str(round(t,2)) + " s\\nplanet speed = " + str(round(mag(planet.velocity),3)) + "\\nmoon speed = " + str(round(mag(moon.velocity),3)) + "\\nplanet radius = " + str(round(mag(planet.pos),3))
+  r_ms = moon.pos - sun.pos
+  d_ms = max(mag(r_ms), 1.2)
+  r_me = moon.pos - earth.pos
+  d_me = max(mag(r_me), 0.22)
+  a_moon = -G * M_sun / d_ms**2 * norm(r_ms) - G * M_earth / d_me**2 * norm(r_me)
+
+  # Complete velocity update
+  earth.velocity = earth.velocity + a_earth * dt / 2
+  moon.velocity = moon.velocity + a_moon * dt / 2
+
+  corona.pos = sun.pos
+  earth_arrow.pos = earth.pos
+  earth_arrow.axis = 1.2 * a_earth
+
+  telemetry.text = "t = " + str(round(t,2)) + " s\\nEarth speed = " + str(round(mag(earth.velocity),3)) + "\\nMoon speed = " + str(round(mag(moon.velocity),3)) + "\\nEarth orbit r = " + str(round(mag(earth.pos),3))
 
   t = t + dt
 `,

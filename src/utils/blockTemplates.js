@@ -156,74 +156,91 @@ const PROJECTILE_BLOCKS = [
 
 const ORBIT_BLOCKS = [
   /* ── Scene ─────────────────────────────────────────────── */
-  { type: 'scene_setup_block', fields: { TITLE: 'Planetary Orbit', BG: '#050917' } },
-  { type: 'scene_range_block', fields: { R: '12' } },
+  { type: 'scene_setup_block', fields: { TITLE: 'Sun, Earth & Moon', BG: '#050917' } },
+  { type: 'scene_range_block', fields: { R: '14' } },
   { type: 'local_light_block', fields: { X: '0', Y: '0', Z: '0', COL: '#fff7d9' } },
 
   /* ── Camera, caption, ambient, starfield (raw) ─────────── */
   { type: 'comment_block', fields: { TEXT: 'Raw code: camera setup, caption, ambient, and starfield' } },
-  { type: 'python_raw_block', fields: { CODE: 'scene.forward = vector(-0.2, -0.08, -1)' } },
-  { type: 'python_raw_block', fields: { CODE: 'scene.caption = "Two-body + moon gravity system\\n"' } },
+  { type: 'python_raw_block', fields: { CODE: 'scene.forward = vector(-0.2, -0.3, -1)' } },
+  { type: 'python_raw_block', fields: { CODE: 'scene.caption = "Three-body gravity: Moon orbits Earth, Earth orbits Sun\\n"' } },
   { type: 'python_raw_block', fields: { CODE: 'scene.ambient = color.gray(0.22)' } },
   { type: 'python_raw_block', fields: { CODE: 'for i in range(120): p = vector(2*random()-1, 2*random()-1, 2*random()-1); p = 34 * norm(p if mag(p) > 0 else vector(1, 0, 0)); sphere(pos=p, radius=0.05 + 0.05 * random(), color=vector(0.7 + 0.3 * random(), 0.7 + 0.3 * random(), 1), emissive=True, opacity=0.9)' } },
 
   /* ── Celestial bodies — raw blocks because make_trail / emissive
        must be constructor args in GlowScript 3.2 ─────────── */
-  { type: 'comment_block', fields: { TEXT: 'Raw code: star, corona, planet, moon (make_trail in constructor)' } },
-  { type: 'python_raw_block', fields: { CODE: 'star = sphere(pos=vector(0,0,0), radius=1.05, color=vector(1,0.87,0.35), emissive=True, shininess=1)' } },
+  { type: 'comment_block', fields: { TEXT: 'Raw code: Sun, corona, Earth, Moon (make_trail in constructor)' } },
+  { type: 'python_raw_block', fields: { CODE: 'sun = sphere(pos=vector(0,0,0), radius=1.05, color=vector(1,0.87,0.35), emissive=True, shininess=1)' } },
   { type: 'python_raw_block', fields: { CODE: 'corona = sphere(pos=vector(0,0,0), radius=1.45, color=vector(1,0.7,0.25), opacity=0.15, emissive=True)' } },
-  { type: 'python_raw_block', fields: { CODE: 'planet = sphere(pos=vector(8.2,0,0), radius=0.42, color=vector(0.26,0.72,1), shininess=0.55, make_trail=True, retain=3200, trail_radius=0.04, trail_color=vector(0.45,0.75,1))' } },
-  { type: 'python_raw_block', fields: { CODE: 'moon = sphere(pos=vector(8.2,0.95,0), radius=0.13, color=vector(0.88,0.88,0.94), shininess=0.28, make_trail=True, retain=1200, trail_radius=0.02, trail_color=vector(0.8,0.8,0.9))' } },
-
-  /* ── Velocities ────────────────────────────────────────── */
-  { type: 'set_velocity_block', fields: { OBJ: 'planet', VX: '0', VY: '3.55', VZ: '0' } },
-  // Moon: CCW orbit around planet. radius vector = (0,0.95,0), relative vel = (-1.30,0,0) perpendicular → CCW
-  { type: 'set_attr_expr_block', fields: { OBJ: 'moon', ATTR: 'velocity', EXPR: 'planet.velocity + vector(-1.3, 0, 0)' } },
+  { type: 'python_raw_block', fields: { CODE: 'earth = sphere(pos=vector(8.2,0,0), radius=0.42, color=vector(0.26,0.72,1), shininess=0.55, make_trail=True, retain=3200, trail_radius=0.04, trail_color=vector(0.45,0.75,1))' } },
+  { type: 'python_raw_block', fields: { CODE: 'moon = sphere(pos=vector(8.2,0.9,0), radius=0.13, color=vector(0.88,0.88,0.94), shininess=0.28, make_trail=True, retain=1200, trail_radius=0.02, trail_color=vector(0.8,0.8,0.9))' } },
 
   /* ── Gravitational parameters ──────────────────────────── */
-  // G=10, M_star=10.33 → v_circ = sqrt(10*10.33/8.2) ≈ 3.55 (planet) ; sqrt(10*0.16/0.95) ≈ 1.30 (moon)
+  // G=10, M_sun=10.33 → v_circ = sqrt(10*10.33/8.2) ≈ 3.55 (Earth)
+  // M_earth=1.0 → v_moon_rel = sqrt(10*1.0/0.9) ≈ 3.33 (Moon around Earth)
+  // Hill sphere = 8.2*(1.0/(3*10.33))^(1/3) ≈ 2.6 >> 0.9 moon orbit (stable)
   { type: 'set_scalar_block', fields: { NAME: 'G', VALUE: '10' } },
-  { type: 'set_scalar_block', fields: { NAME: 'M_star', VALUE: '10.33' } },
-  { type: 'set_scalar_block', fields: { NAME: 'M_planet', VALUE: '0.16' } },
+  { type: 'set_scalar_block', fields: { NAME: 'M_sun', VALUE: '10.33' } },
+  { type: 'set_scalar_block', fields: { NAME: 'M_earth', VALUE: '1.0' } },
+
+  /* ── Velocities ────────────────────────────────────────── */
+  { type: 'set_velocity_block', fields: { OBJ: 'earth', VX: '0', VY: '3.55', VZ: '0' } },
+  // Moon: CCW orbit around Earth. offset = (0,0.9,0), relative vel = (-3.33,0,0) perpendicular → CCW
+  { type: 'set_attr_expr_block', fields: { OBJ: 'moon', ATTR: 'velocity', EXPR: 'earth.velocity + vector(-3.33, 0, 0)' } },
 
   /* ── Time step and state ───────────────────────────────── */
-  { type: 'time_step_block', fields: { DT: '0.0016' } },
+  { type: 'time_step_block', fields: { DT: '0.0008' } },
   { type: 'set_scalar_block', fields: { NAME: 't', VALUE: '0' } },
 
-  /* ── Planet velocity arrow ─────────────────────────────── */
-  { type: 'arrow_block', fields: { NAME: 'planet_arrow', X: '8.2', Y: '0', Z: '0', AX: '0', AY: '0', AZ: '0', COL: '#ff734d' } },
+  /* ── Compute initial accelerations for velocity-Verlet ── */
+  { type: 'comment_block', fields: { TEXT: 'Raw code: initial accelerations for velocity-Verlet' } },
+  { type: 'python_raw_block', fields: { CODE: 'r_es = earth.pos - sun.pos; d_es = max(mag(r_es), 1.2)' } },
+  { type: 'python_raw_block', fields: { CODE: 'a_earth = -G * M_sun / d_es**2 * norm(r_es)' } },
+  { type: 'python_raw_block', fields: { CODE: 'r_ms = moon.pos - sun.pos; d_ms = max(mag(r_ms), 1.2)' } },
+  { type: 'python_raw_block', fields: { CODE: 'r_me = moon.pos - earth.pos; d_me = max(mag(r_me), 0.22)' } },
+  { type: 'python_raw_block', fields: { CODE: 'a_moon = -G * M_sun / d_ms**2 * norm(r_ms) - G * M_earth / d_me**2 * norm(r_me)' } },
+
+  /* ── Earth velocity arrow ──────────────────────────────── */
+  { type: 'arrow_block', fields: { NAME: 'earth_arrow', X: '8.2', Y: '0', Z: '0', AX: '0', AY: '0', AZ: '0', COL: '#ff734d' } },
 
   /* ── Telemetry label (raw) ─────────────────────────────── */
   { type: 'comment_block', fields: { TEXT: 'Raw code: create telemetry label for orbit diagnostics' } },
-  { type: 'python_raw_block', fields: { CODE: 'telemetry = label(pos=vector(-10.8, 9.5, 0), text="", height=12, box=False, opacity=0, color=color.white)' } },
+  { type: 'python_raw_block', fields: { CODE: 'telemetry = label(pos=vector(-12, 11, 0), text="", height=12, box=False, opacity=0, color=color.white)' } },
 
   /* ── Animation loop ────────────────────────────────────── */
   { type: 'forever_loop_block', body: [
     { type: 'rate_block', fields: { N: '900' } },
 
-    // Gravitational computations with softening (raw — complex math)
-    { type: 'comment_block', fields: { TEXT: 'Raw code: gravitational accelerations with softening' } },
-    { type: 'python_raw_block', fields: { CODE: 'r_ps = planet.pos - star.pos; d_ps = max(mag(r_ps), 1.2)' } },
-    { type: 'python_raw_block', fields: { CODE: 'a_planet = -G * M_star / d_ps**2 * norm(r_ps)' } },
-    { type: 'python_raw_block', fields: { CODE: 'r_ms = moon.pos - star.pos; d_ms = max(mag(r_ms), 1.2)' } },
-    { type: 'python_raw_block', fields: { CODE: 'r_mp = moon.pos - planet.pos; d_mp = max(mag(r_mp), 0.22)' } },
-    { type: 'python_raw_block', fields: { CODE: 'a_moon_star = -G * M_star / d_ms**2 * norm(r_ms)' } },
-    { type: 'set_scalar_block', fields: { NAME: 'a_moon_planet', VALUE: '-G * M_planet / d_mp**2 * norm(r_mp)' } },
-    { type: 'set_scalar_block', fields: { NAME: 'a_moon', VALUE: 'a_moon_star + a_moon_planet' } },
+    // Velocity-Verlet integration (symplectic — conserves energy)
+    // Half-step velocity
+    { type: 'comment_block', fields: { TEXT: 'Velocity-Verlet: half-step velocity kick' } },
+    { type: 'add_attr_expr_block', fields: { EXPR: 'a_earth * dt / 2', OBJ: 'earth', ATTR: 'velocity' } },
+    { type: 'add_attr_expr_block', fields: { EXPR: 'a_moon * dt / 2', OBJ: 'moon', ATTR: 'velocity' } },
 
-    // Velocity & position updates
-    { type: 'add_attr_expr_block', fields: { EXPR: 'a_planet * dt', OBJ: 'planet', ATTR: 'velocity' } },
-    { type: 'add_attr_expr_block', fields: { EXPR: 'a_moon * dt', OBJ: 'moon', ATTR: 'velocity' } },
-    { type: 'update_position_block', fields: { OBJ: 'planet', DT: 'dt' } },
+    // Full-step position drift
+    { type: 'update_position_block', fields: { OBJ: 'earth', DT: 'dt' } },
     { type: 'update_position_block', fields: { OBJ: 'moon', DT: 'dt' } },
 
+    // Recompute accelerations at new positions (raw — complex math)
+    { type: 'comment_block', fields: { TEXT: 'Raw code: recompute accelerations at new positions' } },
+    { type: 'python_raw_block', fields: { CODE: 'r_es = earth.pos - sun.pos; d_es = max(mag(r_es), 1.2)' } },
+    { type: 'python_raw_block', fields: { CODE: 'a_earth = -G * M_sun / d_es**2 * norm(r_es)' } },
+    { type: 'python_raw_block', fields: { CODE: 'r_ms = moon.pos - sun.pos; d_ms = max(mag(r_ms), 1.2)' } },
+    { type: 'python_raw_block', fields: { CODE: 'r_me = moon.pos - earth.pos; d_me = max(mag(r_me), 0.22)' } },
+    { type: 'python_raw_block', fields: { CODE: 'a_moon = -G * M_sun / d_ms**2 * norm(r_ms) - G * M_earth / d_me**2 * norm(r_me)' } },
+
+    // Complete velocity update (second half-step kick)
+    { type: 'comment_block', fields: { TEXT: 'Velocity-Verlet: second half-step velocity kick' } },
+    { type: 'add_attr_expr_block', fields: { EXPR: 'a_earth * dt / 2', OBJ: 'earth', ATTR: 'velocity' } },
+    { type: 'add_attr_expr_block', fields: { EXPR: 'a_moon * dt / 2', OBJ: 'moon', ATTR: 'velocity' } },
+
     // Visual updates
-    { type: 'set_attr_expr_block', fields: { OBJ: 'corona', ATTR: 'pos', EXPR: 'star.pos' } },
-    { type: 'set_attr_expr_block', fields: { OBJ: 'planet_arrow', ATTR: 'pos', EXPR: 'planet.pos' } },
-    { type: 'set_attr_expr_block', fields: { OBJ: 'planet_arrow', ATTR: 'axis', EXPR: '1.2 * a_planet' } },
+    { type: 'set_attr_expr_block', fields: { OBJ: 'corona', ATTR: 'pos', EXPR: 'sun.pos' } },
+    { type: 'set_attr_expr_block', fields: { OBJ: 'earth_arrow', ATTR: 'pos', EXPR: 'earth.pos' } },
+    { type: 'set_attr_expr_block', fields: { OBJ: 'earth_arrow', ATTR: 'axis', EXPR: '1.2 * a_earth' } },
 
     // Telemetry (raw)
-    { type: 'python_raw_block', fields: { CODE: 'telemetry.text = "t = " + str(round(t,2)) + " s\\nplanet speed = " + str(round(mag(planet.velocity),3)) + "\\nmoon speed = " + str(round(mag(moon.velocity),3)) + "\\nplanet radius = " + str(round(mag(planet.pos),3))' } },
+    { type: 'python_raw_block', fields: { CODE: 'telemetry.text = "t = " + str(round(t,2)) + " s\\nEarth speed = " + str(round(mag(earth.velocity),3)) + "\\nMoon speed = " + str(round(mag(moon.velocity),3)) + "\\nEarth orbit r = " + str(round(mag(earth.pos),3))' } },
 
     // Advance time
     { type: 'set_scalar_block', fields: { NAME: 't', VALUE: 't + dt' } },
@@ -336,10 +353,10 @@ export const BLOCK_TEMPLATES = [
   },
   {
     id: 'blocks_orbits',
-    title: 'Orbit (Blocks Template)',
-    subtitle: 'Detailed star-planet-moon gravity system',
+    title: 'Sun, Earth & Moon (Blocks Template)',
+    subtitle: 'Three-body gravitational orbit system',
     description:
-      'Animated orbit template with starfield, trails, two-body + moon gravity, and real-time telemetry.',
+      'Moon orbits Earth while Earth orbits Sun. Velocity-Verlet integration for long-term stability, with starfield, trails, and telemetry.',
     xml: buildTemplate(ORBIT_BLOCKS),
   },
 ];
