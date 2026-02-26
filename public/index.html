@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#1e1e2e" />
+    <title>Physics IDE</title>
+
+    <!-- Inter font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+    <!-- Blockly core + built-in blocks + English messages -->
+    <script src="https://cdn.jsdelivr.net/npm/blockly@11/blockly_compressed.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/blockly@11/blocks_compressed.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/blockly@11/msg/en.js"></script>
+    <!-- Blockly Python code generator (provides Blockly.Python) -->
+    <script src="https://cdn.jsdelivr.net/npm/blockly@11/python_compressed.js"></script>
+
+    <!-- Monaco Editor loader -->
+    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.min.js"></script>
+
+        <!-- GlowScript / VPython 3D engine is loaded dynamically in glowRunner.js
+          with AMD temporarily disabled to avoid Monaco loader define() conflicts. -->
+
+    <script>
+      // Lightweight diagnostics used by src/utils/glowRunner.js
+      window.__GS_DIAG = function () {
+        return {
+          jQuery: !!window.jQuery,
+          jQueryUiResizable:
+            !!(window.jQuery && window.jQuery.fn && window.jQuery.fn.resizable),
+          GlowScript: !!window.GlowScript,
+          glowscript_compile: typeof window.glowscript_compile,
+          call_acorn_parse: typeof window.call_acorn_parse,
+          acorn_parse:
+            window.acorn && typeof window.acorn.parse !== "undefined"
+              ? typeof window.acorn.parse
+              : "missing",
+        };
+      };
+    </script>
+
+    <style>
+      /* GlowScript injects canvases; make sure they fill the host */
+      .glow-host canvas { display: block; width: 100% !important; height: 100% !important; }
+    </style>
+  </head>
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"></div>
+  </body>
+</html>
