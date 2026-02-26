@@ -1,12 +1,12 @@
 /**
  * blocklyGenerator.js
  *
- * Defines ~15 custom VPython blocks across four categories:
+ * Defines custom VPython blocks across several categories:
  *   Scene Objects  – sphere, box, cylinder, arrow, helix
  *   Vectors        – vector
  *   Motion         – set velocity, update position, apply force, set gravity
- *   Control        – rate, forever loop, time step
- *   Utility        – scene setup, comment
+ *   Control        – rate, forever loop, time step, if/else, break
+ *   Utility        – scene setup, comment, telemetry
  *
  * All standard Blockly blocks (Logic, Loops, Math, Text, Variables, Functions)
  * are provided by the Blockly CDN — we do NOT recreate them here.
@@ -30,6 +30,16 @@ function hexToVPythonColor(hex) {
   const b = parseInt(hex.slice(5, 7), 16) / 255;
   if (isNaN(r) || isNaN(g) || isNaN(b)) return 'color.white';
   return `vector(${r.toFixed(2)}, ${g.toFixed(2)}, ${b.toFixed(2)})`;
+}
+
+/* ── String escape helper ───────────────────────────────── */
+function escPy(s) {
+  return String(s)
+    .replace(/\\/g, '\\\\')
+    .replace(/"/g, '\\"')
+    .replace(/\n/g, '\\n')
+    .replace(/\r/g, '\\r')
+    .replace(/\t/g, '\\t');
 }
 
 /* ================================================================
@@ -550,6 +560,111 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       colour: 10,
       tooltip: "Execute any Python expression as a statement (e.g. anonymous object creation)",
     },
+
+    /* ── If / Else block ───────────────────────────────────── */
+    {
+      type: "if_else_block",
+      message0: "if %1 %2 do %3 else %4 do %5",
+      args0: [
+        { type: "field_input", name: "COND", text: "True" },
+        { type: "input_dummy" },
+        { type: "input_statement", name: "BODY_IF" },
+        { type: "input_dummy" },
+        { type: "input_statement", name: "BODY_ELSE" },
+      ],
+      previousStatement: null,
+      nextStatement: null,
+      colour: 260,
+      tooltip: "If/else: run first block if condition is true, otherwise run else block",
+    },
+
+    /* ── Break loop block ──────────────────────────────────── */
+    {
+      type: "break_loop_block",
+      message0: "break loop",
+      previousStatement: null,
+      nextStatement: null,
+      colour: 260,
+      tooltip: "Exit the current loop immediately",
+    },
+
+    /* ── Telemetry (measurement display) block ─────────────── */
+    {
+      type: "telemetry_update_block",
+      message0: "update %1 display %2 %3 = round( %4 , %5 ) %6 %7 %8 = round( %9 , %10 ) %11 %12 %13 = round( %14 , %15 ) %16 %17 %18 = round( %19 , %20 ) %21 %22 %23 = round( %24 , %25 ) %26",
+      args0: [
+        { type: "field_input", name: "LABEL", text: "telemetry" },
+        { type: "input_dummy" },
+        { type: "field_input", name: "M1", text: "t" },
+        { type: "field_input", name: "V1", text: "t" },
+        { type: "field_number", name: "D1", value: 2 },
+        { type: "field_input", name: "U1", text: "s" },
+        { type: "input_dummy" },
+        { type: "field_input", name: "M2", text: "speed" },
+        { type: "field_input", name: "V2", text: "speed" },
+        { type: "field_number", name: "D2", value: 2 },
+        { type: "field_input", name: "U2", text: "m/s" },
+        { type: "input_dummy" },
+        { type: "field_input", name: "M3", text: "height" },
+        { type: "field_input", name: "V3", text: "height" },
+        { type: "field_number", name: "D3", value: 2 },
+        { type: "field_input", name: "U3", text: "m" },
+        { type: "input_dummy" },
+        { type: "field_input", name: "M4", text: "" },
+        { type: "field_input", name: "V4", text: "" },
+        { type: "field_number", name: "D4", value: 2 },
+        { type: "field_input", name: "U4", text: "" },
+        { type: "input_dummy" },
+        { type: "field_input", name: "M5", text: "" },
+        { type: "field_input", name: "V5", text: "" },
+        { type: "field_number", name: "D5", value: 2 },
+        { type: "field_input", name: "U5", text: "" },
+      ],
+      previousStatement: null,
+      nextStatement: null,
+      colour: 330,
+      tooltip: "Update a telemetry label with up to 5 measurement lines. Leave metric name blank to skip a line.",
+    },
+
+    /* ── Cylinder with expression positions (for loops) ────── */
+    {
+      type: "cylinder_expr_block",
+      message0: "%1 = cylinder  pos( %2 , %3 , %4 )  axis( %5 , %6 , %7 )  radius %8  color %9",
+      args0: [
+        { type: "field_input", name: "NAME", text: "" },
+        { type: "field_input", name: "X", text: "0" },
+        { type: "field_input", name: "Y", text: "0" },
+        { type: "field_input", name: "Z", text: "0" },
+        { type: "field_input", name: "AX", text: "0" },
+        { type: "field_input", name: "AY", text: "0" },
+        { type: "field_input", name: "AZ", text: "0" },
+        { type: "field_input", name: "R", text: "0.5" },
+        { type: "field_input", name: "COL", text: "#00ff00" },
+      ],
+      previousStatement: null,
+      nextStatement: null,
+      colour: 210,
+      tooltip: "Create a VPython cylinder (positions accept expressions/variables)",
+    },
+
+    /* ── Sphere with expression positions (for loops) ──────── */
+    {
+      type: "sphere_expr_block",
+      message0: "%1 = sphere  pos( %2 , %3 , %4 )  radius %5  color %6  %7",
+      args0: [
+        { type: "field_input", name: "NAME", text: "" },
+        { type: "field_input", name: "X", text: "0" },
+        { type: "field_input", name: "Y", text: "0" },
+        { type: "field_input", name: "Z", text: "0" },
+        { type: "field_input", name: "R", text: "0.5" },
+        { type: "field_input", name: "COL", text: "#ffffff" },
+        { type: "field_input", name: "EXTRA", text: "" },
+      ],
+      previousStatement: null,
+      nextStatement: null,
+      colour: 210,
+      tooltip: "Create a VPython sphere (positions/radius accept expressions). EXTRA accepts additional keyword args like emissive=True, opacity=0.9",
+    },
   ]);
 
   /* ──────────────────────────────────────────────────────────
@@ -653,7 +768,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
 
   // Utility
   gen["scene_setup_block"] = function (block) {
-    const title = block.getFieldValue("TITLE") || "";
+    const title = escPy(block.getFieldValue("TITLE") || "");
     const bg = hexToVPythonColor(block.getFieldValue("BG"));
     return `scene.title = "${title}"\nscene.background = ${bg}\n`;
   };
@@ -670,7 +785,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
   };
 
   gen["label_block"] = function (block) {
-    const text = block.getFieldValue("TEXT") || "";
+    const text = escPy(block.getFieldValue("TEXT") || "");
     const x = block.getFieldValue("X"), y = block.getFieldValue("Y"), z = block.getFieldValue("Z");
     return `label(text="${text}", pos=vector(${x}, ${y}, ${z}), box=False, opacity=0, color=color.white)\n`;
   };
@@ -728,7 +843,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
   };
 
   gen["scene_caption_block"] = function (block) {
-    const text = block.getFieldValue("TEXT") || "";
+    const text = escPy(block.getFieldValue("TEXT") || "");
     return `scene.caption = "${text}"\n`;
   };
 
@@ -804,7 +919,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
   gen["label_full_block"] = function (block) {
     const name   = (block.getFieldValue("NAME") || "").trim();
     const x      = block.getFieldValue("X"), y = block.getFieldValue("Y"), z = block.getFieldValue("Z");
-    const text   = block.getFieldValue("TEXT") || "";
+    const text   = escPy(block.getFieldValue("TEXT") || "");
     const height = block.getFieldValue("HEIGHT");
     const expr   = `label(pos=vector(${x}, ${y}, ${z}), text="${text}", height=${height}, box=False, opacity=0, color=color.white)`;
     return name ? `${name} = ${expr}\n` : `${expr}\n`;
@@ -813,6 +928,67 @@ export function defineCustomBlocksAndGenerator(Blockly) {
   gen["exec_block"] = function (block) {
     const expr = (block.getFieldValue("EXPR") || "").trim();
     return `${expr}\n`;
+  };
+
+  // New blocks
+  gen["if_else_block"] = function (block) {
+    const cond = (block.getFieldValue("COND") || "True").trim();
+    const bodyIf = Python.statementToCode(block, "BODY_IF") || "  pass\n";
+    const bodyElse = Python.statementToCode(block, "BODY_ELSE") || "  pass\n";
+    return `if ${cond}:\n${bodyIf}else:\n${bodyElse}`;
+  };
+
+  gen["break_loop_block"] = function () {
+    return "break\n";
+  };
+
+  gen["telemetry_update_block"] = function (block) {
+    const label = (block.getFieldValue("LABEL") || "telemetry").trim();
+    const lines = [];
+    for (let i = 1; i <= 5; i++) {
+      const m = (block.getFieldValue("M" + i) || "").trim();
+      const v = (block.getFieldValue("V" + i) || "").trim();
+      const d = block.getFieldValue("D" + i);
+      const u = (block.getFieldValue("U" + i) || "").trim();
+      if (m && v) {
+        const unitPart = u ? ` + " ${u}"` : '';
+        lines.push(`"${m} = " + str(round(${v}, ${d}))${unitPart}`);
+      }
+    }
+    if (lines.length === 0) {
+      return `${label}.text = ""\n`;
+    }
+    const joined = lines.join(' + "\\n" + ');
+    return `${label}.text = ${joined}\n`;
+  };
+
+  gen["cylinder_expr_block"] = function (block) {
+    const name = (block.getFieldValue("NAME") || "").trim();
+    const x = (block.getFieldValue("X") || "0").trim();
+    const y = (block.getFieldValue("Y") || "0").trim();
+    const z = (block.getFieldValue("Z") || "0").trim();
+    const ax = (block.getFieldValue("AX") || "0").trim();
+    const ay = (block.getFieldValue("AY") || "0").trim();
+    const az = (block.getFieldValue("AZ") || "0").trim();
+    const r = (block.getFieldValue("R") || "0.5").trim();
+    const colRaw = (block.getFieldValue("COL") || "").trim();
+    const col = colRaw.startsWith('#') ? hexToVPythonColor(colRaw) : (colRaw || 'color.white');
+    const expr = `cylinder(pos=vector(${x}, ${y}, ${z}), axis=vector(${ax}, ${ay}, ${az}), radius=${r}, color=${col})`;
+    return name ? `${name} = ${expr}\n` : `${expr}\n`;
+  };
+
+  gen["sphere_expr_block"] = function (block) {
+    const name = (block.getFieldValue("NAME") || "").trim();
+    const x = (block.getFieldValue("X") || "0").trim();
+    const y = (block.getFieldValue("Y") || "0").trim();
+    const z = (block.getFieldValue("Z") || "0").trim();
+    const r = (block.getFieldValue("R") || "0.5").trim();
+    const colRaw = (block.getFieldValue("COL") || "").trim();
+    const col = colRaw.startsWith('#') ? hexToVPythonColor(colRaw) : (colRaw || 'color.white');
+    const extra = (block.getFieldValue("EXTRA") || "").trim();
+    const extraPart = extra ? `, ${extra}` : '';
+    const expr = `sphere(pos=vector(${x}, ${y}, ${z}), radius=${r}, color=${col}${extraPart})`;
+    return name ? `${name} = ${expr}\n` : `${expr}\n`;
   };
 
   initialized = true;

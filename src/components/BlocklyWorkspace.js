@@ -14,10 +14,18 @@ const TOOLBOX_XML = `
 <xml>
   <category name="Scene Objects" colour="#4a90d9">
     <block type="sphere_block"></block>
+    <block type="sphere_trail_block"></block>
+    <block type="sphere_emissive_block"></block>
+    <block type="sphere_expr_block"></block>
     <block type="box_block"></block>
+    <block type="box_opacity_block"></block>
     <block type="cylinder_block"></block>
+    <block type="cylinder_expr_block"></block>
     <block type="arrow_block"></block>
     <block type="helix_block"></block>
+    <block type="helix_full_block"></block>
+    <block type="label_block"></block>
+    <block type="label_full_block"></block>
   </category>
   <category name="Vectors" colour="#3bbfa0">
     <block type="vector_block"></block>
@@ -31,20 +39,29 @@ const TOOLBOX_XML = `
   <category name="Control" colour="#9b59b6">
     <block type="rate_block"></block>
     <block type="forever_loop_block"></block>
+    <block type="for_range_block"></block>
     <block type="time_step_block"></block>
-    <block type="scene_setup_block"></block>
+    <block type="if_block"></block>
+    <block type="if_else_block"></block>
+    <block type="break_loop_block"></block>
   </category>
-  <category name="Utility" colour="#27ae60">
-    <block type="comment_block"></block>
+  <category name="Scene" colour="#27ae60">
+    <block type="scene_setup_block"></block>
     <block type="scene_range_block"></block>
+    <block type="scene_forward_block"></block>
+    <block type="scene_center_block"></block>
+    <block type="scene_caption_block"></block>
+    <block type="scene_ambient_block"></block>
     <block type="local_light_block"></block>
-    <block type="label_block"></block>
+    <block type="comment_block"></block>
+    <block type="telemetry_update_block"></block>
   </category>
   <category name="Advanced" colour="#d35400">
     <block type="set_scalar_block"></block>
     <block type="set_vector_expr_block"></block>
     <block type="set_attr_expr_block"></block>
     <block type="add_attr_expr_block"></block>
+    <block type="exec_block"></block>
     <block type="python_raw_block"></block>
     <block type="python_raw_expr_block"></block>
   </category>
@@ -295,4 +312,55 @@ function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, isD
   return <div ref={hostRef} className="blockly-host" />;
 }
 
+/* ── Read-only Blockly (for showing block reference alongside code) ── */
+function ReadOnlyBlockly({ xml, isDark }) {
+  const hostRef = useRef(null);
+  const wsRef = useRef(null);
+
+  useEffect(() => {
+    const Blockly = window.Blockly;
+    if (!Blockly || !hostRef.current) return undefined;
+
+    defineCustomBlocksAndGenerator(Blockly);
+    const theme = buildBlocklyTheme(Blockly, isDark);
+
+    const ws = Blockly.inject(hostRef.current, {
+      readOnly: true,
+      theme,
+      scrollbars: true,
+      renderer: "zelos",
+      sounds: false,
+      grid: { spacing: 25, length: 3, colour: isDark ? "#2a2c40" : "#ddd", snap: false },
+      zoom: { controls: false, wheel: true, startScale: 0.65, maxScale: 2, minScale: 0.15, scaleSpeed: 1.1 },
+    });
+    wsRef.current = ws;
+
+    if (xml) {
+      try {
+        const dom = Blockly.utils.xml.textToDom(xml);
+        Blockly.Xml.domToWorkspace(dom, ws);
+      } catch (e) {
+        console.warn("ReadOnlyBlockly: could not load XML", e);
+      }
+    }
+
+    return () => {
+      ws.dispose();
+      wsRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [xml]);
+
+  useEffect(() => {
+    const ws = wsRef.current;
+    const Blockly = window.Blockly;
+    if (!ws || !Blockly) return;
+    const theme = buildBlocklyTheme(Blockly, isDark);
+    ws.setTheme(theme);
+  }, [isDark]);
+
+  return <div ref={hostRef} className="blockly-host blockly-readonly" />;
+}
+
 export default BlocklyWorkspace;
+export { ReadOnlyBlockly };

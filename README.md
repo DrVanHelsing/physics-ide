@@ -135,6 +135,7 @@ Why this matters:
 ## Block Templates (`src/utils/blockTemplates.js`)
 
 - `blocks_projectile` — animated projectile with drag model and telemetry
+- `blocks_spring` — damped spring-mass oscillator with KE/PE telemetry
 - `blocks_orbits` — animated orbital system with softened gravity and telemetry
 
 ### Template design rules
@@ -153,13 +154,24 @@ Defined in `src/utils/blocklyGenerator.js` and exposed via toolbox in `src/compo
 
 - `scene_setup_block`
 - `scene_range_block`
+- `scene_forward_block`
+- `scene_center_block`
+- `scene_caption_block`
+- `scene_ambient_block`
 - `local_light_block`
 - `sphere_block`
+- `sphere_trail_block`
+- `sphere_emissive_block`
+- `sphere_expr_block` (**new** — expression-based pos, trail, emissive)
 - `box_block`
+- `box_opacity_block`
 - `cylinder_block`
+- `cylinder_expr_block` (**new** — expression-based pos/axis/radius)
 - `arrow_block`
 - `helix_block`
+- `helix_full_block`
 - `label_block`
+- `label_full_block`
 
 ## Motion/Control Blocks
 
@@ -170,16 +182,22 @@ Defined in `src/utils/blocklyGenerator.js` and exposed via toolbox in `src/compo
 - `time_step_block`
 - `rate_block`
 - `forever_loop_block`
+- `for_range_block`
+- `if_block`
+- `if_else_block` (**new** — if/else with two block sockets)
+- `break_loop_block` (**new** — emits `break`)
 
 ## Utility/Expression Blocks
 
 - `comment_block`
 - `set_scalar_block`
 - `set_vector_expr_block`
-- `set_attr_expr_block` (**new**)
-- `add_attr_expr_block` (**new**)
+- `set_attr_expr_block`
+- `add_attr_expr_block`
+- `telemetry_update_block` (**new** — formatted label text update)
 - `python_raw_block`
 - `python_raw_expr_block`
+- `exec_block`
 
 ---
 
@@ -319,9 +337,9 @@ PDF features include:
 
 ---
 
-## Suggested next improvements
+## Future ideas
 
-- Add custom blocks for conditionals with scalar comparisons specific to physics state
-- Add custom block for gravitational acceleration between two named bodies
-- Add validation warnings when raw blocks contain multiple semicolon statements (optional linting)
-- Add template self-check command that validates generated code for loop/update presence
+- Custom block for gravitational acceleration between two named bodies
+- Validation warnings when raw blocks contain multiple semicolon statements
+- Template self-check command that validates generated code for loop/update presence
+- Import `.xml` button on Start Menu for restoring saved block workspaces

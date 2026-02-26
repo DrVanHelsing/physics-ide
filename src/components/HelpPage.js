@@ -204,6 +204,27 @@ export default function HelpPage({ onClose }) {
                   <tr><td><Tag color="green">Blank</Tag> Blank Project</td><td>Advanced users, custom models</td><td>Yes (code view only)</td></tr>
                 </tbody>
               </table>
+
+              <h3 className="help-h3">Split view for templates</h3>
+              <p>
+                When working with a template, Physics IDE shows a <strong>split-pane layout</strong>:
+                the primary editor occupies the top two-thirds, while a <strong>read-only reference
+                view</strong> fills the bottom third.
+              </p>
+              <ul className="help-list">
+                <li>
+                  <Tag color="purple">Blocks Template</Tag> — editable Block Editor (top) +
+                  read-only generated code (bottom). See exactly how each block translates to VPython.
+                </li>
+                <li>
+                  <Tag color="blue">Code Template</Tag> — editable Code Editor (top) +
+                  read-only Block Reference view (bottom). Inspect the block structure while editing code.
+                </li>
+              </ul>
+              <Note type="tip">
+                The split view makes it easy to compare blocks and code side-by-side — ideal for
+                students transitioning from visual to textual programming.
+              </Note>
             </section>
 
             {/* ══════════════ GETTING STARTED ══════════════ */}
@@ -384,6 +405,24 @@ export default function HelpPage({ onClose }) {
                     <Pre>spring = helix(pos=anchor, axis=vector(4.0,0,0), radius=0.36, coils=16, thickness=0.055, color=...)</Pre>
                   </div>
                 </div>
+                <div className="help-block-row">
+                  <div className="help-block-name">sphere_expr_block</div>
+                  <div className="help-block-desc">
+                    Creates a sphere whose <Code>pos</Code> is a free Python expression (e.g. <Code>planet.pos</Code>).
+                    Used inside animation loops to create objects that track another body's position.
+                    Also supports <Code>make_trail</Code>, <Code>retain</Code>, <Code>trail_radius</Code>, <Code>emissive</Code>, and <Code>shininess</Code>.
+                    <Pre>moon = sphere(pos=planet.pos + vector(0.95, 0, 0), radius=0.18, color=...,{"\n"}       make_trail=True, trail_radius=0.018, retain=1200)</Pre>
+                  </div>
+                </div>
+                <div className="help-block-row">
+                  <div className="help-block-name">cylinder_expr_block</div>
+                  <div className="help-block-desc">
+                    Creates a cylinder whose <Code>pos</Code>, <Code>axis</Code>, and <Code>radius</Code> are free Python expressions.
+                    Ideal for dynamically positioned geometry such as launch rails or connecting rods
+                    where the position depends on another object.
+                    <Pre>rail = cylinder(pos=vector(0, ground_y, 0), axis=vector(2.5*cos(angle), 2.5*sin(angle), 0), radius=0.06, color=...)</Pre>
+                  </div>
+                </div>
               </div>
 
               <h3 className="help-h3">Vectors <Tag color="teal">colour 180</Tag></h3>
@@ -493,6 +532,25 @@ export default function HelpPage({ onClose }) {
                   </div>
                 </div>
                 <div className="help-block-row">
+                  <div className="help-block-name">if_else_block</div>
+                  <div className="help-block-desc">
+                    An if/else conditional with separate bodies for the true and false branches.
+                    Fields: free-text <Code>condition</Code>, plus two block sockets (<Code>do</Code> and <Code>else</Code>).
+                    Replaces raw Python ternary patterns in block templates.
+                    <Pre>{`if stretch > 0:\n    spring.color = vector(1, 0.45, 0.15)\nelse:\n    spring.color = vector(0.3, 0.55, 1)`}</Pre>
+                  </div>
+                </div>
+                <div className="help-block-row">
+                  <div className="help-block-name">break_loop_block</div>
+                  <div className="help-block-desc">
+                    Emits a Python <Code>break</Code> statement. Place inside a <Code>forever_loop_block</Code>
+                    (typically nested inside an <Code>if_block</Code>) to terminate the animation when
+                    a stop condition is met.
+                    <Pre>{`if mag(ball.velocity) < 0.08 and ball.pos.y <= ball.radius + 0.01:\n    break`}</Pre>
+                    <Note type="info">Used in the Projectile template to stop the loop when the ball comes to rest.</Note>
+                  </div>
+                </div>
+                <div className="help-block-row">
                   <div className="help-block-name">rate_block</div>
                   <div className="help-block-desc">
                     Throttles the loop to N iterations per second. This is <strong>essential</strong> — without
@@ -511,7 +569,7 @@ export default function HelpPage({ onClose }) {
                 </div>
               </div>
 
-              <h3 className="help-h3">Utility <Tag color="pink">colour 330</Tag></h3>
+              <h3 className="help-h3">Scene <Tag color="pink">colour 330</Tag></h3>
               <div className="help-block-table">
                 <div className="help-block-row">
                   <div className="help-block-name">scene_setup_block</div>
@@ -579,6 +637,15 @@ export default function HelpPage({ onClose }) {
                     Creates a named telemetry label with a configurable <Code>height</Code> field (font size in pixels).
                     Always outputs white text, no box, transparent background — the standard HUD style used in all built-in templates.
                     <Pre>telemetry = label(pos=vector(8.5, 9.2, 0), text="", height=12, box=False, opacity=0, color=color.white)</Pre>
+                  </div>
+                </div>
+                <div className="help-block-row">
+                  <div className="help-block-name">telemetry_update_block</div>
+                  <div className="help-block-desc">
+                    Updates a label's <Code>.text</Code> property with a formatted telemetry string.
+                    Fields: <Code>label</Code> (label object name), <Code>prefix</Code> (display text), <Code>expr</Code> (Python expression), <Code>fmt</Code> (format spec, e.g. <Code>.1f</Code>).
+                    <Pre>{'info.text = "Speed: " + "{:.1f}".format(mag(ball.velocity)) + " m/s"'}</Pre>
+                    <Note type="tip">This block replaces complex string concatenation patterns that previously required <Code>python_raw_block</Code>.</Note>
                   </div>
                 </div>
                 <div className="help-block-row">

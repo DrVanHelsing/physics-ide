@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import BlocklyWorkspace from "./components/BlocklyWorkspace";
+import { ReadOnlyBlockly } from "./components/BlocklyWorkspace";
 import CodeEditor from "./components/CodeEditor";
 import GlowCanvas from "./components/GlowCanvas";
 import Toolbar from "./components/Toolbar";
@@ -307,6 +308,9 @@ function App() {
     : projectType === "code_blank"     ? "blocks"
     : null;
 
+  // Should we show a read-only opposite panel?
+  const isTemplate = projectType === "block_template" || projectType === "code_template";
+
   return (
     <div className="app-shell">
       <VariableDialog />
@@ -348,33 +352,58 @@ function App() {
           {/* ── Blocks mode ── */}
           {mode === "blocks" ? (
             <>
-              <div className="pane-header pane-header--blocks">
-                <BlocksIcon size={14} /> Block Editor
+              <div className="editor-split-top">
+                <div className="pane-header pane-header--blocks">
+                  <BlocksIcon size={14} /> Block Editor
+                </div>
+                <BlocklyWorkspace
+                  initialXml={workspaceXml}
+                  onWorkspaceReady={handleWorkspaceReady}
+                  onWorkspaceChange={handleWorkspaceChange}
+                  isDark={isDark}
+                />
               </div>
-              <BlocklyWorkspace
-                initialXml={workspaceXml}
-                onWorkspaceReady={handleWorkspaceReady}
-                onWorkspaceChange={handleWorkspaceChange}
-                isDark={isDark}
-              />
+              {isTemplate && (
+                <div className="editor-split-bottom">
+                  <div className="pane-header pane-header--code pane-header--code-preview">
+                    <CodeIcon size={14} /> Generated Code (Read Only)
+                  </div>
+                  <CodeEditor
+                    value={pythonCode}
+                    isDark={isDark}
+                    readOnly={true}
+                    onChange={() => {}}
+                  />
+                </div>
+              )}
             </>
           ) : (
             <>
-              <div className="pane-header pane-header--code">
-                <CodeIcon size={14} /> {isCustom ? "Code View Only" : projectType === "code_blank" ? "Code Editor" : "Code Editor"}
+              <div className={isTemplate ? "editor-split-top" : ""}>
+                <div className="pane-header pane-header--code">
+                  <CodeIcon size={14} /> {isCustom ? "Code View Only" : projectType === "code_blank" ? "Code Editor" : "Code Editor"}
+                </div>
+                <CodeEditor
+                  value={pythonCode}
+                  isDark={isDark}
+                  readOnly={isCustom}
+                  onChange={
+                    isCustom
+                      ? () => {}
+                      : (v) => {
+                          setPythonCode(v);
+                        }
+                  }
+                />
               </div>
-              <CodeEditor
-                value={pythonCode}
-                isDark={isDark}
-                readOnly={isCustom}
-                onChange={
-                  isCustom
-                    ? () => {}
-                    : (v) => {
-                        setPythonCode(v);
-                      }
-                }
-              />
+              {isTemplate && (
+                <div className="editor-split-bottom">
+                  <div className="pane-header pane-header--blocks pane-header--code-preview">
+                    <BlocksIcon size={14} /> Block Reference (Read Only)
+                  </div>
+                  <ReadOnlyBlockly xml={workspaceXml} isDark={isDark} />
+                </div>
+              )}
             </>
           )}
         </section>
