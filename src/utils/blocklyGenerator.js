@@ -370,6 +370,186 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       colour: 10,
       tooltip: "Insert raw Python expression",
     },
+
+    /* ── Scene property blocks ─────────────────────────────── */
+    {
+      type: "scene_forward_block",
+      message0: "scene.forward = vector( %1 , %2 , %3 )",
+      args0: [
+        { type: "field_number", name: "X", value: 0 },
+        { type: "field_number", name: "Y", value: 0 },
+        { type: "field_number", name: "Z", value: -1 },
+      ],
+      previousStatement: null,
+      nextStatement: null,
+      colour: 330,
+      tooltip: "Set the scene viewing direction",
+    },
+    {
+      type: "scene_center_block",
+      message0: "scene.center = vector( %1 , %2 , %3 )",
+      args0: [
+        { type: "field_number", name: "X", value: 0 },
+        { type: "field_number", name: "Y", value: 0 },
+        { type: "field_number", name: "Z", value: 0 },
+      ],
+      previousStatement: null,
+      nextStatement: null,
+      colour: 330,
+      tooltip: "Set the scene center point",
+    },
+    {
+      type: "scene_caption_block",
+      message0: "scene.caption = %1",
+      args0: [{ type: "field_input", name: "TEXT", text: "Physics simulation\\n" }],
+      previousStatement: null,
+      nextStatement: null,
+      colour: 330,
+      tooltip: "Set the scene caption text",
+    },
+    {
+      type: "scene_ambient_block",
+      message0: "scene.ambient = color.gray( %1 )",
+      args0: [{ type: "field_number", name: "GRAY", value: 0.3, min: 0, max: 1, precision: 0.01 }],
+      previousStatement: null,
+      nextStatement: null,
+      colour: 330,
+      tooltip: "Set ambient light level (0 = dark, 1 = bright)",
+    },
+
+    /* ── Control flow ──────────────────────────────────────── */
+    {
+      type: "for_range_block",
+      message0: "for %1 in range( %2 , %3 , %4 ) %5 do %6",
+      args0: [
+        { type: "field_input", name: "VAR", text: "i" },
+        { type: "field_number", name: "START", value: 0 },
+        { type: "field_number", name: "STOP", value: 10 },
+        { type: "field_number", name: "STEP", value: 1 },
+        { type: "input_dummy" },
+        { type: "input_statement", name: "BODY" },
+      ],
+      previousStatement: null,
+      nextStatement: null,
+      colour: 260,
+      tooltip: "For loop: for VAR in range(start, stop, step)",
+    },
+    {
+      type: "if_block",
+      message0: "if %1 %2 do %3",
+      args0: [
+        { type: "field_input", name: "COND", text: "True" },
+        { type: "input_dummy" },
+        { type: "input_statement", name: "BODY" },
+      ],
+      previousStatement: null,
+      nextStatement: null,
+      colour: 260,
+      tooltip: "If statement with free-text condition",
+    },
+
+    /* ── Extended object constructors ──────────────────────── */
+    {
+      type: "sphere_trail_block",
+      message0: "%1 = sphere  pos( %2 , %3 , %4 )  radius %5  color %6  trail_r %7  trail_col %8  retain %9  shininess %10",
+      args0: [
+        { type: "field_input", name: "NAME", text: "ball" },
+        { type: "field_number", name: "X", value: 0 },
+        { type: "field_number", name: "Y", value: 0 },
+        { type: "field_number", name: "Z", value: 0 },
+        { type: "field_number", name: "R", value: 0.5, min: 0 },
+        { type: "field_input", name: "COL", text: "#ff0000" },
+        { type: "field_number", name: "TRAIL_R", value: 0.03, min: 0 },
+        { type: "field_input", name: "TRAIL_COL", text: "#ffff00" },
+        { type: "field_number", name: "RETAIN", value: 200, min: 1 },
+        { type: "field_number", name: "SHINE", value: 0.5, min: 0, max: 1, precision: 0.01 },
+      ],
+      previousStatement: null,
+      nextStatement: null,
+      colour: 210,
+      tooltip: "Create a VPython sphere with make_trail=True (trail must be set in constructor)",
+    },
+    {
+      type: "sphere_emissive_block",
+      message0: "%1 = sphere  pos( %2 , %3 , %4 )  radius %5  color %6  opacity %7  shininess %8  emissive",
+      args0: [
+        { type: "field_input", name: "NAME", text: "" },
+        { type: "field_number", name: "X", value: 0 },
+        { type: "field_number", name: "Y", value: 0 },
+        { type: "field_number", name: "Z", value: 0 },
+        { type: "field_number", name: "R", value: 0.5, min: 0 },
+        { type: "field_input", name: "COL", text: "#ffffff" },
+        { type: "field_number", name: "OPACITY", value: 1.0, min: 0, max: 1, precision: 0.01 },
+        { type: "field_number", name: "SHINE", value: 0.5, min: 0, max: 1, precision: 0.01 },
+      ],
+      previousStatement: null,
+      nextStatement: null,
+      colour: 210,
+      tooltip: "Create an emissive VPython sphere (glow/self-lit effect)",
+    },
+    {
+      type: "helix_full_block",
+      message0: "%1 = helix  pos %2  axis %3  radius %4  coils %5  thickness %6  color %7",
+      args0: [
+        { type: "field_input", name: "NAME", text: "spring" },
+        { type: "field_input", name: "POS", text: "vector(0,0,0)" },
+        { type: "field_input", name: "AXIS", text: "vector(1,0,0)" },
+        { type: "field_number", name: "R", value: 0.3, min: 0 },
+        { type: "field_number", name: "COILS", value: 10, min: 1 },
+        { type: "field_number", name: "THICK", value: 0.05, min: 0, precision: 0.001 },
+        { type: "field_input", name: "COL", text: "#cccccc" },
+      ],
+      previousStatement: null,
+      nextStatement: null,
+      colour: 210,
+      tooltip: "Create a VPython helix with coils and thickness",
+    },
+    {
+      type: "box_opacity_block",
+      message0: "%1 = box  pos( %2 , %3 , %4 )  size( %5 , %6 , %7 )  color %8  opacity %9",
+      args0: [
+        { type: "field_input", name: "NAME", text: "" },
+        { type: "field_input", name: "X", text: "0" },
+        { type: "field_input", name: "Y", text: "0" },
+        { type: "field_input", name: "Z", text: "0" },
+        { type: "field_number", name: "SX", value: 1, min: 0 },
+        { type: "field_number", name: "SY", value: 1, min: 0 },
+        { type: "field_number", name: "SZ", value: 1, min: 0 },
+        { type: "field_input", name: "COL", text: "#333333" },
+        { type: "field_number", name: "OPACITY", value: 0.5, min: 0, max: 1, precision: 0.01 },
+      ],
+      previousStatement: null,
+      nextStatement: null,
+      colour: 210,
+      tooltip: "Create a VPython box with opacity",
+    },
+    {
+      type: "label_full_block",
+      message0: "%1 = label  pos( %2 , %3 , %4 )  text %5  height %6",
+      args0: [
+        { type: "field_input", name: "NAME", text: "telemetry" },
+        { type: "field_number", name: "X", value: 0 },
+        { type: "field_number", name: "Y", value: 5 },
+        { type: "field_number", name: "Z", value: 0 },
+        { type: "field_input", name: "TEXT", text: "" },
+        { type: "field_number", name: "HEIGHT", value: 12, min: 6 },
+      ],
+      previousStatement: null,
+      nextStatement: null,
+      colour: 330,
+      tooltip: "Create a VPython label (white text, no box, transparent background)",
+    },
+
+    /* ── Execute statement ─────────────────────────────────── */
+    {
+      type: "exec_block",
+      message0: "exec %1",
+      args0: [{ type: "field_input", name: "EXPR", text: "sphere()" }],
+      previousStatement: null,
+      nextStatement: null,
+      colour: 10,
+      tooltip: "Execute any Python expression as a statement (e.g. anonymous object creation)",
+    },
   ]);
 
   /* ──────────────────────────────────────────────────────────
@@ -534,6 +714,105 @@ export function defineCustomBlocksAndGenerator(Blockly) {
   gen["python_raw_expr_block"] = function (block) {
     const expr = (block.getFieldValue("EXPR") || "0").trim();
     return [expr, Python.ORDER_ATOMIC];
+  };
+
+  // Scene property blocks
+  gen["scene_forward_block"] = function (block) {
+    const x = block.getFieldValue("X"), y = block.getFieldValue("Y"), z = block.getFieldValue("Z");
+    return `scene.forward = vector(${x}, ${y}, ${z})\n`;
+  };
+
+  gen["scene_center_block"] = function (block) {
+    const x = block.getFieldValue("X"), y = block.getFieldValue("Y"), z = block.getFieldValue("Z");
+    return `scene.center = vector(${x}, ${y}, ${z})\n`;
+  };
+
+  gen["scene_caption_block"] = function (block) {
+    const text = block.getFieldValue("TEXT") || "";
+    return `scene.caption = "${text}"\n`;
+  };
+
+  gen["scene_ambient_block"] = function (block) {
+    const gray = block.getFieldValue("GRAY");
+    return `scene.ambient = color.gray(${gray})\n`;
+  };
+
+  // Control flow
+  gen["for_range_block"] = function (block) {
+    const v = (block.getFieldValue("VAR") || "i").trim();
+    const start = block.getFieldValue("START");
+    const stop  = block.getFieldValue("STOP");
+    const step  = block.getFieldValue("STEP");
+    const body  = Python.statementToCode(block, "BODY") || "  pass\n";
+    return `for ${v} in range(${start}, ${stop}, ${step}):\n${body}`;
+  };
+
+  gen["if_block"] = function (block) {
+    const cond = (block.getFieldValue("COND") || "True").trim();
+    const body = Python.statementToCode(block, "BODY") || "  pass\n";
+    return `if ${cond}:\n${body}`;
+  };
+
+  // Extended object constructors
+  gen["sphere_trail_block"] = function (block) {
+    const name     = (block.getFieldValue("NAME") || "").trim();
+    const x        = block.getFieldValue("X"), y = block.getFieldValue("Y"), z = block.getFieldValue("Z");
+    const r        = block.getFieldValue("R");
+    const col      = hexToVPythonColor(block.getFieldValue("COL"));
+    const trailR   = block.getFieldValue("TRAIL_R");
+    const trailCol = hexToVPythonColor(block.getFieldValue("TRAIL_COL"));
+    const retain   = block.getFieldValue("RETAIN");
+    const shine    = block.getFieldValue("SHINE");
+    const expr = `sphere(pos=vector(${x}, ${y}, ${z}), radius=${r}, color=${col}, make_trail=True, trail_radius=${trailR}, trail_color=${trailCol}, retain=${retain}, shininess=${shine})`;
+    return name ? `${name} = ${expr}\n` : `${expr}\n`;
+  };
+
+  gen["sphere_emissive_block"] = function (block) {
+    const name   = (block.getFieldValue("NAME") || "").trim();
+    const x      = block.getFieldValue("X"), y = block.getFieldValue("Y"), z = block.getFieldValue("Z");
+    const r      = block.getFieldValue("R");
+    const colRaw = block.getFieldValue("COL");
+    const col    = (colRaw && colRaw.startsWith('#')) ? hexToVPythonColor(colRaw) : (colRaw || 'color.white');
+    const opacity = block.getFieldValue("OPACITY");
+    const shine   = block.getFieldValue("SHINE");
+    const expr = `sphere(pos=vector(${x}, ${y}, ${z}), radius=${r}, color=${col}, emissive=True, opacity=${opacity}, shininess=${shine})`;
+    return name ? `${name} = ${expr}\n` : `${expr}\n`;
+  };
+
+  gen["helix_full_block"] = function (block) {
+    const name  = (block.getFieldValue("NAME") || "").trim();
+    const pos   = block.getFieldValue("POS") || "vector(0,0,0)";
+    const axis  = block.getFieldValue("AXIS") || "vector(1,0,0)";
+    const r     = block.getFieldValue("R");
+    const coils = block.getFieldValue("COILS");
+    const thick = block.getFieldValue("THICK");
+    const col   = hexToVPythonColor(block.getFieldValue("COL"));
+    const expr  = `helix(pos=${pos}, axis=${axis}, radius=${r}, coils=${coils}, thickness=${thick}, color=${col})`;
+    return name ? `${name} = ${expr}\n` : `${expr}\n`;
+  };
+
+  gen["box_opacity_block"] = function (block) {
+    const name    = (block.getFieldValue("NAME") || "").trim();
+    const x       = block.getFieldValue("X"), y = block.getFieldValue("Y"), z = block.getFieldValue("Z");
+    const sx      = block.getFieldValue("SX"), sy = block.getFieldValue("SY"), sz = block.getFieldValue("SZ");
+    const col     = hexToVPythonColor(block.getFieldValue("COL"));
+    const opacity = block.getFieldValue("OPACITY");
+    const expr    = `box(pos=vector(${x}, ${y}, ${z}), size=vector(${sx}, ${sy}, ${sz}), color=${col}, opacity=${opacity})`;
+    return name ? `${name} = ${expr}\n` : `${expr}\n`;
+  };
+
+  gen["label_full_block"] = function (block) {
+    const name   = (block.getFieldValue("NAME") || "").trim();
+    const x      = block.getFieldValue("X"), y = block.getFieldValue("Y"), z = block.getFieldValue("Z");
+    const text   = block.getFieldValue("TEXT") || "";
+    const height = block.getFieldValue("HEIGHT");
+    const expr   = `label(pos=vector(${x}, ${y}, ${z}), text="${text}", height=${height}, box=False, opacity=0, color=color.white)`;
+    return name ? `${name} = ${expr}\n` : `${expr}\n`;
+  };
+
+  gen["exec_block"] = function (block) {
+    const expr = (block.getFieldValue("EXPR") || "").trim();
+    return `${expr}\n`;
   };
 
   initialized = true;
