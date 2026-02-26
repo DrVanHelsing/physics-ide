@@ -45,6 +45,10 @@ function expr(text) {
   return { type: "expr_block", fields: { EXPR: text } };
 }
 
+function v(name) {
+  return { type: "variables_get", fields: { VAR: name } };
+}
+
 /* ── Recursive XML builder ───────────────────────────────── */
 
 /**
@@ -376,7 +380,7 @@ const PROJECTILE_BLOCKS = [
       {
         type: "update_position_block",
         fields: { OBJ: "ball" },
-        values: { DT: expr("dt") },
+        values: { DT: v("dt") },
       },
 
       // Velocity arrow follows ball
@@ -476,7 +480,7 @@ const PROJECTILE_BLOCKS = [
           {
             type: "set_scalar_block",
             fields: { NAME: "max_height" },
-            values: { VALUE: expr("h_above") },
+            values: { VALUE: v("h_above") },
           },
         ],
       },
@@ -801,12 +805,12 @@ const ORBIT_BLOCKS = [
       {
         type: "update_position_block",
         fields: { OBJ: "earth" },
-        values: { DT: expr("dt") },
+        values: { DT: v("dt") },
       },
       {
         type: "update_position_block",
         fields: { OBJ: "moon" },
-        values: { DT: expr("dt") },
+        values: { DT: v("dt") },
       },
 
       // Recompute accelerations
@@ -1006,7 +1010,7 @@ const SPRING_BLOCKS = [
     type: "helix_full_block",
     fields: { NAME: "spring" },
     values: {
-      POS: expr("anchor"),
+      POS: v("anchor"),
       AXIS: vec(4.0, 0, 0),
       RADIUS: num(0.36),
       COILS: num(16),

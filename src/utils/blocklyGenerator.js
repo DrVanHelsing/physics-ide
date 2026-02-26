@@ -101,7 +101,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       type: "sphere_block",
       message0: "%1 = sphere  pos %2  radius %3  colour %4",
       args0: [
-        { type: "field_input", name: "NAME", text: "ball" },
+        { type: "field_variable", name: "NAME", variable: "ball" },
         { type: "input_value", name: "POS" },
         { type: "input_value", name: "RADIUS" },
         { type: "input_value", name: "COL" },
@@ -118,7 +118,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       type: "sphere_trail_block",
       message0: "%1 = sphere + trail  pos %2  radius %3  colour %4",
       args0: [
-        { type: "field_input", name: "NAME", text: "ball" },
+        { type: "field_variable", name: "NAME", variable: "ball" },
         { type: "input_value", name: "POS" },
         { type: "input_value", name: "RADIUS" },
         { type: "input_value", name: "COL" },
@@ -142,7 +142,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       type: "sphere_emissive_block",
       message0: "%1 = glowing sphere  pos %2  radius %3  colour %4",
       args0: [
-        { type: "field_input", name: "NAME", text: "" },
+        { type: "field_variable", name: "NAME", variable: "obj" },
         { type: "input_value", name: "POS" },
         { type: "input_value", name: "RADIUS" },
         { type: "input_value", name: "COL" },
@@ -161,7 +161,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       type: "box_block",
       message0: "%1 = box  pos %2  size %3  colour %4",
       args0: [
-        { type: "field_input", name: "NAME", text: "" },
+        { type: "field_variable", name: "NAME", variable: "obj" },
         { type: "input_value", name: "POS" },
         { type: "input_value", name: "SIZE" },
         { type: "input_value", name: "COL" },
@@ -178,7 +178,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       type: "box_opacity_block",
       message0: "%1 = box  pos %2  size %3  colour %4",
       args0: [
-        { type: "field_input", name: "NAME", text: "" },
+        { type: "field_variable", name: "NAME", variable: "obj" },
         { type: "input_value", name: "POS" },
         { type: "input_value", name: "SIZE" },
         { type: "input_value", name: "COL" },
@@ -197,7 +197,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       type: "cylinder_block",
       message0: "%1 = cylinder  pos %2  axis %3",
       args0: [
-        { type: "field_input", name: "NAME", text: "" },
+        { type: "field_variable", name: "NAME", variable: "obj" },
         { type: "input_value", name: "POS" },
         { type: "input_value", name: "AXIS" },
       ],
@@ -218,7 +218,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       type: "arrow_block",
       message0: "%1 = arrow  pos %2  axis %3  colour %4",
       args0: [
-        { type: "field_input", name: "NAME", text: "" },
+        { type: "field_variable", name: "NAME", variable: "obj" },
         { type: "input_value", name: "POS" },
         { type: "input_value", name: "AXIS" },
         { type: "input_value", name: "COL" },
@@ -235,7 +235,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       type: "helix_block",
       message0: "%1 = helix  pos %2  axis %3",
       args0: [
-        { type: "field_input", name: "NAME", text: "" },
+        { type: "field_variable", name: "NAME", variable: "obj" },
         { type: "input_value", name: "POS" },
         { type: "input_value", name: "AXIS" },
       ],
@@ -256,7 +256,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       type: "helix_full_block",
       message0: "%1 = helix  pos %2  axis %3",
       args0: [
-        { type: "field_input", name: "NAME", text: "spring" },
+        { type: "field_variable", name: "NAME", variable: "spring" },
         { type: "input_value", name: "POS" },
         { type: "input_value", name: "AXIS" },
       ],
@@ -294,7 +294,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       type: "label_full_block",
       message0: "%1 = label  pos %2",
       args0: [
-        { type: "field_input", name: "NAME", text: "telemetry" },
+        { type: "field_variable", name: "NAME", variable: "telemetry" },
         { type: "input_value", name: "POS" },
       ],
       message1: "text %1  height %2",
@@ -331,7 +331,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       type: "set_velocity_block",
       message0: "%1 .velocity = %2",
       args0: [
-        { type: "field_input", name: "OBJ", text: "ball" },
+        { type: "field_variable", name: "OBJ", variable: "ball" },
         { type: "input_value", name: "VEL" },
       ],
       inputsInline: true,
@@ -344,7 +344,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       type: "update_position_block",
       message0: "%1 .pos += .velocity \u00d7 %2",
       args0: [
-        { type: "field_input", name: "OBJ", text: "ball" },
+        { type: "field_variable", name: "OBJ", variable: "ball" },
         { type: "input_value", name: "DT" },
       ],
       inputsInline: true,
@@ -357,7 +357,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       type: "apply_force_block",
       message0: "%1 .velocity += %2 \u00d7 %3",
       args0: [
-        { type: "field_input", name: "OBJ", text: "ball" },
+        { type: "field_variable", name: "OBJ", variable: "ball" },
         { type: "input_value", name: "ACCEL" },
         { type: "input_value", name: "DT" },
       ],
@@ -384,7 +384,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       type: "set_scalar_block",
       message0: "%1 = %2",
       args0: [
-        { type: "field_input", name: "NAME", text: "x" },
+        { type: "field_variable", name: "NAME", variable: "x" },
         { type: "input_value", name: "VALUE" },
       ],
       inputsInline: true,
@@ -397,7 +397,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       type: "set_attr_expr_block",
       message0: "%1 . %2 = %3",
       args0: [
-        { type: "field_input", name: "OBJ", text: "ball" },
+        { type: "field_variable", name: "OBJ", variable: "ball" },
         { type: "field_input", name: "ATTR", text: "pos" },
         { type: "input_value", name: "VALUE" },
       ],
@@ -411,7 +411,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       type: "add_attr_expr_block",
       message0: "%1 . %2 += %3",
       args0: [
-        { type: "field_input", name: "OBJ", text: "ball" },
+        { type: "field_variable", name: "OBJ", variable: "ball" },
         { type: "field_input", name: "ATTR", text: "velocity" },
         { type: "input_value", name: "VALUE" },
       ],
@@ -450,7 +450,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       type: "for_range_block",
       message0: "for %1 from %2 to %3 step %4",
       args0: [
-        { type: "field_input", name: "VAR", text: "i" },
+        { type: "field_variable", name: "VAR", variable: "i" },
         { type: "field_number", name: "START", value: 0 },
         { type: "field_number", name: "STOP", value: 10 },
         { type: "field_number", name: "STEP", value: 1 },
@@ -601,7 +601,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
     {
       type: "telemetry_update_block",
       message0: "update %1 display",
-      args0: [{ type: "field_input", name: "LABEL", text: "telemetry" }],
+      args0: [{ type: "field_variable", name: "LABEL", variable: "telemetry" }],
       message1: "%1 = round( %2 , %3 dp ) %4",
       args1: [
         { type: "field_input", name: "M1", text: "t" },
@@ -683,6 +683,15 @@ export function defineCustomBlocksAndGenerator(Blockly) {
   const val = (block, name, fallback) =>
     Python.valueToCode(block, name, Python.ORDER_NONE) || fallback;
 
+  // Helper: resolve a Blockly variable field to its current name
+  const varName = (block, field, fallback) => {
+    const id = block.getFieldValue(field);
+    if (!id) return fallback;
+    const model = block.workspace ? block.workspace.getVariableById(id) : null;
+    const resolved = model ? model.name : id;
+    return (resolved || fallback).trim();
+  };
+
   /* ── Value blocks ─────────────────────────────────────── */
   gen["vector_block"] = function (block) {
     const x = block.getFieldValue("X");
@@ -702,7 +711,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
 
   /* ── Object blocks ────────────────────────────────────── */
   gen["sphere_block"] = function (block) {
-    const name = (block.getFieldValue("NAME") || "").trim();
+    const name = varName(block, "NAME", "ball");
     const pos = val(block, "POS", "vector(0,0,0)");
     const r = val(block, "RADIUS", "1");
     const col = val(block, "COL", "color.red");
@@ -711,7 +720,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
   };
 
   gen["sphere_trail_block"] = function (block) {
-    const name = (block.getFieldValue("NAME") || "").trim();
+    const name = varName(block, "NAME", "ball");
     const pos = val(block, "POS", "vector(0,0,0)");
     const r = val(block, "RADIUS", "0.5");
     const col = val(block, "COL", "color.red");
@@ -723,7 +732,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
   };
 
   gen["sphere_emissive_block"] = function (block) {
-    const name = (block.getFieldValue("NAME") || "").trim();
+    const name = varName(block, "NAME", "obj");
     const pos = val(block, "POS", "vector(0,0,0)");
     const r = val(block, "RADIUS", "0.5");
     const col = val(block, "COL", "color.white");
@@ -733,7 +742,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
   };
 
   gen["box_block"] = function (block) {
-    const name = (block.getFieldValue("NAME") || "").trim();
+    const name = varName(block, "NAME", "obj");
     const pos = val(block, "POS", "vector(0,0,0)");
     const sz = val(block, "SIZE", "vector(1,1,1)");
     const col = val(block, "COL", "color.blue");
@@ -742,7 +751,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
   };
 
   gen["box_opacity_block"] = function (block) {
-    const name = (block.getFieldValue("NAME") || "").trim();
+    const name = varName(block, "NAME", "obj");
     const pos = val(block, "POS", "vector(0,0,0)");
     const sz = val(block, "SIZE", "vector(1,1,1)");
     const col = val(block, "COL", "color.white");
@@ -752,7 +761,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
   };
 
   gen["cylinder_block"] = function (block) {
-    const name = (block.getFieldValue("NAME") || "").trim();
+    const name = varName(block, "NAME", "obj");
     const pos = val(block, "POS", "vector(0,0,0)");
     const ax = val(block, "AXIS", "vector(1,0,0)");
     const r = val(block, "RADIUS", "0.5");
@@ -762,7 +771,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
   };
 
   gen["arrow_block"] = function (block) {
-    const name = (block.getFieldValue("NAME") || "").trim();
+    const name = varName(block, "NAME", "obj");
     const pos = val(block, "POS", "vector(0,0,0)");
     const ax = val(block, "AXIS", "vector(1,0,0)");
     const col = val(block, "COL", "color.yellow");
@@ -771,7 +780,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
   };
 
   gen["helix_block"] = function (block) {
-    const name = (block.getFieldValue("NAME") || "").trim();
+    const name = varName(block, "NAME", "obj");
     const pos = val(block, "POS", "vector(0,0,0)");
     const ax = val(block, "AXIS", "vector(1,0,0)");
     const r = val(block, "RADIUS", "0.3");
@@ -781,7 +790,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
   };
 
   gen["helix_full_block"] = function (block) {
-    const name = (block.getFieldValue("NAME") || "").trim();
+    const name = varName(block, "NAME", "spring");
     const pos = val(block, "POS", "vector(0,0,0)");
     const ax = val(block, "AXIS", "vector(1,0,0)");
     const r = val(block, "RADIUS", "0.3");
@@ -799,7 +808,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
   };
 
   gen["label_full_block"] = function (block) {
-    const name = (block.getFieldValue("NAME") || "").trim();
+    const name = varName(block, "NAME", "telemetry");
     const pos = val(block, "POS", "vector(0,5,0)");
     const text = escPy(block.getFieldValue("TEXT") || "");
     const h = val(block, "HEIGHT", "12");
@@ -815,19 +824,19 @@ export function defineCustomBlocksAndGenerator(Blockly) {
 
   /* ── Motion blocks ────────────────────────────────────── */
   gen["set_velocity_block"] = function (block) {
-    const obj = block.getFieldValue("OBJ");
+    const obj = varName(block, "OBJ", "ball");
     const v = val(block, "VEL", "vector(0,0,0)");
     return `${obj}.velocity = ${v}\n`;
   };
 
   gen["update_position_block"] = function (block) {
-    const obj = block.getFieldValue("OBJ");
+    const obj = varName(block, "OBJ", "ball");
     const dt = val(block, "DT", "dt");
     return `${obj}.pos = ${obj}.pos + ${obj}.velocity * ${dt}\n`;
   };
 
   gen["apply_force_block"] = function (block) {
-    const obj = block.getFieldValue("OBJ");
+    const obj = varName(block, "OBJ", "ball");
     const a = val(block, "ACCEL", "vector(0,-9.81,0)");
     const dt = val(block, "DT", "dt");
     return `${obj}.velocity = ${obj}.velocity + ${a} * ${dt}\n`;
@@ -839,20 +848,20 @@ export function defineCustomBlocksAndGenerator(Blockly) {
 
   /* ── Variable / assignment blocks ─────────────────────── */
   gen["set_scalar_block"] = function (block) {
-    const name = (block.getFieldValue("NAME") || "x").trim();
+    const name = varName(block, "NAME", "x");
     const v = val(block, "VALUE", "0");
     return `${name} = ${v}\n`;
   };
 
   gen["set_attr_expr_block"] = function (block) {
-    const obj = (block.getFieldValue("OBJ") || "obj").trim();
+    const obj = varName(block, "OBJ", "obj");
     const attr = (block.getFieldValue("ATTR") || "pos").trim();
     const v = val(block, "VALUE", "0");
     return `${obj}.${attr} = ${v}\n`;
   };
 
   gen["add_attr_expr_block"] = function (block) {
-    const obj = (block.getFieldValue("OBJ") || "ball").trim();
+    const obj = varName(block, "OBJ", "ball");
     const attr = (block.getFieldValue("ATTR") || "velocity").trim();
     const v = val(block, "VALUE", "0");
     return `${obj}.${attr} += ${v}\n`;
@@ -869,7 +878,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
   };
 
   gen["for_range_block"] = function (block) {
-    const v = (block.getFieldValue("VAR") || "i").trim();
+    const v = varName(block, "VAR", "i");
     const start = block.getFieldValue("START");
     const stop = block.getFieldValue("STOP");
     const step = block.getFieldValue("STEP");
@@ -930,7 +939,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
   };
 
   gen["telemetry_update_block"] = function (block) {
-    const label = (block.getFieldValue("LABEL") || "telemetry").trim();
+    const label = varName(block, "LABEL", "telemetry");
     const lines = [];
     for (let i = 1; i <= 5; i++) {
       const m = (block.getFieldValue("M" + i) || "").trim();
