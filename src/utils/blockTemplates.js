@@ -49,6 +49,50 @@ function v(name) {
   return { type: "variables_get", fields: { VAR: name } };
 }
 
+function op(operator, left, right) {
+  return {
+    type: "math_arithmetic",
+    fields: { OP: operator },
+    values: { A: left, B: right },
+  };
+}
+
+function add(a, b) {
+  return op("ADD", a, b);
+}
+
+function sub(a, b) {
+  return op("MINUS", a, b);
+}
+
+function mul(a, b) {
+  return op("MULTIPLY", a, b);
+}
+
+function div(a, b) {
+  return op("DIVIDE", a, b);
+}
+
+function valueBlockXml(valueDesc) {
+  if (!valueDesc || !valueDesc.type) return "";
+
+  let content = "";
+
+  if (valueDesc.fields) {
+    for (const [name, value] of Object.entries(valueDesc.fields)) {
+      content += `<field name="${name}">${esc(String(value))}</field>`;
+    }
+  }
+
+  if (valueDesc.values) {
+    for (const [name, child] of Object.entries(valueDesc.values)) {
+      content += `<value name="${name}">${valueBlockXml(child)}</value>`;
+    }
+  }
+
+  return `<block type="${valueDesc.type}">${content}</block>`;
+}
+
 /* ── Recursive XML builder ───────────────────────────────── */
 
 /**
@@ -84,13 +128,7 @@ function buildChain(blocks, isFirst) {
   if (block.values) {
     for (const [name, valueDesc] of Object.entries(block.values)) {
       content += `<value name="${name}">`;
-      content += `<block type="${valueDesc.type}">`;
-      if (valueDesc.fields) {
-        for (const [fn, fv] of Object.entries(valueDesc.fields)) {
-          content += `<field name="${fn}">${esc(String(fv))}</field>`;
-        }
-      }
-      content += `</block>`;
+      content += valueBlockXml(valueDesc);
       content += `</value>`;
     }
   }
@@ -127,9 +165,10 @@ const PROJECTILE_BLOCKS = [
     fields: { TITLE: "Projectile Motion", BG: "#0d1629" },
   },
   { type: "scene_range_block", fields: { R: "18" } },
+  { type: "set_scalar_block", fields: { NAME: "c_light_a" }, values: { VALUE: col("#e6e6d9") } },
   {
     type: "local_light_block",
-    values: { POS: vec(-8, 18, 10), COL: col("#e6e6d9") },
+    values: { POS: vec(-8, 18, 10), COL: v("c_light_a") },
   },
   {
     type: "scene_forward_block",
@@ -145,10 +184,22 @@ const PROJECTILE_BLOCKS = [
   },
   { type: "scene_ambient_block", fields: { GRAY: "0.35" } },
 
+  /* ── Colour constants (template-specific) ─────────────── */
+  { type: "set_scalar_block", fields: { NAME: "c_ground" }, values: { VALUE: col("#337346") } },
+  { type: "set_scalar_block", fields: { NAME: "c_track" }, values: { VALUE: col("#6b6b7a") } },
+  { type: "set_scalar_block", fields: { NAME: "c_marker" }, values: { VALUE: col("#ffcc40") } },
+  { type: "set_scalar_block", fields: { NAME: "c_axis_x" }, values: { VALUE: col("#ff3333") } },
+  { type: "set_scalar_block", fields: { NAME: "c_axis_y" }, values: { VALUE: col("#33dd66") } },
+  { type: "set_scalar_block", fields: { NAME: "c_ball" }, values: { VALUE: col("#f25940") } },
+  { type: "set_scalar_block", fields: { NAME: "c_trail" }, values: { VALUE: col("#ffe040") } },
+  { type: "set_scalar_block", fields: { NAME: "c_velocity" }, values: { VALUE: col("#59e6ff") } },
+  { type: "set_scalar_block", fields: { NAME: "c_tick" }, values: { VALUE: col("#f2f2f2") } },
+  { type: "set_scalar_block", fields: { NAME: "c_light_b" }, values: { VALUE: col("#737f99") } },
+
   /* ── Second light + ground geometry ────────────────────── */
   {
     type: "local_light_block",
-    values: { POS: vec(26, 12, -12), COL: col("#737f99") },
+    values: { POS: vec(26, 12, -12), COL: v("c_light_b") },
   },
   {
     type: "box_block",
@@ -156,7 +207,7 @@ const PROJECTILE_BLOCKS = [
     values: {
       POS: vec(11, -0.55, 0),
       SIZE: vec(34, 1.1, 10),
-      COL: col("#337346"),
+      COL: v("c_ground"),
     },
   },
   {
@@ -165,7 +216,7 @@ const PROJECTILE_BLOCKS = [
     values: {
       POS: vec(1.6, 0.2, 0),
       SIZE: vec(3.2, 0.12, 0.9),
-      COL: col("#6b6b7a"),
+      COL: v("c_track"),
     },
   },
   {
@@ -175,7 +226,7 @@ const PROJECTILE_BLOCKS = [
       POS: vec(0, -0.5, 0),
       AXIS: vec(0, 0.45, 0),
       RADIUS: num(0.06),
-      COL: col("#ffcc40"),
+      COL: v("c_marker"),
     },
   },
 
@@ -191,7 +242,7 @@ const PROJECTILE_BLOCKS = [
           POS: expr("vector(i, -0.02, -0.18)"),
           AXIS: vec(0, 0.04, 0),
           RADIUS: num(0.018),
-          COL: expr("color.white"),
+          COL: v("c_tick"),
         },
       },
     ],
@@ -201,12 +252,12 @@ const PROJECTILE_BLOCKS = [
   {
     type: "arrow_block",
     fields: { NAME: "x_axis_hint" },
-    values: { POS: vec(0, 0, 0), AXIS: vec(2.4, 0, 0), COL: col("#ff3333") },
+    values: { POS: vec(0, 0, 0), AXIS: vec(2.4, 0, 0), COL: v("c_axis_x") },
   },
   {
     type: "arrow_block",
     fields: { NAME: "y_axis_hint" },
-    values: { POS: vec(0, 0, 0), AXIS: vec(0, 2.2, 0), COL: col("#33dd66") },
+    values: { POS: vec(0, 0, 0), AXIS: vec(0, 2.2, 0), COL: v("c_axis_y") },
   },
 
   /* ── Ball with trail ───────────────────────────────────── */
@@ -216,9 +267,9 @@ const PROJECTILE_BLOCKS = [
     values: {
       POS: vec(0, 0.35, 0),
       RADIUS: num(0.28),
-      COL: col("#f25940"),
+      COL: v("c_ball"),
       TRAIL_R: num(0.035),
-      TRAIL_COL: col("#ffe040"),
+      TRAIL_COL: v("c_trail"),
       RETAIN: num(260),
     },
   },
@@ -230,7 +281,7 @@ const PROJECTILE_BLOCKS = [
     values: {
       POS: vec(0, 0.35, 0),
       AXIS: vec(0, 0, 0),
-      COL: col("#59e6ff"),
+      COL: v("c_velocity"),
     },
   },
 
@@ -271,7 +322,7 @@ const PROJECTILE_BLOCKS = [
   {
     type: "set_scalar_block",
     fields: { NAME: "drag_k" },
-    values: { VALUE: expr("0.5 * rho * Cd * A") },
+    values: { VALUE: mul(mul(mul(num(0.5), v("rho")), v("Cd")), v("A")) },
   },
   {
     type: "set_scalar_block",
@@ -348,7 +399,7 @@ const PROJECTILE_BLOCKS = [
           {
             type: "set_scalar_block",
             fields: { NAME: "drag" },
-            values: { VALUE: expr("-drag_k * speed * ball.velocity") },
+            values: { VALUE: mul(mul(num(-1), mul(v("drag_k"), v("speed"))), expr("ball.velocity")) },
           },
         ],
         elseBody: [
@@ -368,14 +419,14 @@ const PROJECTILE_BLOCKS = [
       {
         type: "set_scalar_block",
         fields: { NAME: "acceleration" },
-        values: { VALUE: expr("g + drag / m") },
+        values: { VALUE: add(v("g"), div(v("drag"), v("m"))) },
       },
 
       // Velocity and position update
       {
         type: "add_attr_expr_block",
         fields: { OBJ: "ball", ATTR: "velocity" },
-        values: { VALUE: expr("acceleration * dt") },
+        values: { VALUE: mul(v("acceleration"), v("dt")) },
       },
       {
         type: "update_position_block",
@@ -392,7 +443,7 @@ const PROJECTILE_BLOCKS = [
       {
         type: "set_attr_expr_block",
         fields: { OBJ: "v_arrow", ATTR: "axis" },
-        values: { VALUE: expr("ball.velocity * 0.16") },
+        values: { VALUE: mul(expr("ball.velocity"), num(0.16)) },
       },
 
       // Ground collision: clamp and bounce
@@ -416,14 +467,14 @@ const PROJECTILE_BLOCKS = [
               {
                 type: "set_attr_expr_block",
                 fields: { OBJ: "ball", ATTR: "velocity.y" },
-                values: { VALUE: expr("-0.55 * ball.velocity.y") },
+                values: { VALUE: mul(num(-0.55), expr("ball.velocity.y")) },
               },
             ],
           },
           {
             type: "set_attr_expr_block",
             fields: { OBJ: "ball", ATTR: "velocity.x" },
-            values: { VALUE: expr("ball.velocity.x * 0.88") },
+            values: { VALUE: mul(expr("ball.velocity.x"), num(0.88)) },
           },
         ],
       },
@@ -456,7 +507,7 @@ const PROJECTILE_BLOCKS = [
       {
         type: "set_scalar_block",
         fields: { NAME: "h_above" },
-        values: { VALUE: expr("ball.pos.y - ball.radius") },
+        values: { VALUE: sub(expr("ball.pos.y"), expr("ball.radius")) },
       },
       {
         type: "if_block",
@@ -517,7 +568,7 @@ const PROJECTILE_BLOCKS = [
       {
         type: "set_scalar_block",
         fields: { NAME: "t" },
-        values: { VALUE: expr("t + dt") },
+        values: { VALUE: add(v("t"), v("dt")) },
       },
     ],
   },
@@ -550,6 +601,15 @@ const ORBIT_BLOCKS = [
   },
   { type: "scene_ambient_block", fields: { GRAY: "0.22" } },
 
+  /* ── Colour constants (template-specific) ─────────────── */
+  { type: "set_scalar_block", fields: { NAME: "c_sun" }, values: { VALUE: col("#ffde59") } },
+  { type: "set_scalar_block", fields: { NAME: "c_corona" }, values: { VALUE: col("#ffb340") } },
+  { type: "set_scalar_block", fields: { NAME: "c_earth" }, values: { VALUE: col("#42b8ff") } },
+  { type: "set_scalar_block", fields: { NAME: "c_earth_trail" }, values: { VALUE: col("#73bfff") } },
+  { type: "set_scalar_block", fields: { NAME: "c_moon" }, values: { VALUE: col("#e0e0f0") } },
+  { type: "set_scalar_block", fields: { NAME: "c_moon_trail" }, values: { VALUE: col("#cccce6") } },
+  { type: "set_scalar_block", fields: { NAME: "c_earth_arrow" }, values: { VALUE: col("#ff734d") } },
+
   /* ── Starfield ─────────────────────────────────────────── */
   {
     type: "comment_block",
@@ -566,17 +626,17 @@ const ORBIT_BLOCKS = [
       {
         type: "set_scalar_block",
         fields: { NAME: "rx" },
-        values: { VALUE: expr("2 * random() - 1") },
+        values: { VALUE: sub(mul(num(2), expr("random()")), num(1)) },
       },
       {
         type: "set_scalar_block",
         fields: { NAME: "ry" },
-        values: { VALUE: expr("2 * random() - 1") },
+        values: { VALUE: sub(mul(num(2), expr("random()")), num(1)) },
       },
       {
         type: "set_scalar_block",
         fields: { NAME: "rz" },
-        values: { VALUE: expr("2 * random() - 1") },
+        values: { VALUE: sub(mul(num(2), expr("random()")), num(1)) },
       },
       {
         type: "set_scalar_block",
@@ -597,18 +657,18 @@ const ORBIT_BLOCKS = [
       {
         type: "set_scalar_block",
         fields: { NAME: "p" },
-        values: { VALUE: expr("34 * norm(p)") },
+        values: { VALUE: mul(num(34), expr("norm(p)")) },
       },
       {
         type: "sphere_emissive_block",
         fields: { NAME: "" },
         values: {
           POS: expr("vector(p.x, p.y, p.z)"),
-          RADIUS: expr("0.05 + 0.05 * random()"),
+          RADIUS: add(num(0.05), mul(num(0.05), expr("random()"))),
           COL: expr(
             "vector(0.7 + 0.3*random(), 0.7 + 0.3*random(), 1)"
           ),
-          OPACITY: expr("0.9"),
+          OPACITY: num(0.9),
         },
       },
     ],
@@ -625,7 +685,7 @@ const ORBIT_BLOCKS = [
     values: {
       POS: vec(0, 0, 0),
       RADIUS: num(1.05),
-      COL: col("#ffde59"),
+      COL: v("c_sun"),
       OPACITY: num(1),
     },
   },
@@ -635,7 +695,7 @@ const ORBIT_BLOCKS = [
     values: {
       POS: vec(0, 0, 0),
       RADIUS: num(1.45),
-      COL: col("#ffb340"),
+      COL: v("c_corona"),
       OPACITY: num(0.15),
     },
   },
@@ -645,9 +705,9 @@ const ORBIT_BLOCKS = [
     values: {
       POS: vec(8.2, 0, 0),
       RADIUS: num(0.42),
-      COL: col("#42b8ff"),
+      COL: v("c_earth"),
       TRAIL_R: num(0.04),
-      TRAIL_COL: col("#73bfff"),
+      TRAIL_COL: v("c_earth_trail"),
       RETAIN: num(3200),
     },
   },
@@ -657,9 +717,9 @@ const ORBIT_BLOCKS = [
     values: {
       POS: vec(8.2, 0.9, 0),
       RADIUS: num(0.13),
-      COL: col("#e0e0f0"),
+      COL: v("c_moon"),
       TRAIL_R: num(0.02),
-      TRAIL_COL: col("#cccce6"),
+      TRAIL_COL: v("c_moon_trail"),
       RETAIN: num(1200),
     },
   },
@@ -698,7 +758,7 @@ const ORBIT_BLOCKS = [
   {
     type: "set_attr_expr_block",
     fields: { OBJ: "moon", ATTR: "velocity" },
-    values: { VALUE: expr("earth.velocity + vector(-3.33, 0, 0)") },
+    values: { VALUE: add(expr("earth.velocity"), vec(-3.33, 0, 0)) },
   },
 
   /* ── Time step ──────────────────────────────────────────── */
@@ -717,7 +777,7 @@ const ORBIT_BLOCKS = [
   {
     type: "set_scalar_block",
     fields: { NAME: "r_es" },
-    values: { VALUE: expr("earth.pos - sun.pos") },
+    values: { VALUE: sub(expr("earth.pos"), expr("sun.pos")) },
   },
   {
     type: "set_scalar_block",
@@ -727,12 +787,12 @@ const ORBIT_BLOCKS = [
   {
     type: "set_scalar_block",
     fields: { NAME: "a_earth" },
-    values: { VALUE: expr("-G * M_sun / d_es**2 * norm(r_es)") },
+    values: { VALUE: mul(div(mul(num(-1), mul(v("G"), v("M_sun"))), expr("d_es**2")), expr("norm(r_es)")) },
   },
   {
     type: "set_scalar_block",
     fields: { NAME: "r_ms" },
-    values: { VALUE: expr("moon.pos - sun.pos") },
+    values: { VALUE: sub(expr("moon.pos"), expr("sun.pos")) },
   },
   {
     type: "set_scalar_block",
@@ -742,7 +802,7 @@ const ORBIT_BLOCKS = [
   {
     type: "set_scalar_block",
     fields: { NAME: "r_me" },
-    values: { VALUE: expr("moon.pos - earth.pos") },
+    values: { VALUE: sub(expr("moon.pos"), expr("earth.pos")) },
   },
   {
     type: "set_scalar_block",
@@ -753,8 +813,9 @@ const ORBIT_BLOCKS = [
     type: "set_scalar_block",
     fields: { NAME: "a_moon" },
     values: {
-      VALUE: expr(
-        "-G * M_sun / d_ms**2 * norm(r_ms) - G * M_earth / d_me**2 * norm(r_me)"
+      VALUE: sub(
+        mul(div(mul(num(-1), mul(v("G"), v("M_sun"))), expr("d_ms**2")), expr("norm(r_ms)")),
+        mul(div(mul(v("G"), v("M_earth")), expr("d_me**2")), expr("norm(r_me)"))
       ),
     },
   },
@@ -766,7 +827,7 @@ const ORBIT_BLOCKS = [
     values: {
       POS: vec(8.2, 0, 0),
       AXIS: vec(0, 0, 0),
-      COL: col("#ff734d"),
+      COL: v("c_earth_arrow"),
     },
   },
   {
@@ -789,12 +850,12 @@ const ORBIT_BLOCKS = [
       {
         type: "add_attr_expr_block",
         fields: { OBJ: "earth", ATTR: "velocity" },
-        values: { VALUE: expr("a_earth * dt / 2") },
+        values: { VALUE: div(mul(v("a_earth"), v("dt")), num(2)) },
       },
       {
         type: "add_attr_expr_block",
         fields: { OBJ: "moon", ATTR: "velocity" },
-        values: { VALUE: expr("a_moon * dt / 2") },
+        values: { VALUE: div(mul(v("a_moon"), v("dt")), num(2)) },
       },
 
       // Full-step position drift
@@ -821,7 +882,7 @@ const ORBIT_BLOCKS = [
       {
         type: "set_scalar_block",
         fields: { NAME: "r_es" },
-        values: { VALUE: expr("earth.pos - sun.pos") },
+        values: { VALUE: sub(expr("earth.pos"), expr("sun.pos")) },
       },
       {
         type: "set_scalar_block",
@@ -831,12 +892,12 @@ const ORBIT_BLOCKS = [
       {
         type: "set_scalar_block",
         fields: { NAME: "a_earth" },
-        values: { VALUE: expr("-G * M_sun / d_es**2 * norm(r_es)") },
+        values: { VALUE: mul(div(mul(num(-1), mul(v("G"), v("M_sun"))), expr("d_es**2")), expr("norm(r_es)")) },
       },
       {
         type: "set_scalar_block",
         fields: { NAME: "r_ms" },
-        values: { VALUE: expr("moon.pos - sun.pos") },
+        values: { VALUE: sub(expr("moon.pos"), expr("sun.pos")) },
       },
       {
         type: "set_scalar_block",
@@ -846,7 +907,7 @@ const ORBIT_BLOCKS = [
       {
         type: "set_scalar_block",
         fields: { NAME: "r_me" },
-        values: { VALUE: expr("moon.pos - earth.pos") },
+        values: { VALUE: sub(expr("moon.pos"), expr("earth.pos")) },
       },
       {
         type: "set_scalar_block",
@@ -857,8 +918,9 @@ const ORBIT_BLOCKS = [
         type: "set_scalar_block",
         fields: { NAME: "a_moon" },
         values: {
-          VALUE: expr(
-            "-G * M_sun / d_ms**2 * norm(r_ms) - G * M_earth / d_me**2 * norm(r_me)"
+          VALUE: sub(
+            mul(div(mul(num(-1), mul(v("G"), v("M_sun"))), expr("d_ms**2")), expr("norm(r_ms)")),
+            mul(div(mul(v("G"), v("M_earth")), expr("d_me**2")), expr("norm(r_me)"))
           ),
         },
       },
@@ -871,12 +933,12 @@ const ORBIT_BLOCKS = [
       {
         type: "add_attr_expr_block",
         fields: { OBJ: "earth", ATTR: "velocity" },
-        values: { VALUE: expr("a_earth * dt / 2") },
+        values: { VALUE: div(mul(v("a_earth"), v("dt")), num(2)) },
       },
       {
         type: "add_attr_expr_block",
         fields: { OBJ: "moon", ATTR: "velocity" },
-        values: { VALUE: expr("a_moon * dt / 2") },
+        values: { VALUE: div(mul(v("a_moon"), v("dt")), num(2)) },
       },
 
       // Visual updates
@@ -893,7 +955,7 @@ const ORBIT_BLOCKS = [
       {
         type: "set_attr_expr_block",
         fields: { OBJ: "earth_arrow", ATTR: "axis" },
-        values: { VALUE: expr("1.2 * a_earth") },
+        values: { VALUE: mul(num(1.2), v("a_earth")) },
       },
 
       // Telemetry
@@ -928,7 +990,7 @@ const ORBIT_BLOCKS = [
       {
         type: "set_scalar_block",
         fields: { NAME: "t" },
-        values: { VALUE: expr("t + dt") },
+        values: { VALUE: add(v("t"), v("dt")) },
       },
     ],
   },
@@ -945,13 +1007,15 @@ const SPRING_BLOCKS = [
     fields: { TITLE: "Spring-Mass Oscillator", BG: "#0f1224" },
   },
   { type: "scene_range_block", fields: { R: "8.5" } },
+  { type: "set_scalar_block", fields: { NAME: "c_light_left" }, values: { VALUE: col("#e6e6ff") } },
+  { type: "set_scalar_block", fields: { NAME: "c_light_right" }, values: { VALUE: col("#667388") } },
   {
     type: "local_light_block",
-    values: { POS: vec(-2, 10, 8), COL: col("#e6e6ff") },
+    values: { POS: vec(-2, 10, 8), COL: v("c_light_left") },
   },
   {
     type: "local_light_block",
-    values: { POS: vec(8, 5, -10), COL: col("#667388") },
+    values: { POS: vec(8, 5, -10), COL: v("c_light_right") },
   },
   {
     type: "scene_center_block",
@@ -967,6 +1031,15 @@ const SPRING_BLOCKS = [
   },
   { type: "scene_ambient_block", fields: { GRAY: "0.38" } },
 
+  /* ── Colour constants (template-specific) ─────────────── */
+  { type: "set_scalar_block", fields: { NAME: "c_floor" }, values: { VALUE: col("#3d4454") } },
+  { type: "set_scalar_block", fields: { NAME: "c_rail" }, values: { VALUE: col("#737380") } },
+  { type: "set_scalar_block", fields: { NAME: "c_wall" }, values: { VALUE: col("#616885") } },
+  { type: "set_scalar_block", fields: { NAME: "c_spring" }, values: { VALUE: col("#c7ccdb") } },
+  { type: "set_scalar_block", fields: { NAME: "c_mass" }, values: { VALUE: col("#39dcf2") } },
+  { type: "set_scalar_block", fields: { NAME: "c_shadow" }, values: { VALUE: col("#121217") } },
+  { type: "set_scalar_block", fields: { NAME: "c_phase_arrow" }, values: { VALUE: col("#ff8c33") } },
+
   /* ── Environment geometry ──────────────────────────────── */
   {
     type: "box_block",
@@ -974,7 +1047,7 @@ const SPRING_BLOCKS = [
     values: {
       POS: vec(-0.5, -1.25, 0),
       SIZE: vec(17, 0.3, 5),
-      COL: col("#3d4454"),
+      COL: v("c_floor"),
     },
   },
   {
@@ -983,7 +1056,7 @@ const SPRING_BLOCKS = [
     values: {
       POS: vec(-0.5, -0.65, 0),
       SIZE: vec(16, 0.14, 1.5),
-      COL: col("#737380"),
+      COL: v("c_rail"),
     },
   },
   {
@@ -992,7 +1065,7 @@ const SPRING_BLOCKS = [
     values: {
       POS: vec(-6, 0, 0),
       SIZE: vec(0.52, 4.2, 4),
-      COL: col("#616885"),
+      COL: v("c_wall"),
     },
   },
 
@@ -1015,7 +1088,7 @@ const SPRING_BLOCKS = [
       RADIUS: num(0.36),
       COILS: num(16),
       THICK: num(0.055),
-      COL: col("#c7ccdb"),
+      COL: v("c_spring"),
     },
   },
   {
@@ -1024,7 +1097,7 @@ const SPRING_BLOCKS = [
     values: {
       POS: vec(-1.75, 0, 0),
       SIZE: vec(1.06, 1.0, 1.0),
-      COL: col("#39dcf2"),
+      COL: v("c_mass"),
     },
   },
   {
@@ -1033,7 +1106,7 @@ const SPRING_BLOCKS = [
     values: {
       POS: expr("vector(mass.pos.x, -1.08, 0)"),
       SIZE: vec(1.0, 0.01, 1.0),
-      COL: col("#121217"),
+      COL: v("c_shadow"),
       OPACITY: num(0.45),
     },
   },
@@ -1088,7 +1161,7 @@ const SPRING_BLOCKS = [
   {
     type: "set_attr_expr_block",
     fields: { OBJ: "mass", ATTR: "pos.x" },
-    values: { VALUE: expr("wall.pos.x + 0.25 + L0 + x0") },
+    values: { VALUE: add(add(add(expr("wall.pos.x"), num(0.25)), v("L0")), v("x0")) },
   },
 
   /* ── Telemetry label and phase-space arrow ──────────────── */
@@ -1103,7 +1176,7 @@ const SPRING_BLOCKS = [
     values: {
       POS: vec(4.8, -0.2, 0),
       AXIS: vec(0, 0, 0),
-      COL: col("#ff8c33"),
+      COL: v("c_phase_arrow"),
     },
   },
 
@@ -1121,22 +1194,22 @@ const SPRING_BLOCKS = [
       {
         type: "set_scalar_block",
         fields: { NAME: "stretch" },
-        values: { VALUE: expr("(mass.pos.x - wall.pos.x - 0.25) - L0") },
+        values: { VALUE: sub(sub(sub(expr("mass.pos.x"), expr("wall.pos.x")), num(0.25)), v("L0")) },
       },
       {
         type: "set_scalar_block",
         fields: { NAME: "Fspring" },
-        values: { VALUE: expr("-k * stretch") },
+        values: { VALUE: mul(num(-1), mul(v("k"), v("stretch"))) },
       },
       {
         type: "set_scalar_block",
         fields: { NAME: "Fdamp" },
-        values: { VALUE: expr("-b * v") },
+        values: { VALUE: mul(num(-1), mul(v("b"), v("v"))) },
       },
       {
         type: "set_scalar_block",
         fields: { NAME: "a" },
-        values: { VALUE: expr("(Fspring + Fdamp) / m") },
+        values: { VALUE: div(add(v("Fspring"), v("Fdamp")), v("m")) },
       },
 
       // Euler integration
@@ -1147,12 +1220,12 @@ const SPRING_BLOCKS = [
       {
         type: "set_scalar_block",
         fields: { NAME: "v" },
-        values: { VALUE: expr("v + a * dt") },
+        values: { VALUE: add(v("v"), mul(v("a"), v("dt"))) },
       },
       {
         type: "set_attr_expr_block",
         fields: { OBJ: "mass", ATTR: "pos.x" },
-        values: { VALUE: expr("mass.pos.x + v * dt") },
+        values: { VALUE: add(expr("mass.pos.x"), mul(v("v"), v("dt"))) },
       },
 
       // Spring visual updates
@@ -1204,12 +1277,12 @@ const SPRING_BLOCKS = [
       {
         type: "set_scalar_block",
         fields: { NAME: "KE" },
-        values: { VALUE: expr("0.5 * m * v * v") },
+        values: { VALUE: mul(mul(mul(num(0.5), v("m")), v("v")), v("v")) },
       },
       {
         type: "set_scalar_block",
         fields: { NAME: "PE" },
-        values: { VALUE: expr("0.5 * k * stretch * stretch") },
+        values: { VALUE: mul(mul(mul(num(0.5), v("k")), v("stretch")), v("stretch")) },
       },
 
       // Telemetry
@@ -1244,7 +1317,7 @@ const SPRING_BLOCKS = [
       {
         type: "set_scalar_block",
         fields: { NAME: "t" },
-        values: { VALUE: expr("t + dt") },
+        values: { VALUE: add(v("t"), v("dt")) },
       },
     ],
   },
