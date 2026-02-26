@@ -189,7 +189,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       args0: [
         { type: "field_input", name: "OBJ", text: "ball" },
         { type: "field_number", name: "FX", value: 0 },
-        { type: "field_number", name: "FY", value: -9.8 },
+        { type: "field_number", name: "FY", value: -9.81 },
         { type: "field_number", name: "FZ", value: 0 },
         { type: "field_input", name: "DT", text: "dt" },
       ],
@@ -200,14 +200,14 @@ export function defineCustomBlocksAndGenerator(Blockly) {
     },
     {
       type: "set_gravity_block",
-      message0: "gravity constant g = %1",
+      message0: "gravity g = %1 m/s² (↓ Y)",
       args0: [
-        { type: "field_number", name: "G", value: 9.8, min: 0 },
+        { type: "field_number", name: "G", value: 9.81, min: 0 },
       ],
       previousStatement: null,
       nextStatement: null,
       colour: 45,
-      tooltip: "Define the gravitational acceleration constant",
+      tooltip: "Define gravity as a downward vector: g = vector(0, -value, 0)",
     },
 
     /* ── Control ───────────────────────────────────────────── */
@@ -452,7 +452,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
 
   gen["set_gravity_block"] = function (block) {
     const g = block.getFieldValue("G");
-    return `g = ${g}\n`;
+    return `g = vector(0, -${g}, 0)\n`;
   };
 
   // Control

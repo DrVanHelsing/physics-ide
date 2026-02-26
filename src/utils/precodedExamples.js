@@ -184,7 +184,8 @@ while True:
 
   v = v + a * dt
   mass.pos.x = mass.pos.x + v * dt
-  spring.axis = vector(mass.pos.x - 0.5 - spring.pos.x, 0, 0)
+  # spring.pos is at the wall face; axis reaches to mass center so visual length = L0 at stretch=0
+  spring.axis = vector(mass.pos.x - spring.pos.x, 0, 0)
 
   # Spring color encodes tension/compression magnitude
   stress = min(1, abs(stretch) / 2.2)
@@ -257,8 +258,10 @@ planet.velocity = vector(0, 3.55, 0)
 moon.velocity = planet.velocity + vector(0, 1.3, 0)
 
 # Gravitational parameters
-G = 24.5
-M_star = 24.0
+# G=10, M_star=10.33 chosen so circular orbit speed = sqrt(G*M/r) = sqrt(10*10.33/8.2) ≈ 3.55
+# and moon circular speed around planet = sqrt(G*M_planet/0.95) ≈ 1.30
+G = 10
+M_star = 10.33
 M_planet = 0.16
 
 dt = 0.0016

@@ -177,8 +177,9 @@ const ORBIT_BLOCKS = [
   { type: 'set_attr_expr_block', fields: { OBJ: 'moon', ATTR: 'velocity', EXPR: 'planet.velocity + vector(0, 1.3, 0)' } },
 
   /* ── Gravitational parameters ──────────────────────────── */
-  { type: 'set_scalar_block', fields: { NAME: 'G', VALUE: '24.5' } },
-  { type: 'set_scalar_block', fields: { NAME: 'M_star', VALUE: '24.0' } },
+  // G=10, M_star=10.33 → v_circ = sqrt(10*10.33/8.2) ≈ 3.55 (planet) ; sqrt(10*0.16/0.95) ≈ 1.30 (moon)
+  { type: 'set_scalar_block', fields: { NAME: 'G', VALUE: '10' } },
+  { type: 'set_scalar_block', fields: { NAME: 'M_star', VALUE: '10.33' } },
   { type: 'set_scalar_block', fields: { NAME: 'M_planet', VALUE: '0.16' } },
 
   /* ── Time step and state ───────────────────────────────── */
@@ -225,7 +226,92 @@ const ORBIT_BLOCKS = [
   ]},
 ];
 
-/* ── Export ───────────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════
+   SPRING-MASS TEMPLATE
+   ═══════════════════════════════════════════════════════════ */
+
+const SPRING_BLOCKS = [
+  /* ── Scene ─────────────────────────────────────────────── */
+  { type: 'scene_setup_block', fields: { TITLE: 'Spring-Mass Oscillator', BG: '#0f1224' } },
+  { type: 'scene_range_block', fields: { R: '8.5' } },
+  { type: 'local_light_block', fields: { X: '-2', Y: '10', Z: '8', COL: '#e6e6ff' } },
+  { type: 'local_light_block', fields: { X: '8', Y: '5', Z: '-10', COL: '#667388' } },
+
+  /* ── Camera, caption, ambient (raw) ────────────────────── */
+  { type: 'comment_block', fields: { TEXT: 'Raw code: configure camera, caption, ambient' } },
+  { type: 'python_raw_block', fields: { CODE: 'scene.center = vector(-0.8, 0, 0)' } },
+  { type: 'python_raw_block', fields: { CODE: 'scene.forward = vector(-0.25, -0.12, -1)' } },
+  { type: 'python_raw_block', fields: { CODE: 'scene.caption = "Damped oscillator with energy telemetry\\n"' } },
+  { type: 'python_raw_block', fields: { CODE: 'scene.ambient = color.gray(0.38)' } },
+
+  /* ── Environment geometry ──────────────────────────────── */
+  { type: 'box_block', fields: { NAME: 'floor', X: '-0.5', Y: '-1.25', Z: '0', SX: '17', SY: '0.3', SZ: '5', COL: '#3d4454' } },
+  { type: 'box_block', fields: { NAME: 'rail', X: '-0.5', Y: '-0.65', Z: '0', SX: '16', SY: '0.14', SZ: '1.5', COL: '#737380' } },
+  { type: 'box_block', fields: { NAME: 'wall', X: '-6', Y: '0', Z: '0', SX: '0.52', SY: '4.2', SZ: '4', COL: '#616885' } },
+
+  /* ── Spring, mass, shadow ───────────────────────────────── */
+  { type: 'comment_block', fields: { TEXT: 'Raw code: anchor, helix spring, mass block, shadow' } },
+  { type: 'python_raw_block', fields: { CODE: 'anchor = vector(-5.74, 0, 0)' } },
+  { type: 'python_raw_block', fields: { CODE: 'spring = helix(pos=anchor, axis=vector(4.0,0,0), radius=0.36, coils=16, thickness=0.055, color=vector(0.78,0.8,0.86))' } },
+  { type: 'box_block', fields: { NAME: 'mass', X: '-1.75', Y: '0', Z: '0', SX: '1.06', SY: '1.0', SZ: '1.0', COL: '#39dcf2' } },
+  { type: 'python_raw_block', fields: { CODE: 'shadow = box(pos=vector(mass.pos.x,-1.08,0), size=vector(1.0,0.01,1.0), color=vector(0.07,0.07,0.09), opacity=0.45)' } },
+
+  /* ── Physics constants ─────────────────────────────────── */
+  // k=14 N/m, m=1.2 kg, b=0.22 Ns/m → underdamped (b_crit≈8.2), ω=3.42 rad/s, T≈1.84 s
+  { type: 'set_scalar_block', fields: { NAME: 'k', VALUE: '14.0' } },
+  { type: 'set_scalar_block', fields: { NAME: 'm', VALUE: '1.2' } },
+  { type: 'set_scalar_block', fields: { NAME: 'b', VALUE: '0.22' } },
+  { type: 'set_scalar_block', fields: { NAME: 'L0', VALUE: '4.0' } },
+  { type: 'set_scalar_block', fields: { NAME: 'x0', VALUE: '1.8' } },
+  { type: 'set_scalar_block', fields: { NAME: 'v', VALUE: '0.0' } },
+  { type: 'time_step_block', fields: { DT: '0.004' } },
+  { type: 'set_scalar_block', fields: { NAME: 't', VALUE: '0.0' } },
+
+  /* ── Set initial stretched position ────────────────────── */
+  { type: 'comment_block', fields: { TEXT: 'Raw code: set initial stretched position of mass' } },
+  { type: 'python_raw_block', fields: { CODE: 'mass.pos.x = wall.pos.x + 0.25 + L0 + x0' } },
+
+  /* ── Telemetry label, phase arrow ───────────────────────── */
+  { type: 'comment_block', fields: { TEXT: 'Raw code: telemetry label and phase-space arrow' } },
+  { type: 'python_raw_block', fields: { CODE: 'telemetry = label(pos=vector(0.2,2.9,0), text="", height=12, box=False, opacity=0, color=color.white)' } },
+  { type: 'arrow_block', fields: { NAME: 'phase_arrow', X: '4.8', Y: '-0.2', Z: '0', AX: '0', AY: '0', AZ: '0', COL: '#ff8c33' } },
+
+  /* ── Animation loop ────────────────────────────────────── */
+  { type: 'forever_loop_block', body: [
+    { type: 'rate_block', fields: { N: '260' } },
+
+    // Hooke's law + damping forces
+    { type: 'comment_block', fields: { TEXT: "Raw code: Hooke's law, damping, and acceleration" } },
+    { type: 'python_raw_block', fields: { CODE: 'stretch = (mass.pos.x - wall.pos.x - 0.25) - L0' } },
+    { type: 'python_raw_block', fields: { CODE: 'Fspring = -k * stretch' } },
+    { type: 'python_raw_block', fields: { CODE: 'Fdamp = -b * v' } },
+    { type: 'python_raw_block', fields: { CODE: 'a = (Fspring + Fdamp) / m' } },
+
+    // Euler integration
+    { type: 'set_scalar_block', fields: { NAME: 'v', VALUE: 'v + a * dt' } },
+    { type: 'python_raw_block', fields: { CODE: 'mass.pos.x = mass.pos.x + v * dt' } },
+
+    // Spring visual updates
+    { type: 'set_attr_expr_block', fields: { OBJ: 'spring', ATTR: 'axis', EXPR: 'vector(mass.pos.x - spring.pos.x, 0, 0)' } },
+    { type: 'comment_block', fields: { TEXT: 'Raw code: color-map spring tension/compression' } },
+    { type: 'python_raw_block', fields: { CODE: 'stress = min(1, abs(stretch) / 2.2)' } },
+    { type: 'set_attr_expr_block', fields: { OBJ: 'spring', ATTR: 'color', EXPR: 'vector(0.55 + 0.45 * stress, 0.82 - 0.45 * stress, 0.92 - 0.5 * stress)' } },
+
+    // Shadow and phase-space indicator
+    { type: 'python_raw_block', fields: { CODE: 'shadow.pos.x = mass.pos.x' } },
+    { type: 'set_attr_expr_block', fields: { OBJ: 'phase_arrow', ATTR: 'axis', EXPR: 'vector(0.35 * stretch, 0.28 * v, 0)' } },
+
+    // Energy telemetry
+    { type: 'set_scalar_block', fields: { NAME: 'KE', VALUE: '0.5 * m * v * v' } },
+    { type: 'set_scalar_block', fields: { NAME: 'PE', VALUE: '0.5 * k * stretch * stretch' } },
+    { type: 'python_raw_block', fields: { CODE: 'telemetry.text = "t = " + str(round(t,2)) + " s\\nstretch = " + str(round(stretch,3)) + " m\\nvelocity = " + str(round(v,3)) + " m/s\\nKE = " + str(round(KE,3)) + " J\\nPE = " + str(round(PE,3)) + " J"' } },
+
+    // Advance time
+    { type: 'set_scalar_block', fields: { NAME: 't', VALUE: 't + dt' } },
+  ]},
+];
+
+/* ── Export ───────────────────────────────────────────── */
 
 export const BLOCK_TEMPLATES = [
   {
@@ -235,6 +321,14 @@ export const BLOCK_TEMPLATES = [
     description:
       'Animated projectile template with lighting, launch setup, drag model, velocity arrow, and live telemetry.',
     xml: buildTemplate(PROJECTILE_BLOCKS),
+  },
+  {
+    id: 'blocks_spring',
+    title: 'Spring-Mass (Blocks Template)',
+    subtitle: 'Damped harmonic oscillator with energy telemetry',
+    description:
+      'Animated spring-mass oscillator with Hooke\u2019s law, linear damping, color-mapped tension, phase-space arrow, and live KE/PE telemetry.',
+    xml: buildTemplate(SPRING_BLOCKS),
   },
   {
     id: 'blocks_orbits',
