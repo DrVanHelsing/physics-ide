@@ -689,6 +689,22 @@ button {
   font-weight: 600;
 }
 
+.canvas-controls-hint {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  z-index: 2;
+  pointer-events: none;
+  font-size: 11px;
+  font-family: var(--mono);
+  color: var(--text-muted);
+  background: color-mix(in srgb, var(--bg-panel) 80%, transparent);
+  border: 1px solid var(--border-soft);
+  border-radius: 6px;
+  padding: 5px 8px;
+  opacity: 0.9;
+}
+
 /* ═══════════════════════════════════════════════════════════
    STATUS BAR (VS Code blue bottom bar)
    ═══════════════════════════════════════════════════════════ */

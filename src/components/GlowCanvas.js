@@ -32,6 +32,11 @@ function GlowCanvas({ running }) {
         className="glow-host"
         style={running ? undefined : { display: "none" }}
       />
+      {running && (
+        <div className="canvas-controls-hint" aria-hidden="true">
+          Drag: rotate · Wheel: zoom · Right-drag: pan
+        </div>
+      )}
     </div>
   );
 }

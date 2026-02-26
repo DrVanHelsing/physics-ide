@@ -911,7 +911,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
   gen["scene_setup_block"] = function (block) {
     const title = escPy(block.getFieldValue("TITLE") || "");
     const bg = hexToVPythonColor(block.getFieldValue("BG"));
-    return `scene.title = "${title}"\nscene.background = ${bg}\n`;
+    return `scene.title = "${title}"\nscene.background = ${bg}\nscene.userspin = True\nscene.userzoom = True\nscene.userpan = True\n`;
   };
 
   gen["scene_range_block"] = function (block) {
