@@ -75,81 +75,93 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       previousStatement: null,
       nextStatement: null,
       colour: 210,
-      tooltip: "Create a VPython sphere (leave name blank for anonymous)",
+      tooltip: "Create a sphere. Leave name blank for no variable.",
     },
     {
       type: "box_block",
-      message0: "%1 = box  pos( %2 , %3 , %4 )  size( %5 , %6 , %7 )  color %8",
+      message0: "%1 = box  pos( %2 , %3 , %4 )  color %5",
       args0: [
         { type: "field_input", name: "NAME", text: "" },
         { type: "field_number", name: "X", value: 0 },
         { type: "field_number", name: "Y", value: 0 },
         { type: "field_number", name: "Z", value: 0 },
+        { type: "field_input", name: "COL", text: "#0000ff" },
+      ],
+      message1: "size( %1 , %2 , %3 )",
+      args1: [
         { type: "field_number", name: "SX", value: 1, min: 0 },
         { type: "field_number", name: "SY", value: 1, min: 0 },
         { type: "field_number", name: "SZ", value: 1, min: 0 },
-        { type: "field_input", name: "COL", text: "#0000ff" },
       ],
       previousStatement: null,
       nextStatement: null,
       colour: 210,
-      tooltip: "Create a VPython box (leave name blank for anonymous)",
+      tooltip: "Create a box. Leave name blank for no variable.",
     },
     {
       type: "cylinder_block",
-      message0: "%1 = cylinder  pos( %2 , %3 , %4 )  axis( %5 , %6 , %7 )  radius %8  color %9",
+      message0: "%1 = cylinder  pos( %2 , %3 , %4 )  radius %5  color %6",
       args0: [
         { type: "field_input", name: "NAME", text: "" },
         { type: "field_number", name: "X", value: 0 },
         { type: "field_number", name: "Y", value: 0 },
         { type: "field_number", name: "Z", value: 0 },
-        { type: "field_number", name: "AX", value: 1 },
-        { type: "field_number", name: "AY", value: 0 },
-        { type: "field_number", name: "AZ", value: 0 },
         { type: "field_number", name: "R", value: 0.5, min: 0 },
         { type: "field_input", name: "COL", text: "#00ff00" },
       ],
+      message1: "axis( %1 , %2 , %3 )",
+      args1: [
+        { type: "field_number", name: "AX", value: 1 },
+        { type: "field_number", name: "AY", value: 0 },
+        { type: "field_number", name: "AZ", value: 0 },
+      ],
       previousStatement: null,
       nextStatement: null,
       colour: 210,
-      tooltip: "Create a VPython cylinder (leave name blank for anonymous)",
+      tooltip: "Create a cylinder. The axis vector sets direction and length.",
     },
     {
       type: "arrow_block",
-      message0: "%1 = arrow  pos( %2 , %3 , %4 )  axis( %5 , %6 , %7 )  color %8",
+      message0: "%1 = arrow  pos( %2 , %3 , %4 )  color %5",
       args0: [
         { type: "field_input", name: "NAME", text: "" },
         { type: "field_number", name: "X", value: 0 },
         { type: "field_number", name: "Y", value: 0 },
         { type: "field_number", name: "Z", value: 0 },
+        { type: "field_input", name: "COL", text: "#ffff00" },
+      ],
+      message1: "axis( %1 , %2 , %3 )",
+      args1: [
         { type: "field_number", name: "AX", value: 1 },
         { type: "field_number", name: "AY", value: 0 },
         { type: "field_number", name: "AZ", value: 0 },
-        { type: "field_input", name: "COL", text: "#ffff00" },
       ],
       previousStatement: null,
       nextStatement: null,
       colour: 210,
-      tooltip: "Create a VPython arrow (leave name blank for anonymous)",
+      tooltip: "Create an arrow. Update \"axis\" each frame to animate direction and length.",
     },
     {
       type: "helix_block",
-      message0: "%1 = helix  pos( %2 , %3 , %4 )  axis( %5 , %6 , %7 )  radius %8  color %9",
+      message0: "%1 = helix  pos( %2 , %3 , %4 )  radius %5  color %6",
       args0: [
         { type: "field_input", name: "NAME", text: "" },
         { type: "field_number", name: "X", value: 0 },
         { type: "field_number", name: "Y", value: 0 },
         { type: "field_number", name: "Z", value: 0 },
+        { type: "field_number", name: "R", value: 0.3, min: 0 },
+        { type: "field_input", name: "COL", text: "#cccccc" },
+      ],
+      message1: "axis( %1 , %2 , %3 )",
+      args1: [
         { type: "field_number", name: "AX", value: 1 },
         { type: "field_number", name: "AY", value: 0 },
         { type: "field_number", name: "AZ", value: 0 },
-        { type: "field_number", name: "R", value: 0.3, min: 0 },
-        { type: "field_input", name: "COL", text: "#cccccc" },
       ],
       previousStatement: null,
       nextStatement: null,
       colour: 210,
-      tooltip: "Create a VPython helix (leave name blank for anonymous)",
+      tooltip: "Create a helix/spring. Update \"axis\" each frame to stretch it.",
     },
 
     /* ── Vectors ───────────────────────────────────────────── */
@@ -169,7 +181,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
     /* ── Motion / Physics ──────────────────────────────────── */
     {
       type: "set_velocity_block",
-      message0: "set %1 .velocity = vector( %2 , %3 , %4 )",
+      message0: "%1 .velocity = vector( %2 , %3 , %4 )",
       args0: [
         { type: "field_input", name: "OBJ", text: "ball" },
         { type: "field_number", name: "VX", value: 0 },
@@ -179,11 +191,11 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       previousStatement: null,
       nextStatement: null,
       colour: 45,
-      tooltip: "Set an object's velocity vector",
+      tooltip: "Set the starting velocity of an object.",
     },
     {
       type: "update_position_block",
-      message0: "update %1 position by velocity * %2",
+      message0: "%1 .pos += .velocity × %2",
       args0: [
         { type: "field_input", name: "OBJ", text: "ball" },
         { type: "field_input", name: "DT", text: "dt" },
@@ -191,11 +203,11 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       previousStatement: null,
       nextStatement: null,
       colour: 45,
-      tooltip: "Euler update: pos = pos + velocity * dt",
+      tooltip: "Move object by its velocity × dt each step (Euler integration).",
     },
     {
       type: "apply_force_block",
-      message0: "apply force  %1 .velocity += vector( %2 , %3 , %4 ) * %5",
+      message0: "%1 .velocity += vector( %2 , %3 , %4 ) × %5",
       args0: [
         { type: "field_input", name: "OBJ", text: "ball" },
         { type: "field_number", name: "FX", value: 0 },
@@ -206,7 +218,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       previousStatement: null,
       nextStatement: null,
       colour: 45,
-      tooltip: "Apply a force: velocity += (F/m) * dt  (set F/m directly)",
+      tooltip: "Apply a constant acceleration vector to an object's velocity. Enter acceleration (m/s²), not force.",
     },
     {
       type: "set_gravity_block",
@@ -257,7 +269,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
     /* ── Utility ───────────────────────────────────────────── */
     {
       type: "scene_setup_block",
-      message0: "scene  title %1  background %2",
+      message0: "scene title %1  background %2",
       args0: [
         { type: "field_input", name: "TITLE", text: "Physics Simulation" },
         { type: "field_input", name: "BG", text: "#000000" },
@@ -315,7 +327,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
     },
     {
       type: "set_scalar_block",
-      message0: "set %1 = %2",
+      message0: "%1 = %2",
       args0: [
         { type: "field_input", name: "NAME", text: "dt" },
         { type: "field_input", name: "VALUE", text: "0.01" },
@@ -323,11 +335,11 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       previousStatement: null,
       nextStatement: null,
       colour: 45,
-      tooltip: "Assign scalar expression",
+      tooltip: "Set a variable to a number or expression.",
     },
     {
       type: "set_vector_expr_block",
-      message0: "set %1 = vector expr %2",
+      message0: "%1 = vector( %2 )",
       args0: [
         { type: "field_input", name: "NAME", text: "g" },
         { type: "field_input", name: "VALUE", text: "0, -9.8, 0" },
@@ -335,11 +347,11 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       previousStatement: null,
       nextStatement: null,
       colour: 45,
-      tooltip: "Assign vector expression (x,y,z)",
+      tooltip: "Set a variable to a 3D vector.",
     },
     {
       type: "set_attr_expr_block",
-      message0: "set %1 . %2 = %3",
+      message0: "%1 . %2 = %3",
       args0: [
         { type: "field_input", name: "OBJ", text: "ball" },
         { type: "field_input", name: "ATTR", text: "radius" },
@@ -348,37 +360,37 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       previousStatement: null,
       nextStatement: null,
       colour: 45,
-      tooltip: "One-line assignment: object.attribute = expression",
+      tooltip: "Set a property of an object. Example: ball.pos = vector(0,1,0)",
     },
     {
       type: "add_attr_expr_block",
-      message0: "add %1 to %2 . %3",
+      message0: "%1 . %2 += %3",
       args0: [
-        { type: "field_input", name: "EXPR", text: "a * dt" },
         { type: "field_input", name: "OBJ", text: "ball" },
         { type: "field_input", name: "ATTR", text: "velocity" },
+        { type: "field_input", name: "EXPR", text: "a * dt" },
       ],
       previousStatement: null,
       nextStatement: null,
       colour: 45,
-      tooltip: "One-line increment: object.attribute += expression",
+      tooltip: "Add a value to an object's property. Example: ball.velocity += acceleration * dt",
     },
     {
       type: "python_raw_block",
-      message0: "raw python %1",
+      message0: "code: %1",
       args0: [{ type: "field_input", name: "CODE", text: "# custom python" }],
       previousStatement: null,
       nextStatement: null,
       colour: 10,
-      tooltip: "Insert raw Python code as-is",
+      tooltip: "Insert any Python statement directly. Use when no specific block exists.",
     },
     {
       type: "python_raw_expr_block",
-      message0: "raw python expr %1",
+      message0: "expr: %1",
       args0: [{ type: "field_input", name: "EXPR", text: "mag(v)" }],
       output: null,
       colour: 10,
-      tooltip: "Insert raw Python expression",
+      tooltip: "Insert a Python expression that outputs a value.",
     },
 
     /* ── Scene property blocks ─────────────────────────────── */
@@ -430,38 +442,42 @@ export function defineCustomBlocksAndGenerator(Blockly) {
     /* ── Control flow ──────────────────────────────────────── */
     {
       type: "for_range_block",
-      message0: "for %1 in range( %2 , %3 , %4 ) %5 do %6",
+      message0: "for %1 from %2 to %3 step %4",
       args0: [
         { type: "field_input", name: "VAR", text: "i" },
         { type: "field_number", name: "START", value: 0 },
         { type: "field_number", name: "STOP", value: 10 },
         { type: "field_number", name: "STEP", value: 1 },
-        { type: "input_dummy" },
+      ],
+      message1: "do %1",
+      args1: [
         { type: "input_statement", name: "BODY" },
       ],
       previousStatement: null,
       nextStatement: null,
       colour: 260,
-      tooltip: "For loop: for VAR in range(start, stop, step)",
+      tooltip: "Repeat: run the blocks inside for each value of the loop variable.",
     },
     {
       type: "if_block",
-      message0: "if %1 %2 do %3",
+      message0: "if %1",
       args0: [
         { type: "field_input", name: "COND", text: "True" },
-        { type: "input_dummy" },
+      ],
+      message1: "do %1",
+      args1: [
         { type: "input_statement", name: "BODY" },
       ],
       previousStatement: null,
       nextStatement: null,
       colour: 260,
-      tooltip: "If statement with free-text condition",
+      tooltip: "Run the blocks inside only if the condition is true.",
     },
 
     /* ── Extended object constructors ──────────────────────── */
     {
       type: "sphere_trail_block",
-      message0: "%1 = sphere  pos( %2 , %3 , %4 )  radius %5  color %6  trail_r %7  trail_col %8  retain %9  shininess %10",
+      message0: "%1 = sphere  pos( %2 , %3 , %4 )  radius %5  color %6",
       args0: [
         { type: "field_input", name: "NAME", text: "ball" },
         { type: "field_number", name: "X", value: 0 },
@@ -469,19 +485,21 @@ export function defineCustomBlocksAndGenerator(Blockly) {
         { type: "field_number", name: "Z", value: 0 },
         { type: "field_number", name: "R", value: 0.5, min: 0 },
         { type: "field_input", name: "COL", text: "#ff0000" },
+      ],
+      message1: "trail  radius %1  color %2  keep %3 pts",
+      args1: [
         { type: "field_number", name: "TRAIL_R", value: 0.03, min: 0 },
         { type: "field_input", name: "TRAIL_COL", text: "#ffff00" },
         { type: "field_number", name: "RETAIN", value: 200, min: 1 },
-        { type: "field_number", name: "SHINE", value: 0.5, min: 0, max: 1, precision: 0.01 },
       ],
       previousStatement: null,
       nextStatement: null,
       colour: 210,
-      tooltip: "Create a VPython sphere with make_trail=True (trail must be set in constructor)",
+      tooltip: "Create a sphere that leaves a visible trail. Trail settings must be in the constructor.",
     },
     {
       type: "sphere_emissive_block",
-      message0: "%1 = sphere  pos( %2 , %3 , %4 )  radius %5  color %6  opacity %7  shininess %8  emissive",
+      message0: "%1 = glowing sphere  pos( %2 , %3 , %4 )  radius %5  color %6",
       args0: [
         { type: "field_input", name: "NAME", text: "" },
         { type: "field_number", name: "X", value: 0 },
@@ -489,49 +507,57 @@ export function defineCustomBlocksAndGenerator(Blockly) {
         { type: "field_number", name: "Z", value: 0 },
         { type: "field_number", name: "R", value: 0.5, min: 0 },
         { type: "field_input", name: "COL", text: "#ffffff" },
+      ],
+      message1: "opacity %1",
+      args1: [
         { type: "field_number", name: "OPACITY", value: 1.0, min: 0, max: 1, precision: 0.01 },
-        { type: "field_number", name: "SHINE", value: 0.5, min: 0, max: 1, precision: 0.01 },
       ],
       previousStatement: null,
       nextStatement: null,
       colour: 210,
-      tooltip: "Create an emissive VPython sphere (glow/self-lit effect)",
+      tooltip: "Create a self-glowing sphere (emissive=True). Use for stars, lights, particles.",
     },
     {
       type: "helix_full_block",
-      message0: "%1 = helix  pos %2  axis %3  radius %4  coils %5  thickness %6  color %7",
+      message0: "%1 = helix  pos %2  radius %3  coils %4  color %5",
       args0: [
         { type: "field_input", name: "NAME", text: "spring" },
         { type: "field_input", name: "POS", text: "vector(0,0,0)" },
-        { type: "field_input", name: "AXIS", text: "vector(1,0,0)" },
         { type: "field_number", name: "R", value: 0.3, min: 0 },
         { type: "field_number", name: "COILS", value: 10, min: 1 },
-        { type: "field_number", name: "THICK", value: 0.05, min: 0, precision: 0.001 },
         { type: "field_input", name: "COL", text: "#cccccc" },
+      ],
+      message1: "axis %1  thickness %2",
+      args1: [
+        { type: "field_input", name: "AXIS", text: "vector(1,0,0)" },
+        { type: "field_number", name: "THICK", value: 0.05, min: 0, precision: 0.001 },
       ],
       previousStatement: null,
       nextStatement: null,
       colour: 210,
-      tooltip: "Create a VPython helix with coils and thickness",
+      tooltip: "Create a spring/helix with specific coil count and thickness.",
     },
     {
       type: "box_opacity_block",
-      message0: "%1 = box  pos( %2 , %3 , %4 )  size( %5 , %6 , %7 )  color %8  opacity %9",
+      message0: "%1 = box  pos( %2 , %3 , %4 )  color %5  opacity %6",
       args0: [
         { type: "field_input", name: "NAME", text: "" },
         { type: "field_input", name: "X", text: "0" },
         { type: "field_input", name: "Y", text: "0" },
         { type: "field_input", name: "Z", text: "0" },
+        { type: "field_input", name: "COL", text: "#333333" },
+        { type: "field_number", name: "OPACITY", value: 0.5, min: 0, max: 1, precision: 0.01 },
+      ],
+      message1: "size( %1 , %2 , %3 )",
+      args1: [
         { type: "field_number", name: "SX", value: 1, min: 0 },
         { type: "field_number", name: "SY", value: 1, min: 0 },
         { type: "field_number", name: "SZ", value: 1, min: 0 },
-        { type: "field_input", name: "COL", text: "#333333" },
-        { type: "field_number", name: "OPACITY", value: 0.5, min: 0, max: 1, precision: 0.01 },
       ],
       previousStatement: null,
       nextStatement: null,
       colour: 210,
-      tooltip: "Create a VPython box with opacity",
+      tooltip: "Create a semi-transparent box. Opacity 0 = invisible, 1 = solid.",
     },
     {
       type: "label_full_block",
@@ -553,29 +579,33 @@ export function defineCustomBlocksAndGenerator(Blockly) {
     /* ── Execute statement ─────────────────────────────────── */
     {
       type: "exec_block",
-      message0: "exec %1",
+      message0: "run: %1",
       args0: [{ type: "field_input", name: "EXPR", text: "sphere()" }],
       previousStatement: null,
       nextStatement: null,
       colour: 10,
-      tooltip: "Execute any Python expression as a statement (e.g. anonymous object creation)",
+      tooltip: "Run any Python expression as a statement. Useful for creating anonymous objects.",
     },
 
     /* ── If / Else block ───────────────────────────────────── */
     {
       type: "if_else_block",
-      message0: "if %1 %2 do %3 else %4 do %5",
+      message0: "if %1",
       args0: [
         { type: "field_input", name: "COND", text: "True" },
-        { type: "input_dummy" },
+      ],
+      message1: "do %1",
+      args1: [
         { type: "input_statement", name: "BODY_IF" },
-        { type: "input_dummy" },
+      ],
+      message2: "else %1",
+      args2: [
         { type: "input_statement", name: "BODY_ELSE" },
       ],
       previousStatement: null,
       nextStatement: null,
       colour: 260,
-      tooltip: "If/else: run first block if condition is true, otherwise run else block",
+      tooltip: "If/else: run \"do\" blocks if condition is true, otherwise run \"else\" blocks.",
     },
 
     /* ── Break loop block ──────────────────────────────────── */
@@ -591,30 +621,40 @@ export function defineCustomBlocksAndGenerator(Blockly) {
     /* ── Telemetry (measurement display) block ─────────────── */
     {
       type: "telemetry_update_block",
-      message0: "update %1 display %2 %3 = round( %4 , %5 ) %6 %7 %8 = round( %9 , %10 ) %11 %12 %13 = round( %14 , %15 ) %16 %17 %18 = round( %19 , %20 ) %21 %22 %23 = round( %24 , %25 ) %26",
+      message0: "update %1 display",
       args0: [
         { type: "field_input", name: "LABEL", text: "telemetry" },
-        { type: "input_dummy" },
+      ],
+      message1: "%1  =  round( %2 , %3 dp )  %4",
+      args1: [
         { type: "field_input", name: "M1", text: "t" },
         { type: "field_input", name: "V1", text: "t" },
         { type: "field_number", name: "D1", value: 2 },
         { type: "field_input", name: "U1", text: "s" },
-        { type: "input_dummy" },
+      ],
+      message2: "%1  =  round( %2 , %3 dp )  %4",
+      args2: [
         { type: "field_input", name: "M2", text: "speed" },
         { type: "field_input", name: "V2", text: "speed" },
         { type: "field_number", name: "D2", value: 2 },
         { type: "field_input", name: "U2", text: "m/s" },
-        { type: "input_dummy" },
+      ],
+      message3: "%1  =  round( %2 , %3 dp )  %4",
+      args3: [
         { type: "field_input", name: "M3", text: "height" },
         { type: "field_input", name: "V3", text: "height" },
         { type: "field_number", name: "D3", value: 2 },
         { type: "field_input", name: "U3", text: "m" },
-        { type: "input_dummy" },
+      ],
+      message4: "%1  =  round( %2 , %3 dp )  %4",
+      args4: [
         { type: "field_input", name: "M4", text: "" },
         { type: "field_input", name: "V4", text: "" },
         { type: "field_number", name: "D4", value: 2 },
         { type: "field_input", name: "U4", text: "" },
-        { type: "input_dummy" },
+      ],
+      message5: "%1  =  round( %2 , %3 dp )  %4",
+      args5: [
         { type: "field_input", name: "M5", text: "" },
         { type: "field_input", name: "V5", text: "" },
         { type: "field_number", name: "D5", value: 2 },
@@ -623,34 +663,37 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       previousStatement: null,
       nextStatement: null,
       colour: 330,
-      tooltip: "Update a telemetry label with up to 5 measurement lines. Leave metric name blank to skip a line.",
+      tooltip: "Show live measurements on a label. Up to 5 lines — leave \"metric name\" blank to skip a row.",
     },
 
     /* ── Cylinder with expression positions (for loops) ────── */
     {
       type: "cylinder_expr_block",
-      message0: "%1 = cylinder  pos( %2 , %3 , %4 )  axis( %5 , %6 , %7 )  radius %8  color %9",
+      message0: "%1 = cylinder  pos( %2 , %3 , %4 )  radius %5  color %6",
       args0: [
         { type: "field_input", name: "NAME", text: "" },
         { type: "field_input", name: "X", text: "0" },
         { type: "field_input", name: "Y", text: "0" },
         { type: "field_input", name: "Z", text: "0" },
+        { type: "field_input", name: "R", text: "0.5" },
+        { type: "field_input", name: "COL", text: "#00ff00" },
+      ],
+      message1: "axis( %1 , %2 , %3 )",
+      args1: [
         { type: "field_input", name: "AX", text: "0" },
         { type: "field_input", name: "AY", text: "0" },
         { type: "field_input", name: "AZ", text: "0" },
-        { type: "field_input", name: "R", text: "0.5" },
-        { type: "field_input", name: "COL", text: "#00ff00" },
       ],
       previousStatement: null,
       nextStatement: null,
       colour: 210,
-      tooltip: "Create a VPython cylinder (positions accept expressions/variables)",
+      tooltip: "Create a cylinder. Fields accept expressions and variables (useful inside loops).",
     },
 
     /* ── Sphere with expression positions (for loops) ──────── */
     {
       type: "sphere_expr_block",
-      message0: "%1 = sphere  pos( %2 , %3 , %4 )  radius %5  color %6  %7",
+      message0: "%1 = sphere  pos( %2 , %3 , %4 )  radius %5  color %6",
       args0: [
         { type: "field_input", name: "NAME", text: "" },
         { type: "field_input", name: "X", text: "0" },
@@ -658,12 +701,15 @@ export function defineCustomBlocksAndGenerator(Blockly) {
         { type: "field_input", name: "Z", text: "0" },
         { type: "field_input", name: "R", text: "0.5" },
         { type: "field_input", name: "COL", text: "#ffffff" },
+      ],
+      message1: "options %1",
+      args1: [
         { type: "field_input", name: "EXTRA", text: "" },
       ],
       previousStatement: null,
       nextStatement: null,
       colour: 210,
-      tooltip: "Create a VPython sphere (positions/radius accept expressions). EXTRA accepts additional keyword args like emissive=True, opacity=0.9",
+      tooltip: "Create a sphere. Fields accept expressions. Use \"options\" for extra args like emissive=True.",
     },
   ]);
 
@@ -815,10 +861,10 @@ export function defineCustomBlocksAndGenerator(Blockly) {
   };
 
   gen["add_attr_expr_block"] = function (block) {
+    const obj  = (block.getFieldValue("OBJ")  || "ball").trim();
+    const attr = (block.getFieldValue("ATTR") || "velocity").trim();
     const expr = (block.getFieldValue("EXPR") || "0").trim();
-    const obj = (block.getFieldValue("OBJ") || "obj").trim();
-    const attr = (block.getFieldValue("ATTR") || "value").trim();
-    return `${obj}.${attr} = ${obj}.${attr} + ${expr}\n`;
+    return `${obj}.${attr} += ${expr}\n`;
   };
 
   gen["python_raw_block"] = function (block) {
@@ -877,8 +923,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
     const trailR   = block.getFieldValue("TRAIL_R");
     const trailCol = hexToVPythonColor(block.getFieldValue("TRAIL_COL"));
     const retain   = block.getFieldValue("RETAIN");
-    const shine    = block.getFieldValue("SHINE");
-    const expr = `sphere(pos=vector(${x}, ${y}, ${z}), radius=${r}, color=${col}, make_trail=True, trail_radius=${trailR}, trail_color=${trailCol}, retain=${retain}, shininess=${shine})`;
+    const expr = `sphere(pos=vector(${x}, ${y}, ${z}), radius=${r}, color=${col}, make_trail=True, trail_radius=${trailR}, trail_color=${trailCol}, retain=${retain}, shininess=0.6)`;
     return name ? `${name} = ${expr}\n` : `${expr}\n`;
   };
 
@@ -889,8 +934,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
     const colRaw = block.getFieldValue("COL");
     const col    = (colRaw && colRaw.startsWith('#')) ? hexToVPythonColor(colRaw) : (colRaw || 'color.white');
     const opacity = block.getFieldValue("OPACITY");
-    const shine   = block.getFieldValue("SHINE");
-    const expr = `sphere(pos=vector(${x}, ${y}, ${z}), radius=${r}, color=${col}, emissive=True, opacity=${opacity}, shininess=${shine})`;
+    const expr = `sphere(pos=vector(${x}, ${y}, ${z}), radius=${r}, color=${col}, emissive=True, opacity=${opacity}, shininess=0.8)`;
     return name ? `${name} = ${expr}\n` : `${expr}\n`;
   };
 
