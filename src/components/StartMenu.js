@@ -5,29 +5,34 @@ import {
   RocketIcon,
   AtomIcon,
   GlobeIcon,
-  PlusIcon,
   BlocksIcon,
   CodeIcon,
   SpringIcon,
   HelpIcon,
+  FileCodeIcon,
+  FileBlocksIcon,
 } from "./Icons";
 
 const CARD_ICONS = {
-  projectile:       RocketIcon,
-  spring:           SpringIcon,
-  orbits:           GlobeIcon,
+  projectile:        RocketIcon,
+  spring:            SpringIcon,
+  orbits:            GlobeIcon,
   blocks_projectile: BlocksIcon,
-  blocks_spring:    SpringIcon,
-  blocks_orbits:    BlocksIcon,
+  blocks_spring:     SpringIcon,
+  blocks_orbits:     BlocksIcon,
+  code_blank:        FileCodeIcon,
+  blocks_blank:      FileBlocksIcon,
 };
 
 const ACCENT_COLORS = {
-  projectile:       "var(--accent-red)",
-  spring:           "var(--peach)",
-  orbits:           "var(--accent-blue)",
-  blocks_projectile: "var(--accent-blue)",
-  blocks_spring:    "var(--peach)",
-  blocks_orbits:    "var(--accent)",
+  projectile:        "var(--accent-blue)",
+  spring:            "var(--peach)",
+  orbits:            "var(--accent-blue)",
+  blocks_projectile: "var(--mauve)",
+  blocks_spring:     "var(--peach)",
+  blocks_orbits:     "var(--mauve)",
+  code_blank:        "var(--accent-blue)",
+  blocks_blank:      "var(--mauve)",
 };
 
 const FILTERS = [
@@ -123,24 +128,52 @@ export default function StartMenu({ onSelect, onHelp }) {
             );
           })}
 
-          {/* Blank project card — always visible */}
-          <button
-            className="start-card start-card--blank"
-            style={{ "--card-accent": "var(--accent)" }}
-            onClick={() => onSelect({ type: "blank" })}
-          >
-            <div className="start-card-icon">
-              <PlusIcon size={28} />
-            </div>
-            <div className="start-card-body">
-              <h3 className="start-card-title">Blank Project</h3>
-              <p className="start-card-sub">Start from scratch</p>
-              <p className="start-card-desc">
-                Open an empty workspace and build your own physics simulation
-                using blocks or code.
-              </p>
-            </div>
-          </button>
+          {/* ── Blank / New project section ── */}
+          {(showCode || showBlocks) && (
+            <div className="start-blank-section">New Project</div>
+          )}
+
+          {showCode && (
+            <button
+              className="start-card start-card--blank"
+              style={{ "--card-accent": "var(--accent-blue)" }}
+              onClick={() => onSelect({ type: "code_blank" })}
+            >
+              <div className="start-card-icon">
+                <FileCodeIcon size={28} />
+              </div>
+              <div className="start-card-body">
+                <span className="start-card-badge start-card-badge--code">Code</span>
+                <h3 className="start-card-title">Code Blank</h3>
+                <p className="start-card-sub">Write VPython from scratch</p>
+                <p className="start-card-desc">
+                  Full code editor, empty workspace. The blocks panel shows a
+                  read-only structural view of your code.
+                </p>
+              </div>
+            </button>
+          )}
+
+          {showBlocks && (
+            <button
+              className="start-card start-card--blank"
+              style={{ "--card-accent": "var(--mauve)" }}
+              onClick={() => onSelect({ type: "blocks_blank" })}
+            >
+              <div className="start-card-icon">
+                <FileBlocksIcon size={28} />
+              </div>
+              <div className="start-card-body">
+                <span className="start-card-badge start-card-badge--blocks">Blocks</span>
+                <h3 className="start-card-title">Blocks Blank</h3>
+                <p className="start-card-sub">Build with drag-and-drop blocks</p>
+                <p className="start-card-desc">
+                  Empty block canvas. The code panel shows a read-only preview
+                  of the generated VPython.
+                </p>
+              </div>
+            </button>
+          )}
         </div>
       </div>
     </div>

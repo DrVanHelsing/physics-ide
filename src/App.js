@@ -249,6 +249,7 @@ function App() {
   // Determine which mode to lock (grey out) based on project type
   const lockedMode = projectType === "code_template" ? "blocks"
     : projectType === "block_template" ? "text"
+    : projectType === "code_blank"     ? "blocks"
     : null;
 
   return (
@@ -281,7 +282,7 @@ function App() {
           {/* ── Blocks mode ── */}
           {mode === "blocks" ? (
             <>
-              <div className="pane-header">
+              <div className="pane-header pane-header--blocks">
                 <BlocksIcon size={14} /> Block Editor
               </div>
               <BlocklyWorkspace
@@ -293,8 +294,8 @@ function App() {
             </>
           ) : (
             <>
-              <div className="pane-header">
-                <CodeIcon size={14} /> {isCustom ? "Code View Only" : "Code Editor"}
+              <div className="pane-header pane-header--code">
+                <CodeIcon size={14} /> {isCustom ? "Code View Only" : projectType === "code_blank" ? "Code Editor" : "Code Editor"}
               </div>
               <CodeEditor
                 value={pythonCode}
@@ -312,15 +313,18 @@ function App() {
           )}
         </section>
         <section className="canvas-pane">
-          <div className="pane-header">
+          <div className="pane-header pane-header--viewport">
             <GlobeIcon size={14} /> 3D Viewport
           </div>
-          <GlowCanvas />
+          <GlowCanvas running={running} />
         </section>
       </div>
 
       <div className="status-bar">
-        <span className={statusClass}>{status.text}</span>
+        <span className={running ? "console-bar console-bar--running" : statusClass}>
+          {running && <span className="status-dot" />}
+          {status.text}
+        </span>
         <span>
           Mode: {mode === "blocks" ? "Blocks" : isCustom ? "Code View Only" : "Code"} | VPython 3.2
         </span>

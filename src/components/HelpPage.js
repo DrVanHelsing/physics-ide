@@ -6,6 +6,10 @@
  * Designed for junior developers, senior developers, and educators.
  */
 import React, { useEffect, useRef, useState } from "react";
+import {
+  AtomIcon, RocketIcon, BlocksIcon, BookOpenIcon, CodeIcon,
+  DownloadIcon, ZapIcon, LayersIcon, EditIcon, UsersIcon,
+} from "./Icons";
 
 /* ── Tiny inline components ──────────────────────────────── */
 function Code({ children }) {
@@ -33,18 +37,18 @@ function SectionAnchor({ id }) {
 
 /* ── Navigation structure ────────────────────────────────── */
 const NAV = [
-  { id: "overview",        label: "Overview",               emoji: "🔭" },
-  { id: "getting-started", label: "Getting Started",        emoji: "🚀" },
-  { id: "block-editor",    label: "Block Editor",           emoji: "🧩" },
-  { id: "block-reference", label: "Block Reference",        emoji: "📖" },
-  { id: "code-editor",     label: "Code Editor",            emoji: "💻" },
-  { id: "templates",       label: "Built-in Templates",     emoji: "⭐" },
-  { id: "custom-scenes",   label: "Custom Scenes",          emoji: "✏️" },
-  { id: "vpython-ref",     label: "VPython Reference",      emoji: "📐" },
-  { id: "physics-models",  label: "Physics Models",         emoji: "⚛️" },
-  { id: "export",          label: "Export & Share",         emoji: "📤" },
-  { id: "educators",       label: "For Educators",          emoji: "🎓" },
-  { id: "shortcuts",       label: "Keyboard Shortcuts",     emoji: "⌨️" },
+  { id: "overview",        label: "Overview",               Icon: AtomIcon },
+  { id: "getting-started", label: "Getting Started",        Icon: RocketIcon },
+  { id: "block-editor",    label: "Block Editor",           Icon: BlocksIcon },
+  { id: "block-reference", label: "Block Reference",        Icon: BookOpenIcon },
+  { id: "code-editor",     label: "Code Editor",            Icon: CodeIcon },
+  { id: "templates",       label: "Built-in Templates",     Icon: LayersIcon },
+  { id: "custom-scenes",   label: "Custom Scenes",          Icon: EditIcon },
+  { id: "vpython-ref",     label: "VPython Reference",      Icon: CodeIcon },
+  { id: "physics-models",  label: "Physics Models",         Icon: AtomIcon },
+  { id: "export",          label: "Export & Share",         Icon: DownloadIcon },
+  { id: "educators",       label: "For Educators",          Icon: UsersIcon },
+  { id: "shortcuts",       label: "Keyboard Shortcuts",     Icon: ZapIcon },
 ];
 
 /* ═══════════════════════════════════════════════════════════
@@ -92,11 +96,11 @@ export default function HelpPage({ onClose }) {
         {/* ── Top bar ── */}
         <div className="help-topbar">
           <div className="help-topbar-left">
-            <span className="help-topbar-icon">⚛️</span>
+            <span className="help-topbar-icon"><AtomIcon size={22} /></span>
             <h1 className="help-topbar-title">Physics IDE — Complete Guide</h1>
           </div>
           <button className="help-close-btn" onClick={onClose} title="Close Help (Esc)">
-            ✕ Close
+            Close
           </button>
         </div>
 
@@ -104,13 +108,13 @@ export default function HelpPage({ onClose }) {
           {/* ── Sidebar ── */}
           <nav className="help-sidebar">
             <p className="help-sidebar-label">Sections</p>
-            {NAV.map(({ id, label, emoji }) => (
+            {NAV.map(({ id, label, Icon: NavIcon }) => (
               <button
                 key={id}
                 className={`help-nav-item${activeSection === id ? " help-nav-item--active" : ""}`}
                 onClick={() => scrollTo(id)}
               >
-                <span className="help-nav-emoji">{emoji}</span>
+                <span className="help-nav-icon"><NavIcon size={14} /></span>
                 {label}
               </button>
             ))}
@@ -122,7 +126,7 @@ export default function HelpPage({ onClose }) {
             {/* ══════════════ OVERVIEW ══════════════ */}
             <SectionAnchor id="overview" />
             <section className="help-section">
-              <h2 className="help-h2">🔭 Overview</h2>
+              <h2 className="help-h2">Overview</h2>
               <p>
                 <strong>Physics IDE</strong> is a browser-based physics simulation environment that lets you
                 build, run, and explore 3D physics simulations without installing anything. It combines a
@@ -167,7 +171,7 @@ export default function HelpPage({ onClose }) {
             {/* ══════════════ GETTING STARTED ══════════════ */}
             <SectionAnchor id="getting-started" />
             <section className="help-section">
-              <h2 className="help-h2">🚀 Getting Started</h2>
+              <h2 className="help-h2">Getting Started</h2>
 
               <h3 className="help-h3">The Start Menu</h3>
               <p>
@@ -216,7 +220,7 @@ export default function HelpPage({ onClose }) {
             {/* ══════════════ BLOCK EDITOR ══════════════ */}
             <SectionAnchor id="block-editor" />
             <section className="help-section">
-              <h2 className="help-h2">🧩 Block Editor</h2>
+              <h2 className="help-h2">Block Editor</h2>
               <p>
                 The Block Editor uses <strong>Google Blockly v11</strong>. Blocks are grouped into
                 categories in the toolbox on the left. Drag a block onto the canvas, connect it to
@@ -266,7 +270,7 @@ export default function HelpPage({ onClose }) {
             {/* ══════════════ BLOCK REFERENCE ══════════════ */}
             <SectionAnchor id="block-reference" />
             <section className="help-section">
-              <h2 className="help-h2">📖 Block Reference</h2>
+              <h2 className="help-h2">Block Reference</h2>
               <p>All custom Physics IDE blocks and the VPython code they generate.</p>
 
               <h3 className="help-h3">Scene Objects <Tag color="blue">colour 210</Tag></h3>
@@ -476,7 +480,7 @@ export default function HelpPage({ onClose }) {
             {/* ══════════════ CODE EDITOR ══════════════ */}
             <SectionAnchor id="code-editor" />
             <section className="help-section">
-              <h2 className="help-h2">💻 Code Editor</h2>
+              <h2 className="help-h2">Code Editor</h2>
               <p>
                 The Code Editor uses <strong>Monaco Editor</strong> (the engine powering Visual Studio
                 Code) with Python syntax highlighting, line numbers, and bracket matching.
@@ -519,7 +523,7 @@ export default function HelpPage({ onClose }) {
             {/* ══════════════ TEMPLATES ══════════════ */}
             <SectionAnchor id="templates" />
             <section className="help-section">
-              <h2 className="help-h2">⭐ Built-in Templates</h2>
+              <h2 className="help-h2">Built-in Templates</h2>
               <p>Physics IDE ships with three fully worked simulations available in both Code and Blocks modes.</p>
 
               <h3 className="help-h3">1 · Projectile Motion</h3>
@@ -573,7 +577,7 @@ export default function HelpPage({ onClose }) {
             {/* ══════════════ CUSTOM SCENES ══════════════ */}
             <SectionAnchor id="custom-scenes" />
             <section className="help-section">
-              <h2 className="help-h2">✏️ Writing Custom Scenes</h2>
+              <h2 className="help-h2">Writing Custom Scenes</h2>
               <p>
                 Physics IDE supports any valid GlowScript 3.2 VPython program. Here is a step-by-step
                 guide to writing a new simulation from scratch.
@@ -624,7 +628,7 @@ export default function HelpPage({ onClose }) {
             {/* ══════════════ VPYTHON REFERENCE ══════════════ */}
             <SectionAnchor id="vpython-ref" />
             <section className="help-section">
-              <h2 className="help-h2">📐 VPython Quick Reference</h2>
+              <h2 className="help-h2">VPython Quick Reference</h2>
 
               <h3 className="help-h3">3D Objects</h3>
               <table className="help-table">
@@ -656,7 +660,7 @@ export default function HelpPage({ onClose }) {
             {/* ══════════════ PHYSICS MODELS ══════════════ */}
             <SectionAnchor id="physics-models" />
             <section className="help-section">
-              <h2 className="help-h2">⚛️ Physics Models</h2>
+              <h2 className="help-h2">Physics Models</h2>
 
               <h3 className="help-h3">Projectile Motion with Drag</h3>
               <div className="help-equation">
@@ -716,7 +720,7 @@ export default function HelpPage({ onClose }) {
             {/* ══════════════ EXPORT ══════════════ */}
             <SectionAnchor id="export" />
             <section className="help-section">
-              <h2 className="help-h2">📤 Export &amp; Share</h2>
+              <h2 className="help-h2">Export &amp; Share</h2>
               <p>Physics IDE provides four export formats, all accessible from the toolbar.</p>
               <table className="help-table">
                 <thead><tr><th>Button</th><th>Format</th><th>Contents</th><th>Best for</th></tr></thead>
@@ -765,7 +769,7 @@ export default function HelpPage({ onClose }) {
             {/* ══════════════ EDUCATORS ══════════════ */}
             <SectionAnchor id="educators" />
             <section className="help-section">
-              <h2 className="help-h2">🎓 For Educators</h2>
+              <h2 className="help-h2">For Educators</h2>
 
               <h3 className="help-h3">Physics IDE as a teaching tool</h3>
               <p>
@@ -883,7 +887,7 @@ export default function HelpPage({ onClose }) {
             {/* ══════════════ SHORTCUTS ══════════════ */}
             <SectionAnchor id="shortcuts" />
             <section className="help-section">
-              <h2 className="help-h2">⌨️ Keyboard Shortcuts</h2>
+              <h2 className="help-h2">Keyboard Shortcuts</h2>
               <table className="help-table">
                 <thead><tr><th>Where</th><th>Shortcut</th><th>Action</th></tr></thead>
                 <tbody>

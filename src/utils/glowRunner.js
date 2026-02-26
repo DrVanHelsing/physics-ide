@@ -111,14 +111,17 @@ function createRuntimeFrame(host) {
     document.body.getAttribute("data-theme") ||
     "dark";
   const isLight = currentTheme === "light";
-  const viewportTextColor = isLight ? "#111827" : "#f5f7ff";
+  /* Deep-space black for dark mode, clean off-white for light */
+  const viewportBg        = isLight ? "#f2f4f8"  : "#040611";
+  const viewportTextColor = isLight ? "#111827"  : "#dde4f8";
+  const linkColor         = isLight ? "#1d4ed8"  : "#7db5ff";
 
   const iframe = document.createElement("iframe");
   iframe.title = "GlowScript Runtime";
   iframe.setAttribute("aria-label", "GlowScript Runtime");
-  iframe.style.width = "100%";
-  iframe.style.height = "100%";
-  iframe.style.border = "0";
+  iframe.style.width   = "100%";
+  iframe.style.height  = "100%";
+  iframe.style.border  = "0";
   iframe.style.display = "block";
 
   host.innerHTML = "";
@@ -130,13 +133,44 @@ function createRuntimeFrame(host) {
 <html>
   <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <style>
-      html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: transparent; color: ${viewportTextColor}; }
-      #glowscript-root { width: 100%; height: 100%; }
-      #glowscript { width: 100%; height: 100%; }
-      #glowscript canvas { display: block; width: 100% !important; height: 100% !important; }
-      #glowscript-root, #glowscript-root * { color: ${viewportTextColor} !important; }
-      #glowscript a { color: ${isLight ? "#1d4ed8" : "#93c5fd"} !important; }
+      *, *::before, *::after { box-sizing: border-box; }
+      html, body {
+        margin: 0; padding: 0;
+        width: 100%; height: 100%;
+        overflow: hidden;
+        background: ${viewportBg};
+        color: ${viewportTextColor};
+        font-family: system-ui, -apple-system, sans-serif;
+        font-size: 13px;
+      }
+      #glowscript-root {
+        width: 100%; height: 100%;
+        overflow: hidden;
+        background: ${viewportBg};
+      }
+      #glowscript {
+        width: 100%; height: 100%;
+        background: ${viewportBg};
+      }
+      /* Canvas fills the container without any scaling artefacts */
+      #glowscript canvas {
+        display: block !important;
+        width: 100% !important;
+        height: 100% !important;
+        background: ${viewportBg};
+        outline: none;
+        border: none;
+      }
+      /* Override injected text colours */
+      #glowscript-root * { color: ${viewportTextColor} !important; }
+      #glowscript a { color: ${linkColor} !important; }
+      /* Overlay elements injected by GlowScript (info text etc.) */
+      div[id="glowscript"] > div {
+        font-family: system-ui, sans-serif !important;
+        font-size: 12px !important;
+      }
     </style>
   </head>
   <body>

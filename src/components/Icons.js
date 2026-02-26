@@ -99,3 +99,26 @@ export const ZapOffIcon = ({ size } = {}) => (
   <svg {...s} width={size || 16} height={size || 16}><polyline points="12.41 6.75 13 2 10.57 4.92"/><polyline points="18.57 12.91 21 10 15.66 10"/><polyline points="8 8 3 14 12 14 11 22 16 16"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
 );
 
+export const FileCodeIcon = ({ size } = {}) => (
+  <svg {...s} width={size || 16} height={size || 16}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><polyline points="10 13 8 15 10 17"/><polyline points="14 13 16 15 14 17"/></svg>
+);
+
+export const FileBlocksIcon = ({ size } = {}) => (
+  <svg {...s} width={size || 16} height={size || 16}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><rect x="8" y="12" width="3" height="3" rx="0.5"/><rect x="13" y="12" width="3" height="3" rx="0.5"/><rect x="8" y="16" width="3" height="3" rx="0.5"/></svg>
+);
+
+export const LayersIcon = ({ size } = {}) => (
+  <svg {...s} width={size || 16} height={size || 16}><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+);
+
+export const EditIcon = ({ size } = {}) => (
+  <svg {...s} width={size || 16} height={size || 16}><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+);
+
+export const UsersIcon = ({ size } = {}) => (
+  <svg {...s} width={size || 16} height={size || 16}><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+);
+
+export const TerminalIcon = ({ size } = {}) => (
+  <svg {...s} width={size || 16} height={size || 16}><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+);
