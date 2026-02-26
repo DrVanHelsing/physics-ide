@@ -198,6 +198,28 @@ function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, isD
 
     const theme = buildBlocklyTheme(Blockly, true);
 
+    // Blockly v11 uses a callback-based dialog API. Without these, variable
+    // creation/rename dialogs throw "Script error." from the CDN script.
+    if (Blockly.dialog) {
+      if (Blockly.dialog.setPrompt) {
+        Blockly.dialog.setPrompt((msg, defaultVal, callback) => {
+          const result = window.prompt(msg, defaultVal);
+          callback(result);
+        });
+      }
+      if (Blockly.dialog.setAlert) {
+        Blockly.dialog.setAlert((msg, callback) => {
+          window.alert(msg);
+          if (callback) callback();
+        });
+      }
+      if (Blockly.dialog.setConfirm) {
+        Blockly.dialog.setConfirm((msg, callback) => {
+          callback(window.confirm(msg));
+        });
+      }
+    }
+
     const workspace = Blockly.inject(hostRef.current, {
       toolbox: TOOLBOX_XML,
       theme,
