@@ -20,7 +20,25 @@ function getPythonGen(Blockly) {
   return Blockly.Python || null;
 }
 
-/* ── Colour helper ──────────────────────────────────────── */
+/* ── Colour helpers ─────────────────────────────────────── */
+function namedColorToVPython(mode) {
+  const map = {
+    RED:     "color.red",
+    ORANGE:  "color.orange",
+    YELLOW:  "color.yellow",
+    GREEN:   "color.green",
+    BLUE:    "color.blue",
+    CYAN:    "color.cyan",
+    MAGENTA: "color.magenta",
+    PURPLE:  "vector(0.58, 0.1, 0.82)",
+    WHITE:   "color.white",
+    BLACK:   "vector(0.05, 0.05, 0.05)",
+    GRAY:    "color.gray(0.5)",
+    BROWN:   "vector(0.5, 0.25, 0.1)",
+  };
+  return map[mode] || null;
+}
+
 function hexToVPythonColor(hex) {
   if (!hex || typeof hex !== "string" || !hex.startsWith("#") || hex.length < 7)
     return "color.white";
@@ -76,11 +94,45 @@ export function defineCustomBlocksAndGenerator(Blockly) {
     },
     {
       type: "colour_block",
-      message0: "colour %1",
-      args0: [{ type: "field_colour", name: "COL", colour: "#ff0000" }],
+      message0: "colour %1 %2",
+      args0: [
+        {
+          type: "field_dropdown",
+          name: "MODE",
+          options: [
+            ["\uD83C\uDFA8 custom",  "CUSTOM"],
+            ["\uD83D\uDD34 red",     "RED"],
+            ["\uD83D\uDFE0 orange",  "ORANGE"],
+            ["\uD83D\uDFE1 yellow",  "YELLOW"],
+            ["\uD83D\uDFE2 green",   "GREEN"],
+            ["\uD83D\uDD35 blue",    "BLUE"],
+            ["\uD83D\uDFE3 purple",  "PURPLE"],
+            ["\u26AA white",         "WHITE"],
+            ["\u26AB black",         "BLACK"],
+            ["\uD83D\uDD18 gray",    "GRAY"],
+            ["\uD83D\uDFE4 brown",   "BROWN"],
+            ["cyan",                 "CYAN"],
+            ["magenta",              "MAGENTA"],
+          ],
+        },
+        { type: "field_colour", name: "CUSTOM", colour: "#ff0000" },
+      ],
       output: null,
       colour: 20,
-      tooltip: "Pick a colour. Snaps into any colour slot.",
+      tooltip: "Pick a named colour or click the swatch for a fully custom colour.",
+    },
+    {
+      type: "set_colour_var_block",
+      message0: "%1 = \uD83C\uDFA8 %2",
+      args0: [
+        { type: "field_variable", name: "NAME", variable: "c_colour" },
+        { type: "field_colour",   name: "COL",  colour: "#ffffff" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 20,
+      tooltip: "Set a colour variable. Click the swatch to choose any colour.",
     },
     {
       type: "expr_block",
@@ -701,7 +753,19 @@ export function defineCustomBlocksAndGenerator(Blockly) {
   };
 
   gen["colour_block"] = function (block) {
-    return [hexToVPythonColor(block.getFieldValue("COL")), Python.ORDER_ATOMIC];
+    const mode = block.getFieldValue("MODE") || "CUSTOM";
+    if (mode !== "CUSTOM") {
+      const named = namedColorToVPython(mode);
+      if (named) return [named, Python.ORDER_ATOMIC];
+    }
+    const customHex = block.getFieldValue("CUSTOM") || block.getFieldValue("COL") || "#ffffff";
+    return [hexToVPythonColor(customHex), Python.ORDER_ATOMIC];
+  };
+
+  gen["set_colour_var_block"] = function (block) {
+    const name = varName(block, "NAME", "c_colour");
+    const hex  = block.getFieldValue("COL") || "#ffffff";
+    return `${name} = ${hexToVPythonColor(hex)}\n`;
   };
 
   gen["expr_block"] = function (block) {
@@ -991,3 +1055,4 @@ export function generatePythonFromWorkspace(workspace) {
     return "# Code generation error -- see console\n";
   }
 }
+

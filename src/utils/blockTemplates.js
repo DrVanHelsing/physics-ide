@@ -38,7 +38,7 @@ function num(n) {
 }
 
 function col(hex) {
-  return { type: "colour_block", fields: { COL: hex } };
+  return { type: "colour_block", fields: { MODE: "CUSTOM", CUSTOM: hex } };
 }
 
 function expr(text) {
@@ -165,7 +165,7 @@ const PROJECTILE_BLOCKS = [
     fields: { TITLE: "Projectile Motion", BG: "#0d1629" },
   },
   { type: "scene_range_block", fields: { R: "18" } },
-  { type: "set_scalar_block", fields: { NAME: "c_light_a" }, values: { VALUE: col("#e6e6d9") } },
+  { type: "set_colour_var_block", fields: { NAME: "c_light_a", COL: "#e6e6d9" } },
   {
     type: "local_light_block",
     values: { POS: vec(-8, 18, 10), COL: v("c_light_a") },
@@ -185,16 +185,16 @@ const PROJECTILE_BLOCKS = [
   { type: "scene_ambient_block", fields: { GRAY: "0.35" } },
 
   /* ── Colour constants (template-specific) ─────────────── */
-  { type: "set_scalar_block", fields: { NAME: "c_ground" }, values: { VALUE: col("#337346") } },
-  { type: "set_scalar_block", fields: { NAME: "c_track" }, values: { VALUE: col("#6b6b7a") } },
-  { type: "set_scalar_block", fields: { NAME: "c_marker" }, values: { VALUE: col("#ffcc40") } },
-  { type: "set_scalar_block", fields: { NAME: "c_axis_x" }, values: { VALUE: col("#ff3333") } },
-  { type: "set_scalar_block", fields: { NAME: "c_axis_y" }, values: { VALUE: col("#33dd66") } },
-  { type: "set_scalar_block", fields: { NAME: "c_ball" }, values: { VALUE: col("#f25940") } },
-  { type: "set_scalar_block", fields: { NAME: "c_trail" }, values: { VALUE: col("#ffe040") } },
-  { type: "set_scalar_block", fields: { NAME: "c_velocity" }, values: { VALUE: col("#59e6ff") } },
-  { type: "set_scalar_block", fields: { NAME: "c_tick" }, values: { VALUE: col("#f2f2f2") } },
-  { type: "set_scalar_block", fields: { NAME: "c_light_b" }, values: { VALUE: col("#737f99") } },
+  { type: "set_colour_var_block", fields: { NAME: "c_ground",    COL: "#337346" } },
+  { type: "set_colour_var_block", fields: { NAME: "c_track",     COL: "#6b6b7a" } },
+  { type: "set_colour_var_block", fields: { NAME: "c_marker",    COL: "#ffcc40" } },
+  { type: "set_colour_var_block", fields: { NAME: "c_axis_x",    COL: "#ff3333" } },
+  { type: "set_colour_var_block", fields: { NAME: "c_axis_y",    COL: "#33dd66" } },
+  { type: "set_colour_var_block", fields: { NAME: "c_ball",      COL: "#f25940" } },
+  { type: "set_colour_var_block", fields: { NAME: "c_trail",     COL: "#ffe040" } },
+  { type: "set_colour_var_block", fields: { NAME: "c_velocity",  COL: "#59e6ff" } },
+  { type: "set_colour_var_block", fields: { NAME: "c_tick",      COL: "#f2f2f2" } },
+  { type: "set_colour_var_block", fields: { NAME: "c_light_b",   COL: "#737f99" } },
 
   /* ── Second light + ground geometry ────────────────────── */
   {
@@ -602,13 +602,13 @@ const ORBIT_BLOCKS = [
   { type: "scene_ambient_block", fields: { GRAY: "0.22" } },
 
   /* ── Colour constants (template-specific) ─────────────── */
-  { type: "set_scalar_block", fields: { NAME: "c_sun" }, values: { VALUE: col("#ffde59") } },
-  { type: "set_scalar_block", fields: { NAME: "c_corona" }, values: { VALUE: col("#ffb340") } },
-  { type: "set_scalar_block", fields: { NAME: "c_earth" }, values: { VALUE: col("#42b8ff") } },
-  { type: "set_scalar_block", fields: { NAME: "c_earth_trail" }, values: { VALUE: col("#73bfff") } },
-  { type: "set_scalar_block", fields: { NAME: "c_moon" }, values: { VALUE: col("#e0e0f0") } },
-  { type: "set_scalar_block", fields: { NAME: "c_moon_trail" }, values: { VALUE: col("#cccce6") } },
-  { type: "set_scalar_block", fields: { NAME: "c_earth_arrow" }, values: { VALUE: col("#ff734d") } },
+  { type: "set_colour_var_block", fields: { NAME: "c_sun",         COL: "#ffde59" } },
+  { type: "set_colour_var_block", fields: { NAME: "c_corona",      COL: "#ffb340" } },
+  { type: "set_colour_var_block", fields: { NAME: "c_earth",       COL: "#42b8ff" } },
+  { type: "set_colour_var_block", fields: { NAME: "c_earth_trail", COL: "#73bfff" } },
+  { type: "set_colour_var_block", fields: { NAME: "c_moon",        COL: "#e0e0f0" } },
+  { type: "set_colour_var_block", fields: { NAME: "c_moon_trail",  COL: "#cccce6" } },
+  { type: "set_colour_var_block", fields: { NAME: "c_earth_arrow", COL: "#ff734d" } },
 
   /* ── Starfield ─────────────────────────────────────────── */
   {
@@ -1007,8 +1007,8 @@ const SPRING_BLOCKS = [
     fields: { TITLE: "Spring-Mass Oscillator", BG: "#0f1224" },
   },
   { type: "scene_range_block", fields: { R: "8.5" } },
-  { type: "set_scalar_block", fields: { NAME: "c_light_left" }, values: { VALUE: col("#e6e6ff") } },
-  { type: "set_scalar_block", fields: { NAME: "c_light_right" }, values: { VALUE: col("#667388") } },
+  { type: "set_colour_var_block", fields: { NAME: "c_light_left",  COL: "#e6e6ff" } },
+  { type: "set_colour_var_block", fields: { NAME: "c_light_right", COL: "#667388" } },
   {
     type: "local_light_block",
     values: { POS: vec(-2, 10, 8), COL: v("c_light_left") },
@@ -1032,13 +1032,13 @@ const SPRING_BLOCKS = [
   { type: "scene_ambient_block", fields: { GRAY: "0.38" } },
 
   /* ── Colour constants (template-specific) ─────────────── */
-  { type: "set_scalar_block", fields: { NAME: "c_floor" }, values: { VALUE: col("#3d4454") } },
-  { type: "set_scalar_block", fields: { NAME: "c_rail" }, values: { VALUE: col("#737380") } },
-  { type: "set_scalar_block", fields: { NAME: "c_wall" }, values: { VALUE: col("#616885") } },
-  { type: "set_scalar_block", fields: { NAME: "c_spring" }, values: { VALUE: col("#c7ccdb") } },
-  { type: "set_scalar_block", fields: { NAME: "c_mass" }, values: { VALUE: col("#39dcf2") } },
-  { type: "set_scalar_block", fields: { NAME: "c_shadow" }, values: { VALUE: col("#121217") } },
-  { type: "set_scalar_block", fields: { NAME: "c_phase_arrow" }, values: { VALUE: col("#ff8c33") } },
+  { type: "set_colour_var_block", fields: { NAME: "c_floor",       COL: "#3d4454" } },
+  { type: "set_colour_var_block", fields: { NAME: "c_rail",        COL: "#737380" } },
+  { type: "set_colour_var_block", fields: { NAME: "c_wall",        COL: "#616885" } },
+  { type: "set_colour_var_block", fields: { NAME: "c_spring",      COL: "#c7ccdb" } },
+  { type: "set_colour_var_block", fields: { NAME: "c_mass",        COL: "#39dcf2" } },
+  { type: "set_colour_var_block", fields: { NAME: "c_shadow",      COL: "#121217" } },
+  { type: "set_colour_var_block", fields: { NAME: "c_phase_arrow", COL: "#ff8c33" } },
 
   /* ── Environment geometry ──────────────────────────────── */
   {
@@ -1351,3 +1351,4 @@ export const BLOCK_TEMPLATES = [
     xml: buildTemplate(ORBIT_BLOCKS),
   },
 ];
+

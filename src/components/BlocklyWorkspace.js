@@ -21,49 +21,49 @@ const TOOLBOX_XML = `
     <block type="sphere_block">
       <value name="POS"><shadow type="vector_block"><field name="X">0</field><field name="Y">0</field><field name="Z">0</field></shadow></value>
       <value name="RADIUS"><shadow type="math_number"><field name="NUM">1</field></shadow></value>
-      <value name="COL"><shadow type="colour_block"><field name="COL">#ff0000</field></shadow></value>
+      <value name="COL"><shadow type="colour_block"><field name="MODE">CUSTOM</field><field name="CUSTOM">#ff0000</field></shadow></value>
     </block>
     <block type="sphere_trail_block">
       <value name="POS"><shadow type="vector_block"><field name="X">0</field><field name="Y">0</field><field name="Z">0</field></shadow></value>
       <value name="RADIUS"><shadow type="math_number"><field name="NUM">0.5</field></shadow></value>
-      <value name="COL"><shadow type="colour_block"><field name="COL">#ff0000</field></shadow></value>
+      <value name="COL"><shadow type="colour_block"><field name="MODE">CUSTOM</field><field name="CUSTOM">#ff0000</field></shadow></value>
       <value name="TRAIL_R"><shadow type="math_number"><field name="NUM">0.03</field></shadow></value>
-      <value name="TRAIL_COL"><shadow type="colour_block"><field name="COL">#ffff00</field></shadow></value>
+      <value name="TRAIL_COL"><shadow type="colour_block"><field name="MODE">CUSTOM</field><field name="CUSTOM">#ffff00</field></shadow></value>
       <value name="RETAIN"><shadow type="math_number"><field name="NUM">200</field></shadow></value>
     </block>
     <block type="sphere_emissive_block">
       <value name="POS"><shadow type="vector_block"><field name="X">0</field><field name="Y">0</field><field name="Z">0</field></shadow></value>
       <value name="RADIUS"><shadow type="math_number"><field name="NUM">0.5</field></shadow></value>
-      <value name="COL"><shadow type="colour_block"><field name="COL">#ffffff</field></shadow></value>
+      <value name="COL"><shadow type="colour_block"><field name="MODE">CUSTOM</field><field name="CUSTOM">#ffffff</field></shadow></value>
       <value name="OPACITY"><shadow type="math_number"><field name="NUM">1</field></shadow></value>
     </block>
     <block type="box_block">
       <value name="POS"><shadow type="vector_block"><field name="X">0</field><field name="Y">0</field><field name="Z">0</field></shadow></value>
       <value name="SIZE"><shadow type="vector_block"><field name="X">1</field><field name="Y">1</field><field name="Z">1</field></shadow></value>
-      <value name="COL"><shadow type="colour_block"><field name="COL">#0000ff</field></shadow></value>
+      <value name="COL"><shadow type="colour_block"><field name="MODE">CUSTOM</field><field name="CUSTOM">#0000ff</field></shadow></value>
     </block>
     <block type="box_opacity_block">
       <value name="POS"><shadow type="vector_block"><field name="X">0</field><field name="Y">0</field><field name="Z">0</field></shadow></value>
       <value name="SIZE"><shadow type="vector_block"><field name="X">1</field><field name="Y">1</field><field name="Z">1</field></shadow></value>
-      <value name="COL"><shadow type="colour_block"><field name="COL">#333333</field></shadow></value>
+      <value name="COL"><shadow type="colour_block"><field name="MODE">CUSTOM</field><field name="CUSTOM">#333333</field></shadow></value>
       <value name="OPACITY"><shadow type="math_number"><field name="NUM">0.5</field></shadow></value>
     </block>
     <block type="cylinder_block">
       <value name="POS"><shadow type="vector_block"><field name="X">0</field><field name="Y">0</field><field name="Z">0</field></shadow></value>
       <value name="AXIS"><shadow type="vector_block"><field name="X">1</field><field name="Y">0</field><field name="Z">0</field></shadow></value>
       <value name="RADIUS"><shadow type="math_number"><field name="NUM">0.5</field></shadow></value>
-      <value name="COL"><shadow type="colour_block"><field name="COL">#00ff00</field></shadow></value>
+      <value name="COL"><shadow type="colour_block"><field name="MODE">CUSTOM</field><field name="CUSTOM">#00ff00</field></shadow></value>
     </block>
     <block type="arrow_block">
       <value name="POS"><shadow type="vector_block"><field name="X">0</field><field name="Y">0</field><field name="Z">0</field></shadow></value>
       <value name="AXIS"><shadow type="vector_block"><field name="X">1</field><field name="Y">0</field><field name="Z">0</field></shadow></value>
-      <value name="COL"><shadow type="colour_block"><field name="COL">#ffff00</field></shadow></value>
+      <value name="COL"><shadow type="colour_block"><field name="MODE">CUSTOM</field><field name="CUSTOM">#ffff00</field></shadow></value>
     </block>
     <block type="helix_block">
       <value name="POS"><shadow type="vector_block"><field name="X">0</field><field name="Y">0</field><field name="Z">0</field></shadow></value>
       <value name="AXIS"><shadow type="vector_block"><field name="X">1</field><field name="Y">0</field><field name="Z">0</field></shadow></value>
       <value name="RADIUS"><shadow type="math_number"><field name="NUM">0.3</field></shadow></value>
-      <value name="COL"><shadow type="colour_block"><field name="COL">#cccccc</field></shadow></value>
+      <value name="COL"><shadow type="colour_block"><field name="MODE">CUSTOM</field><field name="CUSTOM">#cccccc</field></shadow></value>
     </block>
     <block type="helix_full_block">
       <value name="POS"><shadow type="vector_block"><field name="X">0</field><field name="Y">0</field><field name="Z">0</field></shadow></value>
@@ -71,7 +71,7 @@ const TOOLBOX_XML = `
       <value name="RADIUS"><shadow type="math_number"><field name="NUM">0.3</field></shadow></value>
       <value name="COILS"><shadow type="math_number"><field name="NUM">10</field></shadow></value>
       <value name="THICK"><shadow type="math_number"><field name="NUM">0.05</field></shadow></value>
-      <value name="COL"><shadow type="colour_block"><field name="COL">#cccccc</field></shadow></value>
+      <value name="COL"><shadow type="colour_block"><field name="MODE">CUSTOM</field><field name="CUSTOM">#cccccc</field></shadow></value>
     </block>
     <block type="label_block">
       <value name="POS"><shadow type="vector_block"><field name="X">0</field><field name="Y">0</field><field name="Z">0</field></shadow></value>
@@ -95,6 +95,7 @@ const TOOLBOX_XML = `
     <block type="set_gravity_block"></block>
   </category>
   <category name="State" colour="#d97b4a">
+    <block type="set_colour_var_block"></block>
     <block type="set_scalar_block">
       <value name="VALUE"><shadow type="math_number"><field name="NUM">0</field></shadow></value>
     </block>
@@ -127,7 +128,7 @@ const TOOLBOX_XML = `
     <block type="scene_ambient_block"></block>
     <block type="local_light_block">
       <value name="POS"><shadow type="vector_block"><field name="X">0</field><field name="Y">5</field><field name="Z">0</field></shadow></value>
-      <value name="COL"><shadow type="colour_block"><field name="COL">#ffffff</field></shadow></value>
+      <value name="COL"><shadow type="colour_block"><field name="MODE">CUSTOM</field><field name="CUSTOM">#ffffff</field></shadow></value>
     </block>
     <block type="comment_block"></block>
     <block type="telemetry_update_block"></block>
@@ -435,3 +436,4 @@ function ReadOnlyBlockly({ xml, isDark }) {
 
 export default BlocklyWorkspace;
 export { ReadOnlyBlockly };
+
