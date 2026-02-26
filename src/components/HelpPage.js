@@ -321,8 +321,21 @@ export default function HelpPage({ onClose }) {
                 <li><strong>Loops</strong> — <Code>repeat</Code>, <Code>while</Code>, <Code>for each</Code></li>
                 <li><strong>Math</strong> — arithmetic, trig functions, <Code>random</Code>, <Code>pi</Code></li>
                 <li><strong>Text</strong> — string creation and concatenation</li>
-                <li><strong>Variables</strong> — create and set variables</li>
+                <li><strong>State</strong> — Physics IDE assignment/motion blocks (<Code>set_scalar</Code>, <Code>set_attr</Code>, etc.)</li>
+                <li><strong>Variables</strong> — native Blockly variables (<Code>variables_get</Code>, <Code>variables_set</Code>, rename/delete)</li>
                 <li><strong>Functions</strong> — define and call custom procedures</li>
+              </ul>
+
+              <h3 className="help-h3">Variable model (important)</h3>
+              <p>
+                Physics IDE now uses <strong>native Blockly variables</strong> for object/loop/state names.
+                Name fields are variable dropdowns (not free text), so renaming a variable updates all connected
+                references consistently.
+              </p>
+              <ul className="help-list">
+                <li>Use object blocks to create objects into variables (for example <Code>ground</Code>, <Code>ball</Code>).</li>
+                <li>Use <strong>Variables → get</strong> blocks as inputs to value sockets whenever you want direct variable references.</li>
+                <li>Use <strong>Variables → set</strong> for generic variable assignment patterns in addition to Physics <Code>set_scalar_block</Code>.</li>
               </ul>
             </section>
 
@@ -337,33 +350,33 @@ export default function HelpPage({ onClose }) {
                 <div className="help-block-row">
                   <div className="help-block-name">sphere_block</div>
                   <div className="help-block-desc">
-                    Creates a basic VPython sphere. Fields: <Code>name</Code>, position <Code>x y z</Code>, <Code>radius</Code>, <Code>color</Code> (hex).
+                    Creates a basic VPython sphere assigned to a <strong>variable dropdown</strong> (native Blockly variable).
+                    Position, radius, and colour are value sockets that accept snap-in blocks.
                     <Pre>ball = sphere(pos=vector(0,0,0), radius=1, color=vector(1,0,0))</Pre>
-                    Leave <strong>name</strong> blank for an anonymous object (no variable assignment).
                   </div>
                 </div>
                 <div className="help-block-row">
                   <div className="help-block-name">sphere_trail_block</div>
                   <div className="help-block-desc">
                     Creates a sphere with a motion trail. All trail parameters are passed in the constructor as required by GlowScript 3.2.
-                    Extra fields: <Code>trail_r</Code> (trail radius), <Code>trail_col</Code> (trail colour hex), <Code>retain</Code> (max trail points), <Code>shininess</Code>.
-                    <Pre>ball = sphere(pos=vector(0,0.35,0), radius=0.28, color=...,{"\n"}       make_trail=True, trail_radius=0.035, trail_color=..., retain=260, shininess=0.85)</Pre>
+                    Extra value sockets: <Code>trail_r</Code> (trail radius), <Code>trail_col</Code> (trail colour), <Code>retain</Code> (max trail points).
+                    <Pre>ball = sphere(pos=vector(0,0.35,0), radius=0.28, color=...,{"\n"}       make_trail=True, trail_radius=0.035, trail_color=..., retain=260)</Pre>
                     <Note type="warning"><Code>make_trail=True</Code> must be set in the constructor. Use this block instead of <Code>sphere_block</Code> whenever you need a trail.</Note>
                   </div>
                 </div>
                 <div className="help-block-row">
                   <div className="help-block-name">sphere_emissive_block</div>
                   <div className="help-block-desc">
-                    Creates a self-illuminating (glow) sphere with configurable <Code>opacity</Code> and <Code>shininess</Code>.
+                    Creates a self-illuminating (glow) sphere with configurable <Code>opacity</Code>.
                     Used for stars, corona halos, and particle effects where the object should appear to emit light.
-                    <Pre>sun = sphere(pos=vector(0,0,0), radius=1.05, color=..., emissive=True, opacity=1, shininess=1)</Pre>
+                    <Pre>sun = sphere(pos=vector(0,0,0), radius=1.05, color=..., emissive=True, opacity=1)</Pre>
                     <Note type="warning"><Code>emissive=True</Code> must be set in the constructor in GlowScript 3.2.</Note>
                   </div>
                 </div>
                 <div className="help-block-row">
                   <div className="help-block-name">box_block</div>
                   <div className="help-block-desc">
-                    Creates a VPython box. Extra fields: <Code>sx sy sz</Code> (size vector).
+                    Creates a VPython box using composable value sockets for <Code>pos</Code>, <Code>size</Code>, and <Code>color</Code>.
                     <Pre>wall = box(pos=vector(0,0,0), size=vector(1,1,1), color=...)</Pre>
                   </div>
                 </div>
@@ -478,7 +491,7 @@ export default function HelpPage({ onClose }) {
                 <div className="help-block-row">
                   <div className="help-block-name">set_scalar_block</div>
                   <div className="help-block-desc">
-                    Assigns any Python expression to a named variable.
+                    Assigns any Python expression to a variable chosen from a Blockly variable dropdown.
                     <Pre>m = 0.34</Pre>
                     The value field accepts any Python expression (e.g. <Code>pi * r**2</Code>).
                   </div>
@@ -514,7 +527,8 @@ export default function HelpPage({ onClose }) {
                 <div className="help-block-row">
                   <div className="help-block-name">for_range_block</div>
                   <div className="help-block-desc">
-                    A for-loop over a numeric range. Fields: loop variable name, <Code>start</Code>, <Code>stop</Code>, <Code>step</Code>.
+                    A for-loop over a numeric range. Loop variable is a Blockly variable dropdown, plus
+                    <Code>start</Code>, <Code>stop</Code>, and <Code>step</Code>.
                     Accepts nested blocks in its body. Used to create repeated objects (distance ticks, starfields, etc.).
                     <Pre>{`for i in range(0, 31, 5):\n    cylinder(pos=vector(i, 0, 0), axis=vector(0, 0.04, 0), ...)`}</Pre>
                   </div>
@@ -571,8 +585,8 @@ export default function HelpPage({ onClose }) {
                 <div className="help-block-row">
                   <div className="help-block-name">scene_setup_block</div>
                   <div className="help-block-desc">
-                    Sets the scene title and background colour.
-                    <Pre>{`scene.title = "My Simulation"\nscene.background = vector(0.05, 0.08, 0.16)`}</Pre>
+                    Sets scene title/background and enables interactive camera controls.
+                    <Pre>{`scene.title = "My Simulation"\nscene.background = vector(0.05, 0.08, 0.16)\nscene.userspin = True\nscene.userzoom = True\nscene.userpan = True`}</Pre>
                   </div>
                 </div>
                 <div className="help-block-row">
@@ -639,10 +653,10 @@ export default function HelpPage({ onClose }) {
                 <div className="help-block-row">
                   <div className="help-block-name">telemetry_update_block</div>
                   <div className="help-block-desc">
-                    Updates a label's <Code>.text</Code> property with a formatted telemetry string.
-                    Fields: <Code>label</Code> (label object name), <Code>prefix</Code> (display text), <Code>expr</Code> (Python expression), <Code>fmt</Code> (format spec, e.g. <Code>.1f</Code>).
-                    <Pre>{'info.text = "Speed: " + "{:.1f}".format(mag(ball.velocity)) + " m/s"'}</Pre>
-                    <Note type="tip">This block replaces complex string concatenation patterns that previously required <Code>python_raw_block</Code>.</Note>
+                    Updates a label variable's <Code>.text</Code> using up to 5 metric rows.
+                    Each row is formatted as: <Code>name = round(value, dp) unit</Code>.
+                    <Pre>{`telemetry.text = "t = " + str(round(t, 2)) + " s" + "\\n" + "speed = " + str(round(mag(ball.velocity), 2)) + " m/s"`}</Pre>
+                    <Note type="tip">Leave metric name/value blank to skip that row.</Note>
                   </div>
                 </div>
                 <div className="help-block-row">
@@ -650,16 +664,6 @@ export default function HelpPage({ onClose }) {
                   <div className="help-block-desc">
                     Emits a Python comment. Good for documenting block programs.
                     <Pre># This is a comment</Pre>
-                  </div>
-                </div>
-                <div className="help-block-row">
-                  <div className="help-block-name">exec_block</div>
-                  <div className="help-block-desc">
-                    Executes any Python expression as a statement without assigning it to a variable.
-                    Use this for anonymous object creation inside loops (e.g. creating many stars or tick marks
-                    where you don't need to reference the object later).
-                    <Pre>{`for i in range(120):\n    sphere(pos=..., radius=0.05, emissive=True)`}</Pre>
-                    <Note type="tip">Think of this as the block equivalent of calling a function purely for its side effect.</Note>
                   </div>
                 </div>
                 <div className="help-block-row">
