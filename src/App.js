@@ -5,6 +5,7 @@ import GlowCanvas from "./components/GlowCanvas";
 import Toolbar from "./components/Toolbar";
 import ModeToggle from "./components/ModeToggle";
 import StartMenu from "./components/StartMenu";
+import HelpPage from "./components/HelpPage";
 import { BlocksIcon, CodeIcon, GlobeIcon } from "./components/Icons";
 import { useTheme } from "./ThemeContext";
 import { generatePythonFromWorkspace } from "./utils/blocklyGenerator";
@@ -21,17 +22,21 @@ function App() {
   const { isDark, toggle: toggleTheme } = useTheme();
   const workspaceRef = useRef(null);
   const [showStart, setShowStart] = useState(true);
+  const [showHelp, setShowHelp] = useState(false);
   const [mode, setMode] = useState("blocks");
-  const [projectType, setProjectType] = useState("custom"); // 'custom' | 'code_template' | 'block_template'
+  const [projectType, setProjectType] = useState("custom");
   const [pythonCode, setPythonCode] = useState(DEFAULT_CODE);
   const [workspaceXml, setWorkspaceXml] = useState("");
   const [running, setRunning] = useState(false);
   const [status, setStatus] = useState({ text: "Ready", type: "" });
 
+  const handleHelp = useCallback(() => setShowHelp(true), []);
+
   const findBlockTemplateByCodeId = useCallback((codeId) => {
     const idToBlockTemplate = {
       projectile: "blocks_projectile",
-      orbits: "blocks_orbits",
+      spring:     "blocks_spring",
+      orbits:     "blocks_orbits",
     };
     const blockId = idToBlockTemplate[codeId];
     return BLOCK_TEMPLATES.find((tpl) => tpl.id === blockId) || null;
@@ -40,7 +45,8 @@ function App() {
   const findCodeTemplateByBlockId = useCallback((blockId) => {
     const blockToCodeId = {
       blocks_projectile: "projectile",
-      blocks_orbits: "orbits",
+      blocks_spring:     "spring",
+      blocks_orbits:     "orbits",
     };
     const codeId = blockToCodeId[blockId];
     return EXAMPLES.find((tpl) => tpl.id === codeId) || null;
@@ -230,7 +236,12 @@ function App() {
 
   /* ── IF start menu is visible ──────────────────────────── */
   if (showStart) {
-    return <StartMenu onSelect={handleStartSelect} />;
+    return (
+      <>
+        <StartMenu onSelect={handleStartSelect} onHelp={handleHelp} />
+        {showHelp && <HelpPage onClose={() => setShowHelp(false)} />}
+      </>
+    );
   }
 
   /* ── Main IDE render ───────────────────────────────────── */
@@ -242,6 +253,7 @@ function App() {
 
   return (
     <div className="app-shell">
+      {showHelp && <HelpPage onClose={() => setShowHelp(false)} />}
       <Toolbar
         onRun={handleRun}
         onStop={handleStop}
@@ -252,6 +264,7 @@ function App() {
         onReset={handleResetToBlocks}
         onToggleTheme={toggleTheme}
         onHome={handleHome}
+        onHelp={handleHelp}
         isDark={isDark}
         running={running}
       >

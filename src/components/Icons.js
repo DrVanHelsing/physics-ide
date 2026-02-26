@@ -82,3 +82,20 @@ export const FileTextIcon = ({ size } = {}) => (
 export const SeparatorDot = () => (
   <span style={{ width: 3, height: 3, borderRadius: '50%', background: 'var(--border-hl)', margin: '0 2px', flexShrink: 0 }} />
 );
+
+export const HelpIcon = ({ size } = {}) => (
+  <svg {...s} width={size || 16} height={size || 16}><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+);
+
+export const BookOpenIcon = ({ size } = {}) => (
+  <svg {...s} width={size || 16} height={size || 16}><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
+);
+
+export const ChevronRightIcon = ({ size } = {}) => (
+  <svg {...s} width={size || 16} height={size || 16}><polyline points="9 18 15 12 9 6"/></svg>
+);
+
+export const ZapOffIcon = ({ size } = {}) => (
+  <svg {...s} width={size || 16} height={size || 16}><polyline points="12.41 6.75 13 2 10.57 4.92"/><polyline points="18.57 12.91 21 10 15.66 10"/><polyline points="8 8 3 14 12 14 11 22 16 16"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+);
+

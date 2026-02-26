@@ -10,6 +10,7 @@ import {
   AtomIcon,
   HomeIcon,
   FileTextIcon,
+  HelpIcon,
 } from "./Icons";
 
 function Toolbar({
@@ -22,6 +23,7 @@ function Toolbar({
   onReset,
   onToggleTheme,
   onHome,
+  onHelp,
   isDark,
   running,
   children,
@@ -44,6 +46,15 @@ function Toolbar({
         title="Back to Start Menu"
       >
         <HomeIcon size={14} /> Menu
+      </button>
+
+      <button
+        type="button"
+        className="tb-btn tb-btn--help"
+        onClick={onHelp}
+        title="Open Help & Documentation"
+      >
+        <HelpIcon size={14} /> Help
       </button>
 
       <div className="tb-separator" />

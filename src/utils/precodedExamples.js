@@ -67,7 +67,7 @@ ball.velocity = vector(v0 * cos(angle), v0 * sin(angle), 0)
 
 dt = 0.004
 t = 0
-max_height = ball.pos.y
+max_height = 0.0
 
 telemetry = label(
   pos=vector(8.5, 9.2, 0),
@@ -78,7 +78,7 @@ telemetry = label(
   color=color.white,
 )
 
-while ball.pos.y >= ball.radius:
+while True:
   rate(240)
 
   speed = mag(ball.velocity)
@@ -90,13 +90,26 @@ while ball.pos.y >= ball.radius:
   ball.velocity = ball.velocity + acceleration * dt
   ball.pos = ball.pos + ball.velocity * dt
 
+  # Ground contact: clamp, bounce with restitution, rolling friction
+  if ball.pos.y < ball.radius:
+    ball.pos.y = ball.radius
+    if ball.velocity.y < 0:
+      ball.velocity.y = -0.55 * ball.velocity.y
+    ball.velocity.x = ball.velocity.x * 0.88
+
+  # Stop when essentially at rest on the ground
+  if ball.pos.y <= ball.radius + 0.01 and mag(ball.velocity) < 0.06:
+    ball.velocity = vector(0, 0, 0)
+    break
+
   v_arrow.pos = ball.pos
   v_arrow.axis = ball.velocity * 0.16
 
-  if ball.pos.y > max_height:
-    max_height = ball.pos.y
+  h_above_ground = max(0, ball.pos.y - ball.radius)
+  if h_above_ground > max_height:
+    max_height = h_above_ground
 
-  telemetry.text = "t = " + str(round(t,2)) + " s\\nspeed = " + str(round(mag(ball.velocity),2)) + " m/s\\nheight = " + str(round(ball.pos.y,2)) + " m\\nrange = " + str(round(ball.pos.x,2)) + " m"
+  telemetry.text = "t = " + str(round(t,2)) + " s\\nspeed = " + str(round(mag(ball.velocity),2)) + " m/s\\nheight = " + str(round(h_above_ground,2)) + " m\\nrange = " + str(round(ball.pos.x,2)) + " m"
 
   t = t + dt
 
@@ -244,7 +257,7 @@ planet = sphere(
   trail_color=vector(0.45, 0.75, 1),
 )
 moon = sphere(
-  pos=planet.pos + vector(0.95, 0, 0),
+  pos=planet.pos + vector(0, 0.95, 0),
   radius=0.13,
   color=vector(0.88, 0.88, 0.94),
   shininess=0.28,
@@ -255,7 +268,9 @@ moon = sphere(
 )
 
 planet.velocity = vector(0, 3.55, 0)
-moon.velocity = planet.velocity + vector(0, 1.3, 0)
+# Moon orbits CCW around planet: relative velocity perpendicular to radius vector(0,0.95,0)
+# v_rel = sqrt(G*M_planet/r_moon) = sqrt(10*0.16/0.95) = 1.30 m/s in -x direction
+moon.velocity = planet.velocity + vector(-1.3, 0, 0)
 
 # Gravitational parameters
 # G=10, M_star=10.33 chosen so circular orbit speed = sqrt(G*M/r) = sqrt(10*10.33/8.2) ≈ 3.55

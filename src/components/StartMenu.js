@@ -8,32 +8,39 @@ import {
   PlusIcon,
   BlocksIcon,
   CodeIcon,
+  SpringIcon,
+  HelpIcon,
 } from "./Icons";
 
 const CARD_ICONS = {
-  projectile: RocketIcon,
-  orbits: GlobeIcon,
+  projectile:       RocketIcon,
+  spring:           SpringIcon,
+  orbits:           GlobeIcon,
   blocks_projectile: BlocksIcon,
-  blocks_orbits: BlocksIcon,
+  blocks_spring:    SpringIcon,
+  blocks_orbits:    BlocksIcon,
 };
 
 const ACCENT_COLORS = {
-  projectile: "var(--accent-red)",
-  orbits: "var(--accent-blue)",
+  projectile:       "var(--accent-red)",
+  spring:           "var(--peach)",
+  orbits:           "var(--accent-blue)",
   blocks_projectile: "var(--accent-blue)",
-  blocks_orbits: "var(--accent)",
+  blocks_spring:    "var(--peach)",
+  blocks_orbits:    "var(--accent)",
 };
 
 const FILTERS = [
+  { key: "all",    label: "All",             Icon: AtomIcon },
   { key: "code",   label: "Code Examples",   Icon: CodeIcon },
   { key: "blocks", label: "Block Templates", Icon: BlocksIcon },
 ];
 
-export default function StartMenu({ onSelect }) {
-  const [filter, setFilter] = useState(null); // null = no filter selected, show only Blank Project
+export default function StartMenu({ onSelect, onHelp }) {
+  const [filter, setFilter] = useState("all");  // default: show everything
 
-  const showCode   = filter === "code";
-  const showBlocks = filter === "blocks";
+  const showCode   = filter === "all" || filter === "code";
+  const showBlocks = filter === "all" || filter === "blocks";
 
   return (
     <div className="start-menu-overlay">
@@ -47,6 +54,11 @@ export default function StartMenu({ onSelect }) {
           <p className="start-subtitle">
             Build, simulate, and explore physics with blocks and code
           </p>
+          {onHelp && (
+            <button className="start-help-btn" onClick={onHelp}>
+              <HelpIcon size={13} /> Documentation &amp; Help
+            </button>
+          )}
         </div>
 
         {/* Filter bar */}
@@ -55,7 +67,7 @@ export default function StartMenu({ onSelect }) {
             <button
               key={key}
               className={`start-filter-btn${filter === key ? " start-filter-btn--active" : ""}`}
-              onClick={() => setFilter(filter === key ? null : key)}
+              onClick={() => setFilter(key)}
             >
               {Icon && <Icon size={13} />}
               {label}

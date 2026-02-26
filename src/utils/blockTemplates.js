@@ -113,7 +113,7 @@ const PROJECTILE_BLOCKS = [
   /* ── Time step and state ───────────────────────────────── */
   { type: 'time_step_block', fields: { DT: '0.004' } },
   { type: 'set_scalar_block', fields: { NAME: 't', VALUE: '0' } },
-  { type: 'set_scalar_block', fields: { NAME: 'max_height', VALUE: 'ball.pos.y' } },
+  { type: 'set_scalar_block', fields: { NAME: 'max_height', VALUE: '0.0' } },
 
   /* ── Telemetry label (raw) ─────────────────────────────── */
   { type: 'comment_block', fields: { TEXT: 'Raw code: create telemetry label object' } },
@@ -137,10 +137,13 @@ const PROJECTILE_BLOCKS = [
     { type: 'set_attr_expr_block', fields: { OBJ: 'v_arrow', ATTR: 'pos', EXPR: 'ball.pos' } },
     { type: 'set_attr_expr_block', fields: { OBJ: 'v_arrow', ATTR: 'axis', EXPR: 'ball.velocity * 0.16' } },
 
-    // Telemetry and bounce (raw)
-    { type: 'python_raw_block', fields: { CODE: 'max_height = ball.pos.y if ball.pos.y > max_height else max_height' } },
-    { type: 'python_raw_block', fields: { CODE: 'telemetry.text = "t = " + str(round(t,2)) + " s\\nspeed = " + str(round(mag(ball.velocity),2)) + " m/s\\nheight = " + str(round(ball.pos.y,2)) + " m\\nrange = " + str(round(ball.pos.x,2)) + " m\\npeak height = " + str(round(max_height,2)) + " m"' } },
-    { type: 'python_raw_block', fields: { CODE: 'if ball.pos.y < ball.radius and ball.velocity.y < 0: ball.velocity.y = -0.55 * ball.velocity.y' } },
+    // Ground contact: clamp, bounce + rolling friction, and stop
+    { type: 'python_raw_block', fields: { CODE: 'if ball.pos.y < ball.radius:\n  ball.pos.y = ball.radius\n  if ball.velocity.y < 0: ball.velocity.y = -0.55 * ball.velocity.y\n  ball.velocity.x = ball.velocity.x * 0.88' } },
+    { type: 'python_raw_block', fields: { CODE: 'if ball.pos.y <= ball.radius + 0.01 and mag(ball.velocity) < 0.06: ball.velocity = vector(0,0,0)' } },
+
+    // Telemetry: height above ground surface = ball.pos.y - ball.radius
+    { type: 'python_raw_block', fields: { CODE: 'h_above = max(0, ball.pos.y - ball.radius); max_height = h_above if h_above > max_height else max_height' } },
+    { type: 'python_raw_block', fields: { CODE: 'telemetry.text = "t = " + str(round(t,2)) + " s\\nspeed = " + str(round(mag(ball.velocity),2)) + " m/s\\nheight = " + str(round(h_above,2)) + " m\\nrange = " + str(round(ball.pos.x,2)) + " m\\npeak = " + str(round(max_height,2)) + " m"' } },
 
     // Advance time
     { type: 'set_scalar_block', fields: { NAME: 't', VALUE: 't + dt' } },
@@ -170,11 +173,12 @@ const ORBIT_BLOCKS = [
   { type: 'python_raw_block', fields: { CODE: 'star = sphere(pos=vector(0,0,0), radius=1.05, color=vector(1,0.87,0.35), emissive=True, shininess=1)' } },
   { type: 'python_raw_block', fields: { CODE: 'corona = sphere(pos=vector(0,0,0), radius=1.45, color=vector(1,0.7,0.25), opacity=0.15, emissive=True)' } },
   { type: 'python_raw_block', fields: { CODE: 'planet = sphere(pos=vector(8.2,0,0), radius=0.42, color=vector(0.26,0.72,1), shininess=0.55, make_trail=True, retain=3200, trail_radius=0.04, trail_color=vector(0.45,0.75,1))' } },
-  { type: 'python_raw_block', fields: { CODE: 'moon = sphere(pos=vector(9.15,0,0), radius=0.13, color=vector(0.88,0.88,0.94), shininess=0.28, make_trail=True, retain=1200, trail_radius=0.02, trail_color=vector(0.8,0.8,0.9))' } },
+  { type: 'python_raw_block', fields: { CODE: 'moon = sphere(pos=vector(8.2,0.95,0), radius=0.13, color=vector(0.88,0.88,0.94), shininess=0.28, make_trail=True, retain=1200, trail_radius=0.02, trail_color=vector(0.8,0.8,0.9))' } },
 
   /* ── Velocities ────────────────────────────────────────── */
   { type: 'set_velocity_block', fields: { OBJ: 'planet', VX: '0', VY: '3.55', VZ: '0' } },
-  { type: 'set_attr_expr_block', fields: { OBJ: 'moon', ATTR: 'velocity', EXPR: 'planet.velocity + vector(0, 1.3, 0)' } },
+  // Moon: CCW orbit around planet. radius vector = (0,0.95,0), relative vel = (-1.30,0,0) perpendicular → CCW
+  { type: 'set_attr_expr_block', fields: { OBJ: 'moon', ATTR: 'velocity', EXPR: 'planet.velocity + vector(-1.3, 0, 0)' } },
 
   /* ── Gravitational parameters ──────────────────────────── */
   // G=10, M_star=10.33 → v_circ = sqrt(10*10.33/8.2) ≈ 3.55 (planet) ; sqrt(10*0.16/0.95) ≈ 1.30 (moon)
