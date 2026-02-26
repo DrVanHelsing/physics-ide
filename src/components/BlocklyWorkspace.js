@@ -133,7 +133,6 @@ const TOOLBOX_XML = `
     <block type="telemetry_update_block"></block>
   </category>
   <category name="Advanced" colour="#d35400">
-    <block type="exec_block"></block>
     <block type="python_raw_block"></block>
     <block type="python_raw_expr_block"></block>
   </category>
@@ -265,6 +264,53 @@ function buildBlocklyTheme(Blockly, isDark) {
   });
 }
 
+/* ── Sync custom-block variables with Blockly's variable model ──
+   Scans all custom blocks for NAME / OBJ / VAR / LABEL fields and
+   creates Blockly variables so they appear in the Variables toolbox
+   and can be used with standard variables_get blocks.
+   ──────────────────────────────────────────────────────────── */
+const BLOCKS_WITH_NAME = new Set([
+  'sphere_block', 'sphere_trail_block', 'sphere_emissive_block',
+  'box_block', 'box_opacity_block', 'cylinder_block',
+  'arrow_block', 'helix_block', 'helix_full_block',
+  'label_full_block', 'set_scalar_block',
+]);
+const BLOCKS_WITH_OBJ = new Set([
+  'set_velocity_block', 'update_position_block', 'apply_force_block',
+  'set_attr_expr_block', 'add_attr_expr_block',
+]);
+
+function syncCustomVariables(workspace) {
+  if (!workspace) return;
+  const varNames = new Set();
+
+  workspace.getAllBlocks(false).forEach(block => {
+    if (BLOCKS_WITH_NAME.has(block.type)) {
+      const n = (block.getFieldValue('NAME') || '').trim();
+      if (n) varNames.add(n);
+    }
+    if (BLOCKS_WITH_OBJ.has(block.type)) {
+      const o = (block.getFieldValue('OBJ') || '').trim();
+      if (o) varNames.add(o);
+    }
+    if (block.type === 'for_range_block') {
+      const v = (block.getFieldValue('VAR') || '').trim();
+      if (v) varNames.add(v);
+    }
+    if (block.type === 'telemetry_update_block') {
+      const l = (block.getFieldValue('LABEL') || '').trim();
+      if (l) varNames.add(l);
+    }
+  });
+
+  // Create any that don't exist yet (never auto-delete)
+  varNames.forEach(name => {
+    if (!workspace.getVariable(name)) {
+      workspace.createVariable(name);
+    }
+  });
+}
+
 function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, isDark }) {
   const hostRef = useRef(null);
   const workspaceRef = useRef(null);
@@ -341,7 +387,7 @@ function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, isD
       }
     }
 
-    // Emit changes
+    // Emit changes & keep variable model in sync
     const listener = (event) => {
       if (
         event.type === Blockly.Events.UI ||
@@ -349,12 +395,16 @@ function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, isD
       ) {
         return;
       }
+      syncCustomVariables(workspace);
       const dom = Blockly.Xml.workspaceToDom(workspace);
       const xmlText = Blockly.Xml.domToText(dom);
       const code = generatePythonFromWorkspace(workspace);
       onChangeRef.current(xmlText, code);
     };
     workspace.addChangeListener(listener);
+
+    // Initial variable sync for blocks loaded from saved XML
+    syncCustomVariables(workspace);
 
     return () => {
       workspace.removeChangeListener(listener);
