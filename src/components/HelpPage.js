@@ -316,9 +316,27 @@ export default function HelpPage({ onClose }) {
                 <div className="help-block-row">
                   <div className="help-block-name">sphere_block</div>
                   <div className="help-block-desc">
-                    Creates a VPython sphere. Fields: <Code>name</Code>, position <Code>x y z</Code>, <Code>radius</Code>, <Code>color</Code> (hex).
+                    Creates a basic VPython sphere. Fields: <Code>name</Code>, position <Code>x y z</Code>, <Code>radius</Code>, <Code>color</Code> (hex).
                     <Pre>ball = sphere(pos=vector(0,0,0), radius=1, color=vector(1,0,0))</Pre>
                     Leave <strong>name</strong> blank for an anonymous object (no variable assignment).
+                  </div>
+                </div>
+                <div className="help-block-row">
+                  <div className="help-block-name">sphere_trail_block</div>
+                  <div className="help-block-desc">
+                    Creates a sphere with a motion trail. All trail parameters are passed in the constructor as required by GlowScript 3.2.
+                    Extra fields: <Code>trail_r</Code> (trail radius), <Code>trail_col</Code> (trail colour hex), <Code>retain</Code> (max trail points), <Code>shininess</Code>.
+                    <Pre>ball = sphere(pos=vector(0,0.35,0), radius=0.28, color=...,{"\n"}       make_trail=True, trail_radius=0.035, trail_color=..., retain=260, shininess=0.85)</Pre>
+                    <Note type="warning"><Code>make_trail=True</Code> must be set in the constructor. Use this block instead of <Code>sphere_block</Code> whenever you need a trail.</Note>
+                  </div>
+                </div>
+                <div className="help-block-row">
+                  <div className="help-block-name">sphere_emissive_block</div>
+                  <div className="help-block-desc">
+                    Creates a self-illuminating (glow) sphere with configurable <Code>opacity</Code> and <Code>shininess</Code>.
+                    Used for stars, corona halos, and particle effects where the object should appear to emit light.
+                    <Pre>sun = sphere(pos=vector(0,0,0), radius=1.05, color=..., emissive=True, opacity=1, shininess=1)</Pre>
+                    <Note type="warning"><Code>emissive=True</Code> must be set in the constructor in GlowScript 3.2.</Note>
                   </div>
                 </div>
                 <div className="help-block-row">
@@ -326,6 +344,14 @@ export default function HelpPage({ onClose }) {
                   <div className="help-block-desc">
                     Creates a VPython box. Extra fields: <Code>sx sy sz</Code> (size vector).
                     <Pre>wall = box(pos=vector(0,0,0), size=vector(1,1,1), color=...)</Pre>
+                  </div>
+                </div>
+                <div className="help-block-row">
+                  <div className="help-block-name">box_opacity_block</div>
+                  <div className="help-block-desc">
+                    Creates a box with an <Code>opacity</Code> field (0 = invisible, 1 = solid). The position fields accept Python expressions
+                    (e.g. <Code>mass.pos.x</Code>) so the box can be positioned relative to another object at creation time.
+                    <Pre>shadow = box(pos=vector(mass.pos.x,-1.08,0), size=vector(1,0.01,1), color=..., opacity=0.45)</Pre>
                   </div>
                 </div>
                 <div className="help-block-row">
@@ -345,8 +371,17 @@ export default function HelpPage({ onClose }) {
                 <div className="help-block-row">
                   <div className="help-block-name">helix_block</div>
                   <div className="help-block-desc">
-                    Creates a spring/helix. The <Code>axis</Code> must be updated each frame to animate the spring stretch.
-                    <Pre>spring = helix(pos=anchor, axis=vector(L0,0,0), radius=0.3, coils=14)</Pre>
+                    Creates a basic helix with <Code>pos</Code>, <Code>axis</Code>, and <Code>radius</Code>. Update <Code>axis</Code> each frame to animate stretch.
+                    For springs that need specific <Code>coils</Code> and <Code>thickness</Code>, use <Code>helix_full_block</Code> instead.
+                    <Pre>spring = helix(pos=anchor, axis=vector(L0,0,0), radius=0.3)</Pre>
+                  </div>
+                </div>
+                <div className="help-block-row">
+                  <div className="help-block-name">helix_full_block</div>
+                  <div className="help-block-desc">
+                    Creates a helix with full constructor parameters: <Code>coils</Code>, <Code>thickness</Code>, and expression-based
+                    <Code>pos</Code> / <Code>axis</Code> fields. Used in the Spring-Mass template to match exact visual proportions.
+                    <Pre>spring = helix(pos=anchor, axis=vector(4.0,0,0), radius=0.36, coils=16, thickness=0.055, color=...)</Pre>
                   </div>
                 </div>
               </div>
@@ -441,6 +476,23 @@ export default function HelpPage({ onClose }) {
                   </div>
                 </div>
                 <div className="help-block-row">
+                  <div className="help-block-name">for_range_block</div>
+                  <div className="help-block-desc">
+                    A for-loop over a numeric range. Fields: loop variable name, <Code>start</Code>, <Code>stop</Code>, <Code>step</Code>.
+                    Accepts nested blocks in its body. Used to create repeated objects (distance ticks, starfields, etc.).
+                    <Pre>{`for i in range(0, 31, 5):\n    cylinder(pos=vector(i, 0, 0), axis=vector(0, 0.04, 0), ...)`}</Pre>
+                  </div>
+                </div>
+                <div className="help-block-row">
+                  <div className="help-block-name">if_block</div>
+                  <div className="help-block-desc">
+                    A conditional statement with a free-text condition field. Accepts nested blocks in its body.
+                    Fully nestable — place an <Code>if_block</Code> inside another <Code>if_block</Code> body for nested conditions.
+                    <Pre>{`if ball.pos.y < ball.radius:\n    ball.pos.y = ball.radius\n    if ball.velocity.y < 0:\n        ball.velocity.y = -0.55 * ball.velocity.y`}</Pre>
+                    <Note type="tip">For complex boolean conditions (e.g. <Code>x &lt; 0 and mag(v) &lt; 0.1</Code>) type them directly into the condition field.</Note>
+                  </div>
+                </div>
+                <div className="help-block-row">
                   <div className="help-block-name">rate_block</div>
                   <div className="help-block-desc">
                     Throttles the loop to N iterations per second. This is <strong>essential</strong> — without
@@ -476,6 +528,37 @@ export default function HelpPage({ onClose }) {
                   </div>
                 </div>
                 <div className="help-block-row">
+                  <div className="help-block-name">scene_forward_block</div>
+                  <div className="help-block-desc">
+                    Sets the initial camera viewing direction as a unit vector.
+                    <Pre>scene.forward = vector(-0.35, -0.2, -1)</Pre>
+                    Adjusting this gives a dramatic angled perspective. Negative Z points into the screen.
+                  </div>
+                </div>
+                <div className="help-block-row">
+                  <div className="help-block-name">scene_center_block</div>
+                  <div className="help-block-desc">
+                    Moves the look-at point of the camera. The camera always orbits around this position.
+                    <Pre>scene.center = vector(11, 3.5, 0)</Pre>
+                    Use this to frame an off-centre simulation (e.g. a projectile landing at x=22).
+                  </div>
+                </div>
+                <div className="help-block-row">
+                  <div className="help-block-name">scene_caption_block</div>
+                  <div className="help-block-desc">
+                    Sets the text shown below the 3D viewport. Supports <Code>\n</Code> for line breaks.
+                    <Pre>{`scene.caption = "Projectile motion with drag\\n"`}</Pre>
+                  </div>
+                </div>
+                <div className="help-block-row">
+                  <div className="help-block-name">scene_ambient_block</div>
+                  <div className="help-block-desc">
+                    Sets the global ambient (base) light level using a grey value from 0 (fully dark) to 1 (fully lit).
+                    <Pre>scene.ambient = color.gray(0.35)</Pre>
+                    Lower values make point lights more dramatic; higher values flatten shading.
+                  </div>
+                </div>
+                <div className="help-block-row">
                   <div className="help-block-name">local_light_block</div>
                   <div className="help-block-desc">
                     Adds a point light source at a given position.
@@ -485,8 +568,17 @@ export default function HelpPage({ onClose }) {
                 <div className="help-block-row">
                   <div className="help-block-name">label_block</div>
                   <div className="help-block-desc">
-                    Creates an on-screen text label at a 3D position. Update <Code>.text</Code> each frame for live telemetry.
-                    <Pre>info = label(text="", pos=vector(5,8,0), box=False, opacity=0)</Pre>
+                    Creates a simple on-screen text label at a 3D position (white, no box, transparent background).
+                    Update <Code>.text</Code> each frame using <Code>set_attr_expr_block</Code> for live telemetry.
+                    <Pre>info = label(text="", pos=vector(5,8,0), box=False, opacity=0, color=color.white)</Pre>
+                  </div>
+                </div>
+                <div className="help-block-row">
+                  <div className="help-block-name">label_full_block</div>
+                  <div className="help-block-desc">
+                    Creates a named telemetry label with a configurable <Code>height</Code> field (font size in pixels).
+                    Always outputs white text, no box, transparent background — the standard HUD style used in all built-in templates.
+                    <Pre>telemetry = label(pos=vector(8.5, 9.2, 0), text="", height=12, box=False, opacity=0, color=color.white)</Pre>
                   </div>
                 </div>
                 <div className="help-block-row">
@@ -497,11 +589,23 @@ export default function HelpPage({ onClose }) {
                   </div>
                 </div>
                 <div className="help-block-row">
+                  <div className="help-block-name">exec_block</div>
+                  <div className="help-block-desc">
+                    Executes any Python expression as a statement without assigning it to a variable.
+                    Use this for anonymous object creation inside loops (e.g. creating many stars or tick marks
+                    where you don't need to reference the object later).
+                    <Pre>{`for i in range(120):\n    sphere(pos=..., radius=0.05, emissive=True)`}</Pre>
+                    <Note type="tip">Think of this as the block equivalent of calling a function purely for its side effect.</Note>
+                  </div>
+                </div>
+                <div className="help-block-row">
                   <div className="help-block-name">python_raw_block</div>
                   <div className="help-block-desc">
                     <strong>Power-user block</strong> — inserts any raw Python code as a statement.
                     Use when no specific block exists for what you need. Also supports multi-line
-                    Python via <Code>\n</Code> in the field text.
+                    Python via <Code>\n</Code> in the field text. The built-in templates no longer
+                    use this block — everything is covered by semantic blocks — but it remains
+                    available for advanced custom programs.
                   </div>
                 </div>
                 <div className="help-block-row">
@@ -563,6 +667,11 @@ export default function HelpPage({ onClose }) {
             <section className="help-section">
               <SectionHeader id="templates">Built-in Templates</SectionHeader>
               <p>Physics IDE ships with three fully worked simulations available in both Code and Blocks modes.</p>
+              <Note type="tip">
+                All three Blocks templates are built entirely from semantic blocks — no <Code>python_raw_block</Code> is used.
+                Every scene property, object constructor, for-loop, if-statement, and telemetry update
+                has a dedicated block. This makes the templates fully inspectable and editable in the Block Editor.
+              </Note>
 
               <h3 className="help-h3">1 · Projectile Motion</h3>
               <Tag color="blue">Code</Tag>&nbsp;<Tag color="purple">Blocks</Tag>
