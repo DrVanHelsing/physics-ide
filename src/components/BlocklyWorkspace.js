@@ -3,6 +3,7 @@ import {
   defineCustomBlocksAndGenerator,
   generatePythonFromWorkspace,
 } from "../utils/blocklyGenerator";
+import * as dialogService from "../utils/dialogService";
 
 /* ── Toolbox XML ─────────────────────────────────────────────
    Custom VPython blocks are defined in blocklyGenerator.js.
@@ -198,24 +199,22 @@ function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, isD
 
     const theme = buildBlocklyTheme(Blockly, true);
 
-    // Blockly v11 uses a callback-based dialog API. Without these, variable
-    // creation/rename dialogs throw "Script error." from the CDN script.
+    // Blockly v11 uses a callback-based dialog API. Route through our
+    // dialogService so the custom VariableDialog component handles these.
     if (Blockly.dialog) {
       if (Blockly.dialog.setPrompt) {
         Blockly.dialog.setPrompt((msg, defaultVal, callback) => {
-          const result = window.prompt(msg, defaultVal);
-          callback(result);
+          dialogService.prompt(msg, defaultVal).then(callback);
         });
       }
       if (Blockly.dialog.setAlert) {
         Blockly.dialog.setAlert((msg, callback) => {
-          window.alert(msg);
-          if (callback) callback();
+          dialogService.alert(msg).then(() => { if (callback) callback(); });
         });
       }
       if (Blockly.dialog.setConfirm) {
         Blockly.dialog.setConfirm((msg, callback) => {
-          callback(window.confirm(msg));
+          dialogService.confirm(msg).then(callback);
         });
       }
     }

@@ -6,6 +6,7 @@ import Toolbar from "./components/Toolbar";
 import ModeToggle from "./components/ModeToggle";
 import StartMenu from "./components/StartMenu";
 import HelpPage from "./components/HelpPage";
+import VariableDialog from "./components/VariableDialog";
 import { BlocksIcon, CodeIcon, GlobeIcon } from "./components/Icons";
 import { useTheme } from "./ThemeContext";
 import { generatePythonFromWorkspace } from "./utils/blocklyGenerator";
@@ -308,6 +309,7 @@ function App() {
 
   return (
     <div className="app-shell">
+      <VariableDialog />
       {showHelp && <HelpPage onClose={() => setShowHelp(false)} />}
       {/* VS Code title bar */}
       <div className="titlebar">
