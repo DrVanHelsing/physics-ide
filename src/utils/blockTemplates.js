@@ -308,7 +308,7 @@ const PROJECTILE_BLOCKS = [
   {
     type: "set_scalar_block",
     fields: { NAME: "A" },
-    values: { VALUE: expr("pi * ball.radius**2") },
+    values: { VALUE: mul(expr("pi"), mul(expr("ball.radius"), expr("ball.radius"))) },
   },
   {
     type: "set_scalar_block",
@@ -345,9 +345,19 @@ const PROJECTILE_BLOCKS = [
     fields: { TEXT: "Set initial velocity from speed and angle" },
   },
   {
+    type: "set_scalar_block",
+    fields: { NAME: "vx0" },
+    values: { VALUE: mul(v("v0"), expr("cos(angle)")) },
+  },
+  {
+    type: "set_scalar_block",
+    fields: { NAME: "vy0" },
+    values: { VALUE: mul(v("v0"), expr("sin(angle)")) },
+  },
+  {
     type: "set_attr_expr_block",
     fields: { OBJ: "ball", ATTR: "velocity" },
-    values: { VALUE: expr("vector(v0 * cos(angle), v0 * sin(angle), 0)") },
+    values: { VALUE: expr("vector(vx0, vy0, 0)") },
   },
 
   /* ── Time step and state ───────────────────────────────── */
@@ -495,7 +505,7 @@ const PROJECTILE_BLOCKS = [
               {
                 type: "set_attr_expr_block",
                 fields: { OBJ: "ball", ATTR: "velocity" },
-                values: { VALUE: expr("vector(0, 0, 0)") },
+                values: { VALUE: vec(0, 0, 0) },
               },
               { type: "break_loop_block" },
             ],
@@ -787,7 +797,7 @@ const ORBIT_BLOCKS = [
   {
     type: "set_scalar_block",
     fields: { NAME: "a_earth" },
-    values: { VALUE: mul(div(mul(num(-1), mul(v("G"), v("M_sun"))), expr("d_es**2")), expr("norm(r_es)")) },
+    values: { VALUE: mul(div(mul(num(-1), mul(v("G"), v("M_sun"))), mul(v("d_es"), v("d_es"))), expr("norm(r_es)")) },
   },
   {
     type: "set_scalar_block",
@@ -814,8 +824,8 @@ const ORBIT_BLOCKS = [
     fields: { NAME: "a_moon" },
     values: {
       VALUE: sub(
-        mul(div(mul(num(-1), mul(v("G"), v("M_sun"))), expr("d_ms**2")), expr("norm(r_ms)")),
-        mul(div(mul(v("G"), v("M_earth")), expr("d_me**2")), expr("norm(r_me)"))
+        mul(div(mul(num(-1), mul(v("G"), v("M_sun"))), mul(v("d_ms"), v("d_ms"))), expr("norm(r_ms)")),
+        mul(div(mul(v("G"), v("M_earth")), mul(v("d_me"), v("d_me"))), expr("norm(r_me)"))
       ),
     },
   },
@@ -892,7 +902,7 @@ const ORBIT_BLOCKS = [
       {
         type: "set_scalar_block",
         fields: { NAME: "a_earth" },
-        values: { VALUE: mul(div(mul(num(-1), mul(v("G"), v("M_sun"))), expr("d_es**2")), expr("norm(r_es)")) },
+        values: { VALUE: mul(div(mul(num(-1), mul(v("G"), v("M_sun"))), mul(v("d_es"), v("d_es"))), expr("norm(r_es)")) },
       },
       {
         type: "set_scalar_block",
@@ -919,8 +929,8 @@ const ORBIT_BLOCKS = [
         fields: { NAME: "a_moon" },
         values: {
           VALUE: sub(
-            mul(div(mul(num(-1), mul(v("G"), v("M_sun"))), expr("d_ms**2")), expr("norm(r_ms)")),
-            mul(div(mul(v("G"), v("M_earth")), expr("d_me**2")), expr("norm(r_me)"))
+            mul(div(mul(num(-1), mul(v("G"), v("M_sun"))), mul(v("d_ms"), v("d_ms"))), expr("norm(r_ms)")),
+            mul(div(mul(v("G"), v("M_earth")), mul(v("d_me"), v("d_me"))), expr("norm(r_me)"))
           ),
         },
       },
@@ -1230,10 +1240,15 @@ const SPRING_BLOCKS = [
 
       // Spring visual updates
       {
+        type: "set_scalar_block",
+        fields: { NAME: "dx_spring" },
+        values: { VALUE: sub(expr("mass.pos.x"), expr("spring.pos.x")) },
+      },
+      {
         type: "set_attr_expr_block",
         fields: { OBJ: "spring", ATTR: "axis" },
         values: {
-          VALUE: expr("vector(mass.pos.x - spring.pos.x, 0, 0)"),
+          VALUE: expr("vector(dx_spring, 0, 0)"),
         },
       },
       {
@@ -1242,16 +1257,34 @@ const SPRING_BLOCKS = [
       },
       {
         type: "set_scalar_block",
+        fields: { NAME: "stress_raw" },
+        values: { VALUE: div(expr("abs(stretch)"), num(2.2)) },
+      },
+      {
+        type: "set_scalar_block",
         fields: { NAME: "stress" },
-        values: { VALUE: expr("min(1, abs(stretch) / 2.2)") },
+        values: { VALUE: expr("min(1, stress_raw)") },
+      },
+      {
+        type: "set_scalar_block",
+        fields: { NAME: "col_r" },
+        values: { VALUE: add(num(0.55), mul(num(0.45), v("stress"))) },
+      },
+      {
+        type: "set_scalar_block",
+        fields: { NAME: "col_g" },
+        values: { VALUE: sub(num(0.82), mul(num(0.45), v("stress"))) },
+      },
+      {
+        type: "set_scalar_block",
+        fields: { NAME: "col_b" },
+        values: { VALUE: sub(num(0.92), mul(num(0.50), v("stress"))) },
       },
       {
         type: "set_attr_expr_block",
         fields: { OBJ: "spring", ATTR: "color" },
         values: {
-          VALUE: expr(
-            "vector(0.55 + 0.45*stress, 0.82 - 0.45*stress, 0.92 - 0.5*stress)"
-          ),
+          VALUE: expr("vector(col_r, col_g, col_b)"),
         },
       },
 
@@ -1262,10 +1295,20 @@ const SPRING_BLOCKS = [
         values: { VALUE: expr("mass.pos.x") },
       },
       {
+        type: "set_scalar_block",
+        fields: { NAME: "ph_x" },
+        values: { VALUE: mul(num(0.35), v("stretch")) },
+      },
+      {
+        type: "set_scalar_block",
+        fields: { NAME: "ph_y" },
+        values: { VALUE: mul(num(0.28), v("v")) },
+      },
+      {
         type: "set_attr_expr_block",
         fields: { OBJ: "phase_arrow", ATTR: "axis" },
         values: {
-          VALUE: expr("vector(0.35 * stretch, 0.28 * v, 0)"),
+          VALUE: expr("vector(ph_x, ph_y, 0)"),
         },
       },
 
