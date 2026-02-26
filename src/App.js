@@ -193,9 +193,14 @@ function App() {
   /* ── Start menu selection ──────────────────────────────── */
   const handleStartSelect = useCallback(
     (selection) => {
-      if (!selection || selection.type === "blank") {
+      if (!selection || selection.type === "blank" || selection.type === "blocks_blank") {
         setProjectType("custom");
         setMode("blocks");
+        setPythonCode(DEFAULT_CODE);
+        setWorkspaceXml("");
+      } else if (selection.type === "code_blank") {
+        setProjectType("code_blank");
+        setMode("text");
         setPythonCode(DEFAULT_CODE);
         setWorkspaceXml("");
       } else if (selection.type === "code") {
@@ -208,9 +213,8 @@ function App() {
         setProjectType("block_template");
         setWorkspaceXml(selection.xml || "");
         const codeTemplate = findCodeTemplateByBlockId(selection.id);
-        if (codeTemplate && codeTemplate.code) {
-          setPythonCode(codeTemplate.code);
-        }
+        // Always reset pythonCode so old code doesn't persist when switching templates
+        setPythonCode(codeTemplate?.code || DEFAULT_CODE);
         setMode("blocks");
       }
       setShowStart(false);

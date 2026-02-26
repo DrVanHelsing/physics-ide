@@ -100,11 +100,11 @@ export const ZapOffIcon = ({ size } = {}) => (
 );
 
 export const FileCodeIcon = ({ size } = {}) => (
-  <svg {...s} width={size || 16} height={size || 16}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><polyline points="10 13 8 15 10 17"/><polyline points="14 13 16 15 14 17"/></svg>
+  <svg {...s} width={size || 16} height={size || 16}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><polyline points="10 15 8 12 10 9"/><polyline points="14 9 16 12 14 15"/></svg>
 );
 
 export const FileBlocksIcon = ({ size } = {}) => (
-  <svg {...s} width={size || 16} height={size || 16}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><rect x="8" y="12" width="3" height="3" rx="0.5"/><rect x="13" y="12" width="3" height="3" rx="0.5"/><rect x="8" y="16" width="3" height="3" rx="0.5"/></svg>
+  <svg {...s} width={size || 16} height={size || 16}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><rect x="8" y="11" width="3.5" height="3.5" rx="0.5"/><rect x="12.5" y="11" width="3.5" height="3.5" rx="0.5"/><rect x="8" y="15.5" width="3.5" height="3.5" rx="0.5"/><rect x="12.5" y="15.5" width="3.5" height="3.5" rx="0.5"/></svg>
 );
 
 export const LayersIcon = ({ size } = {}) => (
@@ -119,6 +119,40 @@ export const UsersIcon = ({ size } = {}) => (
   <svg {...s} width={size || 16} height={size || 16}><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
 );
 
+export const SettingsIcon = ({ size } = {}) => (
+  <svg {...s} width={size || 16} height={size || 16}><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+);
+
+export const FolderIcon = ({ size } = {}) => (
+  <svg {...s} width={size || 16} height={size || 16}><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+);
+
+export const SearchIcon = ({ size } = {}) => (
+  <svg {...s} width={size || 16} height={size || 16}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+);
+
 export const TerminalIcon = ({ size } = {}) => (
   <svg {...s} width={size || 16} height={size || 16}><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
 );
+
+export const GitBranchIcon = ({ size } = {}) => (
+  <svg {...s} width={size || 16} height={size || 16}><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 01-9 9"/></svg>
+);
+
+export const ChevronDownIcon = ({ size } = {}) => (
+  <svg {...s} width={size || 16} height={size || 16}><polyline points="6 9 12 15 18 9"/></svg>
+);
+
+export const XIcon = ({ size } = {}) => (
+  <svg {...s} width={size || 16} height={size || 16}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+);
+
+export const MaximizeIcon = ({ size } = {}) => (
+  <svg {...s} width={size || 16} height={size || 16}><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/></svg>
+);
+
+export const MinimizeIcon = ({ size } = {}) => (
+  <svg {...s} width={size || 16} height={size || 16}><line x1="5" y1="12" x2="19" y2="12"/></svg>
+);
+
+
