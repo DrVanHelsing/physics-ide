@@ -1,4 +1,4 @@
-# Physics IDE
+﻿# Physics IDE
 
 Physics IDE is a dual-editor VPython environment with:
 
@@ -28,38 +28,47 @@ It is designed for teaching and experimentation: beginners can build simulations
 
 ---
 
-## What’s New
+## What's New
 
-### New one-line custom blocks (for cleaner block templates)
+### Mode toggle for templates
 
-- `set_attr_expr_block` → `set object.attribute = expression`
-- `add_attr_expr_block` → `add expression to object.attribute`
+Template projects now let you **toggle** between both representations using the
+Blocks / Code buttons in the toolbar:
 
-These blocks remove a lot of raw-code boilerplate and make templates more editable in pure blocks.
+- **Blocks templates** - Blocks = editable Block Editor; Code = read-only generated code
+- **Code templates** - Code = editable Code Editor; Blocks = read-only block reference
 
-### Block templates are rebuilt for animation reliability
+Both buttons are always clickable - the secondary view is simply read-only.
 
-- `blocks_projectile`
-- `blocks_orbits`
+### Five new semantic blocks
 
-Both templates now contain clean loop chains and animate correctly.
+- `if_else_block` - if / else with separate block sockets for each branch
+- `break_loop_block` - emits `break` to stop a `while True` loop
+- `telemetry_update_block` - formatted label update
+- `cylinder_expr_block` - cylinder with expression-based pos/axis/radius
+- `sphere_expr_block` - sphere with expression-based pos, trail support, emissive option
 
-### Blank project “Code View Only” behavior
+These blocks eliminate all remaining `python_raw_block` usage in the built-in templates.
 
-In **Blank Project**:
+### String-escaping fix (`escPy` helper)
 
-- Switching to **Code View Only** shows a full single code pane
-- It is **read-only generated code**
-- It does **not split/consume space** from the block editor area
+All block generators that emit user-supplied strings now escape backslashes, quotes, and newlines
+to prevent "End of line while scanning string literal" runtime errors.
 
-### Orbit code-template freeze fix
+### Block templates fully rebuilt
 
-The `orbits` code template uses softened gravitational distances to prevent singularities/division spikes that can stall or destabilize animation.
+- `blocks_projectile` - uses `break_loop_block` for stop condition, `if_else_block` for bounce logic
+- `blocks_spring` (**new**) - complete spring-mass oscillator in pure blocks
+- `blocks_orbits` - uses `sphere_expr_block` / `cylinder_expr_block` for dynamic objects
 
-### Viewport text readability fix
+All three templates are 100% semantic blocks - no `python_raw_block` anywhere.
 
-GlowScript iframe text color now adapts to theme so captions/title text are readable in both dark and light modes.
+### Previous updates
 
+- `set_attr_expr_block` / `add_attr_expr_block` - one-line attribute set/increment
+- Template animation reliability improvements
+- Orbit code-template softened gravity (prevents singularity freezes)
+- Viewport text readability fix (theme-aware iframe text colour)
 ---
 
 ## Install & Run

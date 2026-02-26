@@ -303,13 +303,12 @@ function App() {
   /* ── Main IDE render ───────────────────────────────────── */
   const isCustom = projectType === "custom";
   // Determine which mode to lock (grey out) based on project type
-  const lockedMode = projectType === "code_template" ? "blocks"
-    : projectType === "block_template" ? "text"
-    : projectType === "code_blank"     ? "blocks"
-    : null;
+  const lockedMode = projectType === "code_blank" ? "blocks" : null;
 
-  // Should we show a read-only opposite panel?
-  const isTemplate = projectType === "block_template" || projectType === "code_template";
+  // Is the current view read-only? (secondary mode on a template)
+  const isReadOnlyView =
+    (projectType === "block_template" && mode === "text") ||
+    (projectType === "code_template"  && mode === "blocks");
 
   return (
     <div className="app-shell">
@@ -352,58 +351,37 @@ function App() {
           {/* ── Blocks mode ── */}
           {mode === "blocks" ? (
             <>
-              <div className="editor-split-top">
-                <div className="pane-header pane-header--blocks">
-                  <BlocksIcon size={14} /> Block Editor
-                </div>
+              <div className={`pane-header pane-header--blocks${isReadOnlyView ? " pane-header--code-preview" : ""}`}>
+                <BlocksIcon size={14} /> {isReadOnlyView ? "Block Reference (Read Only)" : "Block Editor"}
+              </div>
+              {isReadOnlyView ? (
+                <ReadOnlyBlockly xml={workspaceXml} isDark={isDark} />
+              ) : (
                 <BlocklyWorkspace
                   initialXml={workspaceXml}
                   onWorkspaceReady={handleWorkspaceReady}
                   onWorkspaceChange={handleWorkspaceChange}
                   isDark={isDark}
                 />
-              </div>
-              {isTemplate && (
-                <div className="editor-split-bottom">
-                  <div className="pane-header pane-header--code pane-header--code-preview">
-                    <CodeIcon size={14} /> Generated Code (Read Only)
-                  </div>
-                  <CodeEditor
-                    value={pythonCode}
-                    isDark={isDark}
-                    readOnly={true}
-                    onChange={() => {}}
-                  />
-                </div>
               )}
             </>
           ) : (
             <>
-              <div className={isTemplate ? "editor-split-top" : ""}>
-                <div className="pane-header pane-header--code">
-                  <CodeIcon size={14} /> {isCustom ? "Code View Only" : projectType === "code_blank" ? "Code Editor" : "Code Editor"}
-                </div>
-                <CodeEditor
-                  value={pythonCode}
-                  isDark={isDark}
-                  readOnly={isCustom}
-                  onChange={
-                    isCustom
-                      ? () => {}
-                      : (v) => {
-                          setPythonCode(v);
-                        }
-                  }
-                />
+              <div className={`pane-header pane-header--code${isReadOnlyView ? " pane-header--code-preview" : ""}`}>
+                <CodeIcon size={14} /> {isCustom ? "Code View Only" : isReadOnlyView ? "Generated Code (Read Only)" : "Code Editor"}
               </div>
-              {isTemplate && (
-                <div className="editor-split-bottom">
-                  <div className="pane-header pane-header--blocks pane-header--code-preview">
-                    <BlocksIcon size={14} /> Block Reference (Read Only)
-                  </div>
-                  <ReadOnlyBlockly xml={workspaceXml} isDark={isDark} />
-                </div>
-              )}
+              <CodeEditor
+                value={pythonCode}
+                isDark={isDark}
+                readOnly={isCustom || isReadOnlyView}
+                onChange={
+                  (isCustom || isReadOnlyView)
+                    ? () => {}
+                    : (v) => {
+                        setPythonCode(v);
+                      }
+                }
+              />
             </>
           )}
         </section>

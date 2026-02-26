@@ -205,25 +205,25 @@ export default function HelpPage({ onClose }) {
                 </tbody>
               </table>
 
-              <h3 className="help-h3">Split view for templates</h3>
+              <h3 className="help-h3">Switching views on templates</h3>
               <p>
-                When working with a template, Physics IDE shows a <strong>split-pane layout</strong>:
-                the primary editor occupies the top two-thirds, while a <strong>read-only reference
-                view</strong> fills the bottom third.
+                When working with a template, use the <strong>Blocks / Code</strong> toggle in the
+                toolbar to switch between both representations:
               </p>
               <ul className="help-list">
                 <li>
-                  <Tag color="purple">Blocks Template</Tag> — editable Block Editor (top) +
-                  read-only generated code (bottom). See exactly how each block translates to VPython.
+                  <Tag color="purple">Blocks Template</Tag> — <strong>Blocks</strong> is the
+                  editable Block Editor; <strong>Code</strong> shows the generated VPython (read-only).
                 </li>
                 <li>
-                  <Tag color="blue">Code Template</Tag> — editable Code Editor (top) +
-                  read-only Block Reference view (bottom). Inspect the block structure while editing code.
+                  <Tag color="blue">Code Template</Tag> — <strong>Code</strong> is the editable
+                  Code Editor; <strong>Blocks</strong> shows the block structure (read-only reference).
                 </li>
               </ul>
               <Note type="tip">
-                The split view makes it easy to compare blocks and code side-by-side — ideal for
-                students transitioning from visual to textual programming.
+                Toggling between Blocks and Code is the quickest way to study how visual blocks
+                translate to VPython code — ideal for students transitioning from visual to
+                textual programming.
               </Note>
             </section>
 

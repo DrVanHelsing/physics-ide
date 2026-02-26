@@ -617,27 +617,7 @@ button {
   background: var(--bg-base);
 }
 
-/* ── Split editor layout ────────────────────────────────── */
-.editor-split-top {
-  flex: 2;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-.editor-split-bottom {
-  flex: 1;
-  min-height: 120px;
-  display: flex;
-  flex-direction: column;
-  border-top: 2px solid var(--border-hl);
-  overflow: hidden;
-}
-.editor-split-bottom .blockly-host,
-.editor-split-bottom .monaco-host {
-  flex: 1;
-  min-height: 0;
-}
+/* ── Read-only preview styling ───────────────────────────── */
 .blockly-readonly {
   opacity: 0.88;
 }
