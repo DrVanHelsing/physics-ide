@@ -343,6 +343,11 @@ button {
 .tb-btn--subtle:hover {
   color: var(--text);
 }
+/* Active state — e.g. beginner mode engaged */
+.tb-btn--active {
+  color: var(--accent-blue) !important;
+  background: rgba(86, 156, 214, 0.12);
+}
 
 /* Danger (clear / trash) */
 .tb-btn--danger {
@@ -578,6 +583,29 @@ button {
   background: var(--canvas-bg);
 }
 
+/* ── Drag-to-resize divider ───────────────────────────── */
+.pane-divider {
+  width: 5px;
+  min-width: 5px;
+  flex-shrink: 0;
+  cursor: col-resize;
+  background: var(--border);
+  position: relative;
+  transition: background 0.15s;
+  z-index: 10;
+}
+.pane-divider:hover,
+.pane-divider:active {
+  background: var(--accent-blue);
+}
+/* Wider invisible hit area */
+.pane-divider::before {
+  content: '';
+  position: absolute;
+  top: 0; bottom: 0;
+  left: -4px; right: -4px;
+}
+
 /* ── Pane Headers (VS Code tab headers) ───────────────── */
 .pane-header {
   display: flex;
@@ -605,6 +633,13 @@ button {
 /* ═══════════════════════════════════════════════════════════
    BLOCKLY HOST
    ═══════════════════════════════════════════════════════════ */
+.blockly-workspace-wrapper {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
 .blockly-host,
 .monaco-host {
   width: 100%;
@@ -615,6 +650,102 @@ button {
   position: relative;
   overflow: hidden;
   background: var(--bg-base);
+}
+
+/* ── Block search bar ────────────────────────────── */
+.block-search {
+  position: relative;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-overlay);
+  z-index: 20;
+}
+.block-search-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  opacity: 0.75;
+  transition: opacity 0.15s;
+}
+.block-search-bar:focus-within {
+  opacity: 1;
+}
+.block-search-bar svg {
+  flex-shrink: 0;
+  color: var(--fg-muted);
+}
+.block-search-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 11px;
+  color: var(--fg);
+  font-family: inherit;
+}
+.block-search-input::placeholder {
+  color: var(--fg-muted);
+}
+.block-search-clear {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--fg-muted);
+  font-size: 14px;
+  line-height: 1;
+  padding: 0 2px;
+  opacity: 0.6;
+}
+.block-search-clear:hover { opacity: 1; }
+.block-search-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-top: none;
+  max-height: 260px;
+  overflow-y: auto;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.35);
+  z-index: 100;
+}
+.block-search-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 7px 10px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  gap: 8px;
+}
+.block-search-item:hover {
+  background: var(--bg-overlay);
+}
+.block-search-item-label {
+  font-size: 11px;
+  color: var(--fg);
+  flex: 1;
+}
+.block-search-item-cat {
+  font-size: 10px;
+  color: var(--fg-muted);
+  background: var(--bg-base);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 1px 5px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.block-search-empty {
+  padding: 10px;
+  font-size: 11px;
+  color: var(--fg-muted);
+  text-align: center;
 }
 
 /* ── Read-only preview styling ───────────────────────────── */

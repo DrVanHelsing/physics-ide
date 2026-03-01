@@ -151,158 +151,155 @@ function buildHighlightedHtml(code) {
   return html;
 }
 
-/* ── Blocks → PDF (full workspace capture) ───────────── */
+/* ── Blocks → PDF (full workspace capture via SVG) ───── */
 export async function exportBlocksPdf(workspace) {
-  const blocklyHost = document.querySelector(".blockly-host");
-  if (!blocklyHost || !workspace) {
+  if (!workspace) {
     window.alert("Switch to Blocks mode first to export the block workspace.");
     return;
   }
 
   const blocks = workspace.getAllBlocks(false);
-  if (blocks.length === 0) {
-    window.alert("No blocks to export.");
-    return;
-  }
+  if (!blocks.length) { window.alert("No blocks to export."); return; }
 
-  // Bounding box in workspace coordinates
   const bbox = workspace.getBlocksBoundingBox();
-  const contentW = bbox.right - bbox.left;
+  const contentW = bbox.right  - bbox.left;
   const contentH = bbox.bottom - bbox.top;
-  if (contentW === 0 || contentH === 0) {
-    window.alert("No blocks to export.");
-    return;
-  }
-
-  // Save original state
-  const origScale = workspace.getScale();
-  const origScrollX = workspace.scrollX;
-  const origScrollY = workspace.scrollY;
-  const origHostCss = blocklyHost.style.cssText;
-
-  // Hide toolbox so blocks get full width
-  const toolbox = blocklyHost.querySelector(".blocklyToolboxDiv");
-  const flyout = blocklyHost.querySelector(".blocklyFlyout");
-  const origToolboxDisplay = toolbox ? toolbox.style.display : null;
-  const origFlyoutDisplay = flyout ? flyout.style.display : null;
-  if (toolbox) toolbox.style.display = "none";
-  if (flyout) flyout.style.display = "none";
+  if (contentW === 0 || contentH === 0) { window.alert("No blocks to export."); return; }
 
   const padding = 60;
-  const renderW = contentW + padding * 2;
-  const renderH = contentH + padding * 2;
+  const viewX = bbox.left  - padding;
+  const viewY = bbox.top   - padding;
+  const viewW = contentW   + padding * 2;
+  const viewH = contentH   + padding * 2;
+  const dpr   = 2;
 
-  try {
-    // Move host off-screen and resize to fit all blocks
+  /* ── Clone the Blockly SVG and set a viewBox over all blocks ── */
+  const svgRoot = workspace.getParentSvg && workspace.getParentSvg();
+  let canvas;
+
+  if (svgRoot) {
+    const svgClone = svgRoot.cloneNode(true);
+    svgClone.setAttribute("viewBox", `${viewX} ${viewY} ${viewW} ${viewH}`);
+    svgClone.setAttribute("width",  String(viewW));
+    svgClone.setAttribute("height", String(viewH));
+    svgClone.setAttribute("xmlns",       "http://www.w3.org/2000/svg");
+    svgClone.setAttribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
+
+    const svgStr = new XMLSerializer().serializeToString(svgClone);
+    const blob   = new Blob([svgStr], { type: "image/svg+xml;charset=utf-8" });
+    const url    = URL.createObjectURL(blob);
+
+    try {
+      canvas = await new Promise((resolve, reject) => {
+        const c   = document.createElement("canvas");
+        c.width   = viewW * dpr;
+        c.height  = viewH * dpr;
+        const ctx = c.getContext("2d");
+        ctx.fillStyle = "#1a1b2e";
+        ctx.fillRect(0, 0, c.width, c.height);
+        const img = new Image();
+        img.onload = () => { ctx.drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url); resolve(c); };
+        img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("svg_fail")); };
+        img.src = url;
+      });
+    } catch { /* fall through to html2canvas below */ }
+  }
+
+  /* ── Fallback: html2canvas (if SVG serialisation failed) ── */
+  if (!canvas) {
+    const blocklyHost = document.querySelector(".blockly-host");
+    if (!blocklyHost) { window.alert("Switch to Blocks mode first."); return; }
+
+    const origScale   = workspace.getScale();
+    const origScrollX = workspace.scrollX;
+    const origScrollY = workspace.scrollY;
+    const origCss     = blocklyHost.style.cssText;
+    const toolbox = blocklyHost.querySelector(".blocklyToolboxDiv");
+    const flyout  = blocklyHost.querySelector(".blocklyFlyout");
+    if (toolbox) toolbox.style.display = "none";
+    if (flyout)  flyout.style.display  = "none";
+
+    const renderW = viewW, renderH = viewH;
+    blocklyHost.style.cssText = "";
     blocklyHost.style.position = "fixed";
-    blocklyHost.style.top = "-30000px";
-    blocklyHost.style.left = "0";
-    blocklyHost.style.width = renderW + "px";
-    blocklyHost.style.height = renderH + "px";
-    blocklyHost.style.zIndex = "-1";
+    blocklyHost.style.top      = "-30000px";
+    blocklyHost.style.left     = "0";
+    blocklyHost.style.width    = renderW + "px";
+    blocklyHost.style.height   = renderH + "px";
+    blocklyHost.style.zIndex   = "-1";
     blocklyHost.style.overflow = "hidden";
-
-    // Set scale 1:1 and resize Blockly SVG to fill container
     workspace.setScale(1);
     if (workspace.resize) workspace.resize();
-
-    // Scroll so blocks start at the padding offset
     workspace.scroll(padding - bbox.left, padding - bbox.top);
+    await new Promise((r) => setTimeout(r, 300));
 
-    // Allow Blockly to re-render
-    await new Promise((r) => setTimeout(r, 250));
-
-    // Capture with html2canvas
-    const canvas = await html2canvas(blocklyHost, {
-      backgroundColor: "#1a1b2e",
-      scale: 2,
-      useCORS: true,
-      logging: false,
-      width: renderW,
-      height: renderH,
-    });
-
-    // ── Generate paginated PDF ──────────────────────────
-    const imgData = canvas.toDataURL("image/png");
-    const imgW = canvas.width;
-    const imgH = canvas.height;
-
-    const landscape = imgW > imgH;
-    const pdf = new jsPDF({
-      orientation: landscape ? "landscape" : "portrait",
-      unit: "pt",
-      format: "a4",
-    });
-
-    const pageW = pdf.internal.pageSize.getWidth();
-    const pageH = pdf.internal.pageSize.getHeight();
-    const margin = 36;
-    const usableW = pageW - margin * 2;
-
-    // Title
-    pdf.setFontSize(16);
-    pdf.setTextColor(60, 60, 80);
-    pdf.text("Physics IDE \u2014 Block Workspace", margin, margin + 12);
-    pdf.setFontSize(9);
-    pdf.setTextColor(130, 130, 150);
-    pdf.text(new Date().toLocaleString(), margin, margin + 26);
-
-    const titleH = 40;
-    const firstPageH = pageH - margin * 2 - titleH;
-    const otherPageH = pageH - margin * 2;
-
-    // Scale image to fit page width
-    const pdfScale = usableW / imgW;
-    const drawW = imgW * pdfScale;
-    const drawH = imgH * pdfScale;
-
-    if (drawH <= firstPageH) {
-      pdf.addImage(imgData, "PNG", margin, margin + titleH, drawW, drawH);
-    } else {
-      // Paginate across multiple pages
-      let yOffset = 0;
-      let page = 0;
-      while (yOffset < drawH) {
-        if (page > 0) pdf.addPage();
-        const usableH = page === 0 ? firstPageH : otherPageH;
-        const topMargin = page === 0 ? margin + titleH : margin;
-        const sliceH = Math.min(usableH, drawH - yOffset);
-        const srcSliceH = sliceH / pdfScale;
-
-        const sliceCanvas = document.createElement("canvas");
-        sliceCanvas.width = canvas.width;
-        sliceCanvas.height = Math.ceil(srcSliceH);
-        const ctx = sliceCanvas.getContext("2d");
-        ctx.drawImage(
-          canvas,
-          0,
-          Math.floor(yOffset / pdfScale),
-          canvas.width,
-          Math.ceil(srcSliceH),
-          0,
-          0,
-          canvas.width,
-          Math.ceil(srcSliceH)
-        );
-
-        const sliceData = sliceCanvas.toDataURL("image/png");
-        pdf.addImage(sliceData, "PNG", margin, topMargin, drawW, sliceH);
-
-        yOffset += sliceH;
-        page++;
-      }
+    try {
+      canvas = await html2canvas(blocklyHost, {
+        backgroundColor: "#1a1b2e", scale: dpr, useCORS: true,
+        logging: false, width: renderW, height: renderH,
+      });
+    } finally {
+      blocklyHost.style.cssText = origCss;
+      if (toolbox) toolbox.style.display = "";
+      if (flyout)  flyout.style.display  = "";
+      workspace.setScale(origScale);
+      if (workspace.resize) workspace.resize();
+      workspace.scroll(origScrollX, origScrollY);
     }
-
-    pdf.save("blocks-workspace.pdf");
-  } finally {
-    // Restore original state
-    blocklyHost.style.cssText = origHostCss;
-    if (toolbox) toolbox.style.display = origToolboxDisplay || "";
-    if (flyout) flyout.style.display = origFlyoutDisplay || "";
-    workspace.setScale(origScale);
-    if (workspace.resize) workspace.resize();
-    workspace.scroll(origScrollX, origScrollY);
   }
+
+  if (!canvas) return;
+
+  /* ── Paginate canvas into PDF (A4) ─────────────────── */
+  const imgData = canvas.toDataURL("image/png");
+  const imgW    = canvas.width;
+  const imgH    = canvas.height;
+  const pdf     = new jsPDF({
+    orientation: imgW > imgH ? "landscape" : "portrait",
+    unit: "pt", format: "a4",
+  });
+
+  const pageW   = pdf.internal.pageSize.getWidth();
+  const pageH   = pdf.internal.pageSize.getHeight();
+  const margin  = 36;
+  const usableW = pageW - margin * 2;
+
+  pdf.setFontSize(16); pdf.setTextColor(60, 60, 80);
+  pdf.text("Physics IDE \u2014 Block Workspace", margin, margin + 12);
+  pdf.setFontSize(9);  pdf.setTextColor(130, 130, 150);
+  pdf.text(new Date().toLocaleString(), margin, margin + 26);
+
+  const titleH     = 40;
+  const firstPageH = pageH - margin * 2 - titleH;
+  const otherPageH = pageH - margin * 2;
+  const pdfScale   = usableW / imgW;
+  const drawW      = imgW * pdfScale;
+  const drawH      = imgH * pdfScale;
+
+  if (drawH <= firstPageH) {
+    pdf.addImage(imgData, "PNG", margin, margin + titleH, drawW, drawH);
+  } else {
+    let yOff = 0, page = 0;
+    while (yOff < drawH) {
+      if (page > 0) pdf.addPage();
+      const usableH   = page === 0 ? firstPageH : otherPageH;
+      const topMargin = page === 0 ? margin + titleH : margin;
+      const sliceH    = Math.min(usableH, drawH - yOff);
+      const srcH      = sliceH / pdfScale;
+      const sc        = document.createElement("canvas");
+      sc.width  = canvas.width;
+      sc.height = Math.ceil(srcH);
+      sc.getContext("2d").drawImage(
+        canvas, 0, Math.floor(yOff / pdfScale), canvas.width, Math.ceil(srcH),
+        0, 0, canvas.width, Math.ceil(srcH)
+      );
+      pdf.addImage(sc.toDataURL("image/png"), "PNG", margin, topMargin, drawW, sliceH);
+      yOff += sliceH;
+      page++;
+    }
+  }
+
+  pdf.save("blocks-workspace.pdf");
 }
 
 /* ── Code → PDF (syntax highlighted) ─────────────────── */

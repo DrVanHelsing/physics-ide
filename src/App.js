@@ -33,6 +33,9 @@ function App() {
   const [running, setRunning] = useState(false);
   const [status, setStatus] = useState({ text: "Ready", type: "" });
   const [blocklyZoom, setBlocklyZoom] = useState(90); // percentage (startScale 0.9 = 90%)
+  const [splitPct, setSplitPct] = useState(50);           // editor panel width %
+  const [viewportHidden, setViewportHidden] = useState(false); // hide 3D viewport panel
+  const [beginnerMode, setBeginnerMode] = useState(false);  // simplified toolbox
 
   const handleHelp = useCallback(() => setShowHelp(true), []);
 
@@ -203,7 +206,34 @@ function App() {
       ws.resize();
     }
   }, []);
+  /* ── Viewport pane resize & show\/hide ────────────────────────── */
+  const handleDividerMouseDown = useCallback((e) => {
+    e.preventDefault();
+    const container = e.currentTarget.parentElement; // .main-layout
+    const onMouseMove = (ev) => {
+      const rect = container.getBoundingClientRect();
+      const pct  = Math.min(85, Math.max(15, ((ev.clientX - rect.left) / rect.width) * 100));
+      setSplitPct(pct);
+    };
+    const onMouseUp = () => {
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup",  onMouseUp);
+      document.body.style.cursor     = "";
+      document.body.style.userSelect = "";
+    };
+    document.body.style.cursor     = "col-resize";
+    document.body.style.userSelect = "none";
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup",  onMouseUp);
+  }, []);
 
+  const handleToggleViewport = useCallback(() => {
+    setViewportHidden((h) => !h);
+  }, []);
+
+  const handleToggleBeginnerMode = useCallback(() => {
+    setBeginnerMode((b) => !b);
+  }, []);
   /* ── Mode toggle ───────────────────────────────────────── */
   const handleModeChange = useCallback(
     (nextMode) => {
@@ -337,6 +367,10 @@ function App() {
         mode={mode}
         zoom={blocklyZoom}
         onZoomChange={handleZoomChange}
+        viewportHidden={viewportHidden}
+        onToggleViewport={handleToggleViewport}
+        beginnerMode={beginnerMode}
+        onToggleBeginnerMode={handleToggleBeginnerMode}
       >
         <ModeToggle
           mode={mode}
@@ -347,7 +381,14 @@ function App() {
       </Toolbar>
 
       <div className="main-layout">
-        <section className="editor-pane">
+        <section
+          className="editor-pane"
+          style={
+            viewportHidden
+              ? { flex: "1 1 auto", maxWidth: "100%", borderRight: "none" }
+              : { flex: `0 0 ${splitPct}%`, maxWidth: `${splitPct}%` }
+          }
+        >
           {/* ── Blocks mode ── */}
           {mode === "blocks" ? (
             <>
@@ -362,6 +403,7 @@ function App() {
                   onWorkspaceReady={handleWorkspaceReady}
                   onWorkspaceChange={handleWorkspaceChange}
                   isDark={isDark}
+                  beginnerMode={beginnerMode}
                 />
               )}
             </>
@@ -385,7 +427,13 @@ function App() {
             </>
           )}
         </section>
-        <section className="canvas-pane">
+        {!viewportHidden && (
+          <div className="pane-divider" onMouseDown={handleDividerMouseDown} />
+        )}
+        <section
+          className="canvas-pane"
+          style={viewportHidden ? { display: "none" } : { flex: `0 0 ${100 - splitPct}%`, maxWidth: `${100 - splitPct}%` }}
+        >
           <div className="pane-header pane-header--viewport">
             <GlobeIcon size={14} /> 3D Viewport
           </div>

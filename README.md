@@ -51,7 +51,7 @@ instead of inline text fields. Small **value blocks** snap into these slots:
 - `expr_block` — any freeform Python expression
 
 Additional semantic blocks:
-- `if_else_block` — if / else with separate block sockets
+- `if_block` / `if_else_block` — conditional blocks with **boolean input slot** (snap in a comparison block)
 - `break_loop_block` — emits `break`
 - `telemetry_update_block` — formatted label update
 
@@ -75,10 +75,10 @@ to prevent "End of line while scanning string literal" runtime errors.
 ### Block templates fully rebuilt
 
 - `blocks_projectile` - uses `break_loop_block` for stop condition, `if_else_block` for bounce logic
-- `blocks_spring` (**new**) - complete spring-mass oscillator in pure blocks
+- `blocks_spring` - complete spring-mass oscillator in pure blocks
 - `blocks_orbits` - uses `sphere_emissive_block` / `expr_block` for dynamic objects
 
-All three templates are 100% semantic blocks - no `python_raw_block` anywhere.
+All three templates use `python_raw_block` for scene setup (title, background, range) and semantic custom blocks for all physics and simulation logic.
 
 ### Previous updates
 
@@ -179,32 +179,28 @@ Defined in `src/utils/blocklyGenerator.js` and exposed via toolbox in `src/compo
 Toolbox structure:
 
 - `Values` — composable value outputs (`vector_block`, `colour_block`, `expr_block`)
-- `Objects` — constructor-style object blocks
-- `Motion` — velocity/position/acceleration updates
-- `State` — assignment and attribute update blocks
-- `Control`, `Scene`, `Advanced`
-- Standard Blockly `Variables` category (native variables/get/set)
+- `Objects` — single-line constructor blocks (`sphere`, `sphere+trail`, `box`, `cylinder`, `arrow`, `helix`, `label`, `local_light`)
+- `Motion` — velocity/position/acceleration/gravity updates
+- `State` — assignment, attribute update, and telemetry display blocks
+- `Control` — loops, conditionals (with boolean snap-in slots), rate, time step, comment
+- `Advanced` — raw Python code/expression blocks
+- Standard Blockly categories: `Logic`, `Loops`, `Math`, `Text`, `Lists`, `Variables`, `Functions`
 
-## Scene/Object Blocks
+> **Note:** Scene setup (title, background, range) is done with `python_raw_block` blocks at the top of each template. There is no separate Scene category.
 
-- `scene_setup_block`
-- `scene_range_block`
-- `scene_forward_block`
-- `scene_center_block`
-- `scene_caption_block`
-- `scene_ambient_block`
-- `local_light_block`
-- `sphere_block`
-- `sphere_trail_block`
-- `sphere_emissive_block`
-- `box_block`
-- `box_opacity_block`
-- `cylinder_block`
-- `arrow_block`
-- `helix_block`
-- `helix_full_block`
-- `label_block`
-- `label_full_block`
+## Object Blocks (all single-line, `inputsInline: true`)
+
+- `sphere_block` — `name = sphere  pos □  radius □  colour □`
+- `sphere_trail_block` — `name = sphere+trail  pos □  radius □  colour □  trail_r □  trail_col □  keep □`
+- `box_block` — `name = box  pos □  size □  colour □`
+- `cylinder_block` — `name = cylinder  pos □  axis □  radius □  colour □`
+- `arrow_block` — `name = arrow  pos □  axis □  colour □`
+- `helix_block` — `name = helix  pos □  axis □  radius □  colour □`
+- `label_block` — `label "text"  at □`
+- `label_full_block` — `name = label  pos □  text …  height □`
+- `local_light_block` — `local light  pos □  colour □`
+
+> Additional object variants (`sphere_emissive_block`, `box_opacity_block`, `helix_full_block`) are defined for template use; set `emissive`, `opacity`, `coils`, `thickness` via `set_attr_expr_block` when building from scratch.
 
 ## Motion/Control Blocks
 
@@ -216,9 +212,9 @@ Toolbox structure:
 - `rate_block`
 - `forever_loop_block`
 - `for_range_block`
-- `if_block`
-- `if_else_block` (**new** — if/else with two block sockets)
-- `break_loop_block` (**new** — emits `break`)
+- `if_block` — condition is an **input_value slot** (snap in `logic_compare`, `logic_boolean`, or `expr_block`)
+- `if_else_block` — same, with an else branch
+- `break_loop_block`
 
 ## Value Blocks (snap-in)
 
@@ -228,14 +224,15 @@ Toolbox structure:
 
 ## State Blocks
 
+- `set_colour_var_block`
 - `set_scalar_block`
 - `set_attr_expr_block`
 - `add_attr_expr_block`
+- `telemetry_update_block` — live label text display
 
-## Utility/Expression Blocks
+## Utility Blocks
 
 - `comment_block`
-- `telemetry_update_block` (**new** — formatted label text update)
 - `python_raw_block`
 - `python_raw_expr_block`
 
@@ -322,18 +319,18 @@ Implementation is in `src/utils/glowRunner.js`.
 
 ## 3D Viewport Camera Controls
 
-The viewport is fully interactive:
+The 3D viewport always has interactive camera controls:
 
 - Left drag: orbit/rotate camera
 - Right drag: pan camera
 - Scroll wheel: zoom in/out
 
-Scene setup blocks also explicitly enable interactive camera controls in generated code:
+GlowScript enables orbit, zoom, and pan by default. To configure scene title, background, or range, use `python_raw_block` at the top of your program:
 
 ```python
-scene.userspin = True
-scene.userzoom = True
-scene.userpan = True
+scene.title = "My Simulation"
+scene.background = vector(0.05, 0.05, 0.1)
+scene.range = 10
 ```
 
 ---
@@ -371,6 +368,7 @@ PDF features include:
 
 - Confirm app theme is set correctly
 - Re-run simulation (iframe theme styles are re-applied at run time)
+- Ensure `scene.title` is set via `python_raw_block` at the top of the program
 
 ## 4) Stop button does nothing
 

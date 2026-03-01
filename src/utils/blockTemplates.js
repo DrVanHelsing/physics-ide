@@ -73,6 +73,46 @@ function div(a, b) {
   return op("DIVIDE", a, b);
 }
 
+/* ── Physics expression helpers ─────────────────────── */
+/** Object property access: ball.velocity, ball.pos, ball.radius, etc. */
+function getProp(objName, propName) {
+  return { type: "get_prop_block", fields: { OBJ: objName, PROP: propName } };
+}
+/** Vector component: .x / .y / .z */
+function getComp(vecDesc, component) {
+  return { type: "get_component_block", fields: { COMP: component }, values: { VEC: vecDesc } };
+}
+/** Magnitude: mag(vec) */
+function magnitude(vecDesc) {
+  return { type: "mag_block", values: { VEC: vecDesc } };
+}
+/** Normalise: norm(vec) */
+function normOf(vecDesc) {
+  return { type: "norm_block", values: { VEC: vecDesc } };
+}
+/** Comparison block (OP: EQ / NEQ / LT / LTE / GT / GTE) */
+function cmp(operator, left, right) {
+  return { type: "logic_compare", fields: { OP: operator }, values: { A: left, B: right } };
+}
+/** Quick-create sphere — all in one block (no value slots) */
+function presetSphere(varName, x, y, z, radius, colorHex) {
+  return {
+    type: "preset_sphere_block",
+    fields: { NAME: varName, X: String(x), Y: String(y), Z: String(z), R: String(radius), COL: colorHex },
+  };
+}
+/** Quick-create box — all in one block */
+function presetBox(varName, x, y, z, w, h, d, colorHex) {
+  return {
+    type: "preset_box_block",
+    fields: { NAME: varName, X: String(x), Y: String(y), Z: String(z), W: String(w), H: String(h), D: String(d), COL: colorHex },
+  };
+}
+/** Physics constant by key (g, G, pi, euler, c, ke, h, me, mp) */
+function physicsConst(constKey) {
+  return { type: "physics_const_block", fields: { CONST: constKey } };
+}
+
 function valueBlockXml(valueDesc) {
   if (!valueDesc || !valueDesc.type) return "";
 
@@ -159,30 +199,10 @@ function buildTemplate(blocks) {
    ═══════════════════════════════════════════════════════════ */
 
 const PROJECTILE_BLOCKS = [
-  /* ── Scene ─────────────────────────────────────────────── */
-  {
-    type: "scene_setup_block",
-    fields: { TITLE: "Projectile Motion", BG: "#0d1629" },
-  },
-  { type: "scene_range_block", fields: { R: "18" } },
-  { type: "set_colour_var_block", fields: { NAME: "c_light_a", COL: "#e6e6d9" } },
-  {
-    type: "local_light_block",
-    values: { POS: vec(-8, 18, 10), COL: v("c_light_a") },
-  },
-  {
-    type: "scene_forward_block",
-    values: { VEC: vec(-0.35, -0.2, -1) },
-  },
-  {
-    type: "scene_center_block",
-    values: { VEC: vec(11, 3.5, 0) },
-  },
-  {
-    type: "scene_caption_block",
-    fields: { TEXT: "Projectile motion with drag and telemetry\\n" },
-  },
-  { type: "scene_ambient_block", fields: { GRAY: "0.35" } },
+  /* ── Scene setup ────────────────────────────────────────── */
+  { type: "python_raw_block", fields: { CODE: 'scene.title = "Projectile Motion"' } },
+  { type: "python_raw_block", fields: { CODE: 'scene.background = vector(0.051, 0.086, 0.161)' } },
+  { type: "python_raw_block", fields: { CODE: 'scene.range = 18' } },
 
   /* ── Colour constants (template-specific) ─────────────── */
   { type: "set_colour_var_block", fields: { NAME: "c_ground",    COL: "#337346" } },
@@ -194,13 +214,8 @@ const PROJECTILE_BLOCKS = [
   { type: "set_colour_var_block", fields: { NAME: "c_trail",     COL: "#ffe040" } },
   { type: "set_colour_var_block", fields: { NAME: "c_velocity",  COL: "#59e6ff" } },
   { type: "set_colour_var_block", fields: { NAME: "c_tick",      COL: "#f2f2f2" } },
-  { type: "set_colour_var_block", fields: { NAME: "c_light_b",   COL: "#737f99" } },
 
-  /* ── Second light + ground geometry ────────────────────── */
-  {
-    type: "local_light_block",
-    values: { POS: vec(26, 12, -12), COL: v("c_light_b") },
-  },
+  /* ── Ground geometry ─────────────────────────────────────── */
   {
     type: "box_block",
     fields: { NAME: "ground" },
@@ -308,7 +323,7 @@ const PROJECTILE_BLOCKS = [
   {
     type: "set_scalar_block",
     fields: { NAME: "A" },
-    values: { VALUE: mul(expr("pi"), mul(expr("ball.radius"), expr("ball.radius"))) },
+    values: { VALUE: mul(expr("pi"), mul(getProp("ball","radius"), getProp("ball","radius"))) },
   },
   {
     type: "set_scalar_block",
@@ -404,12 +419,12 @@ const PROJECTILE_BLOCKS = [
       },
       {
         type: "if_else_block",
-        fields: { COND: "speed > 0" },
+        values: { COND: cmp("GT", v("speed"), num(0)) },
         body: [
           {
             type: "set_scalar_block",
             fields: { NAME: "drag" },
-            values: { VALUE: mul(mul(num(-1), mul(v("drag_k"), v("speed"))), expr("ball.velocity")) },
+            values: { VALUE: mul(mul(num(-1), mul(v("drag_k"), v("speed"))), getProp("ball","velocity")) },
           },
         ],
         elseBody: [
@@ -448,12 +463,12 @@ const PROJECTILE_BLOCKS = [
       {
         type: "set_attr_expr_block",
         fields: { OBJ: "v_arrow", ATTR: "pos" },
-        values: { VALUE: expr("ball.pos") },
+        values: { VALUE: getProp("ball","pos") },
       },
       {
         type: "set_attr_expr_block",
         fields: { OBJ: "v_arrow", ATTR: "axis" },
-        values: { VALUE: mul(expr("ball.velocity"), num(0.16)) },
+        values: { VALUE: mul(getProp("ball","velocity"), num(0.16)) },
       },
 
       // Ground collision: clamp and bounce
@@ -463,28 +478,28 @@ const PROJECTILE_BLOCKS = [
       },
       {
         type: "if_block",
-        fields: { COND: "ball.pos.y < ball.radius" },
+        values: { COND: cmp("LT", getComp(getProp("ball","pos"),"y"), getProp("ball","radius")) },
         body: [
           {
             type: "set_attr_expr_block",
             fields: { OBJ: "ball", ATTR: "pos.y" },
-            values: { VALUE: expr("ball.radius") },
+            values: { VALUE: getProp("ball","radius") },
           },
           {
             type: "if_block",
-            fields: { COND: "ball.velocity.y < 0" },
+            values: { COND: cmp("LT", getComp(getProp("ball","velocity"),"y"), num(0)) },
             body: [
               {
                 type: "set_attr_expr_block",
                 fields: { OBJ: "ball", ATTR: "velocity.y" },
-                values: { VALUE: mul(num(-0.55), expr("ball.velocity.y")) },
+                values: { VALUE: mul(num(-0.55), getComp(getProp("ball","velocity"),"y")) },
               },
             ],
           },
           {
             type: "set_attr_expr_block",
             fields: { OBJ: "ball", ATTR: "velocity.x" },
-            values: { VALUE: mul(expr("ball.velocity.x"), num(0.88)) },
+            values: { VALUE: mul(getComp(getProp("ball","velocity"),"x"), num(0.88)) },
           },
         ],
       },
@@ -496,11 +511,11 @@ const PROJECTILE_BLOCKS = [
       },
       {
         type: "if_block",
-        fields: { COND: "ball.pos.y <= ball.radius + 0.01" },
+        values: { COND: cmp("LTE", getComp(getProp("ball","pos"),"y"), add(getProp("ball","radius"), num(0.01))) },
         body: [
           {
             type: "if_block",
-            fields: { COND: "mag(ball.velocity) < 0.06" },
+            values: { COND: cmp("LT", magnitude(getProp("ball","velocity")), num(0.06)) },
             body: [
               {
                 type: "set_attr_expr_block",
@@ -517,11 +532,11 @@ const PROJECTILE_BLOCKS = [
       {
         type: "set_scalar_block",
         fields: { NAME: "h_above" },
-        values: { VALUE: sub(expr("ball.pos.y"), expr("ball.radius")) },
+        values: { VALUE: sub(getComp(getProp("ball","pos"),"y"), getProp("ball","radius")) },
       },
       {
         type: "if_block",
-        fields: { COND: "h_above < 0" },
+        values: { COND: cmp("LT", v("h_above"), num(0)) },
         body: [
           {
             type: "set_scalar_block",
@@ -536,7 +551,7 @@ const PROJECTILE_BLOCKS = [
       },
       {
         type: "if_block",
-        fields: { COND: "h_above > max_height" },
+        values: { COND: cmp("GT", v("h_above"), v("max_height")) },
         body: [
           {
             type: "set_scalar_block",
@@ -589,28 +604,14 @@ const PROJECTILE_BLOCKS = [
    ═══════════════════════════════════════════════════════════ */
 
 const ORBIT_BLOCKS = [
-  /* ── Scene ─────────────────────────────────────────────── */
-  {
-    type: "scene_setup_block",
-    fields: { TITLE: "Sun, Earth & Moon", BG: "#050917" },
-  },
-  { type: "scene_range_block", fields: { R: "14" } },
+  /* ── Scene setup ────────────────────────────────────────── */
+  { type: "python_raw_block", fields: { CODE: 'scene.title = "Sun, Earth & Moon"' } },
+  { type: "python_raw_block", fields: { CODE: 'scene.background = vector(0.020, 0.035, 0.090)' } },
+  { type: "python_raw_block", fields: { CODE: 'scene.range = 14' } },
   {
     type: "local_light_block",
     values: { POS: vec(0, 0, 0), COL: col("#fff7d9") },
   },
-  {
-    type: "scene_forward_block",
-    values: { VEC: vec(-0.2, -0.3, -1) },
-  },
-  {
-    type: "scene_caption_block",
-    fields: {
-      TEXT: "Three-body gravity: Moon orbits Earth, Earth orbits Sun\\n",
-    },
-  },
-  { type: "scene_ambient_block", fields: { GRAY: "0.22" } },
-
   /* ── Colour constants (template-specific) ─────────────── */
   { type: "set_colour_var_block", fields: { NAME: "c_sun",         COL: "#ffde59" } },
   { type: "set_colour_var_block", fields: { NAME: "c_corona",      COL: "#ffb340" } },
@@ -655,7 +656,7 @@ const ORBIT_BLOCKS = [
       },
       {
         type: "if_block",
-        fields: { COND: "mag(p) == 0" },
+        values: { COND: cmp("EQ", magnitude(v("p")), num(0)) },
         body: [
           {
             type: "set_scalar_block",
@@ -768,7 +769,7 @@ const ORBIT_BLOCKS = [
   {
     type: "set_attr_expr_block",
     fields: { OBJ: "moon", ATTR: "velocity" },
-    values: { VALUE: add(expr("earth.velocity"), vec(-3.33, 0, 0)) },
+    values: { VALUE: add(getProp("earth","velocity"), vec(-3.33, 0, 0)) },
   },
 
   /* ── Time step ──────────────────────────────────────────── */
@@ -787,7 +788,7 @@ const ORBIT_BLOCKS = [
   {
     type: "set_scalar_block",
     fields: { NAME: "r_es" },
-    values: { VALUE: sub(expr("earth.pos"), expr("sun.pos")) },
+    values: { VALUE: sub(getProp("earth","pos"), getProp("sun","pos")) },
   },
   {
     type: "set_scalar_block",
@@ -802,7 +803,7 @@ const ORBIT_BLOCKS = [
   {
     type: "set_scalar_block",
     fields: { NAME: "r_ms" },
-    values: { VALUE: sub(expr("moon.pos"), expr("sun.pos")) },
+    values: { VALUE: sub(getProp("moon","pos"), getProp("sun","pos")) },
   },
   {
     type: "set_scalar_block",
@@ -812,7 +813,7 @@ const ORBIT_BLOCKS = [
   {
     type: "set_scalar_block",
     fields: { NAME: "r_me" },
-    values: { VALUE: sub(expr("moon.pos"), expr("earth.pos")) },
+    values: { VALUE: sub(getProp("moon","pos"), getProp("earth","pos")) },
   },
   {
     type: "set_scalar_block",
@@ -892,7 +893,7 @@ const ORBIT_BLOCKS = [
       {
         type: "set_scalar_block",
         fields: { NAME: "r_es" },
-        values: { VALUE: sub(expr("earth.pos"), expr("sun.pos")) },
+        values: { VALUE: sub(getProp("earth","pos"), getProp("sun","pos")) },
       },
       {
         type: "set_scalar_block",
@@ -907,7 +908,7 @@ const ORBIT_BLOCKS = [
       {
         type: "set_scalar_block",
         fields: { NAME: "r_ms" },
-        values: { VALUE: sub(expr("moon.pos"), expr("sun.pos")) },
+        values: { VALUE: sub(getProp("moon","pos"), getProp("sun","pos")) },
       },
       {
         type: "set_scalar_block",
@@ -917,7 +918,7 @@ const ORBIT_BLOCKS = [
       {
         type: "set_scalar_block",
         fields: { NAME: "r_me" },
-        values: { VALUE: sub(expr("moon.pos"), expr("earth.pos")) },
+        values: { VALUE: sub(getProp("moon","pos"), getProp("earth","pos")) },
       },
       {
         type: "set_scalar_block",
@@ -955,12 +956,12 @@ const ORBIT_BLOCKS = [
       {
         type: "set_attr_expr_block",
         fields: { OBJ: "corona", ATTR: "pos" },
-        values: { VALUE: expr("sun.pos") },
+        values: { VALUE: getProp("sun","pos") },
       },
       {
         type: "set_attr_expr_block",
         fields: { OBJ: "earth_arrow", ATTR: "pos" },
-        values: { VALUE: expr("earth.pos") },
+        values: { VALUE: getProp("earth","pos") },
       },
       {
         type: "set_attr_expr_block",
@@ -1011,35 +1012,10 @@ const ORBIT_BLOCKS = [
    ═══════════════════════════════════════════════════════════ */
 
 const SPRING_BLOCKS = [
-  /* ── Scene ─────────────────────────────────────────────── */
-  {
-    type: "scene_setup_block",
-    fields: { TITLE: "Spring-Mass Oscillator", BG: "#0f1224" },
-  },
-  { type: "scene_range_block", fields: { R: "8.5" } },
-  { type: "set_colour_var_block", fields: { NAME: "c_light_left",  COL: "#e6e6ff" } },
-  { type: "set_colour_var_block", fields: { NAME: "c_light_right", COL: "#667388" } },
-  {
-    type: "local_light_block",
-    values: { POS: vec(-2, 10, 8), COL: v("c_light_left") },
-  },
-  {
-    type: "local_light_block",
-    values: { POS: vec(8, 5, -10), COL: v("c_light_right") },
-  },
-  {
-    type: "scene_center_block",
-    values: { VEC: vec(-0.8, 0, 0) },
-  },
-  {
-    type: "scene_forward_block",
-    values: { VEC: vec(-0.25, -0.12, -1) },
-  },
-  {
-    type: "scene_caption_block",
-    fields: { TEXT: "Damped oscillator with energy telemetry\\n" },
-  },
-  { type: "scene_ambient_block", fields: { GRAY: "0.38" } },
+  /* ── Scene setup ────────────────────────────────────────── */
+  { type: "python_raw_block", fields: { CODE: 'scene.title = "Spring-Mass Oscillator"' } },
+  { type: "python_raw_block", fields: { CODE: 'scene.background = vector(0.059, 0.071, 0.133)' } },
+  { type: "python_raw_block", fields: { CODE: 'scene.range = 8.5' } },
 
   /* ── Colour constants (template-specific) ─────────────── */
   { type: "set_colour_var_block", fields: { NAME: "c_floor",       COL: "#3d4454" } },

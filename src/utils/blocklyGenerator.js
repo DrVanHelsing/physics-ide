@@ -5,13 +5,12 @@
  * snap into INPUT SLOTS on larger OBJECT / MOTION / VARIABLE blocks.
  *
  * Categories:
- *   Values   – vector, colour picker, expression  (output connectors)
- *   Objects  – sphere, box, cylinder, arrow, helix, label  (input slots)
- *   Motion   – velocity, position update, acceleration  (input slots)
- *   Variables – set var, set property, increment property (input slots)
- *   Control  – loops, conditionals, rate, time step
- *   Scene    – setup, range, camera, lighting
- *   Advanced – raw Python, exec
+ *   Values    – vector, colour picker, expression  (output connectors)
+ *   Objects   – sphere, box, cylinder, arrow, helix, label, local light
+ *   Motion    – velocity, position update, acceleration, gravity
+ *   State     – set var, set property, increment property, telemetry display
+ *   Control   – forever loop, for range, if, if-else, rate, time step, comment
+ *   Advanced  – raw Python code/expression
  */
 
 let initialized = false;
@@ -144,6 +143,54 @@ export function defineCustomBlocksAndGenerator(Blockly) {
         "Type any expression. Snaps into number, vector, or colour slots.",
     },
 
+    /* ── Physics expression blocks ─────────────────────── */
+    {
+      type: "get_prop_block",
+      message0: "%1 . %2",
+      args0: [
+        { type: "field_variable", name: "OBJ", variable: "ball" },
+        { type: "field_input",    name: "PROP", text: "velocity" },
+      ],
+      inputsInline: true,
+      output: null,
+      colour: 160,
+      tooltip: "Read a property of an object variable: ball.velocity, ball.pos, ball.radius, etc.",
+    },
+    {
+      type: "get_component_block",
+      message0: "%1 . %2",
+      args0: [
+        { type: "input_value", name: "VEC" },
+        {
+          type: "field_dropdown",
+          name: "COMP",
+          options: [["x", "x"], ["y", "y"], ["z", "z"]],
+        },
+      ],
+      inputsInline: true,
+      output: null,
+      colour: 160,
+      tooltip: "Get the x, y, or z component of a vector. Chain with an object property block: ball.pos → .y gives ball.pos.y.",
+    },
+    {
+      type: "mag_block",
+      message0: "mag( %1 )",
+      args0: [{ type: "input_value", name: "VEC" }],
+      inputsInline: true,
+      output: null,
+      colour: 160,
+      tooltip: "Magnitude (scalar length) of a vector. E.g. mag(ball.velocity) = speed.",
+    },
+    {
+      type: "norm_block",
+      message0: "norm( %1 )",
+      args0: [{ type: "input_value", name: "VEC" }],
+      inputsInline: true,
+      output: null,
+      colour: 160,
+      tooltip: "Unit vector in the direction of the input. E.g. norm(r) gives the direction of r.",
+    },
+
     /* ══════════════════════════════════════════════════════
        OBJECT BLOCKS — input_value slots for composability
        ══════════════════════════════════════════════════════ */
@@ -158,54 +205,49 @@ export function defineCustomBlocksAndGenerator(Blockly) {
         { type: "input_value", name: "RADIUS" },
         { type: "input_value", name: "COL" },
       ],
-      inputsInline: false,
+      inputsInline: true,
       previousStatement: null,
       nextStatement: null,
       colour: 210,
-      tooltip: "Create a sphere. Snap in vector, number, colour blocks.",
+      tooltip: "Create a sphere. Snap in a vector for pos, number for radius, colour block.",
     },
 
     /* ── Sphere + trail ────────────────────────────────── */
     {
       type: "sphere_trail_block",
-      message0: "%1 = sphere + trail  pos %2  radius %3  colour %4",
+      message0: "%1 = sphere+trail  pos %2  radius %3  colour %4  trail_r %5  trail_col %6  keep %7",
       args0: [
         { type: "field_variable", name: "NAME", variable: "ball" },
         { type: "input_value", name: "POS" },
         { type: "input_value", name: "RADIUS" },
         { type: "input_value", name: "COL" },
-      ],
-      message1: "trail radius %1  trail colour %2  keep %3 pts",
-      args1: [
         { type: "input_value", name: "TRAIL_R" },
         { type: "input_value", name: "TRAIL_COL" },
         { type: "input_value", name: "RETAIN" },
       ],
-      inputsInline: false,
+      inputsInline: true,
       previousStatement: null,
       nextStatement: null,
       colour: 210,
-      tooltip:
-        "Sphere that leaves a trail. Trail must be set at creation time.",
+      tooltip: "Sphere that leaves a trail. Trail options must be set at creation time.",
     },
 
-    /* ── Glowing sphere ────────────────────────────────── */
+    /* ── Glowing / emissive sphere ─────────────────────── */
     {
       type: "sphere_emissive_block",
-      message0: "%1 = glowing sphere  pos %2  radius %3  colour %4",
+      message0: "%1 = glowing sphere  pos %2  radius %3  colour %4  opacity %5",
       args0: [
         { type: "field_variable", name: "NAME", variable: "obj" },
         { type: "input_value", name: "POS" },
         { type: "input_value", name: "RADIUS" },
         { type: "input_value", name: "COL" },
+        { type: "input_value", name: "OPACITY" },
       ],
-      message1: "opacity %1",
-      args1: [{ type: "input_value", name: "OPACITY" }],
-      inputsInline: false,
+      inputsInline: true,
       previousStatement: null,
       nextStatement: null,
       colour: 210,
-      tooltip: "Self-lit sphere (emissive). Great for suns, lights, particles.",
+      tooltip: "Self-lit sphere (emissive). Great for suns, stars, and glowing particles.",
     },
 
     /* ── Box ────────────────────────────────────────────── */
@@ -218,7 +260,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
         { type: "input_value", name: "SIZE" },
         { type: "input_value", name: "COL" },
       ],
-      inputsInline: false,
+      inputsInline: true,
       previousStatement: null,
       nextStatement: null,
       colour: 210,
@@ -228,41 +270,37 @@ export function defineCustomBlocksAndGenerator(Blockly) {
     /* ── Box + opacity ──────────────────────────────────── */
     {
       type: "box_opacity_block",
-      message0: "%1 = box  pos %2  size %3  colour %4",
+      message0: "%1 = box  pos %2  size %3  colour %4  opacity %5",
       args0: [
         { type: "field_variable", name: "NAME", variable: "obj" },
         { type: "input_value", name: "POS" },
         { type: "input_value", name: "SIZE" },
         { type: "input_value", name: "COL" },
+        { type: "input_value", name: "OPACITY" },
       ],
-      message1: "opacity %1",
-      args1: [{ type: "input_value", name: "OPACITY" }],
-      inputsInline: false,
+      inputsInline: true,
       previousStatement: null,
       nextStatement: null,
       colour: 210,
-      tooltip: "Semi-transparent box. Opacity 0 = invisible, 1 = solid.",
+      tooltip: "Semi-transparent box. Opacity: 0 = invisible, 1 = solid.",
     },
 
     /* ── Cylinder ───────────────────────────────────────── */
     {
       type: "cylinder_block",
-      message0: "%1 = cylinder  pos %2  axis %3",
+      message0: "%1 = cylinder  pos %2  axis %3  radius %4  colour %5",
       args0: [
         { type: "field_variable", name: "NAME", variable: "obj" },
         { type: "input_value", name: "POS" },
         { type: "input_value", name: "AXIS" },
-      ],
-      message1: "radius %1  colour %2",
-      args1: [
         { type: "input_value", name: "RADIUS" },
         { type: "input_value", name: "COL" },
       ],
-      inputsInline: false,
+      inputsInline: true,
       previousStatement: null,
       nextStatement: null,
       colour: 210,
-      tooltip: "Create a cylinder. Axis sets direction and length.",
+      tooltip: "Create a cylinder. Axis vector sets direction and length.",
     },
 
     /* ── Arrow ──────────────────────────────────────────── */
@@ -275,51 +313,45 @@ export function defineCustomBlocksAndGenerator(Blockly) {
         { type: "input_value", name: "AXIS" },
         { type: "input_value", name: "COL" },
       ],
-      inputsInline: false,
+      inputsInline: true,
       previousStatement: null,
       nextStatement: null,
       colour: 210,
-      tooltip: "Create an arrow. Update axis to animate direction/length.",
+      tooltip: "Create an arrow. Update axis to animate direction and length.",
     },
 
     /* ── Helix (basic) ─────────────────────────────────── */
     {
       type: "helix_block",
-      message0: "%1 = helix  pos %2  axis %3",
+      message0: "%1 = helix  pos %2  axis %3  radius %4  colour %5",
       args0: [
         { type: "field_variable", name: "NAME", variable: "obj" },
         { type: "input_value", name: "POS" },
         { type: "input_value", name: "AXIS" },
-      ],
-      message1: "radius %1  colour %2",
-      args1: [
         { type: "input_value", name: "RADIUS" },
         { type: "input_value", name: "COL" },
       ],
-      inputsInline: false,
+      inputsInline: true,
       previousStatement: null,
       nextStatement: null,
       colour: 210,
-      tooltip: "Create a helix/spring. Update axis to stretch it.",
+      tooltip: "Create a helix / spring. Update axis to stretch or compress it.",
     },
 
     /* ── Helix (full) ──────────────────────────────────── */
     {
       type: "helix_full_block",
-      message0: "%1 = helix  pos %2  axis %3",
+      message0: "%1 = helix  pos %2  axis %3  radius %4  coils %5  thickness %6  colour %7",
       args0: [
         { type: "field_variable", name: "NAME", variable: "spring" },
         { type: "input_value", name: "POS" },
         { type: "input_value", name: "AXIS" },
-      ],
-      message1: "radius %1  coils %2  thickness %3  colour %4",
-      args1: [
         { type: "input_value", name: "RADIUS" },
         { type: "input_value", name: "COILS" },
         { type: "input_value", name: "THICK" },
         { type: "input_value", name: "COL" },
       ],
-      inputsInline: false,
+      inputsInline: true,
       previousStatement: null,
       nextStatement: null,
       colour: 210,
@@ -344,21 +376,18 @@ export function defineCustomBlocksAndGenerator(Blockly) {
     /* ── Label (full) ──────────────────────────────────── */
     {
       type: "label_full_block",
-      message0: "%1 = label  pos %2",
+      message0: "%1 = label  pos %2  text %3  height %4",
       args0: [
         { type: "field_variable", name: "NAME", variable: "telemetry" },
         { type: "input_value", name: "POS" },
-      ],
-      message1: "text %1  height %2",
-      args1: [
         { type: "field_input", name: "TEXT", text: "" },
         { type: "input_value", name: "HEIGHT" },
       ],
-      inputsInline: false,
+      inputsInline: true,
       previousStatement: null,
       nextStatement: null,
       colour: 330,
-      tooltip: "Named label with custom height. Use for telemetry displays.",
+      tooltip: "Named label. Use for live telemetry displays.",
     },
 
     /* ── Local light ───────────────────────────────────── */
@@ -369,7 +398,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
         { type: "input_value", name: "POS" },
         { type: "input_value", name: "COL" },
       ],
-      inputsInline: false,
+      inputsInline: true,
       previousStatement: null,
       nextStatement: null,
       colour: 330,
@@ -534,26 +563,28 @@ export function defineCustomBlocksAndGenerator(Blockly) {
     {
       type: "if_block",
       message0: "if %1",
-      args0: [{ type: "field_input", name: "COND", text: "True" }],
+      args0: [{ type: "input_value", name: "COND", check: "Boolean" }],
       message1: "do %1",
       args1: [{ type: "input_statement", name: "BODY" }],
+      inputsInline: true,
       previousStatement: null,
       nextStatement: null,
       colour: 260,
-      tooltip: "Run blocks inside only if condition is true.",
+      tooltip: "Run the blocks inside only if the condition is true. Snap a comparison block into the slot.",
     },
     {
       type: "if_else_block",
       message0: "if %1",
-      args0: [{ type: "field_input", name: "COND", text: "True" }],
+      args0: [{ type: "input_value", name: "COND", check: "Boolean" }],
       message1: "do %1",
       args1: [{ type: "input_statement", name: "BODY_IF" }],
       message2: "else %1",
       args2: [{ type: "input_statement", name: "BODY_ELSE" }],
+      inputsInline: true,
       previousStatement: null,
       nextStatement: null,
       colour: 260,
-      tooltip: "If/else: run do-blocks if true, else-blocks if false.",
+      tooltip: "If/else: run the first set if true, otherwise run the second set. Snap a comparison block into the slot.",
     },
     {
       type: "break_loop_block",
@@ -565,78 +596,8 @@ export function defineCustomBlocksAndGenerator(Blockly) {
     },
 
     /* ══════════════════════════════════════════════════════
-       SCENE / UTILITY BLOCKS
+       UTILITY BLOCKS
        ══════════════════════════════════════════════════════ */
-    {
-      type: "scene_setup_block",
-      message0: "scene title %1  background %2",
-      args0: [
-        { type: "field_input", name: "TITLE", text: "Physics Simulation" },
-        { type: "field_input", name: "BG", text: "#000000" },
-      ],
-      previousStatement: null,
-      nextStatement: null,
-      colour: 330,
-      tooltip: "Set the scene title and background colour.",
-    },
-    {
-      type: "scene_range_block",
-      message0: "scene.range = %1",
-      args0: [{ type: "field_number", name: "R", value: 10 }],
-      previousStatement: null,
-      nextStatement: null,
-      colour: 330,
-      tooltip: "Set how much of the scene is visible.",
-    },
-    {
-      type: "scene_forward_block",
-      message0: "scene.forward = %1",
-      args0: [{ type: "input_value", name: "VEC" }],
-      inputsInline: true,
-      previousStatement: null,
-      nextStatement: null,
-      colour: 330,
-      tooltip: "Set the camera viewing direction.",
-    },
-    {
-      type: "scene_center_block",
-      message0: "scene.center = %1",
-      args0: [{ type: "input_value", name: "VEC" }],
-      inputsInline: true,
-      previousStatement: null,
-      nextStatement: null,
-      colour: 330,
-      tooltip: "Set the scene center point.",
-    },
-    {
-      type: "scene_caption_block",
-      message0: "scene.caption = %1",
-      args0: [
-        { type: "field_input", name: "TEXT", text: "Physics simulation\\n" },
-      ],
-      previousStatement: null,
-      nextStatement: null,
-      colour: 330,
-      tooltip: "Set the scene caption text.",
-    },
-    {
-      type: "scene_ambient_block",
-      message0: "scene.ambient = %1",
-      args0: [
-        {
-          type: "field_number",
-          name: "GRAY",
-          value: 0.3,
-          min: 0,
-          max: 1,
-          precision: 0.01,
-        },
-      ],
-      previousStatement: null,
-      nextStatement: null,
-      colour: 330,
-      tooltip: "Set ambient light level (0 = dark, 1 = bright).",
-    },
     {
       type: "comment_block",
       message0: "\ud83d\udcac %1",
@@ -700,15 +661,6 @@ export function defineCustomBlocksAndGenerator(Blockly) {
        ADVANCED / RAW BLOCKS
        ══════════════════════════════════════════════════════ */
     {
-      type: "exec_block",
-      message0: "run: %1",
-      args0: [{ type: "field_input", name: "EXPR", text: "sphere()" }],
-      previousStatement: null,
-      nextStatement: null,
-      colour: 10,
-      tooltip: "Run any Python statement directly.",
-    },
-    {
       type: "python_raw_block",
       message0: "code: %1",
       args0: [{ type: "field_input", name: "CODE", text: "# custom" }],
@@ -724,6 +676,79 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       output: null,
       colour: 10,
       tooltip: "Python expression that outputs a value.",
+    },
+
+    /* ══════════════════════════════════════════════════════
+       PHYSICS CONSTANTS + PRESET QUICK-CREATE BLOCKS
+       ══════════════════════════════════════════════════════ */
+
+    /* ── Physics constants dropdown ──────────────────── */
+    {
+      type: "physics_const_block",
+      message0: "\u26db %1",
+      args0: [
+        {
+          type: "field_dropdown",
+          name: "CONST",
+          options: [
+            ["g = 9.81 m/s\u00b2",         "g"],
+            ["G = 6.674\u00d710\u207b\u00b9\u00b9", "G"],
+            ["\u03c0  (pi)",              "pi"],
+            ["e  (Euler\u2019s)",          "euler"],
+            ["c = 3\u00d710\u2078 m/s",    "c"],
+            ["k\u2091  Coulomb",           "ke"],
+            ["h  Planck",                  "h"],
+            ["m\u2091  electron",          "me"],
+            ["m\u209a  proton",            "mp"],
+          ],
+        },
+      ],
+      output: null,
+      colour: 230,
+      tooltip:
+        "Standard physics constant. g=9.81, G=6.674e-11, pi, e=2.718, c=3e8, k_e=8.988e9, h=6.626e-34, m_e=9.109e-31, m_p=1.673e-27.",
+    },
+
+    /* ── Quick-create: sphere (all fields inline) ─────── */
+    {
+      type: "preset_sphere_block",
+      message0: "sphere  %1  at (\u00a0%2 , %3 , %4\u00a0)  radius %5  colour %6",
+      args0: [
+        { type: "field_variable", name: "NAME", variable: "ball" },
+        { type: "field_number",   name: "X",    value: 0 },
+        { type: "field_number",   name: "Y",    value: 0 },
+        { type: "field_number",   name: "Z",    value: 0 },
+        { type: "field_number",   name: "R",    value: 1, min: 0.001, precision: 0.001 },
+        { type: "field_colour",   name: "COL",  colour: "#ff4444" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 210,
+      tooltip:
+        "Quick-create a sphere: variable name, position (x,y,z), radius, and colour — all in one block.",
+    },
+
+    /* ── Quick-create: box (all fields inline) ────────── */
+    {
+      type: "preset_box_block",
+      message0: "box  %1  at (\u00a0%2 , %3 , %4\u00a0)  size %5 \u00d7 %6 \u00d7 %7  colour %8",
+      args0: [
+        { type: "field_variable", name: "NAME", variable: "wall" },
+        { type: "field_number",   name: "X",    value: 0 },
+        { type: "field_number",   name: "Y",    value: 0 },
+        { type: "field_number",   name: "Z",    value: 0 },
+        { type: "field_number",   name: "W",    value: 4 },
+        { type: "field_number",   name: "H",    value: 1 },
+        { type: "field_number",   name: "D",    value: 4 },
+        { type: "field_colour",   name: "COL",  colour: "#4488ff" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 210,
+      tooltip:
+        "Quick-create a box: variable name, position, width \u00d7 height \u00d7 depth, colour — all in one block.",
     },
   ]);
 
@@ -771,6 +796,26 @@ export function defineCustomBlocksAndGenerator(Blockly) {
   gen["expr_block"] = function (block) {
     const expr = (block.getFieldValue("EXPR") || "0").trim();
     return [expr, Python.ORDER_ATOMIC];
+  };
+
+  gen["get_prop_block"] = function (block) {
+    const obj  = varName(block, "OBJ", "ball");
+    const prop = (block.getFieldValue("PROP") || "velocity").trim();
+    return [`${obj}.${prop}`, Python.ORDER_ATOMIC];
+  };
+
+  gen["get_component_block"] = function (block) {
+    const vec  = val(block, "VEC", "v");
+    const comp = (block.getFieldValue("COMP") || "y");
+    return [`${vec}.${comp}`, Python.ORDER_ATOMIC];
+  };
+
+  gen["mag_block"] = function (block) {
+    return [`mag(${val(block, "VEC", "v")})`, Python.ORDER_FUNCTION_CALL];
+  };
+
+  gen["norm_block"] = function (block) {
+    return [`norm(${val(block, "VEC", "v")})`, Python.ORDER_FUNCTION_CALL];
   };
 
   /* ── Object blocks ────────────────────────────────────── */
@@ -955,13 +1000,13 @@ export function defineCustomBlocksAndGenerator(Blockly) {
   };
 
   gen["if_block"] = function (block) {
-    const cond = (block.getFieldValue("COND") || "True").trim();
+    const cond = val(block, "COND", "True");
     const body = Python.statementToCode(block, "BODY") || "  pass\n";
     return `if ${cond}:\n${body}`;
   };
 
   gen["if_else_block"] = function (block) {
-    const cond = (block.getFieldValue("COND") || "True").trim();
+    const cond = val(block, "COND", "True");
     const bIf = Python.statementToCode(block, "BODY_IF") || "  pass\n";
     const bElse = Python.statementToCode(block, "BODY_ELSE") || "  pass\n";
     return `if ${cond}:\n${bIf}else:\n${bElse}`;
@@ -971,33 +1016,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
     return "break\n";
   };
 
-  /* ── Scene blocks ─────────────────────────────────────── */
-  gen["scene_setup_block"] = function (block) {
-    const title = escPy(block.getFieldValue("TITLE") || "");
-    const bg = hexToVPythonColor(block.getFieldValue("BG"));
-    return `scene.title = "${title}"\nscene.background = ${bg}\nscene.userspin = True\nscene.userzoom = True\nscene.userpan = True\n`;
-  };
-
-  gen["scene_range_block"] = function (block) {
-    return `scene.range = ${block.getFieldValue("R")}\n`;
-  };
-
-  gen["scene_forward_block"] = function (block) {
-    return `scene.forward = ${val(block, "VEC", "vector(0,0,-1)")}\n`;
-  };
-
-  gen["scene_center_block"] = function (block) {
-    return `scene.center = ${val(block, "VEC", "vector(0,0,0)")}\n`;
-  };
-
-  gen["scene_caption_block"] = function (block) {
-    return `scene.caption = "${escPy(block.getFieldValue("TEXT") || "")}"\n`;
-  };
-
-  gen["scene_ambient_block"] = function (block) {
-    return `scene.ambient = color.gray(${block.getFieldValue("GRAY")})\n`;
-  };
-
+  /* ── Utility blocks ───────────────────────────────────── */
   gen["comment_block"] = function (block) {
     return `# ${block.getFieldValue("TEXT") || ""}\n`;
   };
@@ -1020,9 +1039,6 @@ export function defineCustomBlocksAndGenerator(Blockly) {
   };
 
   /* ── Advanced blocks ──────────────────────────────────── */
-  gen["exec_block"] = function (block) {
-    return `${(block.getFieldValue("EXPR") || "").trim()}\n`;
-  };
 
   gen["python_raw_block"] = function (block) {
     return `${block.getFieldValue("CODE") || ""}\n`;
@@ -1032,8 +1048,123 @@ export function defineCustomBlocksAndGenerator(Blockly) {
     return [(block.getFieldValue("EXPR") || "0").trim(), Python.ORDER_ATOMIC];
   };
 
+  /* ── Physics constants + preset blocks ───────────────── */
+  gen["physics_const_block"] = function (block) {
+    const c = block.getFieldValue("CONST") || "g";
+    const map = {
+      g:     "9.81",
+      G:     "6.674e-11",
+      pi:    "pi",
+      euler: "2.71828",
+      c:     "3e8",
+      ke:    "8.988e9",
+      h:     "6.626e-34",
+      me:    "9.109e-31",
+      mp:    "1.673e-27",
+    };
+    return [map[c] || c, Python.ORDER_ATOMIC];
+  };
+
+  gen["preset_sphere_block"] = function (block) {
+    const name = varName(block, "NAME", "ball");
+    const x   = block.getFieldValue("X");
+    const y   = block.getFieldValue("Y");
+    const z   = block.getFieldValue("Z");
+    const r   = block.getFieldValue("R");
+    const hex = block.getFieldValue("COL") || "#ff4444";
+    const col = hexToVPythonColor(hex);
+    const e = `sphere(pos=vector(${x}, ${y}, ${z}), radius=${r}, color=${col})`;
+    return name ? `${name} = ${e}\n` : `${e}\n`;
+  };
+
+  gen["preset_box_block"] = function (block) {
+    const name = varName(block, "NAME", "wall");
+    const x   = block.getFieldValue("X");
+    const y   = block.getFieldValue("Y");
+    const z   = block.getFieldValue("Z");
+    const w   = block.getFieldValue("W");
+    const h   = block.getFieldValue("H");
+    const d   = block.getFieldValue("D");
+    const hex = block.getFieldValue("COL") || "#4488ff";
+    const col = hexToVPythonColor(hex);
+    const e = `box(pos=vector(${x}, ${y}, ${z}), size=vector(${w}, ${h}, ${d}), color=${col})`;
+    return name ? `${name} = ${e}\n` : `${e}\n`;
+  };
+
   initialized = true;
 }
+
+/* ── Block catalogue — used by the search bar ───────────── */
+export const BLOCK_CATALOGUE = [
+  // 🚀 Starter
+  { type: "preset_sphere_block",   label: "Quick Sphere / Ball",           category: "\uD83D\uDE80 Starter", keywords: ["sphere","ball","create","quick","object"] },
+  { type: "preset_box_block",      label: "Quick Box / Wall / Floor",      category: "\uD83D\uDE80 Starter", keywords: ["box","wall","floor","create","quick","object"] },
+  { type: "physics_const_block",   label: "Physics Constant  (g, G, \u03c0\u2026)", category: "\uD83D\uDE80 Starter", keywords: ["constant","g","gravity","pi","G","c","h"] },
+  { type: "time_step_block",       label: "Time step  dt",                 category: "\uD83D\uDE80 Starter", keywords: ["dt","time","step","timestep"] },
+  { type: "set_gravity_block",     label: "Gravity  (g = 9.81)",           category: "\uD83D\uDE80 Starter", keywords: ["gravity","g","9.81","downward"] },
+  { type: "forever_loop_block",    label: "Forever loop",                  category: "\uD83D\uDE80 Starter", keywords: ["loop","forever","while","simulation","main"] },
+  { type: "rate_block",            label: "Rate  (animation fps)",         category: "\uD83D\uDE80 Starter", keywords: ["rate","fps","speed","animation"] },
+  { type: "update_position_block", label: "Update position  pos += v\u00d7dt", category: "\uD83D\uDE80 Starter", keywords: ["position","pos","move","update","euler"] },
+  { type: "apply_force_block",     label: "Apply force  v += a\u00d7dt",   category: "\uD83D\uDE80 Starter", keywords: ["force","velocity","acceleration","apply","gravity"] },
+  { type: "if_block",              label: "If  condition",                 category: "\uD83D\uDE80 Starter", keywords: ["if","when","condition","check"] },
+  { type: "if_else_block",         label: "If / Else",                     category: "\uD83D\uDE80 Starter", keywords: ["if","else","condition","branch","otherwise"] },
+  // Values
+  { type: "physics_const_block",   label: "Physics Constant  (g, G, \u03c0\u2026)", category: "Values", keywords: ["constant","g","G","pi","c","h","m_e","m_p"] },
+  { type: "vector_block",          label: "Vector  (x, y, z)",             category: "Values", keywords: ["vector","vec","position","velocity","axis"] },
+  { type: "colour_block",          label: "Colour",                        category: "Values", keywords: ["colour","color","red","blue","green","hue"] },
+  { type: "expr_block",            label: "Expression  (any Python)",      category: "Values", keywords: ["expression","expr","formula","code","custom"] },
+  { type: "get_prop_block",        label: "Object property  (ball.pos)",   category: "Values", keywords: ["property","prop","dot","ball","pos","velocity","radius"] },
+  { type: "get_component_block",   label: "Vector component  .x .y .z",   category: "Values", keywords: ["component","x","y","z","scalar"] },
+  { type: "mag_block",             label: "Magnitude  mag(vec)",           category: "Values", keywords: ["magnitude","mag","speed","length","scalar"] },
+  { type: "norm_block",            label: "Unit vector  norm(vec)",        category: "Values", keywords: ["normalise","norm","unit","direction","hat"] },
+  // Objects
+  { type: "preset_sphere_block",   label: "Quick Sphere (preset)",         category: "Objects", keywords: ["sphere","preset","quick","ball","create"] },
+  { type: "preset_box_block",      label: "Quick Box (preset)",            category: "Objects", keywords: ["box","preset","quick","wall","floor","create"] },
+  { type: "sphere_block",          label: "Sphere",                        category: "Objects", keywords: ["sphere","ball","circle","round"] },
+  { type: "sphere_trail_block",    label: "Sphere + trail",                category: "Objects", keywords: ["sphere","trail","track","path","particle"] },
+  { type: "sphere_emissive_block", label: "Glowing sphere",                category: "Objects", keywords: ["sphere","glow","emissive","star","sun","light"] },
+  { type: "box_block",             label: "Box",                           category: "Objects", keywords: ["box","cube","wall","floor","ground","rect"] },
+  { type: "box_opacity_block",     label: "Box (transparent)",             category: "Objects", keywords: ["box","opacity","transparent","glass","semi"] },
+  { type: "cylinder_block",        label: "Cylinder",                      category: "Objects", keywords: ["cylinder","rod","pipe","tube","circle"] },
+  { type: "arrow_block",           label: "Arrow",                         category: "Objects", keywords: ["arrow","vector","force","direction","axis"] },
+  { type: "helix_block",           label: "Helix / Spring",                category: "Objects", keywords: ["helix","spring","coil","spiral"] },
+  { type: "helix_full_block",      label: "Helix detailed",                category: "Objects", keywords: ["helix","spring","coils","thickness","detailed"] },
+  { type: "label_block",           label: "Text label",                    category: "Objects", keywords: ["label","text","display","print","show"] },
+  { type: "label_full_block",      label: "Live display label",            category: "Objects", keywords: ["label","telemetry","live","display","hud"] },
+  { type: "local_light_block",     label: "Point light source",            category: "Objects", keywords: ["light","lamp","glow","local","point"] },
+  // Motion
+  { type: "set_velocity_block",    label: "Set velocity",                  category: "Motion", keywords: ["velocity","speed","v","motion","initial","set"] },
+  { type: "update_position_block", label: "Update position",               category: "Motion", keywords: ["position","pos","update","move","euler","step"] },
+  { type: "apply_force_block",     label: "Apply force / acceleration",    category: "Motion", keywords: ["force","acceleration","gravity","apply","net"] },
+  { type: "set_gravity_block",     label: "Gravity constant",              category: "Motion", keywords: ["gravity","g","9.81","vector","down"] },
+  // State
+  { type: "set_scalar_block",      label: "Set variable  (x = \u2026)",   category: "State", keywords: ["variable","set","assign","scalar","number"] },
+  { type: "set_attr_expr_block",   label: "Set object attribute",          category: "State", keywords: ["set","attribute","property","object","dot"] },
+  { type: "add_attr_expr_block",   label: "Add to attribute  (+=)",        category: "State", keywords: ["add","increment","plus","attribute","update"] },
+  { type: "telemetry_update_block",label: "Live display update",           category: "State", keywords: ["telemetry","display","live","update","show","hud"] },
+  // Control
+  { type: "time_step_block",       label: "Time step  dt",                 category: "Control", keywords: ["dt","time","step","timestep"] },
+  { type: "rate_block",            label: "Rate  (fps)",                   category: "Control", keywords: ["rate","fps","animation","framerate"] },
+  { type: "forever_loop_block",    label: "Forever loop",                  category: "Control", keywords: ["loop","forever","while","main","simulation"] },
+  { type: "for_range_block",       label: "For loop  (range)",             category: "Control", keywords: ["for","loop","range","repeat","iterate","i"] },
+  { type: "if_block",              label: "If  condition",                 category: "Control", keywords: ["if","condition","when","check"] },
+  { type: "if_else_block",         label: "If / Else",                     category: "Control", keywords: ["if","else","condition","branch"] },
+  { type: "break_loop_block",      label: "Break loop",                    category: "Control", keywords: ["break","stop","exit","end","quit"] },
+  { type: "comment_block",         label: "Comment / Note",                category: "Control", keywords: ["comment","note","describe","explain","text"] },
+  // Advanced
+  { type: "python_raw_block",      label: "Raw Python code",               category: "Advanced", keywords: ["python","code","raw","custom","advanced","statement"] },
+  { type: "python_raw_expr_block", label: "Raw Python expression",         category: "Advanced", keywords: ["python","expression","raw","custom","advanced","value"] },
+  // Standard Blockly (commonly searched)
+  { type: "logic_compare",         label: "Compare  (< > == \u2260)",      category: "Logic", keywords: ["compare","less","greater","equal","condition","lt","gt"] },
+  { type: "logic_operation",       label: "AND / OR",                      category: "Logic", keywords: ["and","or","logic","boolean","both"] },
+  { type: "logic_negate",          label: "NOT",                           category: "Logic", keywords: ["not","negate","invert","false","true"] },
+  { type: "logic_boolean",         label: "True / False",                  category: "Logic", keywords: ["true","false","boolean"] },
+  { type: "math_number",           label: "Number",                        category: "Math", keywords: ["number","value","digit","constant","scalar"] },
+  { type: "math_arithmetic",       label: "Maths  (+ \u2212 \u00d7 \u00f7)", category: "Math", keywords: ["add","subtract","multiply","divide","arithmetic","math"] },
+  { type: "math_single",           label: "Math function  (sqrt, abs\u2026)", category: "Math", keywords: ["sqrt","abs","square","root","power","log","math"] },
+  { type: "math_trig",             label: "Trig  (sin, cos, tan)",         category: "Math", keywords: ["sin","cos","tan","trig","angle","radians","degrees"] },
+  { type: "math_constant",         label: "Math constant  (\u03c0, e, \u221a2)", category: "Math", keywords: ["pi","e","constant","phi","golden"] },
+];
 
 /* ================================================================
    generatePythonFromWorkspace

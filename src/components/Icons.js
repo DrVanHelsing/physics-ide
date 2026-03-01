@@ -185,6 +185,18 @@ export const FilePdfIcon = ({ size } = {}) => (
   <svg {...sz(size)}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 15v-2h1.5a1.5 1.5 0 010 3H9z" fill="none"/><path d="M13 13h1.5a1.5 1.5 0 011.5 1.5v1a1.5 1.5 0 01-1.5 1.5H13v-4z" fill="none"/></svg>
 );
 
+export const PanelRightCloseIcon = ({ size } = {}) => (
+  <svg {...sz(size)}><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="15" y1="3" x2="15" y2="21"/><polyline points="11 9 8 12 11 15"/></svg>
+);
+
+export const PanelRightOpenIcon = ({ size } = {}) => (
+  <svg {...sz(size)}><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="15" y1="3" x2="15" y2="21"/><polyline points="9 9 12 12 9 15"/></svg>
+);
+
+export const PropertyDotIcon = ({ size } = {}) => (
+  <svg {...sz(size)}><rect x="2" y="8" width="6" height="8" rx="1"/><line x1="11" y1="12" x2="13" y2="12" strokeWidth="2.5"/><circle cx="16" cy="12" r="1.5" fill="currentColor" stroke="none"/><rect x="18" y="8" width="4" height="8" rx="1"/></svg>
+);
+
 export const EyeIcon = ({ size } = {}) => (
   <svg {...sz(size)}><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
 );
@@ -203,6 +215,10 @@ export const MoreHorizontalIcon = ({ size } = {}) => (
 
 export const ExternalLinkIcon = ({ size } = {}) => (
   <svg {...sz(size)}><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+);
+
+export const GraduationCapIcon = ({ size } = {}) => (
+  <svg {...sz(size)}><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
 );
 
 

@@ -312,6 +312,55 @@ export default function HelpPage({ onClose }) {
                 use a Code Example template or a Blank Project.
               </Note>
 
+              <h3 className="help-h3">Block search</h3>
+              <p>
+                A <strong>search bar</strong> sits above the Blockly canvas. Start typing any block name,
+                category, or keyword — matching blocks appear in a dropdown. Click a result to jump
+                straight to that category in the toolbox.
+              </p>
+              <ul className="help-list">
+                <li>Type <Code>sphere</Code> → shows Quick Sphere, Sphere, Sphere + trail…</li>
+                <li>Type <Code>gravity</Code> → shows Gravity, Apply force, and Physics Constant.</li>
+                <li>Type <Code>loop</Code> → shows Forever loop and For loop.</li>
+                <li>Press <Kbd>&times;</Kbd> in the search bar to clear and close results.</li>
+              </ul>
+
+              <h3 className="help-h3">Beginner / Advanced mode</h3>
+              <p>
+                The <strong>Beginner / Advanced</strong> button in the toolbar switches the toolbox
+                between two modes:
+              </p>
+              <ul className="help-list">
+                <li>
+                  <Tag color="green">Beginner</Tag> — shows only the <strong>\uD83D\uDE80 Starter</strong> category
+                  plus stripped-down Values, Objects, Motion, Control, Logic, and Math categories.
+                  Advanced topics (Functions, Lists, Text, raw Python) are hidden.
+                </li>
+                <li>
+                  <Tag color="blue">Advanced</Tag> — shows all categories including Functions, Lists,
+                  Text, Advanced (raw Python), and the full Physics Expressions set.
+                </li>
+              </ul>
+              <Note type="tip">
+                Start new students in <strong>Beginner</strong> mode. The \uD83D\uDE80 Starter
+                category has every block needed to build a complete physics simulation on a single screen.
+              </Note>
+
+              <h3 className="help-h3">\uD83D\uDE80 Starter category</h3>
+              <p>
+                The <strong>Starter</strong> category appears at the top of the toolbox in both modes.
+                It is a curated shortcut panel containing the most commonly needed blocks
+                for a first simulation, labelled and grouped by purpose:
+              </p>
+              <ul className="help-list">
+                <li><strong>Quick create objects</strong> — <Code>preset_sphere_block</Code>, <Code>preset_box_block</Code></li>
+                <li><strong>Physics constants</strong> — <Code>physics_const_block</Code></li>
+                <li><strong>Initial velocity</strong> — <Code>set_velocity_block</Code></li>
+                <li><strong>Simulation setup</strong> — <Code>set_gravity_block</Code>, <Code>time_step_block</Code></li>
+                <li><strong>Main loop</strong> — <Code>forever_loop_block</Code>, <Code>rate_block</Code>, <Code>update_position_block</Code>, <Code>apply_force_block</Code></li>
+                <li><strong>Conditions</strong> — <Code>if_block</Code>, <Code>if_else_block</Code></li>
+              </ul>
+
               <h3 className="help-h3">Standard Blockly categories</h3>
               <p>
                 In addition to Physics blocks, the toolbox includes all standard Blockly categories:
@@ -344,6 +393,35 @@ export default function HelpPage({ onClose }) {
             <section className="help-section">
               <SectionHeader id="block-reference">Block Reference</SectionHeader>
               <p>All custom Physics IDE blocks and the VPython code they generate.</p>
+
+              <h3 className="help-h3">Quick Create <Tag color="blue">colour 210</Tag> <Tag color="green">beginner friendly</Tag></h3>
+              <p className="help-tip">
+                Quick-create blocks pack all object settings into a single block using inline
+                number fields and a colour picker — no composable value slots required.
+                Ideal for beginners building their first simulation.
+              </p>
+              <div className="help-block-table">
+                <div className="help-block-row">
+                  <div className="help-block-name">preset_sphere_block</div>
+                  <div className="help-block-desc">
+                    Create a sphere with a single block. Set the variable name, position
+                    (x, y, z), radius, and colour directly in the block fields — no snapping
+                    required.
+                    <Pre>ball = sphere(pos=vector(0, 0, 0), radius=1, color=vector(1.0, 0.27, 0.27))</Pre>
+                    <Note type="tip">When the simulation grows more complex, graduate to <Code>sphere_block</Code>
+                    which uses composable value-slot inputs for expressions and variables.</Note>
+                  </div>
+                </div>
+                <div className="help-block-row">
+                  <div className="help-block-name">preset_box_block</div>
+                  <div className="help-block-desc">
+                    Create a box with all settings inline: variable name, position, width
+                    \u00d7 height \u00d7 depth, and colour.
+                    <Pre>wall = box(pos=vector(0, -1, 0), size=vector(10, 0.5, 10), color=vector(0.2, 0.4, 0.2))</Pre>
+                    Great for floors, walls, and platforms. For opacity or expression-based sizing, use <Code>box_block</Code> instead.
+                  </div>
+                </div>
+              </div>
 
               <h3 className="help-h3">Scene Objects <Tag color="blue">colour 210</Tag></h3>
               <div className="help-block-table">
@@ -446,8 +524,57 @@ export default function HelpPage({ onClose }) {
                   <div className="help-block-name">expr_block</div>
                   <div className="help-block-desc">
                     Type any Python expression. Snaps into number, vector, or colour
-                    slots. Use for formulas like <Code>mag(ball.velocity)</Code> or
-                    <Code>pi * r**2</Code>.
+                    slots. Useful for complex formulas — for common physics quantities
+                    use the dedicated blocks below instead.
+                  </div>
+                </div>
+                <div className="help-block-row">
+                  <div className="help-block-name">physics_const_block</div>
+                  <div className="help-block-desc">
+                    Insert a standard physics constant via a dropdown. Choose from:
+                    <Pre>g = 9.81         (standard gravity, m/s\u00b2){"\n"}G = 6.674e-11    (gravitational constant){"\n"}\u03c0 = pi          (used directly in VPython){"\n"}e = 2.718         (Euler\u2019s number){"\n"}c = 3e8           (speed of light, m/s){"\n"}k\u2091 = 8.988e9   (Coulomb\u2019s constant){"\n"}h = 6.626e-34    (Planck\u2019s constant){"\n"}m\u2091 = 9.109e-31 (electron mass, kg){"\n"}m\u209a = 1.673e-27 (proton mass, kg)</Pre>
+                    Snap into any numeric slot instead of typing raw values. Improves
+                    readability and prevents transcription errors.
+                  </div>
+                </div>
+              </div>
+
+              <h3 className="help-h3">Physics Expressions <Tag color="teal">colour 160</Tag></h3>
+              <div className="help-block-table">
+                <div className="help-block-row">
+                  <div className="help-block-name">get_prop_block</div>
+                  <div className="help-block-desc">
+                    Read any property of an object variable. Set the variable name in the
+                    left field and the attribute in the right field.
+                    <Pre>ball.velocity   earth.pos   ball.radius</Pre>
+                    Snap the result into any value slot, or chain into component/mag blocks.
+                  </div>
+                </div>
+                <div className="help-block-row">
+                  <div className="help-block-name">get_component_block</div>
+                  <div className="help-block-desc">
+                    Get the <Code>x</Code>, <Code>y</Code>, or <Code>z</Code> scalar
+                    component of a vector. Chain with <Code>get_prop_block</Code> — snap
+                    <Code>ball.pos</Code> in and select <Code>y</Code> to get <Code>ball.pos.y</Code>.
+                    <Pre>ball.pos.y   ball.velocity.x</Pre>
+                    Snap the result into a <Code>logic_compare</Code> condition or math slot.
+                  </div>
+                </div>
+                <div className="help-block-row">
+                  <div className="help-block-name">mag_block</div>
+                  <div className="help-block-desc">
+                    Magnitude (scalar length) of a vector. Chain with <Code>get_prop_block</Code>:
+                    snap <Code>ball.velocity</Code> into the slot to get speed.
+                    <Pre>mag(ball.velocity)  # → speed (scalar)</Pre>
+                    <Note type="tip">Compare with a number using a Logic Compare block: <Code>mag(ball.velocity) &lt; 0.06</Code>.</Note>
+                  </div>
+                </div>
+                <div className="help-block-row">
+                  <div className="help-block-name">norm_block</div>
+                  <div className="help-block-desc">
+                    Unit vector in the direction of the input. Use to find the direction
+                    of a displacement or force vector.
+                    <Pre>norm(r_es)  # → direction from sun to earth</Pre>
                   </div>
                 </div>
               </div>
@@ -580,53 +707,8 @@ export default function HelpPage({ onClose }) {
                 </div>
               </div>
 
-              <h3 className="help-h3">Scene <Tag color="pink">colour 330</Tag></h3>
+              <h3 className="help-h3">Utility <Tag color="pink">colour 330</Tag></h3>
               <div className="help-block-table">
-                <div className="help-block-row">
-                  <div className="help-block-name">scene_setup_block</div>
-                  <div className="help-block-desc">
-                    Sets scene title/background and enables interactive camera controls.
-                    <Pre>{`scene.title = "My Simulation"\nscene.background = vector(0.05, 0.08, 0.16)\nscene.userspin = True\nscene.userzoom = True\nscene.userpan = True`}</Pre>
-                  </div>
-                </div>
-                <div className="help-block-row">
-                  <div className="help-block-name">scene_range_block</div>
-                  <div className="help-block-desc">
-                    Sets the camera range (half-width of the visible scene in world units).
-                    <Pre>scene.range = 10</Pre>
-                  </div>
-                </div>
-                <div className="help-block-row">
-                  <div className="help-block-name">scene_forward_block</div>
-                  <div className="help-block-desc">
-                    Sets the initial camera viewing direction as a unit vector.
-                    <Pre>scene.forward = vector(-0.35, -0.2, -1)</Pre>
-                    Adjusting this gives a dramatic angled perspective. Negative Z points into the screen.
-                  </div>
-                </div>
-                <div className="help-block-row">
-                  <div className="help-block-name">scene_center_block</div>
-                  <div className="help-block-desc">
-                    Moves the look-at point of the camera. The camera always orbits around this position.
-                    <Pre>scene.center = vector(11, 3.5, 0)</Pre>
-                    Use this to frame an off-centre simulation (e.g. a projectile landing at x=22).
-                  </div>
-                </div>
-                <div className="help-block-row">
-                  <div className="help-block-name">scene_caption_block</div>
-                  <div className="help-block-desc">
-                    Sets the text shown below the 3D viewport. Supports <Code>\n</Code> for line breaks.
-                    <Pre>{`scene.caption = "Projectile motion with drag\\n"`}</Pre>
-                  </div>
-                </div>
-                <div className="help-block-row">
-                  <div className="help-block-name">scene_ambient_block</div>
-                  <div className="help-block-desc">
-                    Sets the global ambient (base) light level using a grey value from 0 (fully dark) to 1 (fully lit).
-                    <Pre>scene.ambient = color.gray(0.35)</Pre>
-                    Lower values make point lights more dramatic; higher values flatten shading.
-                  </div>
-                </div>
                 <div className="help-block-row">
                   <div className="help-block-name">local_light_block</div>
                   <div className="help-block-desc">
@@ -671,9 +753,9 @@ export default function HelpPage({ onClose }) {
                   <div className="help-block-desc">
                     <strong>Power-user block</strong> — inserts any raw Python code as a statement.
                     Use when no specific block exists for what you need. Also supports multi-line
-                    Python via <Code>\n</Code> in the field text. The built-in templates no longer
-                    use this block — everything is covered by semantic blocks — but it remains
-                    available for advanced custom programs.
+                    Python via <Code>\n</Code> in the field text. The built-in templates use this
+                    block for scene setup (title, background, range) since those are raw property
+                    assignments with no dedicated semantic block.
                   </div>
                 </div>
                 <div className="help-block-row">

@@ -18,6 +18,9 @@ import {
   ChevronDownIcon,
   ZoomInIcon,
   ZoomOutIcon,
+  PanelRightCloseIcon,
+  PanelRightOpenIcon,
+  GraduationCapIcon,
 } from "./Icons";
 
 /* ── Dropdown menu component ─────────────────────────────── */
@@ -112,11 +115,15 @@ function Toolbar({
   onToggleTheme,
   onHome,
   onHelp,
+  onToggleViewport,
+  onToggleBeginnerMode,
   isDark,
   running,
   mode,
   zoom,
   onZoomChange,
+  viewportHidden,
+  beginnerMode,
   children,
 }) {
   return (
@@ -191,7 +198,35 @@ function Toolbar({
         </>
       )}
 
-      {/* ── Export dropdown ── */}
+      {/* ── Viewport toggle ── */}
+      {onToggleViewport && (
+        <button
+          type="button"
+          className="tb-btn tb-btn--subtle"
+          onClick={onToggleViewport}
+          title={viewportHidden ? "Show 3D viewport" : "Hide 3D viewport"}
+        >
+          {viewportHidden ? <PanelRightOpenIcon size={13} /> : <PanelRightCloseIcon size={13} />}
+          <span className="tb-btn-label">{viewportHidden ? "Viewport" : "Viewport"}</span>
+        </button>
+      )}
+
+      {/* ── Beginner mode toggle ── */}
+      {onToggleBeginnerMode && (
+        <button
+          type="button"
+          className={`tb-btn tb-btn--subtle${beginnerMode ? " tb-btn--active" : ""}`}
+          onClick={onToggleBeginnerMode}
+          title={beginnerMode ? "Switch to Advanced toolbox" : "Switch to Beginner toolbox"}
+        >
+          <GraduationCapIcon size={13} />
+          <span className="tb-btn-label">{beginnerMode ? "Beginner" : "Advanced"}</span>
+        </button>
+      )}
+
+      <div className="tb-separator" />
+
+      {/* ── Export dropdown ── */}}
       <DropdownMenu
         trigger={
           <>
