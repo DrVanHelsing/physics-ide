@@ -110,11 +110,13 @@ function maxOf(aDesc, bDesc) {
 }
 
 /** a ** b — power block */
+// eslint-disable-next-line no-unused-vars
 function powOf(baseDesc, expDesc) {
   return { type: "math_pow_block", values: { BASE: baseDesc, EXP: expDesc } };
 }
 
 /** clamp(val, lo, hi) block */
+// eslint-disable-next-line no-unused-vars
 function clampOf(valDesc, loDesc, hiDesc) {
   return { type: "math_clamp_block", values: { VAL: valDesc, LO: loDesc, HI: hiDesc } };
 }
@@ -146,6 +148,7 @@ function cmp(operator, left, right) {
   return { type: "logic_compare", fields: { OP: operator }, values: { A: left, B: right } };
 }
 /** Quick-create sphere — all in one block (no value slots) */
+// eslint-disable-next-line no-unused-vars
 function presetSphere(varName, x, y, z, radius, colorHex) {
   return {
     type: "preset_sphere_block",
@@ -153,6 +156,7 @@ function presetSphere(varName, x, y, z, radius, colorHex) {
   };
 }
 /** Quick-create box — all in one block */
+// eslint-disable-next-line no-unused-vars
 function presetBox(varName, x, y, z, w, h, d, colorHex) {
   return {
     type: "preset_box_block",
