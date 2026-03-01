@@ -3,8 +3,9 @@ import {
   defineCustomBlocksAndGenerator,
   generatePythonFromWorkspace,
   BLOCK_CATALOGUE,
+  customConstantsRegistry,
 } from "../utils/blocklyGenerator";
-import { SearchIcon } from "./Icons";
+import { SearchIcon, XIcon } from "./Icons";
 import * as dialogService from "../utils/dialogService";
 
 /* ── Toolbox XML ─────────────────────────────────────────────
@@ -13,8 +14,12 @@ import * as dialogService from "../utils/dialogService";
    Variables, Functions) come from blocks_compressed.js.
    ──────────────────────────────────────────────────────────── */
 const TOOLBOX_XML = `
-<xml>  <!-- ── 🚀 STARTER ──────────────────────────────────────── -->
+<xml>  <!-- ── STARTER ──────────────────────────────────────── -->
   <category name="\uD83D\uDE80 Starter" colour="#5cb85c">
+    <label text="Simulation structure" web-class="tb-label"></label>
+    <block type="sim_start_block"></block>
+    <block type="sim_end_block"></block>
+    <sep gap="12"></sep>
     <label text="Quick create objects" web-class="tb-label"></label>
     <block type="preset_sphere_block">
       <field name="NAME">ball</field>
@@ -324,6 +329,10 @@ const TOOLBOX_BEGINNER_XML = `
 <xml>
   <!-- Beginner mode: Starter + simplified categories -->
   <category name="\uD83D\uDE80 Starter" colour="#5cb85c">
+    <label text="Simulation structure" web-class="tb-label"></label>
+    <block type="sim_start_block"></block>
+    <block type="sim_end_block"></block>
+    <sep gap="12"></sep>
     <label text="Quick create objects" web-class="tb-label"></label>
     <block type="preset_sphere_block">
       <field name="NAME">ball</field>
@@ -469,7 +478,7 @@ function BlockSearch({ workspaceRef }) {
       if (!ws) return;
       const toolbox = ws.getToolbox();
       if (!toolbox) return;
-      const clean = catName.replace(/^\uD83D\uDE80\s*/, "");
+      const clean = catName.trim();
       if (toolbox.selectCategoryByName) {
         toolbox.selectCategoryByName(catName) ||
           toolbox.selectCategoryByName(clean);
@@ -501,7 +510,7 @@ function BlockSearch({ workspaceRef }) {
           onBlur={() => setTimeout(() => setOpen(false), 160)}
         />
         {query && (
-          <button className="block-search-clear" onClick={() => setQuery("")} tabIndex={-1}>&times;</button>
+          <button className="block-search-clear" onClick={() => setQuery("")} tabIndex={-1}><XIcon size={10} /></button>
         )}
       </div>
       {open && query && (
@@ -666,8 +675,48 @@ function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, isD
     };
     workspace.addChangeListener(listener);
 
+    /* ── Custom constant popup: intercept __NEW__ on physics_const_block ── */
+    const constListener = (event) => {
+      if (
+        !event.blockId ||
+        event.type !== Blockly.Events.BLOCK_CHANGE ||
+        event.element !== "field" ||
+        event.name !== "CONST" ||
+        event.newValue !== "__NEW__"
+      ) return;
+
+      const block = workspace.getBlockById(event.blockId);
+      if (!block || block.type !== "physics_const_block") return;
+
+      // Revert dropdown immediately so it doesn't sit on __NEW__
+      const prevVal = event.oldValue || "g";
+      block.getField("CONST").setValue(prevVal);
+
+      // Prompt for name, then value
+      dialogService.prompt("Name for your new constant:", "MY_CONST").then((rawName) => {
+        if (!rawName) return; // cancelled
+        const name = rawName.trim().replace(/\s+/g, "_").replace(/[^A-Za-z0-9_]/g, "");
+        if (!name) return;
+
+        dialogService.prompt("Value for " + name + ":", "1.0").then((rawVal) => {
+          if (rawVal === null || rawVal === undefined) return; // cancelled
+          const value = rawVal.trim() || "0";
+
+          // If not already registered, add it
+          if (!customConstantsRegistry.some((c) => c.name === name)) {
+            customConstantsRegistry.push({ name, value });
+          }
+
+          // Set this block to the new constant
+          block.getField("CONST").setValue(name);
+        });
+      });
+    };
+    workspace.addChangeListener(constListener);
+
     return () => {
       workspace.removeChangeListener(listener);
+      workspace.removeChangeListener(constListener);
       workspace.dispose();
       workspaceRef.current = null;
     };

@@ -659,57 +659,97 @@ button {
   border-bottom: 1px solid var(--border);
   background: var(--bg-overlay);
   z-index: 20;
+  padding: 6px 8px;
 }
 .block-search-bar {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 5px 8px;
-  opacity: 0.75;
-  transition: opacity 0.15s;
+  gap: 7px;
+  padding: 5px 10px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  transition: border-color var(--transition), box-shadow var(--transition), background var(--transition);
+}
+.block-search-bar:hover {
+  border-color: var(--border-hl);
 }
 .block-search-bar:focus-within {
-  opacity: 1;
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 1px var(--border-focus);
+  background: var(--bg-input);
 }
 .block-search-bar svg {
   flex-shrink: 0;
-  color: var(--fg-muted);
+  color: var(--text-dim);
+  transition: color var(--transition);
+}
+.block-search-bar:focus-within svg {
+  color: var(--accent);
 }
 .block-search-input {
   flex: 1;
   background: transparent;
   border: none;
   outline: none;
-  font-size: 11px;
-  color: var(--fg);
-  font-family: inherit;
+  font-size: 11.5px;
+  color: var(--text);
+  font-family: var(--font);
+  letter-spacing: 0.01em;
+  min-width: 0;
 }
 .block-search-input::placeholder {
-  color: var(--fg-muted);
+  color: var(--text-muted);
+  font-style: italic;
 }
 .block-search-clear {
-  background: none;
-  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  background: var(--btn-bg);
+  border: 1px solid transparent;
+  border-radius: var(--radius);
   cursor: pointer;
-  color: var(--fg-muted);
-  font-size: 14px;
+  color: var(--text-dim);
+  font-size: 13px;
   line-height: 1;
-  padding: 0 2px;
-  opacity: 0.6;
+  padding: 0;
+  transition: background var(--transition), color var(--transition), border-color var(--transition);
 }
-.block-search-clear:hover { opacity: 1; }
+.block-search-clear:hover {
+  background: var(--btn-bg-hover);
+  color: var(--text);
+  border-color: var(--border);
+}
 .block-search-dropdown {
   position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
+  top: calc(100% - 1px);
+  left: 6px;
+  right: 6px;
   background: var(--bg-surface);
-  border: 1px solid var(--border);
-  border-top: none;
-  max-height: 260px;
+  border: 1px solid var(--border-hl);
+  border-radius: 0 0 var(--radius) var(--radius);
+  max-height: 280px;
   overflow-y: auto;
-  box-shadow: 0 8px 20px rgba(0,0,0,0.35);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
   z-index: 100;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-hl) transparent;
+}
+.block-search-dropdown::-webkit-scrollbar {
+  width: 5px;
+}
+.block-search-dropdown::-webkit-scrollbar-track {
+  background: transparent;
+}
+.block-search-dropdown::-webkit-scrollbar-thumb {
+  background: var(--border-hl);
+  border-radius: 4px;
+}
+.block-search-dropdown::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
 }
 .block-search-item {
   display: flex;
@@ -719,33 +759,47 @@ button {
   padding: 7px 10px;
   background: none;
   border: none;
+  border-left: 2px solid transparent;
   cursor: pointer;
   text-align: left;
   gap: 8px;
+  transition: background var(--transition), border-color var(--transition);
 }
 .block-search-item:hover {
-  background: var(--bg-overlay);
+  background: var(--bg-hover);
+  border-left-color: var(--accent);
+}
+.block-search-item + .block-search-item {
+  border-top: 1px solid var(--border);
 }
 .block-search-item-label {
-  font-size: 11px;
-  color: var(--fg);
+  font-size: 11.5px;
+  color: var(--text);
   flex: 1;
+  font-weight: 500;
+}
+.block-search-item:hover .block-search-item-label {
+  color: var(--text-bright);
 }
 .block-search-item-cat {
-  font-size: 10px;
-  color: var(--fg-muted);
-  background: var(--bg-base);
-  border: 1px solid var(--border);
+  font-size: 9.5px;
+  color: var(--text-muted);
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-border);
   border-radius: 3px;
-  padding: 1px 5px;
+  padding: 1px 6px;
   white-space: nowrap;
   flex-shrink: 0;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
 }
 .block-search-empty {
-  padding: 10px;
+  padding: 14px 10px;
   font-size: 11px;
-  color: var(--fg-muted);
+  color: var(--text-muted);
   text-align: center;
+  font-style: italic;
 }
 
 /* ── Read-only preview styling ───────────────────────────── */
