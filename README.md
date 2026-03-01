@@ -31,61 +31,70 @@ It is designed for teaching and experimentation: beginners can build simulations
 
 ## What's New
 
+### Composable logic & variable blocks
+
+Four new fully composable blocks eliminate the need for `expr_block` in boolean conditions:
+
+- `var_read_block` — reads a Blockly variable by name; snaps into any value slot
+- `compare_block` — `A < B`, `A > B`, `A == B`, etc.; outputs a **Boolean** value
+- `logic_and_or_block` — `A and/or B`; outputs a **Boolean** value
+- `logic_not_block` — `not V`; outputs a **Boolean** value
+
+These replace the standard Blockly `logic_compare`, `logic_operation`, `logic_negate` blocks which generate wrong Python for VPython (they use Python correctly, but these custom versions are category-consistent and composable).
+
+### VPython-correct math block (`math_trig_block`)
+
+A single block covers all scalar math functions that VPython/GlowScript exposes at the global scope:
+
+`sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `radians`, `degrees`, `sqrt`, `abs`
+
+**Important:** `abs` is absolute value `|x|`. Standard Blockly `math_single` (`abs`) generates `math.fabs()` which is **wrong for VPython** — `math_trig_block` generates `abs(x)` correctly.
+
+### New math utility blocks
+
+- `math_min_block` — `min(a, b)` — in: **3D Math**
+- `math_max_block` — `max(a, b)` — in: **3D Math**
+- `math_pow_block` — `a ** b` — in: **3D Math**
+- `math_clamp_block` — `max(lo, min(hi, val))` — in: **3D Math**
+
+### Vector compose block (`vector_compose_block`)
+
+Composable `vector(X, Y, Z)` with three value slots (replaces the inline `vector_block` where sub-expressions are needed).
+
+Located in: **3D Math** (removed from Values to avoid duplication with `vector_block`).
+
+### Toolbox reorganisation
+
+- **`rotate_object_block`** moved from 3D Math → **Motion** (it mutates an object, not a pure math op)
+- **`scene_camera_block`** moved from 3D Math → **Objects** (it configures the scene/camera)
+- **`mag_block`** and **`norm_block`** now also appear in **3D Math** (alongside Values)
+- Removed duplicate standard Blockly blocks that generate wrong VPython code:
+  - `logic_compare`, `logic_operation`, `logic_negate` (replaced by custom logic blocks)
+  - `math_single`, `math_trig`, `math_constrain` (replaced by `math_trig_block` / `math_clamp_block`)
+
 ### Mode toggle for templates
 
-Template projects now let you **toggle** between both representations using the
-Blocks / Code buttons in the toolbar:
+Template projects let you **toggle** between both representations using the Blocks / Code buttons:
 
-- **Blocks templates** - Blocks = editable Block Editor; Code = read-only generated code
-- **Code templates** - Code = editable Code Editor; Blocks = read-only block reference
-
-Both buttons are always clickable - the secondary view is simply read-only.
+- **Blocks templates** — Blocks = editable; Code = read-only generated code
+- **Code templates** — Code = editable; Blocks = read-only block reference
 
 ### Composable Scratch-style blocks
 
-All object, motion, and variable blocks now use **input_value slots** (puzzle-piece connectors)
-instead of inline text fields. Small **value blocks** snap into these slots:
-
-- `vector_block` — `vector(x, y, z)` value
-- `colour_block` — visual colour picker → `vector(r, g, b)`
-- `expr_block` — any freeform Python expression
-
-Additional semantic blocks:
-- `if_block` / `if_else_block` — conditional blocks with **boolean input slot** (snap in a comparison block)
-- `break_loop_block` — emits `break`
-- `telemetry_update_block` — formatted label update
-
-Shadow blocks provide sensible defaults in every slot.
+All object, motion, and variable blocks use **input_value slots** (puzzle-piece connectors) instead of inline text fields. Shadow blocks provide sensible defaults in every slot.
 
 ### Native Blockly variable workflow
 
-Custom Physics blocks now use native Blockly variable fields (`field_variable`) for
-object names, loop variables, and state labels.
-
-- Rename variables once and all references update automatically
-- Use `Variables -> get` blocks inside value sockets (`dt`, `anchor`, `h_above`, etc.)
-- Use Physics `set_scalar_block` for equation-style assignment and Blockly `variables_set`
-  for generic assignment patterns
-
-### String-escaping fix (`escPy` helper)
-
-All block generators that emit user-supplied strings now escape backslashes, quotes, and newlines
-to prevent "End of line while scanning string literal" runtime errors.
+Custom Physics blocks use native Blockly variable fields (`field_variable`) for object names, loop variables, and state labels — rename once, all references update automatically.
 
 ### Block templates fully rebuilt
 
-- `blocks_projectile` - uses `break_loop_block` for stop condition, `if_else_block` for bounce logic
-- `blocks_spring` - complete spring-mass oscillator in pure blocks
-- `blocks_orbits` - uses `sphere_emissive_block` / `expr_block` for dynamic objects
+- `blocks_projectile` — animated projectile with drag model and telemetry
+- `blocks_spring` — damped spring-mass oscillator with KE/PE telemetry
+- `blocks_orbits` — animated orbital system with softened gravity and telemetry
 
-All three templates use `python_raw_block` for scene setup (title, background, range) and semantic custom blocks for all physics and simulation logic.
+All three use `python_raw_block` only for scene setup; all physics logic uses semantic custom blocks.
 
-### Previous updates
-
-- `set_attr_expr_block` / `add_attr_expr_block` - one-line attribute set/increment
-- Template animation reliability improvements
-- Orbit code-template softened gravity (prevents singularity freezes)
-- Viewport text readability fix (theme-aware iframe text colour)
 ---
 
 ## Install & Run
@@ -174,67 +183,160 @@ Why this matters:
 
 ## Custom Blocks Reference
 
-Defined in `src/utils/blocklyGenerator.js` and exposed via toolbox in `src/components/BlocklyWorkspace.js`.
+Defined in `src/utils/blocklyGenerator.js`, exposed via toolbox in `src/components/BlocklyWorkspace.js`.
 
-Toolbox structure:
+### Toolbox categories
 
-- `Values` — composable value outputs (`vector_block`, `colour_block`, `expr_block`)
-- `Objects` — single-line constructor blocks (`sphere`, `sphere+trail`, `box`, `cylinder`, `arrow`, `helix`, `label`, `local_light`)
-- `Motion` — velocity/position/acceleration/gravity updates
-- `State` — assignment, attribute update, and telemetry display blocks
-- `Control` — loops, conditionals (with boolean snap-in slots), rate, time step, comment
-- `Advanced` — raw Python code/expression blocks
-- Standard Blockly categories: `Logic`, `Loops`, `Math`, `Text`, `Lists`, `Variables`, `Functions`
+| Category | Contents |
+|---|---|
+| **Values** | `vector_block`, `colour_block`, `var_read_block`, `expr_block`, `physics_const_block`, `define_const_block`, `get_prop_block`, `get_component_block`, `mag_block`, `norm_block` |
+| **Objects** | Sphere, box, cylinder, arrow, helix, label, local light constructors; `scene_camera_block` |
+| **Motion** | Velocity / position / acceleration / gravity updates; `rotate_object_block` |
+| **State** | Assignment, attribute update, telemetry display blocks |
+| **Control** | Loops, conditionals, `rate`, `time_step`, `break_loop_block`, `comment_block` |
+| **Advanced** | Raw Python code / expression blocks |
+| **Logic** | `compare_block`, `logic_and_or_block`, `logic_not_block`, `logic_boolean`, `logic_null`, `logic_ternary` |
+| **Loops** | Standard Blockly `controls_repeat_ext`, `controls_for`, etc. |
+| **Math** | `math_number`, `math_arithmetic`, `math_constant`, `math_number_property`, `math_round`, `math_on_list`, `math_modulo`, `math_random_int`, `math_random_float` |
+| **3D Math** | `vector_compose_block`, `cross_product_block`, `dot_product_block`, `mag_block`, `norm_block`, `math_min_block`, `math_max_block`, `math_clamp_block`, `math_pow_block`, `math_trig_block` |
+| **Text / Lists / Variables / Functions** | Standard Blockly categories |
 
-> **Note:** Scene setup (title, background, range) is done with `python_raw_block` blocks at the top of each template. There is no separate Scene category.
+---
 
-## Object Blocks (all single-line, `inputsInline: true`)
+### Value blocks (snap into any □ slot)
 
-- `sphere_block` — `name = sphere  pos □  radius □  colour □`
-- `sphere_trail_block` — `name = sphere+trail  pos □  radius □  colour □  trail_r □  trail_col □  keep □`
-- `box_block` — `name = box  pos □  size □  colour □`
-- `cylinder_block` — `name = cylinder  pos □  axis □  radius □  colour □`
-- `arrow_block` — `name = arrow  pos □  axis □  colour □`
-- `helix_block` — `name = helix  pos □  axis □  radius □  colour □`
-- `label_block` — `label "text"  at □`
-- `label_full_block` — `name = label  pos □  text …  height □`
-- `local_light_block` — `local light  pos □  colour □`
+| Block | Output | Notes |
+|---|---|---|
+| `vector_block` | `vector(x,y,z)` | Inline x/y/z fields |
+| `vector_compose_block` | `vector(X,Y,Z)` | Three composable value slots — snap in math blocks |
+| `colour_block` | `vector(r,g,b)` | Visual colour picker |
+| `expr_block` | _any Python expression_ | Freeform fallback |
+| `physics_const_block` | constant value | `g`, `G`, `c`, `h`, `pi` |
+| `var_read_block` | variable value | Reads a Blockly variable by name |
+| `get_prop_block` | `obj.attr` | e.g. `ball.pos` |
+| `get_component_block` | `vec.x / .y / .z` | Scalar component |
+| `mag_block` | `mag(vec)` | Magnitude |
+| `norm_block` | `norm(vec)` | Unit vector |
 
-> Additional object variants (`sphere_emissive_block`, `box_opacity_block`, `helix_full_block`) are defined for template use; set `emissive`, `opacity`, `coils`, `thickness` via `set_attr_expr_block` when building from scratch.
+---
 
-## Motion/Control Blocks
+### Logic / comparison blocks (output: Boolean)
 
-- `set_velocity_block`
-- `update_position_block`
-- `apply_force_block`
-- `set_gravity_block`
-- `time_step_block`
-- `rate_block`
-- `forever_loop_block`
-- `for_range_block`
-- `if_block` — condition is an **input_value slot** (snap in `logic_compare`, `logic_boolean`, or `expr_block`)
-- `if_else_block` — same, with an else branch
-- `break_loop_block`
+| Block | Output | Notes |
+|---|---|---|
+| `compare_block` | `A op B` | Operators: `<`, `>`, `<=`, `>=`, `==`, `!=` |
+| `logic_and_or_block` | `A and/or B` | Dropdown: `and` / `or` |
+| `logic_not_block` | `not V` | Flips boolean |
+| `logic_boolean` | `True` / `False` | Standard Blockly |
 
-## Value Blocks (snap-in)
+> Standard `logic_compare`, `logic_operation`, `logic_negate` are **hidden** — they generate Python correctly but are duplicated by the custom blocks above, which are composable and category-consistent. Use the custom blocks.
 
-- `vector_block` — `vector(x, y, z)`
-- `colour_block` — colour picker → `vector(r, g, b)`
-- `expr_block` — freeform Python expression
+---
 
-## State Blocks
+### 3D Math blocks
 
-- `set_colour_var_block`
-- `set_scalar_block`
-- `set_attr_expr_block`
-- `add_attr_expr_block`
-- `telemetry_update_block` — live label text display
+| Block | Output |
+|---|---|
+| `cross_product_block` | `cross(A, B)` |
+| `dot_product_block` | `dot(A, B)` |
+| `math_min_block` | `min(a, b)` |
+| `math_max_block` | `max(a, b)` |
+| `math_pow_block` | `base ** exp` |
+| `math_clamp_block` | `max(lo, min(hi, val))` |
+| `math_trig_block` | `sin/cos/tan/asin/acos/atan/radians/degrees/sqrt/abs` |
 
-## Utility Blocks
+**`math_trig_block` function list:**
 
-- `comment_block`
-- `python_raw_block`
-- `python_raw_expr_block`
+| Function | Description | Angle convention |
+|---|---|---|
+| `sin`, `cos`, `tan` | Trig | **radians** |
+| `asin`, `acos`, `atan` | Inverse trig | returns radians |
+| `radians(deg)` | Degrees → radians | — |
+| `degrees(rad)` | Radians → degrees | — |
+| `sqrt(x)` | Square root | — |
+| `abs(x)` | Absolute value `\|x\|` | — |
+
+> All these functions are **VPython global scope** — do **not** use `math.sin()`, `math.fabs()`, etc. Those don't exist inside GlowScript. The standard Blockly `math_trig` and `math_single` blocks are hidden from the toolbox because they generate `math.sin()` / `math.fabs()` which will fail.
+
+---
+
+### Object blocks
+
+All constructors are single-line (`inputsInline: true`) with value slots:
+
+| Block | Statement |
+|---|---|
+| `sphere_block` | `name = sphere(pos=□, radius=□, color=□)` |
+| `sphere_trail_block` | sphere with `make_trail`, `trail_radius`, `retain` |
+| `box_block` | `name = box(pos=□, size=□, color=□)` |
+| `cylinder_block` | `name = cylinder(pos=□, axis=□, radius=□, color=□)` |
+| `arrow_block` | `name = arrow(pos=□, axis=□, color=□)` |
+| `helix_block` | `name = helix(pos=□, axis=□, radius=□, color=□)` |
+| `label_block` | `name = label(pos=□, text=…)` |
+| `label_full_block` | label with `height`, `font` |
+| `local_light_block` | `local_light(pos=□, color=□)` |
+| `scene_camera_block` | `scene.ATTR = □` — camera/scene setup |
+
+> Preset variants (`preset_sphere_block`, `preset_box_block`) use inline fields for quick creation. Additional variants (`sphere_emissive_block`, `box_opacity_block`, `helix_full_block`) are available for template use.
+
+---
+
+### Motion blocks
+
+| Block | Statement |
+|---|---|
+| `set_velocity_block` | `obj.velocity = □` |
+| `update_position_block` | `obj.pos += obj.velocity * □` |
+| `apply_force_block` | `obj.velocity += □ * □` |
+| `set_gravity_block` | `g = vector(0, −9.81, 0)` |
+| `rotate_object_block` | `obj.rotate(angle=□, axis=□)` |
+
+---
+
+### Control blocks
+
+| Block | Statement |
+|---|---|
+| `time_step_block` | `dt = 0.01` |
+| `rate_block` | `rate(N)` |
+| `forever_loop_block` | `while True:` |
+| `for_range_block` | `for i in range(…):` |
+| `if_block` | `if □:` — boolean slot |
+| `if_else_block` | `if □: … else:` |
+| `break_loop_block` | `break` |
+| `comment_block` | `# comment` |
+
+---
+
+### State blocks
+
+| Block | Statement |
+|---|---|
+| `define_const_block` | `NAME = □` |
+| `set_colour_var_block` | `obj.color = □` |
+| `set_scalar_block` | `obj.attr = □` |
+| `set_attr_expr_block` | `obj.attr = □` — expr slot |
+| `add_attr_expr_block` | `obj.attr += □` |
+| `telemetry_update_block` | `label.text = "…: " + str(□)` |
+
+---
+
+### Advanced / utility blocks
+
+| Block | Output |
+|---|---|
+| `python_raw_block` | Single raw Python statement |
+| `python_raw_expr_block` | Inline raw Python expression |
+| `comment_block` | `# text` |
+
+---
+
+> **Scene setup tip:** Use `python_raw_block` for scene/camera config not yet in the custom blocks:
+> ```python
+> scene.title = "My Simulation"
+> scene.background = vector(0.05, 0.05, 0.1)
+> scene.range = 10
+> ```
 
 ---
 

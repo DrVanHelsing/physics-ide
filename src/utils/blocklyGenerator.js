@@ -903,7 +903,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       output: null,
       colour: 230,
-      tooltip: "Trig / math function. sin/cos/tan expect radians; use radians() to convert from degrees.",
+      tooltip: "Maths functions: sin/cos/tan/asin/acos/atan expect radians — use radians() to convert from degrees. abs = absolute value |x|. sqrt = square root. All generate VPython-compatible code.",
     },
     /* ── Vector compose — input slots for variable-based vectors ── */
     {

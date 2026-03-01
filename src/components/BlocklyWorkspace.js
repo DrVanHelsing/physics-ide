@@ -92,16 +92,11 @@ const TOOLBOX_XML = `
     <sep gap="8"></sep>
     <label text="Physics constants" web-class="tb-label"></label>    <block type="physics_const_block"></block>
     <block type="vector_block"></block>
-    <block type="vector_compose_block">
-      <value name="X"><shadow type="math_number"><field name="NUM">0</field></shadow></value>
-      <value name="Y"><shadow type="math_number"><field name="NUM">0</field></shadow></value>
-      <value name="Z"><shadow type="math_number"><field name="NUM">0</field></shadow></value>
-    </block>
     <block type="colour_block"></block>
     <block type="var_read_block"></block>
     <block type="expr_block"></block>
     <sep gap="12"></sep>
-    <label text="Physics expressions" web-class="tb-label"></label>
+    <label text="Object properties &amp; vectors" web-class="tb-label"></label>
     <block type="get_prop_block">
       <field name="OBJ">ball</field>
       <field name="PROP">velocity</field>
@@ -195,6 +190,11 @@ const TOOLBOX_XML = `
       <value name="POS"><shadow type="vector_block"><field name="X">0</field><field name="Y">5</field><field name="Z">0</field></shadow></value>
       <value name="COL"><shadow type="colour_block"><field name="MODE">WHITE</field><field name="CUSTOM">#ffffff</field></shadow></value>
     </block>
+    <sep gap="8"></sep>
+    <label text="Scene &amp; camera" web-class="tb-label"></label>
+    <block type="scene_camera_block">
+      <value name="VALUE"><block type="vector_block"><field name="X">0</field><field name="Y">0</field><field name="Z">8</field></block></value>
+    </block>
   </category>
 
   <!-- ── MOTION ─────────────────────────────────────────── -->
@@ -210,6 +210,12 @@ const TOOLBOX_XML = `
       <value name="DT"><shadow type="expr_block"><field name="EXPR">dt</field></shadow></value>
     </block>
     <block type="set_gravity_block"></block>
+    <sep gap="8"></sep>
+    <label text="Rotate" web-class="tb-label"></label>
+    <block type="rotate_object_block">
+      <value name="ANGLE"><block type="math_number"><field name="NUM">45</field></block></value>
+      <value name="AXIS"><block type="vector_block"><field name="X">0</field><field name="Y">1</field><field name="Z">0</field></block></value>
+    </block>
   </category>
 
   <!-- ── STATE ──────────────────────────────────────────── -->
@@ -248,18 +254,6 @@ const TOOLBOX_XML = `
         <shadow type="logic_boolean"><field name="BOOL">TRUE</field></shadow>
       </value>
     </block>
-    <sep gap="8"></sep>
-    <block type="compare_block">
-      <value name="A"><shadow type="var_read_block"><field name="VAR">x</field></shadow></value>
-      <value name="B"><shadow type="math_number"><field name="NUM">0</field></shadow></value>
-    </block>
-    <block type="logic_and_or_block">
-      <value name="A"><shadow type="logic_boolean"><field name="BOOL">TRUE</field></shadow></value>
-      <value name="B"><shadow type="logic_boolean"><field name="BOOL">TRUE</field></shadow></value>
-    </block>
-    <block type="logic_not_block">
-      <value name="VAL"><shadow type="logic_boolean"><field name="BOOL">TRUE</field></shadow></value>
-    </block>
     <block type="break_loop_block"></block>
     <block type="comment_block"></block>
   </category>
@@ -284,9 +278,7 @@ const TOOLBOX_XML = `
     <block type="logic_not_block">
       <value name="VAL"><shadow type="logic_boolean"><field name="BOOL">TRUE</field></shadow></value>
     </block>
-    <sep gap="8"></sep>    <block type="logic_compare"></block>
-    <block type="logic_operation"></block>
-    <block type="logic_negate"></block>
+    <sep gap="8"></sep>
     <block type="logic_boolean"></block>
     <block type="logic_null"></block>
     <block type="logic_ternary"></block>
@@ -311,17 +303,11 @@ const TOOLBOX_XML = `
   <category name="Math" colour="#5b67a5">
     <block type="math_number"></block>
     <block type="math_arithmetic"></block>
-    <block type="math_single"></block>
-    <block type="math_trig"></block>
     <block type="math_constant"></block>
     <block type="math_number_property"></block>
     <block type="math_round"></block>
     <block type="math_on_list"></block>
     <block type="math_modulo"></block>
-    <block type="math_constrain">
-      <value name="LOW"><block type="math_number"><field name="NUM">1</field></block></value>
-      <value name="HIGH"><block type="math_number"><field name="NUM">100</field></block></value>
-    </block>
     <block type="math_random_int">
       <value name="FROM"><block type="math_number"><field name="NUM">1</field></block></value>
       <value name="TO"><block type="math_number"><field name="NUM">100</field></block></value>
@@ -339,6 +325,22 @@ const TOOLBOX_XML = `
     </block>
     <block type="cross_product_block"></block>
     <block type="dot_product_block"></block>
+    <block type="mag_block">
+      <value name="VEC">
+        <shadow type="get_prop_block">
+          <field name="OBJ">ball</field>
+          <field name="PROP">velocity</field>
+        </shadow>
+      </value>
+    </block>
+    <block type="norm_block">
+      <value name="VEC">
+        <shadow type="get_prop_block">
+          <field name="OBJ">ball</field>
+          <field name="PROP">pos</field>
+        </shadow>
+      </value>
+    </block>
     <label text="Min / Max / Clamp / Power" web-class="tb-label"></label>
     <block type="math_min_block">
       <value name="A"><shadow type="math_number"><field name="NUM">0</field></shadow></value>
@@ -359,14 +361,6 @@ const TOOLBOX_XML = `
     </block>
     <label text="Trig &amp; Math" web-class="tb-label"></label>
     <block type="math_trig_block"></block>
-    <label text="Objects &amp; Camera" web-class="tb-label"></label>
-    <block type="rotate_object_block">
-      <value name="ANGLE"><block type="math_number"><field name="NUM">45</field></block></value>
-      <value name="AXIS"><block type="vector_block"><field name="X">0</field><field name="Y">1</field><field name="Z">0</field></block></value>
-    </block>
-    <block type="scene_camera_block">
-      <value name="VALUE"><block type="vector_block"><field name="X">0</field><field name="Y">0</field><field name="Z">8</field></block></value>
-    </block>
   </category>
 
   <!-- ── TEXT ───────────────────────────────────────────── -->
@@ -501,6 +495,11 @@ const TOOLBOX_BEGINNER_XML = `
       <value name="AXIS"><shadow type="vector_block"><field name="X">1</field><field name="Y">0</field><field name="Z">0</field></shadow></value>
       <value name="COL"><shadow type="colour_block"><field name="MODE">CUSTOM</field><field name="CUSTOM">#ffff00</field></shadow></value>
     </block>
+    <sep gap="8"></sep>
+    <label text="Scene &amp; camera" web-class="tb-label"></label>
+    <block type="scene_camera_block">
+      <value name="VALUE"><block type="vector_block"><field name="X">0</field><field name="Y">0</field><field name="Z">8</field></block></value>
+    </block>
   </category>
 
   <category name="Motion" colour="#d9a54a">
@@ -515,6 +514,12 @@ const TOOLBOX_BEGINNER_XML = `
       <value name="DT"><shadow type="expr_block"><field name="EXPR">dt</field></shadow></value>
     </block>
     <block type="set_gravity_block"></block>
+    <sep gap="8"></sep>
+    <label text="Rotate" web-class="tb-label"></label>
+    <block type="rotate_object_block">
+      <value name="ANGLE"><block type="math_number"><field name="NUM">45</field></block></value>
+      <value name="AXIS"><block type="vector_block"><field name="X">0</field><field name="Y">1</field><field name="Z">0</field></block></value>
+    </block>
   </category>
 
   <category name="Control" colour="#9b59b6">
@@ -542,16 +547,12 @@ const TOOLBOX_BEGINNER_XML = `
       <value name="VAL"><shadow type="logic_boolean"><field name="BOOL">TRUE</field></shadow></value>
     </block>
     <sep gap="8"></sep>
-    <block type="logic_compare"></block>
-    <block type="logic_operation"></block>
     <block type="logic_boolean"></block>
   </category>
 
   <category name="Math" colour="#5b67a5">
     <block type="math_number"></block>
     <block type="math_arithmetic"></block>
-    <block type="math_single"></block>
-    <block type="math_trig"></block>
   </category>
 
   <category name="3D Math" colour="#3a7bd5">
@@ -562,6 +563,22 @@ const TOOLBOX_BEGINNER_XML = `
     </block>
     <block type="cross_product_block"></block>
     <block type="dot_product_block"></block>
+    <block type="mag_block">
+      <value name="VEC">
+        <shadow type="get_prop_block">
+          <field name="OBJ">ball</field>
+          <field name="PROP">velocity</field>
+        </shadow>
+      </value>
+    </block>
+    <block type="norm_block">
+      <value name="VEC">
+        <shadow type="get_prop_block">
+          <field name="OBJ">ball</field>
+          <field name="PROP">pos</field>
+        </shadow>
+      </value>
+    </block>
     <block type="math_min_block">
       <value name="A"><shadow type="math_number"><field name="NUM">0</field></shadow></value>
       <value name="B"><shadow type="math_number"><field name="NUM">1</field></shadow></value>
@@ -575,13 +592,6 @@ const TOOLBOX_BEGINNER_XML = `
       <value name="EXP"><shadow type="math_number"><field name="NUM">2</field></shadow></value>
     </block>
     <block type="math_trig_block"></block>
-    <block type="rotate_object_block">
-      <value name="ANGLE"><block type="math_number"><field name="NUM">45</field></block></value>
-      <value name="AXIS"><block type="vector_block"><field name="X">0</field><field name="Y">1</field><field name="Z">0</field></block></value>
-    </block>
-    <block type="scene_camera_block">
-      <value name="VALUE"><block type="vector_block"><field name="X">0</field><field name="Y">0</field><field name="Z">8</field></block></value>
-    </block>
   </category>
 
   <category name="Variables" colour="#a55b80" custom="VARIABLE"></category>
