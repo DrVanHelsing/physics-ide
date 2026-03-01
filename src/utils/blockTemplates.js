@@ -37,8 +37,24 @@ function num(n) {
   return { type: "math_number", fields: { NUM: String(n) } };
 }
 
+/* Convert hex like "#ff3333" → VPython vector string "vector(1.00, 0.20, 0.20)" */
+function hexToVPython(hex) {
+  if (!hex || typeof hex !== "string" || !hex.startsWith("#") || hex.length < 7)
+    return "color.white";
+  const r = parseInt(hex.slice(1, 3), 16) / 255;
+  const g = parseInt(hex.slice(3, 5), 16) / 255;
+  const b = parseInt(hex.slice(5, 7), 16) / 255;
+  if (isNaN(r) || isNaN(g) || isNaN(b)) return "color.white";
+  return `vector(${r.toFixed(2)}, ${g.toFixed(2)}, ${b.toFixed(2)})`;
+}
+
+/**
+ * col(hex) — Returns an expr_block containing a VPython colour vector.
+ * Uses expr_block (field_input) instead of colour_block (field_colour)
+ * to guarantee correct serialization across all Blockly CDN versions.
+ */
 function col(hex) {
-  return { type: "colour_block", fields: { MODE: "CUSTOM", CUSTOM: hex } };
+  return expr(hexToVPython(hex));
 }
 
 function expr(text) {
@@ -71,6 +87,41 @@ function mul(a, b) {
 
 function div(a, b) {
   return op("DIVIDE", a, b);
+}
+
+/** Trig / math function block: sin, cos, tan, radians, sqrt, abs, etc. */
+function trig(fnName, argDesc) {
+  return { type: "math_trig_block", fields: { OP: fnName }, values: { X: argDesc } };
+}
+
+/** Compose a vector from three value-slot inputs (variables, expressions, etc.) */
+function vecC(xDesc, yDesc, zDesc) {
+  return { type: "vector_compose_block", values: { X: xDesc, Y: yDesc, Z: zDesc } };
+}
+
+/** min(a, b) block */
+function minOf(aDesc, bDesc) {
+  return { type: "math_min_block", values: { A: aDesc, B: bDesc } };
+}
+
+/** max(a, b) block */
+function maxOf(aDesc, bDesc) {
+  return { type: "math_max_block", values: { A: aDesc, B: bDesc } };
+}
+
+/** a ** b — power block */
+function powOf(baseDesc, expDesc) {
+  return { type: "math_pow_block", values: { BASE: baseDesc, EXP: expDesc } };
+}
+
+/** clamp(val, lo, hi) block */
+function clampOf(valDesc, loDesc, hiDesc) {
+  return { type: "math_clamp_block", values: { VAL: valDesc, LO: loDesc, HI: hiDesc } };
+}
+
+/** abs(x) shortcut — uses math_trig_block with "abs" */
+function absOf(xDesc) {
+  return trig("abs", xDesc);
 }
 
 /* ── Physics expression helpers ─────────────────────── */
@@ -175,7 +226,12 @@ function buildChain(blocks, isFirst) {
 
   // Statement inputs: BODY, BODY_IF, BODY_ELSE
   if (block.body) {
-    const stmtName = block.type === "if_else_block" ? "BODY_IF" : "BODY";
+    const stmtName =
+      block.type === "if_else_block"
+        ? "BODY_IF"
+        : block.type === "sim_start_block"
+        ? "SETUP"
+        : "BODY";
     content += `<statement name="${stmtName}">${buildChain(block.body, false)}</statement>`;
   }
 
@@ -194,6 +250,29 @@ function buildTemplate(blocks) {
   return `<xml xmlns="https://developers.google.com/blockly/xml">${buildChain(blocks, true)}</xml>`;
 }
 
+function normalizeSimulationFlow(blocks) {
+  if (!Array.isArray(blocks) || blocks.length === 0) return blocks;
+  const simStart = blocks.find((b) => b?.type === "sim_start_block");
+  const simEnd = [...blocks].reverse().find((b) => b?.type === "sim_end_block");
+  if (!simStart || !simEnd) return blocks;
+
+  const innerBlocks = blocks.filter(
+    (b) => b && b.type !== "sim_start_block" && b.type !== "sim_end_block"
+  );
+
+  return [
+    {
+      type: "sim_start_block",
+      fields: { TITLE: simStart.fields?.TITLE || "My Simulation" },
+      body: innerBlocks,
+    },
+    {
+      type: "sim_end_block",
+      fields: { MSG: simEnd.fields?.MSG || "Simulation complete." },
+    },
+  ];
+}
+
 /* ═══════════════════════════════════════════════════════════
    PROJECTILE TEMPLATE
    ═══════════════════════════════════════════════════════════ */
@@ -205,15 +284,15 @@ const PROJECTILE_BLOCKS = [
   { type: "python_raw_block", fields: { CODE: 'scene.range = 18' } },
 
   /* ── Colour constants (template-specific) ─────────────── */
-  { type: "set_colour_var_block", fields: { NAME: "c_ground",    COL: "#337346" } },
-  { type: "set_colour_var_block", fields: { NAME: "c_track",     COL: "#6b6b7a" } },
-  { type: "set_colour_var_block", fields: { NAME: "c_marker",    COL: "#ffcc40" } },
-  { type: "set_colour_var_block", fields: { NAME: "c_axis_x",    COL: "#ff3333" } },
-  { type: "set_colour_var_block", fields: { NAME: "c_axis_y",    COL: "#33dd66" } },
-  { type: "set_colour_var_block", fields: { NAME: "c_ball",      COL: "#f25940" } },
-  { type: "set_colour_var_block", fields: { NAME: "c_trail",     COL: "#ffe040" } },
-  { type: "set_colour_var_block", fields: { NAME: "c_velocity",  COL: "#59e6ff" } },
-  { type: "set_colour_var_block", fields: { NAME: "c_tick",      COL: "#f2f2f2" } },
+  { type: "set_scalar_block", fields: { NAME: "c_ground" },    values: { VALUE: vec(0.20, 0.45, 0.27) } },
+  { type: "set_scalar_block", fields: { NAME: "c_track" },     values: { VALUE: vec(0.42, 0.42, 0.48) } },
+  { type: "set_scalar_block", fields: { NAME: "c_marker" },    values: { VALUE: vec(1.00, 0.80, 0.25) } },
+  { type: "set_scalar_block", fields: { NAME: "c_axis_x" },    values: { VALUE: vec(1.00, 0.20, 0.20) } },
+  { type: "set_scalar_block", fields: { NAME: "c_axis_y" },    values: { VALUE: vec(0.20, 0.87, 0.40) } },
+  { type: "set_scalar_block", fields: { NAME: "c_ball" },      values: { VALUE: vec(0.95, 0.35, 0.25) } },
+  { type: "set_scalar_block", fields: { NAME: "c_trail" },     values: { VALUE: vec(1.00, 0.88, 0.25) } },
+  { type: "set_scalar_block", fields: { NAME: "c_velocity" },  values: { VALUE: vec(0.35, 0.90, 1.00) } },
+  { type: "set_scalar_block", fields: { NAME: "c_tick" },      values: { VALUE: vec(0.95, 0.95, 0.95) } },
 
   /* ── Ground geometry ─────────────────────────────────────── */
   {
@@ -222,7 +301,7 @@ const PROJECTILE_BLOCKS = [
     values: {
       POS: vec(11, -0.55, 0),
       SIZE: vec(34, 1.1, 10),
-      COL: v("c_ground"),
+      COL: col("#337346"),
     },
   },
   {
@@ -231,7 +310,7 @@ const PROJECTILE_BLOCKS = [
     values: {
       POS: vec(1.6, 0.2, 0),
       SIZE: vec(3.2, 0.12, 0.9),
-      COL: v("c_track"),
+      COL: col("#6b6b7a"),
     },
   },
   {
@@ -241,7 +320,7 @@ const PROJECTILE_BLOCKS = [
       POS: vec(0, -0.5, 0),
       AXIS: vec(0, 0.45, 0),
       RADIUS: num(0.06),
-      COL: v("c_marker"),
+      COL: col("#ffcc40"),
     },
   },
 
@@ -254,10 +333,10 @@ const PROJECTILE_BLOCKS = [
         type: "cylinder_block",
         fields: { NAME: "" },
         values: {
-          POS: expr("vector(i, -0.02, -0.18)"),
+          POS: vecC(v("i"), num(-0.02), num(-0.18)),
           AXIS: vec(0, 0.04, 0),
           RADIUS: num(0.018),
-          COL: v("c_tick"),
+          COL: col("#f2f2f2"),
         },
       },
     ],
@@ -267,12 +346,12 @@ const PROJECTILE_BLOCKS = [
   {
     type: "arrow_block",
     fields: { NAME: "x_axis_hint" },
-    values: { POS: vec(0, 0, 0), AXIS: vec(2.4, 0, 0), COL: v("c_axis_x") },
+    values: { POS: vec(0, 0, 0), AXIS: vec(2.4, 0, 0), COL: col("#ff3333") },
   },
   {
     type: "arrow_block",
     fields: { NAME: "y_axis_hint" },
-    values: { POS: vec(0, 0, 0), AXIS: vec(0, 2.2, 0), COL: v("c_axis_y") },
+    values: { POS: vec(0, 0, 0), AXIS: vec(0, 2.2, 0), COL: col("#33dd66") },
   },
 
   /* ── Ball with trail ───────────────────────────────────── */
@@ -282,9 +361,9 @@ const PROJECTILE_BLOCKS = [
     values: {
       POS: vec(0, 0.35, 0),
       RADIUS: num(0.28),
-      COL: v("c_ball"),
+      COL: col("#f25940"),
       TRAIL_R: num(0.035),
-      TRAIL_COL: v("c_trail"),
+      TRAIL_COL: col("#ffe040"),
       RETAIN: num(260),
     },
   },
@@ -296,7 +375,7 @@ const PROJECTILE_BLOCKS = [
     values: {
       POS: vec(0, 0.35, 0),
       AXIS: vec(0, 0, 0),
-      COL: v("c_velocity"),
+      COL: col("#59e6ff"),
     },
   },
 
@@ -323,7 +402,7 @@ const PROJECTILE_BLOCKS = [
   {
     type: "set_scalar_block",
     fields: { NAME: "A" },
-    values: { VALUE: mul(expr("pi"), mul(getProp("ball","radius"), getProp("ball","radius"))) },
+    values: { VALUE: mul(physicsConst("pi"), mul(getProp("ball","radius"), getProp("ball","radius"))) },
   },
   {
     type: "set_scalar_block",
@@ -351,7 +430,7 @@ const PROJECTILE_BLOCKS = [
   {
     type: "set_scalar_block",
     fields: { NAME: "angle" },
-    values: { VALUE: expr("radians(52)") },
+    values: { VALUE: trig("radians", num(52)) },
   },
 
   /* ── Initial velocity ──────────────────────────────────── */
@@ -362,17 +441,17 @@ const PROJECTILE_BLOCKS = [
   {
     type: "set_scalar_block",
     fields: { NAME: "vx0" },
-    values: { VALUE: mul(v("v0"), expr("cos(angle)")) },
+    values: { VALUE: mul(v("v0"), trig("cos", v("angle"))) },
   },
   {
     type: "set_scalar_block",
     fields: { NAME: "vy0" },
-    values: { VALUE: mul(v("v0"), expr("sin(angle)")) },
+    values: { VALUE: mul(v("v0"), trig("sin", v("angle"))) },
   },
   {
     type: "set_attr_expr_block",
     fields: { OBJ: "ball", ATTR: "velocity" },
-    values: { VALUE: expr("vector(vx0, vy0, 0)") },
+    values: { VALUE: vecC(v("vx0"), v("vy0"), num(0)) },
   },
 
   /* ── Time step and state ───────────────────────────────── */
@@ -409,7 +488,7 @@ const PROJECTILE_BLOCKS = [
       {
         type: "set_scalar_block",
         fields: { NAME: "speed" },
-        values: { VALUE: expr("mag(ball.velocity)") },
+        values: { VALUE: magnitude(getProp("ball","velocity")) },
       },
 
       // Drag force
@@ -561,32 +640,31 @@ const PROJECTILE_BLOCKS = [
         ],
       },
 
-      // Telemetry
+      // Telemetry — 1 block per metric, stacked
       {
         type: "telemetry_update_block",
-        fields: {
-          LABEL: "telemetry",
-          M1: "t",
-          V1: "t",
-          D1: 2,
-          U1: "s",
-          M2: "speed",
-          V2: "mag(ball.velocity)",
-          D2: 2,
-          U2: "m/s",
-          M3: "height",
-          V3: "h_above",
-          D3: 2,
-          U3: "m",
-          M4: "range",
-          V4: "ball.pos.x",
-          D4: 2,
-          U4: "m",
-          M5: "peak",
-          V5: "max_height",
-          D5: 2,
-          U5: "m",
-        },
+        fields: { LABEL: "telemetry", M: "t", D: 2, U: "s" },
+        values: { V: v("t") },
+      },
+      {
+        type: "telemetry_update_block",
+        fields: { LABEL: "telemetry", M: "speed", D: 2, U: "m/s" },
+        values: { V: magnitude(getProp("ball","velocity")) },
+      },
+      {
+        type: "telemetry_update_block",
+        fields: { LABEL: "telemetry", M: "height", D: 2, U: "m" },
+        values: { V: v("h_above") },
+      },
+      {
+        type: "telemetry_update_block",
+        fields: { LABEL: "telemetry", M: "range", D: 2, U: "m" },
+        values: { V: getComp(getProp("ball","pos"),"x") },
+      },
+      {
+        type: "telemetry_update_block",
+        fields: { LABEL: "telemetry", M: "peak", D: 2, U: "m" },
+        values: { V: v("max_height") },
       },
 
       // Advance time
@@ -616,13 +694,13 @@ const ORBIT_BLOCKS = [
     values: { POS: vec(0, 0, 0), COL: col("#fff7d9") },
   },
   /* ── Colour constants (template-specific) ─────────────── */
-  { type: "set_colour_var_block", fields: { NAME: "c_sun",         COL: "#ffde59" } },
-  { type: "set_colour_var_block", fields: { NAME: "c_corona",      COL: "#ffb340" } },
-  { type: "set_colour_var_block", fields: { NAME: "c_earth",       COL: "#42b8ff" } },
-  { type: "set_colour_var_block", fields: { NAME: "c_earth_trail", COL: "#73bfff" } },
-  { type: "set_colour_var_block", fields: { NAME: "c_moon",        COL: "#e0e0f0" } },
-  { type: "set_colour_var_block", fields: { NAME: "c_moon_trail",  COL: "#cccce6" } },
-  { type: "set_colour_var_block", fields: { NAME: "c_earth_arrow", COL: "#ff734d" } },
+  { type: "set_scalar_block", fields: { NAME: "c_sun" },         values: { VALUE: vec(1.00, 0.87, 0.35) } },
+  { type: "set_scalar_block", fields: { NAME: "c_corona" },      values: { VALUE: vec(1.00, 0.70, 0.25) } },
+  { type: "set_scalar_block", fields: { NAME: "c_earth" },       values: { VALUE: vec(0.26, 0.72, 1.00) } },
+  { type: "set_scalar_block", fields: { NAME: "c_earth_trail" }, values: { VALUE: vec(0.45, 0.75, 1.00) } },
+  { type: "set_scalar_block", fields: { NAME: "c_moon" },        values: { VALUE: vec(0.88, 0.88, 0.94) } },
+  { type: "set_scalar_block", fields: { NAME: "c_moon_trail" },  values: { VALUE: vec(0.80, 0.80, 0.90) } },
+  { type: "set_scalar_block", fields: { NAME: "c_earth_arrow" }, values: { VALUE: vec(1.00, 0.45, 0.30) } },
 
   /* ── Starfield ─────────────────────────────────────────── */
   {
@@ -655,7 +733,7 @@ const ORBIT_BLOCKS = [
       {
         type: "set_scalar_block",
         fields: { NAME: "p" },
-        values: { VALUE: expr("vector(rx, ry, rz)") },
+        values: { VALUE: vecC(v("rx"), v("ry"), v("rz")) },
       },
       {
         type: "if_block",
@@ -671,16 +749,18 @@ const ORBIT_BLOCKS = [
       {
         type: "set_scalar_block",
         fields: { NAME: "p" },
-        values: { VALUE: mul(num(34), expr("norm(p)")) },
+        values: { VALUE: mul(num(34), normOf(v("p"))) },
       },
       {
         type: "sphere_emissive_block",
         fields: { NAME: "" },
         values: {
-          POS: expr("vector(p.x, p.y, p.z)"),
+          POS: v("p"),
           RADIUS: add(num(0.05), mul(num(0.05), expr("random()"))),
-          COL: expr(
-            "vector(0.7 + 0.3*random(), 0.7 + 0.3*random(), 1)"
+          COL: vecC(
+            add(num(0.7), mul(num(0.3), expr("random()"))),
+            add(num(0.7), mul(num(0.3), expr("random()"))),
+            num(1)
           ),
           OPACITY: num(0.9),
         },
@@ -796,12 +876,12 @@ const ORBIT_BLOCKS = [
   {
     type: "set_scalar_block",
     fields: { NAME: "d_es" },
-    values: { VALUE: expr("max(mag(r_es), 1.2)") },
+    values: { VALUE: maxOf(magnitude(v("r_es")), num(1.2)) },
   },
   {
     type: "set_scalar_block",
     fields: { NAME: "a_earth" },
-    values: { VALUE: mul(div(mul(num(-1), mul(v("G"), v("M_sun"))), mul(v("d_es"), v("d_es"))), expr("norm(r_es)")) },
+    values: { VALUE: mul(div(mul(num(-1), mul(v("G"), v("M_sun"))), mul(v("d_es"), v("d_es"))), normOf(v("r_es"))) },
   },
   {
     type: "set_scalar_block",
@@ -811,7 +891,7 @@ const ORBIT_BLOCKS = [
   {
     type: "set_scalar_block",
     fields: { NAME: "d_ms" },
-    values: { VALUE: expr("max(mag(r_ms), 1.2)") },
+    values: { VALUE: maxOf(magnitude(v("r_ms")), num(1.2)) },
   },
   {
     type: "set_scalar_block",
@@ -821,15 +901,15 @@ const ORBIT_BLOCKS = [
   {
     type: "set_scalar_block",
     fields: { NAME: "d_me" },
-    values: { VALUE: expr("max(mag(r_me), 0.22)") },
+    values: { VALUE: maxOf(magnitude(v("r_me")), num(0.22)) },
   },
   {
     type: "set_scalar_block",
     fields: { NAME: "a_moon" },
     values: {
       VALUE: sub(
-        mul(div(mul(num(-1), mul(v("G"), v("M_sun"))), mul(v("d_ms"), v("d_ms"))), expr("norm(r_ms)")),
-        mul(div(mul(v("G"), v("M_earth")), mul(v("d_me"), v("d_me"))), expr("norm(r_me)"))
+        mul(div(mul(num(-1), mul(v("G"), v("M_sun"))), mul(v("d_ms"), v("d_ms"))), normOf(v("r_ms"))),
+        mul(div(mul(v("G"), v("M_earth")), mul(v("d_me"), v("d_me"))), normOf(v("r_me")))
       ),
     },
   },
@@ -901,12 +981,12 @@ const ORBIT_BLOCKS = [
       {
         type: "set_scalar_block",
         fields: { NAME: "d_es" },
-        values: { VALUE: expr("max(mag(r_es), 1.2)") },
+        values: { VALUE: maxOf(magnitude(v("r_es")), num(1.2)) },
       },
       {
         type: "set_scalar_block",
         fields: { NAME: "a_earth" },
-        values: { VALUE: mul(div(mul(num(-1), mul(v("G"), v("M_sun"))), mul(v("d_es"), v("d_es"))), expr("norm(r_es)")) },
+        values: { VALUE: mul(div(mul(num(-1), mul(v("G"), v("M_sun"))), mul(v("d_es"), v("d_es"))), normOf(v("r_es"))) },
       },
       {
         type: "set_scalar_block",
@@ -916,7 +996,7 @@ const ORBIT_BLOCKS = [
       {
         type: "set_scalar_block",
         fields: { NAME: "d_ms" },
-        values: { VALUE: expr("max(mag(r_ms), 1.2)") },
+        values: { VALUE: maxOf(magnitude(v("r_ms")), num(1.2)) },
       },
       {
         type: "set_scalar_block",
@@ -926,15 +1006,15 @@ const ORBIT_BLOCKS = [
       {
         type: "set_scalar_block",
         fields: { NAME: "d_me" },
-        values: { VALUE: expr("max(mag(r_me), 0.22)") },
+        values: { VALUE: maxOf(magnitude(v("r_me")), num(0.22)) },
       },
       {
         type: "set_scalar_block",
         fields: { NAME: "a_moon" },
         values: {
           VALUE: sub(
-            mul(div(mul(num(-1), mul(v("G"), v("M_sun"))), mul(v("d_ms"), v("d_ms"))), expr("norm(r_ms)")),
-            mul(div(mul(v("G"), v("M_earth")), mul(v("d_me"), v("d_me"))), expr("norm(r_me)"))
+            mul(div(mul(num(-1), mul(v("G"), v("M_sun"))), mul(v("d_ms"), v("d_ms"))), normOf(v("r_ms"))),
+            mul(div(mul(v("G"), v("M_earth")), mul(v("d_me"), v("d_me"))), normOf(v("r_me")))
           ),
         },
       },
@@ -972,32 +1052,26 @@ const ORBIT_BLOCKS = [
         values: { VALUE: mul(num(1.2), v("a_earth")) },
       },
 
-      // Telemetry
+      // Telemetry — 1 block per metric, stacked
       {
         type: "telemetry_update_block",
-        fields: {
-          LABEL: "telemetry",
-          M1: "t",
-          V1: "t",
-          D1: 2,
-          U1: "s",
-          M2: "Earth speed",
-          V2: "mag(earth.velocity)",
-          D2: 3,
-          U2: "",
-          M3: "Moon speed",
-          V3: "mag(moon.velocity)",
-          D3: 3,
-          U3: "",
-          M4: "Earth orbit r",
-          V4: "mag(earth.pos)",
-          D4: 3,
-          U4: "",
-          M5: "",
-          V5: "",
-          D5: 2,
-          U5: "",
-        },
+        fields: { LABEL: "telemetry", M: "t", D: 2, U: "s" },
+        values: { V: v("t") },
+      },
+      {
+        type: "telemetry_update_block",
+        fields: { LABEL: "telemetry", M: "Earth speed", D: 3, U: "" },
+        values: { V: magnitude(getProp("earth","velocity")) },
+      },
+      {
+        type: "telemetry_update_block",
+        fields: { LABEL: "telemetry", M: "Moon speed", D: 3, U: "" },
+        values: { V: magnitude(getProp("moon","velocity")) },
+      },
+      {
+        type: "telemetry_update_block",
+        fields: { LABEL: "telemetry", M: "Earth orbit r", D: 3, U: "" },
+        values: { V: magnitude(getProp("earth","pos")) },
       },
 
       // Advance time
@@ -1024,13 +1098,13 @@ const SPRING_BLOCKS = [
   { type: "python_raw_block", fields: { CODE: 'scene.range = 8.5' } },
 
   /* ── Colour constants (template-specific) ─────────────── */
-  { type: "set_colour_var_block", fields: { NAME: "c_floor",       COL: "#3d4454" } },
-  { type: "set_colour_var_block", fields: { NAME: "c_rail",        COL: "#737380" } },
-  { type: "set_colour_var_block", fields: { NAME: "c_wall",        COL: "#616885" } },
-  { type: "set_colour_var_block", fields: { NAME: "c_spring",      COL: "#c7ccdb" } },
-  { type: "set_colour_var_block", fields: { NAME: "c_mass",        COL: "#39dcf2" } },
-  { type: "set_colour_var_block", fields: { NAME: "c_shadow",      COL: "#121217" } },
-  { type: "set_colour_var_block", fields: { NAME: "c_phase_arrow", COL: "#ff8c33" } },
+  { type: "set_scalar_block", fields: { NAME: "c_floor" },       values: { VALUE: vec(0.24, 0.27, 0.33) } },
+  { type: "set_scalar_block", fields: { NAME: "c_rail" },        values: { VALUE: vec(0.45, 0.45, 0.50) } },
+  { type: "set_scalar_block", fields: { NAME: "c_wall" },        values: { VALUE: vec(0.38, 0.41, 0.52) } },
+  { type: "set_scalar_block", fields: { NAME: "c_spring" },      values: { VALUE: vec(0.78, 0.80, 0.86) } },
+  { type: "set_scalar_block", fields: { NAME: "c_mass" },        values: { VALUE: vec(0.22, 0.86, 0.95) } },
+  { type: "set_scalar_block", fields: { NAME: "c_shadow" },      values: { VALUE: vec(0.07, 0.07, 0.09) } },
+  { type: "set_scalar_block", fields: { NAME: "c_phase_arrow" }, values: { VALUE: vec(1.00, 0.55, 0.20) } },
 
   /* ── Environment geometry ──────────────────────────────── */
   {
@@ -1039,7 +1113,7 @@ const SPRING_BLOCKS = [
     values: {
       POS: vec(-0.5, -1.25, 0),
       SIZE: vec(17, 0.3, 5),
-      COL: v("c_floor"),
+      COL: col("#3d4454"),
     },
   },
   {
@@ -1048,7 +1122,7 @@ const SPRING_BLOCKS = [
     values: {
       POS: vec(-0.5, -0.65, 0),
       SIZE: vec(16, 0.14, 1.5),
-      COL: v("c_rail"),
+      COL: col("#737380"),
     },
   },
   {
@@ -1057,14 +1131,14 @@ const SPRING_BLOCKS = [
     values: {
       POS: vec(-6, 0, 0),
       SIZE: vec(0.52, 4.2, 4),
-      COL: v("c_wall"),
+      COL: col("#616885"),
     },
   },
 
   /* ── Spring, mass, shadow ───────────────────────────────── */
   {
     type: "comment_block",
-    fields: { TEXT: "Spring: k=14 N/m, m=1.2 kg, damping b=0.22" },
+    fields: { TEXT: "Spring: k=14 N/m, m=1.2 kg, damping b=0.08" },
   },
   {
     type: "set_scalar_block",
@@ -1080,7 +1154,7 @@ const SPRING_BLOCKS = [
       RADIUS: num(0.36),
       COILS: num(16),
       THICK: num(0.055),
-      COL: v("c_spring"),
+      COL: col("#4fc3ff"),
     },
   },
   {
@@ -1089,16 +1163,16 @@ const SPRING_BLOCKS = [
     values: {
       POS: vec(-1.75, 0, 0),
       SIZE: vec(1.06, 1.0, 1.0),
-      COL: v("c_mass"),
+      COL: col("#ff8c42"),
     },
   },
   {
     type: "box_opacity_block",
     fields: { NAME: "shadow" },
     values: {
-      POS: expr("vector(mass.pos.x, -1.08, 0)"),
+      POS: vec(getComp(getProp("mass","pos"),"x"), num(-1.08), num(0)),
       SIZE: vec(1.0, 0.01, 1.0),
-      COL: v("c_shadow"),
+      COL: col("#121217"),
       OPACITY: num(0.45),
     },
   },
@@ -1121,7 +1195,7 @@ const SPRING_BLOCKS = [
   {
     type: "set_scalar_block",
     fields: { NAME: "b" },
-    values: { VALUE: num(0.22) },
+    values: { VALUE: num(0.08) },
   },
   {
     type: "set_scalar_block",
@@ -1131,14 +1205,14 @@ const SPRING_BLOCKS = [
   {
     type: "set_scalar_block",
     fields: { NAME: "x0" },
-    values: { VALUE: num(1.8) },
+    values: { VALUE: num(2.4) },
   },
   {
     type: "set_scalar_block",
     fields: { NAME: "v" },
     values: { VALUE: num(0.0) },
   },
-  { type: "time_step_block", fields: { DT: "0.004" } },
+  { type: "time_step_block", fields: { DT: "0.008" } },
   {
     type: "set_scalar_block",
     fields: { NAME: "t" },
@@ -1153,7 +1227,7 @@ const SPRING_BLOCKS = [
   {
     type: "set_attr_expr_block",
     fields: { OBJ: "mass", ATTR: "pos.x" },
-    values: { VALUE: add(add(add(expr("wall.pos.x"), num(0.25)), v("L0")), v("x0")) },
+    values: { VALUE: add(add(add(getComp(getProp("wall","pos"),"x"), num(0.25)), v("L0")), v("x0")) },
   },
 
   /* ── Telemetry label and phase-space arrow ──────────────── */
@@ -1168,7 +1242,7 @@ const SPRING_BLOCKS = [
     values: {
       POS: vec(4.8, -0.2, 0),
       AXIS: vec(0, 0, 0),
-      COL: v("c_phase_arrow"),
+      COL: col("#ff8c33"),
     },
   },
 
@@ -1176,7 +1250,7 @@ const SPRING_BLOCKS = [
   {
     type: "forever_loop_block",
     body: [
-      { type: "rate_block", fields: { N: "260" } },
+      { type: "rate_block", fields: { N: "240" } },
 
       // Hooke's law
       {
@@ -1186,7 +1260,7 @@ const SPRING_BLOCKS = [
       {
         type: "set_scalar_block",
         fields: { NAME: "stretch" },
-        values: { VALUE: sub(sub(sub(expr("mass.pos.x"), expr("wall.pos.x")), num(0.25)), v("L0")) },
+        values: { VALUE: sub(sub(sub(getComp(getProp("mass","pos"),"x"), getComp(getProp("wall","pos"),"x")), num(0.25)), v("L0")) },
       },
       {
         type: "set_scalar_block",
@@ -1217,20 +1291,20 @@ const SPRING_BLOCKS = [
       {
         type: "set_attr_expr_block",
         fields: { OBJ: "mass", ATTR: "pos.x" },
-        values: { VALUE: add(expr("mass.pos.x"), mul(v("v"), v("dt"))) },
+        values: { VALUE: add(getComp(getProp("mass","pos"),"x"), mul(v("v"), v("dt"))) },
       },
 
       // Spring visual updates
       {
         type: "set_scalar_block",
         fields: { NAME: "dx_spring" },
-        values: { VALUE: sub(expr("mass.pos.x"), expr("spring.pos.x")) },
+        values: { VALUE: sub(getComp(getProp("mass","pos"),"x"), getComp(getProp("spring","pos"),"x")) },
       },
       {
         type: "set_attr_expr_block",
         fields: { OBJ: "spring", ATTR: "axis" },
         values: {
-          VALUE: expr("vector(dx_spring, 0, 0)"),
+          VALUE: vecC(v("dx_spring"), num(0), num(0)),
         },
       },
       {
@@ -1240,12 +1314,12 @@ const SPRING_BLOCKS = [
       {
         type: "set_scalar_block",
         fields: { NAME: "stress_raw" },
-        values: { VALUE: div(expr("abs(stretch)"), num(2.2)) },
+        values: { VALUE: div(absOf(v("stretch")), num(2.2)) },
       },
       {
         type: "set_scalar_block",
         fields: { NAME: "stress" },
-        values: { VALUE: expr("min(1, stress_raw)") },
+        values: { VALUE: minOf(num(1), v("stress_raw")) },
       },
       {
         type: "set_scalar_block",
@@ -1266,7 +1340,7 @@ const SPRING_BLOCKS = [
         type: "set_attr_expr_block",
         fields: { OBJ: "spring", ATTR: "color" },
         values: {
-          VALUE: expr("vector(col_r, col_g, col_b)"),
+          VALUE: vecC(v("col_r"), v("col_g"), v("col_b")),
         },
       },
 
@@ -1274,7 +1348,7 @@ const SPRING_BLOCKS = [
       {
         type: "set_attr_expr_block",
         fields: { OBJ: "shadow", ATTR: "pos.x" },
-        values: { VALUE: expr("mass.pos.x") },
+        values: { VALUE: getComp(getProp("mass","pos"),"x") },
       },
       {
         type: "set_scalar_block",
@@ -1290,7 +1364,7 @@ const SPRING_BLOCKS = [
         type: "set_attr_expr_block",
         fields: { OBJ: "phase_arrow", ATTR: "axis" },
         values: {
-          VALUE: expr("vector(ph_x, ph_y, 0)"),
+          VALUE: vecC(v("ph_x"), v("ph_y"), num(0)),
         },
       },
 
@@ -1310,32 +1384,31 @@ const SPRING_BLOCKS = [
         values: { VALUE: mul(mul(mul(num(0.5), v("k")), v("stretch")), v("stretch")) },
       },
 
-      // Telemetry
+      // Telemetry — 1 block per metric, stacked
       {
         type: "telemetry_update_block",
-        fields: {
-          LABEL: "telemetry",
-          M1: "t",
-          V1: "t",
-          D1: 2,
-          U1: "s",
-          M2: "stretch",
-          V2: "stretch",
-          D2: 3,
-          U2: "m",
-          M3: "velocity",
-          V3: "v",
-          D3: 3,
-          U3: "m/s",
-          M4: "KE",
-          V4: "KE",
-          D4: 3,
-          U4: "J",
-          M5: "PE",
-          V5: "PE",
-          D5: 3,
-          U5: "J",
-        },
+        fields: { LABEL: "telemetry", M: "t", D: 2, U: "s" },
+        values: { V: v("t") },
+      },
+      {
+        type: "telemetry_update_block",
+        fields: { LABEL: "telemetry", M: "stretch", D: 3, U: "m" },
+        values: { V: v("stretch") },
+      },
+      {
+        type: "telemetry_update_block",
+        fields: { LABEL: "telemetry", M: "velocity", D: 3, U: "m/s" },
+        values: { V: v("v") },
+      },
+      {
+        type: "telemetry_update_block",
+        fields: { LABEL: "telemetry", M: "KE", D: 3, U: "J" },
+        values: { V: v("KE") },
+      },
+      {
+        type: "telemetry_update_block",
+        fields: { LABEL: "telemetry", M: "PE", D: 3, U: "J" },
+        values: { V: v("PE") },
       },
 
       // Advance time
@@ -1360,7 +1433,7 @@ export const BLOCK_TEMPLATES = [
     subtitle: "Detailed ballistic launch with telemetry",
     description:
       "Animated projectile template with lighting, launch setup, drag model, velocity arrow, and live telemetry.",
-    xml: buildTemplate(PROJECTILE_BLOCKS),
+    xml: buildTemplate(normalizeSimulationFlow(PROJECTILE_BLOCKS)),
   },
   {
     id: "blocks_spring",
@@ -1368,7 +1441,7 @@ export const BLOCK_TEMPLATES = [
     subtitle: "Damped harmonic oscillator with energy telemetry",
     description:
       "Animated spring-mass oscillator with Hooke\u2019s law, linear damping, color-mapped tension, phase-space arrow, and live KE/PE telemetry.",
-    xml: buildTemplate(SPRING_BLOCKS),
+    xml: buildTemplate(normalizeSimulationFlow(SPRING_BLOCKS)),
   },
   {
     id: "blocks_orbits",
@@ -1376,7 +1449,7 @@ export const BLOCK_TEMPLATES = [
     subtitle: "Three-body gravitational orbit system",
     description:
       "Moon orbits Earth while Earth orbits Sun. Velocity-Verlet integration for long-term stability, with starfield, trails, and telemetry.",
-    xml: buildTemplate(ORBIT_BLOCKS),
+    xml: buildTemplate(normalizeSimulationFlow(ORBIT_BLOCKS)),
   },
 ];
 

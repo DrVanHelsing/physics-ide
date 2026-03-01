@@ -69,7 +69,31 @@ function App() {
         }, 250);
       }
     };
-    return () => { window.__physide_trace_cb = null; };
+
+    /* ── Listen for postMessage trace data from the GlowScript iframe ── */
+    let traceBatch = {};
+    let traceTimer = null;
+    const handleTraceMessage = (event) => {
+      if (event.data && event.data.type === '__phtr') {
+        traceBatch[event.data.n] = { v: event.data.v, b: event.data.b || '' };
+        if (!traceTimer) {
+          traceTimer = setTimeout(() => {
+            if (typeof window.__physide_trace_cb === 'function') {
+              window.__physide_trace_cb(traceBatch);
+            }
+            traceBatch = {};
+            traceTimer = null;
+          }, 50);
+        }
+      }
+    };
+    window.addEventListener('message', handleTraceMessage);
+
+    return () => {
+      window.__physide_trace_cb = null;
+      window.removeEventListener('message', handleTraceMessage);
+      if (traceTimer) clearTimeout(traceTimer);
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // setTraceData and workspaceRef are both stable
 
@@ -241,6 +265,15 @@ function App() {
       ws.resize();
     }
   }, []);
+
+  /* ── Resize Blockly canvas when split or viewport visibility changes ── */
+  useEffect(() => {
+    const ws = workspaceRef.current;
+    if (!ws) return;
+    const id = requestAnimationFrame(() => ws.resize());
+    return () => cancelAnimationFrame(id);
+  }, [splitPct, viewportHidden]);
+
   /* ── Viewport pane resize & show\/hide ────────────────────────── */
   const handleDividerMouseDown = useCallback((e) => {
     e.preventDefault();

@@ -70,6 +70,19 @@ const TOOLBOX_XML = `
     <block type="if_else_block">
       <value name="COND"><shadow type="logic_boolean"><field name="BOOL">TRUE</field></shadow></value>
     </block>
+    <sep gap="8"></sep>
+    <label text="Comparisons" web-class="tb-label"></label>
+    <block type="compare_block">
+      <value name="A"><shadow type="var_read_block"><field name="VAR">x</field></shadow></value>
+      <value name="B"><shadow type="math_number"><field name="NUM">0</field></shadow></value>
+    </block>
+    <block type="logic_and_or_block">
+      <value name="A"><shadow type="logic_boolean"><field name="BOOL">TRUE</field></shadow></value>
+      <value name="B"><shadow type="logic_boolean"><field name="BOOL">TRUE</field></shadow></value>
+    </block>
+    <block type="logic_not_block">
+      <value name="VAL"><shadow type="logic_boolean"><field name="BOOL">TRUE</field></shadow></value>
+    </block>
   </category>
   <!-- ── VALUES ─────────────────────────────────────────── -->
   <category name="Values" colour="#7c68c6">    <label text="Define constants" web-class="tb-label"></label>
@@ -79,7 +92,13 @@ const TOOLBOX_XML = `
     <sep gap="8"></sep>
     <label text="Physics constants" web-class="tb-label"></label>    <block type="physics_const_block"></block>
     <block type="vector_block"></block>
+    <block type="vector_compose_block">
+      <value name="X"><shadow type="math_number"><field name="NUM">0</field></shadow></value>
+      <value name="Y"><shadow type="math_number"><field name="NUM">0</field></shadow></value>
+      <value name="Z"><shadow type="math_number"><field name="NUM">0</field></shadow></value>
+    </block>
     <block type="colour_block"></block>
+    <block type="var_read_block"></block>
     <block type="expr_block"></block>
     <sep gap="12"></sep>
     <label text="Physics expressions" web-class="tb-label"></label>
@@ -209,8 +228,7 @@ const TOOLBOX_XML = `
       <value name="VALUE"><shadow type="expr_block"><field name="EXPR">a * dt</field></shadow></value>
     </block>
     <block type="telemetry_update_block">
-      <value name="V1"><shadow type="get_prop_block"><field name="OBJ">ball</field><field name="PROP">pos</field></shadow></value>
-      <value name="V2"><shadow type="get_prop_block"><field name="OBJ">ball</field><field name="PROP">velocity</field></shadow></value>
+      <value name="V"><shadow type="get_prop_block"><field name="OBJ">ball</field><field name="PROP">pos</field></shadow></value>
     </block>
   </category>
 
@@ -230,6 +248,18 @@ const TOOLBOX_XML = `
         <shadow type="logic_boolean"><field name="BOOL">TRUE</field></shadow>
       </value>
     </block>
+    <sep gap="8"></sep>
+    <block type="compare_block">
+      <value name="A"><shadow type="var_read_block"><field name="VAR">x</field></shadow></value>
+      <value name="B"><shadow type="math_number"><field name="NUM">0</field></shadow></value>
+    </block>
+    <block type="logic_and_or_block">
+      <value name="A"><shadow type="logic_boolean"><field name="BOOL">TRUE</field></shadow></value>
+      <value name="B"><shadow type="logic_boolean"><field name="BOOL">TRUE</field></shadow></value>
+    </block>
+    <block type="logic_not_block">
+      <value name="VAL"><shadow type="logic_boolean"><field name="BOOL">TRUE</field></shadow></value>
+    </block>
     <block type="break_loop_block"></block>
     <block type="comment_block"></block>
   </category>
@@ -243,8 +273,18 @@ const TOOLBOX_XML = `
   <sep gap="32"></sep>
 
   <!-- ── LOGIC (standard Blockly) ──────────────────────── -->
-  <category name="Logic" colour="#5b80a5">
-    <block type="logic_compare"></block>
+  <category name="Logic" colour="#5b80a5">    <block type="compare_block">
+      <value name="A"><shadow type="var_read_block"><field name="VAR">x</field></shadow></value>
+      <value name="B"><shadow type="math_number"><field name="NUM">0</field></shadow></value>
+    </block>
+    <block type="logic_and_or_block">
+      <value name="A"><shadow type="logic_boolean"><field name="BOOL">TRUE</field></shadow></value>
+      <value name="B"><shadow type="logic_boolean"><field name="BOOL">TRUE</field></shadow></value>
+    </block>
+    <block type="logic_not_block">
+      <value name="VAL"><shadow type="logic_boolean"><field name="BOOL">TRUE</field></shadow></value>
+    </block>
+    <sep gap="8"></sep>    <block type="logic_compare"></block>
     <block type="logic_operation"></block>
     <block type="logic_negate"></block>
     <block type="logic_boolean"></block>
@@ -292,8 +332,31 @@ const TOOLBOX_XML = `
   <!-- ── 3D MATH ───────────────────────────────────────── -->
   <category name="3D Math" colour="#3a7bd5">
     <label text="Vectors" web-class="tb-label"></label>
+    <block type="vector_compose_block">
+      <value name="X"><shadow type="math_number"><field name="NUM">0</field></shadow></value>
+      <value name="Y"><shadow type="math_number"><field name="NUM">0</field></shadow></value>
+      <value name="Z"><shadow type="math_number"><field name="NUM">0</field></shadow></value>
+    </block>
     <block type="cross_product_block"></block>
     <block type="dot_product_block"></block>
+    <label text="Min / Max / Clamp / Power" web-class="tb-label"></label>
+    <block type="math_min_block">
+      <value name="A"><shadow type="math_number"><field name="NUM">0</field></shadow></value>
+      <value name="B"><shadow type="math_number"><field name="NUM">1</field></shadow></value>
+    </block>
+    <block type="math_max_block">
+      <value name="A"><shadow type="math_number"><field name="NUM">0</field></shadow></value>
+      <value name="B"><shadow type="math_number"><field name="NUM">1</field></shadow></value>
+    </block>
+    <block type="math_clamp_block">
+      <value name="VAL"><shadow type="math_number"><field name="NUM">0.5</field></shadow></value>
+      <value name="LO"><shadow type="math_number"><field name="NUM">0</field></shadow></value>
+      <value name="HI"><shadow type="math_number"><field name="NUM">1</field></shadow></value>
+    </block>
+    <block type="math_pow_block">
+      <value name="BASE"><shadow type="math_number"><field name="NUM">2</field></shadow></value>
+      <value name="EXP"><shadow type="math_number"><field name="NUM">2</field></shadow></value>
+    </block>
     <label text="Trig &amp; Math" web-class="tb-label"></label>
     <block type="math_trig_block"></block>
     <label text="Objects &amp; Camera" web-class="tb-label"></label>
@@ -402,6 +465,18 @@ const TOOLBOX_BEGINNER_XML = `
     <block type="if_else_block">
       <value name="COND"><shadow type="logic_boolean"><field name="BOOL">TRUE</field></shadow></value>
     </block>
+    <sep gap="8"></sep>
+    <block type="compare_block">
+      <value name="A"><shadow type="var_read_block"><field name="VAR">x</field></shadow></value>
+      <value name="B"><shadow type="math_number"><field name="NUM">0</field></shadow></value>
+    </block>
+    <block type="logic_and_or_block">
+      <value name="A"><shadow type="logic_boolean"><field name="BOOL">TRUE</field></shadow></value>
+      <value name="B"><shadow type="logic_boolean"><field name="BOOL">TRUE</field></shadow></value>
+    </block>
+    <block type="logic_not_block">
+      <value name="VAL"><shadow type="logic_boolean"><field name="BOOL">TRUE</field></shadow></value>
+    </block>
   </category>
 
   <category name="Values" colour="#7c68c6">
@@ -411,6 +486,7 @@ const TOOLBOX_BEGINNER_XML = `
     <block type="physics_const_block"></block>
     <block type="vector_block"></block>
     <block type="colour_block"></block>
+    <block type="var_read_block"></block>
   </category>
 
   <category name="Objects" colour="#4a90d9">
@@ -454,6 +530,18 @@ const TOOLBOX_BEGINNER_XML = `
   </category>
 
   <category name="Logic" colour="#5b80a5">
+    <block type="compare_block">
+      <value name="A"><shadow type="var_read_block"><field name="VAR">x</field></shadow></value>
+      <value name="B"><shadow type="math_number"><field name="NUM">0</field></shadow></value>
+    </block>
+    <block type="logic_and_or_block">
+      <value name="A"><shadow type="logic_boolean"><field name="BOOL">TRUE</field></shadow></value>
+      <value name="B"><shadow type="logic_boolean"><field name="BOOL">TRUE</field></shadow></value>
+    </block>
+    <block type="logic_not_block">
+      <value name="VAL"><shadow type="logic_boolean"><field name="BOOL">TRUE</field></shadow></value>
+    </block>
+    <sep gap="8"></sep>
     <block type="logic_compare"></block>
     <block type="logic_operation"></block>
     <block type="logic_boolean"></block>
@@ -467,8 +555,25 @@ const TOOLBOX_BEGINNER_XML = `
   </category>
 
   <category name="3D Math" colour="#3a7bd5">
+    <block type="vector_compose_block">
+      <value name="X"><shadow type="math_number"><field name="NUM">0</field></shadow></value>
+      <value name="Y"><shadow type="math_number"><field name="NUM">0</field></shadow></value>
+      <value name="Z"><shadow type="math_number"><field name="NUM">0</field></shadow></value>
+    </block>
     <block type="cross_product_block"></block>
     <block type="dot_product_block"></block>
+    <block type="math_min_block">
+      <value name="A"><shadow type="math_number"><field name="NUM">0</field></shadow></value>
+      <value name="B"><shadow type="math_number"><field name="NUM">1</field></shadow></value>
+    </block>
+    <block type="math_max_block">
+      <value name="A"><shadow type="math_number"><field name="NUM">0</field></shadow></value>
+      <value name="B"><shadow type="math_number"><field name="NUM">1</field></shadow></value>
+    </block>
+    <block type="math_pow_block">
+      <value name="BASE"><shadow type="math_number"><field name="NUM">2</field></shadow></value>
+      <value name="EXP"><shadow type="math_number"><field name="NUM">2</field></shadow></value>
+    </block>
     <block type="math_trig_block"></block>
     <block type="rotate_object_block">
       <value name="ANGLE"><block type="math_number"><field name="NUM">45</field></block></value>
@@ -532,7 +637,7 @@ function BlockSearch({ workspaceRef }) {
         <input
           type="text"
           className="block-search-input"
-          placeholder="Search blocks\u2026"
+          placeholder="Search blocks..."
           value={query}
           spellCheck={false}
           onChange={e => { setQuery(e.target.value); setOpen(true); }}
@@ -614,6 +719,97 @@ function buildBlocklyTheme(Blockly, isDark) {
   });
 }
 
+function normalizeSimulationStructure(workspace) {
+  if (!workspace) return false;
+
+  const allBlocks = workspace.getAllBlocks(false);
+  const startBlocks = allBlocks.filter((b) => b.type === "sim_start_block");
+  if (startBlocks.length === 0) return false;
+
+  const byYThenX = (a, b) => {
+    const pa = a.getRelativeToSurfaceXY();
+    const pb = b.getRelativeToSurfaceXY();
+    if (pa.y !== pb.y) return pa.y - pb.y;
+    return pa.x - pb.x;
+  };
+
+  const simStart = [...startBlocks].sort(byYThenX)[0];
+  const setupConnection = simStart.getInput("SETUP")?.connection || null;
+  if (!setupConnection) return false;
+
+  const endBlocks = allBlocks.filter((b) => b.type === "sim_end_block");
+  const simEnd = endBlocks.length > 0 ? [...endBlocks].sort(byYThenX)[0] : null;
+
+  let changed = false;
+
+  const getSetupTail = () => {
+    let node = simStart.getInputTargetBlock("SETUP");
+    if (!node) return null;
+    while (node.getNextBlock()) node = node.getNextBlock();
+    return node;
+  };
+
+  const appendToSetup = (block) => {
+    if (!block || block === simStart || block === simEnd) return;
+    if (!block.previousConnection) return;
+
+    if (block.previousConnection.isConnected()) {
+      block.previousConnection.disconnect();
+    }
+
+    const setupHead = simStart.getInputTargetBlock("SETUP");
+    if (!setupHead) {
+      setupConnection.connect(block.previousConnection);
+      changed = true;
+      return;
+    }
+
+    const tail = getSetupTail();
+    if (tail && tail.nextConnection && !tail.nextConnection.isConnected()) {
+      tail.nextConnection.connect(block.previousConnection);
+      changed = true;
+    }
+  };
+
+  // Move any blocks currently chained after Simulation Start (except Sim End) into SETUP.
+  let chained = simStart.getNextBlock();
+  while (chained && chained !== simEnd) {
+    const next = chained.getNextBlock();
+    appendToSetup(chained);
+    chained = next;
+  }
+
+  // Move any other top-level statement blocks into SETUP.
+  const topBlocks = workspace.getTopBlocks(true);
+  for (const top of topBlocks) {
+    if (top === simStart || top === simEnd) continue;
+    appendToSetup(top);
+  }
+
+  // Simulation End must be the final top-level block after Simulation Start.
+  if (simEnd && simEnd.previousConnection && simStart.nextConnection) {
+    const endNext = simEnd.getNextBlock();
+    if (endNext) appendToSetup(endNext);
+
+    if (simStart.getNextBlock() !== simEnd) {
+      if (simEnd.previousConnection.isConnected()) {
+        simEnd.previousConnection.disconnect();
+        changed = true;
+      }
+
+      if (simStart.nextConnection.isConnected()) {
+        simStart.nextConnection.disconnect();
+        changed = true;
+      }
+
+      simStart.nextConnection.connect(simEnd.previousConnection);
+      changed = true;
+    }
+  }
+
+  return changed;
+}
+
 function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, isDark, beginnerMode = false }) {
   const hostRef = useRef(null);
   const workspaceRef = useRef(null);
@@ -691,6 +887,7 @@ function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, isD
     }
 
     // Emit changes
+    let normalizing = false;
     const listener = (event) => {
       if (
         event.type === Blockly.Events.UI ||
@@ -698,12 +895,24 @@ function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, isD
       ) {
         return;
       }
+
+      if (!normalizing) {
+        normalizing = true;
+        try {
+          normalizeSimulationStructure(workspace);
+        } finally {
+          normalizing = false;
+        }
+      }
+
       const dom = Blockly.Xml.workspaceToDom(workspace);
       const xmlText = Blockly.Xml.domToText(dom);
       const code = generatePythonFromWorkspace(workspace);
       onChangeRef.current(xmlText, code);
     };
     workspace.addChangeListener(listener);
+
+    normalizeSimulationStructure(workspace);
 
     /* ── Custom constant popup: intercept __NEW__ on physics_const_block ── */
     const constListener = (event) => {

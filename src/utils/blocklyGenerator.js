@@ -18,6 +18,10 @@ let initialized = false;
 /* ── Custom constants registry (shared: push here to add to dropdown) ── */
 export const customConstantsRegistry = [];
 
+/* ── Trace registry: populated during code generation, read by glowRunner ── */
+export const traceRegistry = [];
+export function clearTraceRegistry() { traceRegistry.length = 0; }
+
 function getPythonGen(Blockly) {
   return Blockly.Python || null;
 }
@@ -210,7 +214,64 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       tooltip: "Unit vector in the direction of the input. Snap in an object property block like ball.pos to get its direction.",
     },
 
-    /* ══════════════════════════════════════════════════════
+    /* ── Variable read — snap any named variable into a slot ── */
+    {
+      type: "var_read_block",
+      message0: "var %1",
+      args0: [{ type: "field_variable", name: "VAR", variable: "x" }],
+      output: null,
+      colour: 230,
+      tooltip: "Read a named variable. Snaps into any value slot — eliminates manual expr typing.",
+    },
+
+    /* ── Compare / Logic — condition producers ─────────────── */
+    {
+      type: "compare_block",
+      message0: "%1 %2 %3",
+      args0: [
+        { type: "input_value", name: "A" },
+        { type: "field_dropdown", name: "OP", options: [
+          ["<",  "LT"],
+          ["≤",  "LTE"],
+          [">",  "GT"],
+          ["≥",  "GTE"],
+          ["=",  "EQ"],
+          ["≠",  "NEQ"],
+        ]},
+        { type: "input_value", name: "B" },
+      ],
+      inputsInline: true,
+      output: "Boolean",
+      colour: 210,
+      tooltip: "Compare two values: <, ≤, >, ≥, =, ≠. Snap into the condition slot of an if block.",
+    },
+    {
+      type: "logic_and_or_block",
+      message0: "%1 %2 %3",
+      args0: [
+        { type: "input_value", name: "A", check: "Boolean" },
+        { type: "field_dropdown", name: "OP", options: [
+          ["and", "AND"],
+          ["or",  "OR"],
+        ]},
+        { type: "input_value", name: "B", check: "Boolean" },
+      ],
+      inputsInline: true,
+      output: "Boolean",
+      colour: 210,
+      tooltip: "Combine two conditions with 'and' (both must be true) or 'or' (either must be true).",
+    },
+    {
+      type: "logic_not_block",
+      message0: "not %1",
+      args0: [{ type: "input_value", name: "VAL", check: "Boolean" }],
+      inputsInline: true,
+      output: "Boolean",
+      colour: 210,
+      tooltip: "Flip a condition: not true → false, not false → true.",
+    },
+
+    /* ════════════════════════════════════════════════════════
        OBJECT BLOCKS — input_value slots for composability
        ══════════════════════════════════════════════════════ */
 
@@ -669,49 +730,19 @@ export function defineCustomBlocksAndGenerator(Blockly) {
     /* ── Telemetry ─────────────────────────────────────── */
     {
       type: "telemetry_update_block",
-      message0: "update %1 display",
-      args0: [{ type: "field_variable", name: "LABEL", variable: "telemetry" }],
-      message1: "%1 = round( %2 , %3 dp ) %4",
-      args1: [
-        { type: "field_input",  name: "M1", text: "t" },
-        { type: "input_value",  name: "V1" },
-        { type: "field_number", name: "D1", value: 2 },
-        { type: "field_input",  name: "U1", text: "s" },
-      ],
-      message2: "%1 = round( %2 , %3 dp ) %4",
-      args2: [
-        { type: "field_input",  name: "M2", text: "" },
-        { type: "input_value",  name: "V2" },
-        { type: "field_number", name: "D2", value: 2 },
-        { type: "field_input",  name: "U2", text: "" },
-      ],
-      message3: "%1 = round( %2 , %3 dp ) %4",
-      args3: [
-        { type: "field_input",  name: "M3", text: "" },
-        { type: "input_value",  name: "V3" },
-        { type: "field_number", name: "D3", value: 2 },
-        { type: "field_input",  name: "U3", text: "" },
-      ],
-      message4: "%1 = round( %2 , %3 dp ) %4",
-      args4: [
-        { type: "field_input",  name: "M4", text: "" },
-        { type: "input_value",  name: "V4" },
-        { type: "field_number", name: "D4", value: 2 },
-        { type: "field_input",  name: "U4", text: "" },
-      ],
-      message5: "%1 = round( %2 , %3 dp ) %4",
-      args5: [
-        { type: "field_input",  name: "M5", text: "" },
-        { type: "input_value",  name: "V5" },
-        { type: "field_number", name: "D5", value: 2 },
-        { type: "field_input",  name: "U5", text: "" },
+      message0: "update %1  %2 = round( %3 , %4 dp ) %5",
+      args0: [
+        { type: "field_variable", name: "LABEL", variable: "telemetry" },
+        { type: "field_input",    name: "M",     text: "label" },
+        { type: "input_value",    name: "V" },
+        { type: "field_number",   name: "D",     value: 2, min: 0, max: 10, precision: 1 },
+        { type: "field_input",    name: "U",     text: "" },
       ],
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
       colour: 30,
-      tooltip:
-        "Show live measurements. Snap a value block (e.g. object property, mag, expr) into each row. Up to 5 lines \u2014 leave name blank to skip.",
+      tooltip: "Show one live measurement on a label. Stack multiple blocks to show more readings. Snap a value block into the round() slot.",
     },
 
     /* ══════════════════════════════════════════════════════
@@ -874,6 +905,70 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       colour: 230,
       tooltip: "Trig / math function. sin/cos/tan expect radians; use radians() to convert from degrees.",
     },
+    /* ── Vector compose — input slots for variable-based vectors ── */
+    {
+      type: "vector_compose_block",
+      message0: "vector( %1 , %2 , %3 )",
+      args0: [
+        { type: "input_value", name: "X" },
+        { type: "input_value", name: "Y" },
+        { type: "input_value", name: "Z" },
+      ],
+      inputsInline: true,
+      output: null,
+      colour: 230,
+      tooltip: "Build a vector from three expressions. Snap variables, numbers, or math blocks into x, y, z.",
+    },
+    /* ── Min / Max / Pow — common physics math ─────────────── */
+    {
+      type: "math_min_block",
+      message0: "min( %1 , %2 )",
+      args0: [
+        { type: "input_value", name: "A" },
+        { type: "input_value", name: "B" },
+      ],
+      inputsInline: true,
+      output: null,
+      colour: 230,
+      tooltip: "Returns the smaller of two values. Useful for clamping.",
+    },
+    {
+      type: "math_max_block",
+      message0: "max( %1 , %2 )",
+      args0: [
+        { type: "input_value", name: "A" },
+        { type: "input_value", name: "B" },
+      ],
+      inputsInline: true,
+      output: null,
+      colour: 230,
+      tooltip: "Returns the larger of two values. Useful for floor clamping and safe divisors.",
+    },
+    {
+      type: "math_pow_block",
+      message0: "%1 ** %2",
+      args0: [
+        { type: "input_value", name: "BASE" },
+        { type: "input_value", name: "EXP" },
+      ],
+      inputsInline: true,
+      output: null,
+      colour: 230,
+      tooltip: "Raise BASE to the power EXP. E.g. r**2 for inverse-square laws.",
+    },
+    {
+      type: "math_clamp_block",
+      message0: "clamp( %1 , %2 , %3 )",
+      args0: [
+        { type: "input_value", name: "VAL" },
+        { type: "input_value", name: "LO" },
+        { type: "input_value", name: "HI" },
+      ],
+      inputsInline: true,
+      output: null,
+      colour: 230,
+      tooltip: "Clamp a value between low and high bounds: max(lo, min(val, hi)).",
+    },
     {
       type: "rotate_object_block",
       message0: "rotate %1 by %2 \u00b0 around axis %3",
@@ -962,9 +1057,14 @@ export function defineCustomBlocksAndGenerator(Blockly) {
     return (resolved || fallback).trim();
   };
 
-  // Helper: emit a live-trace call after an assignment (no-op if runtime isn't tracing)
-  const tr = (name, expr, blockId) =>
-    `_physide_trace(${JSON.stringify(name)}, str(${expr}), ${JSON.stringify(blockId)})\n`;
+  // Live-trace: emit a Python assignment to a well-known variable (_phtr_NAME).
+  // After RapydScript compiles, glowRunner.js injects parent.postMessage() calls
+  // alongside these assignments so trace data reaches the React trace table.
+  const tr = (name, expr, blockId) => {
+    const safeName = name.replace(/[^a-zA-Z0-9_]/g, '_');
+    traceRegistry.push({ safeName, displayName: name, blockId: blockId || '' });
+    return `_phtr_${safeName} = str(${expr})\n`;
+  };
 
   /* ── Value blocks ─────────────────────────────────────── */
   gen["vector_block"] = function (block) {
@@ -980,7 +1080,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       const named = namedColorToVPython(mode);
       if (named) return [named, Python.ORDER_ATOMIC];
     }
-    const customHex = block.getFieldValue("CUSTOM") || block.getFieldValue("COL") || "#ffffff";
+    const customHex = block.getFieldValue("CUSTOM") || block.getFieldValue("COL") || "#ff0000";
     return [hexToVPythonColor(customHex), Python.ORDER_ATOMIC];
   };
 
@@ -1015,7 +1115,31 @@ export function defineCustomBlocksAndGenerator(Blockly) {
     return [`norm(${val(block, "VEC", "v")})`, Python.ORDER_FUNCTION_CALL];
   };
 
-  /* ── Object blocks ────────────────────────────────────── */
+  gen["var_read_block"] = function (block) {
+    return [varName(block, "VAR", "x"), Python.ORDER_ATOMIC];
+  };
+
+  gen["compare_block"] = function (block) {
+    const a  = val(block, "A", "0");
+    const b  = val(block, "B", "0");
+    const opMap = { LT: "<", LTE: "<=", GT: ">", GTE: ">=", EQ: "==", NEQ: "!=" };
+    const op = opMap[block.getFieldValue("OP") || "LT"] || "<";
+    return [`${a} ${op} ${b}`, Python.ORDER_RELATIONAL];
+  };
+
+  gen["logic_and_or_block"] = function (block) {
+    const a  = val(block, "A", "True");
+    const b  = val(block, "B", "True");
+    const op = block.getFieldValue("OP") === "OR" ? "or" : "and";
+    return [`${a} ${op} ${b}`, Python.ORDER_LOGICAL_OR || Python.ORDER_NONE];
+  };
+
+  gen["logic_not_block"] = function (block) {
+    const v = val(block, "VAL", "True");
+    return [`not ${v}`, Python.ORDER_LOGICAL_NOT || Python.ORDER_NONE];
+  };
+
+  /* ── Object blocks ────────────────────────────────────────────── */
   gen["sphere_block"] = function (block) {
     const name = varName(block, "NAME", "ball");
     const pos = val(block, "POS", "vector(0,0,0)");
@@ -1221,19 +1345,20 @@ export function defineCustomBlocksAndGenerator(Blockly) {
 
   gen["telemetry_update_block"] = function (block) {
     const label = varName(block, "LABEL", "telemetry");
-    const lines = [];
-    for (let i = 1; i <= 5; i++) {
-      const m = (block.getFieldValue("M" + i) || "").trim();
-      const v = val(block, "V" + i, "").trim();
-      const d = block.getFieldValue("D" + i);
-      const u = (block.getFieldValue("U" + i) || "").trim();
-      if (m && v) {
-        const uPart = u ? ` + " ${u}"` : "";
-        lines.push(`"${m} = " + str(round(${v}, ${d}))${uPart}`);
-      }
+    const m = (block.getFieldValue("M") || "").trim();
+    const v = val(block, "V", "").trim();
+    const d = block.getFieldValue("D") ?? 2;
+    const u = (block.getFieldValue("U") || "").trim();
+    if (!m || !v) return "";
+    const uPart = u ? ` + " ${u}"` : "";
+    const line = `"${m} = " + str(round(${v}, ${d}))${uPart}`;
+    // First block in a telemetry chain sets the text; subsequent blocks append.
+    const prev = block.getPreviousBlock();
+    if (prev && prev.type === "telemetry_update_block" &&
+        varName(prev, "LABEL", "telemetry") === label) {
+      return `${label}.text = ${label}.text + "\\n" + ${line}\n`;
     }
-    if (lines.length === 0) return `${label}.text = ""\n`;
-    return `${label}.text = ${lines.join(' + "\\n" + ')}\n`;
+    return `${label}.text = ${line}\n`;
   };
 
   /* ── Advanced blocks ──────────────────────────────────── */
@@ -1340,6 +1465,38 @@ export function defineCustomBlocksAndGenerator(Blockly) {
     return [`${op}(${x})`, Python.ORDER_FUNCTION_CALL];
   };
 
+  gen["vector_compose_block"] = function (block) {
+    const x = val(block, "X", "0");
+    const y = val(block, "Y", "0");
+    const z = val(block, "Z", "0");
+    return [`vector(${x}, ${y}, ${z})`, Python.ORDER_FUNCTION_CALL];
+  };
+
+  gen["math_min_block"] = function (block) {
+    const a = val(block, "A", "0");
+    const b = val(block, "B", "0");
+    return [`min(${a}, ${b})`, Python.ORDER_FUNCTION_CALL];
+  };
+
+  gen["math_max_block"] = function (block) {
+    const a = val(block, "A", "0");
+    const b = val(block, "B", "0");
+    return [`max(${a}, ${b})`, Python.ORDER_FUNCTION_CALL];
+  };
+
+  gen["math_pow_block"] = function (block) {
+    const base = val(block, "BASE", "0");
+    const exp = val(block, "EXP", "2");
+    return [`${base}**${exp}`, Python.ORDER_EXPONENTIATION || Python.ORDER_NONE];
+  };
+
+  gen["math_clamp_block"] = function (block) {
+    const v = val(block, "VAL", "0");
+    const lo = val(block, "LO", "0");
+    const hi = val(block, "HI", "1");
+    return [`max(${lo}, min(${v}, ${hi}))`, Python.ORDER_FUNCTION_CALL];
+  };
+
   gen["rotate_object_block"] = function (block) {
     const obj = varName(block, "OBJ", "ball");
     const angle = val(block, "ANGLE", "0");
@@ -1376,6 +1533,7 @@ export const BLOCK_CATALOGUE = [
   { type: "vector_block",          label: "Vector  (x, y, z)",             category: "Values", keywords: ["vector","vec","position","velocity","axis"] },
   { type: "colour_block",          label: "Colour",                        category: "Values", keywords: ["colour","color","red","blue","green","hue"] },
   { type: "expr_block",            label: "Expression  (any Python)",      category: "Values", keywords: ["expression","expr","formula","code","custom"] },
+  { type: "var_read_block",        label: "Read variable  (var x)",         category: "Values", keywords: ["variable","read","var","name","value","get"] },
   { type: "get_prop_block",        label: "Object property  (ball.pos)",   category: "Values", keywords: ["property","prop","dot","ball","pos","velocity","radius"] },
   { type: "get_component_block",   label: "Vector component  .x .y .z",   category: "Values", keywords: ["component","x","y","z","scalar"] },
   { type: "mag_block",             label: "Magnitude  mag(vec)",           category: "Values", keywords: ["magnitude","mag","speed","length","scalar"] },
@@ -1423,6 +1581,9 @@ export const BLOCK_CATALOGUE = [
   { type: "logic_operation",       label: "AND / OR",                      category: "Logic", keywords: ["and","or","logic","boolean","both"] },
   { type: "logic_negate",          label: "NOT",                           category: "Logic", keywords: ["not","negate","invert","false","true"] },
   { type: "logic_boolean",         label: "True / False",                  category: "Logic", keywords: ["true","false","boolean"] },
+  { type: "compare_block",         label: "Compare  (< ≤ > ≥ = ≠)",         category: "Logic", keywords: ["compare","less","greater","equal","condition","lt","gt","custom"] },
+  { type: "logic_and_or_block",    label: "AND / OR  (custom)",             category: "Logic", keywords: ["and","or","logic","boolean","both","either","combine"] },
+  { type: "logic_not_block",       label: "NOT  (custom)",                  category: "Logic", keywords: ["not","negate","invert","flip"] },
   { type: "math_number",           label: "Number",                        category: "Math", keywords: ["number","value","digit","constant","scalar"] },
   { type: "math_arithmetic",       label: "Maths  (+ \u2212 \u00d7 \u00f7)", category: "Math", keywords: ["add","subtract","multiply","divide","arithmetic","math"] },
   { type: "math_single",           label: "Math function  (sqrt, abs\u2026)", category: "Math", keywords: ["sqrt","abs","square","root","power","log","math"] },
@@ -1435,6 +1596,11 @@ export const BLOCK_CATALOGUE = [
   { type: "cross_product_block",   label: "Cross product  cross(a, b)",    category: "3D Math", keywords: ["cross","product","perpendicular","torque","angular","3d"] },
   { type: "dot_product_block",     label: "Dot product  dot(a, b)",        category: "3D Math", keywords: ["dot","product","scalar","work","projection","angle"] },
   { type: "math_trig_block",       label: "Trig / math  (sin, cos, radians…)", category: "3D Math", keywords: ["sin","cos","tan","trig","radians","degrees","sqrt","abs","asin","acos"] },
+  { type: "vector_compose_block",  label: "Vector compose  (x, y, z slots)", category: "3D Math", keywords: ["vector","compose","build","variable","dynamic","expression"] },
+  { type: "math_min_block",        label: "Min  min(a, b)",               category: "3D Math", keywords: ["min","minimum","smaller","clamp","floor","lower"] },
+  { type: "math_max_block",        label: "Max  max(a, b)",               category: "3D Math", keywords: ["max","maximum","larger","clamp","ceiling","upper"] },
+  { type: "math_pow_block",        label: "Power  a ** b",                category: "3D Math", keywords: ["power","exponent","squared","cubed","inverse","square"] },
+  { type: "math_clamp_block",      label: "Clamp  (val, lo, hi)",         category: "3D Math", keywords: ["clamp","constrain","bound","limit","range","between"] },
   { type: "rotate_object_block",   label: "Rotate object  (angle, axis)",  category: "3D Math", keywords: ["rotate","spin","angle","axis","angular","rotation","3d"] },
   { type: "scene_camera_block",    label: "Scene / camera  (center, forward…)", category: "3D Math", keywords: ["scene","camera","forward","up","center","range","zoom","view"] },
 ];
@@ -1448,6 +1614,9 @@ export function generatePythonFromWorkspace(workspace) {
 
   const Python = getPythonGen(Blockly);
   if (!Python) return "# Python generator not loaded\n";
+
+  // Clear previous trace registry before generating new code
+  clearTraceRegistry();
 
   try {
     const code = Python.workspaceToCode(workspace);

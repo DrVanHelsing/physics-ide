@@ -242,7 +242,7 @@ function Toolbar({
 
       <div className="tb-separator" />
 
-      {/* ── Export dropdown ── */}}
+      {/* ── Export dropdown ── */}
       <DropdownMenu
         trigger={
           <>

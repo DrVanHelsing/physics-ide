@@ -167,85 +167,54 @@ export async function exportBlocksPdf(workspace) {
   if (contentW === 0 || contentH === 0) { window.alert("No blocks to export."); return; }
 
   const padding = 60;
-  const viewX = bbox.left  - padding;
-  const viewY = bbox.top   - padding;
   const viewW = contentW   + padding * 2;
   const viewH = contentH   + padding * 2;
   const dpr   = 2;
 
-  /* ── Clone the Blockly SVG and set a viewBox over all blocks ── */
-  const svgRoot = workspace.getParentSvg && workspace.getParentSvg();
   let canvas;
+  const blocklyHost = document.querySelector(".blockly-host");
+  if (!blocklyHost) { window.alert("Switch to Blocks mode first."); return; }
 
-  if (svgRoot) {
-    const svgClone = svgRoot.cloneNode(true);
-    svgClone.setAttribute("viewBox", `${viewX} ${viewY} ${viewW} ${viewH}`);
-    svgClone.setAttribute("width",  String(viewW));
-    svgClone.setAttribute("height", String(viewH));
-    svgClone.setAttribute("xmlns",       "http://www.w3.org/2000/svg");
-    svgClone.setAttribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
+  const origScale   = workspace.getScale();
+  const origScrollX = workspace.scrollX;
+  const origScrollY = workspace.scrollY;
+  const origCss     = blocklyHost.style.cssText;
+  const toolbox = blocklyHost.querySelector(".blocklyToolboxDiv");
+  const flyout  = blocklyHost.querySelector(".blocklyFlyout");
+  if (toolbox) toolbox.style.display = "none";
+  if (flyout)  flyout.style.display  = "none";
 
-    const svgStr = new XMLSerializer().serializeToString(svgClone);
-    const blob   = new Blob([svgStr], { type: "image/svg+xml;charset=utf-8" });
-    const url    = URL.createObjectURL(blob);
+  const renderW = viewW, renderH = viewH;
+  blocklyHost.style.cssText = "";
+  blocklyHost.style.position = "fixed";
+  blocklyHost.style.top      = "-30000px";
+  blocklyHost.style.left     = "0";
+  blocklyHost.style.width    = renderW + "px";
+  blocklyHost.style.height   = renderH + "px";
+  blocklyHost.style.zIndex   = "-1";
+  blocklyHost.style.overflow = "hidden";
+  workspace.setScale(1);
+  if (workspace.resize) workspace.resize();
+  workspace.scroll(padding - bbox.left, padding - bbox.top);
+  await new Promise((r) => setTimeout(r, 300));
 
-    try {
-      canvas = await new Promise((resolve, reject) => {
-        const c   = document.createElement("canvas");
-        c.width   = viewW * dpr;
-        c.height  = viewH * dpr;
-        const ctx = c.getContext("2d");
-        ctx.fillStyle = "#1a1b2e";
-        ctx.fillRect(0, 0, c.width, c.height);
-        const img = new Image();
-        img.onload = () => { ctx.drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url); resolve(c); };
-        img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("svg_fail")); };
-        img.src = url;
-      });
-    } catch { /* fall through to html2canvas below */ }
-  }
-
-  /* ── Fallback: html2canvas (if SVG serialisation failed) ── */
-  if (!canvas) {
-    const blocklyHost = document.querySelector(".blockly-host");
-    if (!blocklyHost) { window.alert("Switch to Blocks mode first."); return; }
-
-    const origScale   = workspace.getScale();
-    const origScrollX = workspace.scrollX;
-    const origScrollY = workspace.scrollY;
-    const origCss     = blocklyHost.style.cssText;
-    const toolbox = blocklyHost.querySelector(".blocklyToolboxDiv");
-    const flyout  = blocklyHost.querySelector(".blocklyFlyout");
-    if (toolbox) toolbox.style.display = "none";
-    if (flyout)  flyout.style.display  = "none";
-
-    const renderW = viewW, renderH = viewH;
-    blocklyHost.style.cssText = "";
-    blocklyHost.style.position = "fixed";
-    blocklyHost.style.top      = "-30000px";
-    blocklyHost.style.left     = "0";
-    blocklyHost.style.width    = renderW + "px";
-    blocklyHost.style.height   = renderH + "px";
-    blocklyHost.style.zIndex   = "-1";
-    blocklyHost.style.overflow = "hidden";
-    workspace.setScale(1);
+  try {
+    canvas = await html2canvas(blocklyHost, {
+      backgroundColor: "#1a1b2e",
+      scale: dpr,
+      useCORS: true,
+      logging: false,
+      width: renderW,
+      height: renderH,
+      foreignObjectRendering: true,
+    });
+  } finally {
+    blocklyHost.style.cssText = origCss;
+    if (toolbox) toolbox.style.display = "";
+    if (flyout)  flyout.style.display  = "";
+    workspace.setScale(origScale);
     if (workspace.resize) workspace.resize();
-    workspace.scroll(padding - bbox.left, padding - bbox.top);
-    await new Promise((r) => setTimeout(r, 300));
-
-    try {
-      canvas = await html2canvas(blocklyHost, {
-        backgroundColor: "#1a1b2e", scale: dpr, useCORS: true,
-        logging: false, width: renderW, height: renderH,
-      });
-    } finally {
-      blocklyHost.style.cssText = origCss;
-      if (toolbox) toolbox.style.display = "";
-      if (flyout)  flyout.style.display  = "";
-      workspace.setScale(origScale);
-      if (workspace.resize) workspace.resize();
-      workspace.scroll(origScrollX, origScrollY);
-    }
+    workspace.scroll(origScrollX, origScrollY);
   }
 
   if (!canvas) return;

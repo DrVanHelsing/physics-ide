@@ -5,6 +5,8 @@
  * globals never leak across runs.
  */
 
+import { traceRegistry } from './blocklyGenerator';
+
 let activeRunToken = 0;
 
 const GLOWSCRIPT_SCRIPTS = {
@@ -190,14 +192,25 @@ function getCompileFn(frameWindow) {
 }
 
 function buildSource(codeString) {
-  const trimmed = codeString.trimStart();
+  const sanitized = String(codeString || "")
+    .replace(/^\s*;+\s*$/gm, "")
+    .replace(/(;+)\s*$/gm, "");
+
+  const trimmed = sanitized.trimStart();
   const firstLine = trimmed.split(/\r?\n/, 1)[0] || "";
   const hasHeader = /^(GlowScript|Web\s+VPython)\s/i.test(firstLine);
+
   const source = hasHeader ? trimmed : "GlowScript 3.2 VPython\n" + trimmed;
 
   if (!source || source.length === 0) {
     throw new Error("Compile error: VPython source is empty.");
   }
+
+  /* ── DEBUG: log the Python source so we can spot the ';' problem ── */
+  console.log(
+    "[PhysicsIDE] Python source (" + source.split("\n").length + " lines):\n" +
+    source.slice(0, 4000) + (source.length > 4000 ? "\n…(truncated)" : "")
+  );
 
   return source;
 }
@@ -288,31 +301,45 @@ async function executeCompiled(frameWindow, compiledCode) {
     };
   }
 
-  /* Inject live-trace helper ─ batches calls and fires the parent callback
-     registered on window.__physide_trace_cb by the React app.
-     The closure captures the *parent* window, so calling the parent callback
-     directly avoids any cross-origin postMessage complications. */
-  (function injectTraceHelper(fw) {
-    var p = {}, t = null;
-    fw._physide_trace = function (name, val, bid) {
-      p[name] = { v: String(val), b: bid };
-      if (!t) {
-        t = setTimeout(function () {
-          try {
-            if (typeof window.__physide_trace_cb === "function") {
-              window.__physide_trace_cb(p);
-            }
-          } catch (e) {}
-          p = {};
-          t = null;
-        }, 50);
+  /* Inject live-trace by modifying compiled JS.
+     During Python generation, tr() emits  _phtr_SAFENAME = str(EXPR)  for each
+     traced variable.  After RapydScript compiles, we regex-find those assignments
+     in the JS and append parent.postMessage(...) so trace data flows to the
+     React TraceTable via window.__physide_trace_cb.  */
+  let traceInjected = compiledCode;
+  if (traceRegistry.length > 0) {
+    // Build safe-name → display-name lookup
+    const nameMap = {};
+    for (const entry of traceRegistry) {
+      nameMap[entry.safeName] = entry;
+    }
+    // Single regex pass over compiled JS
+    traceInjected = traceInjected.replace(
+      /((?:var\s+)?_phtr_(\w+)\s*=\s*)([^;\n]+)(;?)/g,
+      function (match, prefix, safeName, value, semi) {
+        const entry = nameMap[safeName];
+        if (!entry) return match;
+        const dn = entry.displayName.replace(/'/g, "\\'");
+        const bid = (entry.blockId || '').replace(/'/g, "\\'");
+        return (
+          prefix + value + semi +
+          "try{parent.postMessage({type:'__phtr',n:'" + dn +
+          "',v:String(_phtr_" + safeName +
+          "),b:'" + bid + "'},'*')}catch(_e){}"
+        );
       }
-    };
-  })(frameWindow);
+    );
+  }
 
   try {
-    frameWindow.eval(compiledCode);
+    frameWindow.eval(traceInjected);
   } catch (runtimeErr) {
+    /* ── DEBUG: show the compiled JS around the problem ── */
+    console.error(
+      "[PhysicsIDE] eval() failed:", runtimeErr.message,
+      "\nCompiled JS preview (first 1000 chars):\n",
+      traceInjected.slice(0, 1000)
+    );
     throw new Error("Runtime error: " + (runtimeErr.message || runtimeErr));
   }
 
