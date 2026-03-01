@@ -27,8 +27,15 @@ const TOOLBOX_XML = `
       <field name="W">10</field><field name="H">0.5</field><field name="D">10</field>
       <field name="COL">#336633</field>
     </block>
-    <sep gap="12"></sep>
-    <label text="Physics constants" web-class="tb-label"></label>
+    <sep gap="12"></sep>    <label text="Define a named constant" web-class="tb-label"></label>
+    <block type="define_const_block">
+      <value name="VALUE"><shadow type="physics_const_block"><field name="CONST">g</field></shadow></value>
+    </block>
+    <block type="define_const_block">
+      <field name="NAME">MASS</field>
+      <value name="VALUE"><shadow type="math_number"><field name="NUM">1</field></shadow></value>
+    </block>
+    <sep gap="8"></sep>    <label text="Physics constants" web-class="tb-label"></label>
     <block type="physics_const_block"></block>
     <sep gap="12"></sep>
     <label text="Initial velocity" web-class="tb-label"></label>
@@ -60,8 +67,12 @@ const TOOLBOX_XML = `
     </block>
   </category>
   <!-- ── VALUES ─────────────────────────────────────────── -->
-  <category name="Values" colour="#7c68c6">
-    <block type="physics_const_block"></block>
+  <category name="Values" colour="#7c68c6">    <label text="Define constants" web-class="tb-label"></label>
+    <block type="define_const_block">
+      <value name="VALUE"><shadow type="math_number"><field name="NUM">1</field></shadow></value>
+    </block>
+    <sep gap="8"></sep>
+    <label text="Physics constants" web-class="tb-label"></label>    <block type="physics_const_block"></block>
     <block type="vector_block"></block>
     <block type="colour_block"></block>
     <block type="expr_block"></block>
@@ -178,7 +189,10 @@ const TOOLBOX_XML = `
   </category>
 
   <!-- ── STATE ──────────────────────────────────────────── -->
-  <category name="State" colour="#d97b4a">
+  <category name="State" colour="#d06030">
+    <block type="define_const_block">
+      <value name="VALUE"><shadow type="math_number"><field name="NUM">1</field></shadow></value>
+    </block>
     <block type="set_colour_var_block"></block>
     <block type="set_scalar_block">
       <value name="VALUE"><shadow type="math_number"><field name="NUM">0</field></shadow></value>
@@ -189,7 +203,10 @@ const TOOLBOX_XML = `
     <block type="add_attr_expr_block">
       <value name="VALUE"><shadow type="expr_block"><field name="EXPR">a * dt</field></shadow></value>
     </block>
-    <block type="telemetry_update_block"></block>
+    <block type="telemetry_update_block">
+      <value name="V1"><shadow type="get_prop_block"><field name="OBJ">ball</field><field name="PROP">pos</field></shadow></value>
+      <value name="V2"><shadow type="get_prop_block"><field name="OBJ">ball</field><field name="PROP">velocity</field></shadow></value>
+    </block>
   </category>
 
   <!-- ── CONTROL ────────────────────────────────────────── -->
@@ -320,6 +337,15 @@ const TOOLBOX_BEGINNER_XML = `
       <field name="COL">#336633</field>
     </block>
     <sep gap="12"></sep>
+    <label text="Define a named constant" web-class="tb-label"></label>
+    <block type="define_const_block">
+      <value name="VALUE"><shadow type="physics_const_block"><field name="CONST">g</field></shadow></value>
+    </block>
+    <block type="define_const_block">
+      <field name="NAME">MASS</field>
+      <value name="VALUE"><shadow type="math_number"><field name="NUM">1</field></shadow></value>
+    </block>
+    <sep gap="8"></sep>
     <label text="Physics constants" web-class="tb-label"></label>
     <block type="physics_const_block"></block>
     <sep gap="12"></sep>
@@ -353,6 +379,9 @@ const TOOLBOX_BEGINNER_XML = `
   </category>
 
   <category name="Values" colour="#7c68c6">
+    <block type="define_const_block">
+      <value name="VALUE"><shadow type="math_number"><field name="NUM">1</field></shadow></value>
+    </block>
     <block type="physics_const_block"></block>
     <block type="vector_block"></block>
     <block type="colour_block"></block>

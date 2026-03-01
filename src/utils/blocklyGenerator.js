@@ -117,7 +117,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
         { type: "field_colour", name: "CUSTOM", colour: "#ff0000" },
       ],
       output: null,
-      colour: 20,
+      colour: 230,
       tooltip: "Pick a named colour or click the swatch for a fully custom colour.",
     },
     {
@@ -130,7 +130,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      colour: 20,
+      colour: 30,
       tooltip: "Set a colour variable. Click the swatch to choose any colour.",
     },
     {
@@ -153,7 +153,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       ],
       inputsInline: true,
       output: null,
-      colour: 160,
+      colour: 230,
       tooltip: "Read a property of an object variable: ball.velocity, ball.pos, ball.radius, etc.",
     },
     {
@@ -169,7 +169,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       ],
       inputsInline: true,
       output: null,
-      colour: 160,
+      colour: 230,
       tooltip: "Get the x, y, or z component of a vector. Chain with an object property block: ball.pos → .y gives ball.pos.y.",
     },
     {
@@ -178,8 +178,8 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       args0: [{ type: "input_value", name: "VEC" }],
       inputsInline: true,
       output: null,
-      colour: 160,
-      tooltip: "Magnitude (scalar length) of a vector. E.g. mag(ball.velocity) = speed.",
+      colour: 230,
+      tooltip: "Magnitude (scalar length) of a vector. E.g. snap in an object property block like ball.velocity to get speed.",
     },
     {
       type: "norm_block",
@@ -187,8 +187,8 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       args0: [{ type: "input_value", name: "VEC" }],
       inputsInline: true,
       output: null,
-      colour: 160,
-      tooltip: "Unit vector in the direction of the input. E.g. norm(r) gives the direction of r.",
+      colour: 230,
+      tooltip: "Unit vector in the direction of the input. Snap in an object property block like ball.pos to get its direction.",
     },
 
     /* ══════════════════════════════════════════════════════
@@ -369,7 +369,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      colour: 330,
+      colour: 210,
       tooltip: "Create a floating text label in the 3D scene.",
     },
 
@@ -386,7 +386,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      colour: 330,
+      colour: 210,
       tooltip: "Named label. Use for live telemetry displays.",
     },
 
@@ -401,7 +401,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      colour: 330,
+      colour: 210,
       tooltip: "Add a point light source to the scene.",
     },
 
@@ -471,8 +471,8 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      colour: 45,
-      tooltip: "Set a variable. Snap in a number, vector, or expression.",
+      colour: 30,
+      tooltip: "Set a variable. Snap in a number, vector, expression, or physics constant.",
     },
     {
       type: "set_attr_expr_block",
@@ -485,7 +485,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      colour: 45,
+      colour: 30,
       tooltip: "Set an object's property. E.g. ball.pos = vector(0,1,0)",
     },
     {
@@ -499,7 +499,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      colour: 45,
+      colour: 30,
       tooltip: "Add to an object's property. E.g. ball.velocity += a*dt",
     },
 
@@ -606,7 +606,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       ],
       previousStatement: null,
       nextStatement: null,
-      colour: 120,
+      colour: 260,
       tooltip: "Add a comment to your code.",
     },
 
@@ -617,44 +617,45 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       args0: [{ type: "field_variable", name: "LABEL", variable: "telemetry" }],
       message1: "%1 = round( %2 , %3 dp ) %4",
       args1: [
-        { type: "field_input", name: "M1", text: "t" },
-        { type: "field_input", name: "V1", text: "t" },
+        { type: "field_input",  name: "M1", text: "t" },
+        { type: "input_value",  name: "V1" },
         { type: "field_number", name: "D1", value: 2 },
-        { type: "field_input", name: "U1", text: "s" },
+        { type: "field_input",  name: "U1", text: "s" },
       ],
       message2: "%1 = round( %2 , %3 dp ) %4",
       args2: [
-        { type: "field_input", name: "M2", text: "" },
-        { type: "field_input", name: "V2", text: "" },
+        { type: "field_input",  name: "M2", text: "" },
+        { type: "input_value",  name: "V2" },
         { type: "field_number", name: "D2", value: 2 },
-        { type: "field_input", name: "U2", text: "" },
+        { type: "field_input",  name: "U2", text: "" },
       ],
       message3: "%1 = round( %2 , %3 dp ) %4",
       args3: [
-        { type: "field_input", name: "M3", text: "" },
-        { type: "field_input", name: "V3", text: "" },
+        { type: "field_input",  name: "M3", text: "" },
+        { type: "input_value",  name: "V3" },
         { type: "field_number", name: "D3", value: 2 },
-        { type: "field_input", name: "U3", text: "" },
+        { type: "field_input",  name: "U3", text: "" },
       ],
       message4: "%1 = round( %2 , %3 dp ) %4",
       args4: [
-        { type: "field_input", name: "M4", text: "" },
-        { type: "field_input", name: "V4", text: "" },
+        { type: "field_input",  name: "M4", text: "" },
+        { type: "input_value",  name: "V4" },
         { type: "field_number", name: "D4", value: 2 },
-        { type: "field_input", name: "U4", text: "" },
+        { type: "field_input",  name: "U4", text: "" },
       ],
       message5: "%1 = round( %2 , %3 dp ) %4",
       args5: [
-        { type: "field_input", name: "M5", text: "" },
-        { type: "field_input", name: "V5", text: "" },
+        { type: "field_input",  name: "M5", text: "" },
+        { type: "input_value",  name: "V5" },
         { type: "field_number", name: "D5", value: 2 },
-        { type: "field_input", name: "U5", text: "" },
+        { type: "field_input",  name: "U5", text: "" },
       ],
+      inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      colour: 330,
+      colour: 30,
       tooltip:
-        "Show live measurements. Up to 5 lines \u2014 leave name blank to skip.",
+        "Show live measurements. Snap a value block (e.g. object property, mag, expr) into each row. Up to 5 lines \u2014 leave name blank to skip.",
     },
 
     /* ══════════════════════════════════════════════════════
@@ -672,10 +673,10 @@ export function defineCustomBlocksAndGenerator(Blockly) {
     {
       type: "python_raw_expr_block",
       message0: "expr: %1",
-      args0: [{ type: "field_input", name: "EXPR", text: "mag(v)" }],
+      args0: [{ type: "field_input", name: "EXPR", text: "0" }],
       output: null,
       colour: 10,
-      tooltip: "Python expression that outputs a value.",
+      tooltip: "Python expression that outputs a value. Use this only when no structured block covers your needs.",
     },
 
     /* ══════════════════════════════════════════════════════
@@ -749,6 +750,21 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       colour: 210,
       tooltip:
         "Quick-create a box: variable name, position, width \u00d7 height \u00d7 depth, colour — all in one block.",
+    },
+
+    /* ── Define constant ─────────────────────────────────── */
+    {
+      type: "define_const_block",
+      message0: "const  %1  =  %2",
+      args0: [
+        { type: "field_variable", name: "NAME", variable: "MASS" },
+        { type: "input_value",    name: "VALUE" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 230,
+      tooltip: "Define a named constant once. Snap in a physics constant, number, or expression. The name appears in the Variables category so you can reuse it anywhere without retyping.",
     },
   ]);
 
@@ -1026,7 +1042,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
     const lines = [];
     for (let i = 1; i <= 5; i++) {
       const m = (block.getFieldValue("M" + i) || "").trim();
-      const v = (block.getFieldValue("V" + i) || "").trim();
+      const v = val(block, "V" + i, "").trim();
       const d = block.getFieldValue("D" + i);
       const u = (block.getFieldValue("U" + i) || "").trim();
       if (m && v) {
@@ -1091,6 +1107,12 @@ export function defineCustomBlocksAndGenerator(Blockly) {
     return name ? `${name} = ${e}\n` : `${e}\n`;
   };
 
+  gen["define_const_block"] = function (block) {
+    const name = varName(block, "NAME", "CONST");
+    const v = val(block, "VALUE", "0");
+    return `${name} = ${v}\n`;
+  };
+
   initialized = true;
 }
 
@@ -1109,6 +1131,7 @@ export const BLOCK_CATALOGUE = [
   { type: "if_block",              label: "If  condition",                 category: "\uD83D\uDE80 Starter", keywords: ["if","when","condition","check"] },
   { type: "if_else_block",         label: "If / Else",                     category: "\uD83D\uDE80 Starter", keywords: ["if","else","condition","branch","otherwise"] },
   // Values
+  { type: "define_const_block",    label: "Define constant  (const NAME = \u2026)",  category: "Values", keywords: ["constant","define","const","mass","spring","charge","named","reuse"] },
   { type: "physics_const_block",   label: "Physics Constant  (g, G, \u03c0\u2026)", category: "Values", keywords: ["constant","g","G","pi","c","h","m_e","m_p"] },
   { type: "vector_block",          label: "Vector  (x, y, z)",             category: "Values", keywords: ["vector","vec","position","velocity","axis"] },
   { type: "colour_block",          label: "Colour",                        category: "Values", keywords: ["colour","color","red","blue","green","hue"] },
@@ -1138,6 +1161,7 @@ export const BLOCK_CATALOGUE = [
   { type: "apply_force_block",     label: "Apply force / acceleration",    category: "Motion", keywords: ["force","acceleration","gravity","apply","net"] },
   { type: "set_gravity_block",     label: "Gravity constant",              category: "Motion", keywords: ["gravity","g","9.81","vector","down"] },
   // State
+  { type: "define_const_block",    label: "Define constant",               category: "State", keywords: ["constant","define","const","named","global"] },
   { type: "set_scalar_block",      label: "Set variable  (x = \u2026)",   category: "State", keywords: ["variable","set","assign","scalar","number"] },
   { type: "set_attr_expr_block",   label: "Set object attribute",          category: "State", keywords: ["set","attribute","property","object","dot"] },
   { type: "add_attr_expr_block",   label: "Add to attribute  (+=)",        category: "State", keywords: ["add","increment","plus","attribute","update"] },
