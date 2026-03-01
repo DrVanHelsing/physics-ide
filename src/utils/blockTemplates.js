@@ -200,7 +200,7 @@ function buildTemplate(blocks) {
 
 const PROJECTILE_BLOCKS = [
   /* ── Scene setup ────────────────────────────────────────── */
-  { type: "python_raw_block", fields: { CODE: 'scene.title = "Projectile Motion"' } },
+  { type: "sim_start_block", fields: { TITLE: "Projectile Motion" } },
   { type: "python_raw_block", fields: { CODE: 'scene.background = vector(0.051, 0.086, 0.161)' } },
   { type: "python_raw_block", fields: { CODE: 'scene.range = 18' } },
 
@@ -597,6 +597,9 @@ const PROJECTILE_BLOCKS = [
       },
     ],
   },
+
+  /* ── Simulation end ─────────────────────────────────────── */
+  { type: "sim_end_block", fields: { MSG: "Projectile simulation complete." } },
 ];
 
 /* ═══════════════════════════════════════════════════════════
@@ -605,7 +608,7 @@ const PROJECTILE_BLOCKS = [
 
 const ORBIT_BLOCKS = [
   /* ── Scene setup ────────────────────────────────────────── */
-  { type: "python_raw_block", fields: { CODE: 'scene.title = "Sun, Earth & Moon"' } },
+  { type: "sim_start_block", fields: { TITLE: "Sun, Earth \u0026 Moon" } },
   { type: "python_raw_block", fields: { CODE: 'scene.background = vector(0.020, 0.035, 0.090)' } },
   { type: "python_raw_block", fields: { CODE: 'scene.range = 14' } },
   {
@@ -1005,6 +1008,9 @@ const ORBIT_BLOCKS = [
       },
     ],
   },
+
+  /* ── Simulation end ─────────────────────────────────────── */
+  { type: "sim_end_block", fields: { MSG: "Orbit simulation complete." } },
 ];
 
 /* ═══════════════════════════════════════════════════════════
@@ -1013,7 +1019,7 @@ const ORBIT_BLOCKS = [
 
 const SPRING_BLOCKS = [
   /* ── Scene setup ────────────────────────────────────────── */
-  { type: "python_raw_block", fields: { CODE: 'scene.title = "Spring-Mass Oscillator"' } },
+  { type: "sim_start_block", fields: { TITLE: "Spring-Mass Oscillator" } },
   { type: "python_raw_block", fields: { CODE: 'scene.background = vector(0.059, 0.071, 0.133)' } },
   { type: "python_raw_block", fields: { CODE: 'scene.range = 8.5' } },
 
@@ -1340,6 +1346,9 @@ const SPRING_BLOCKS = [
       },
     ],
   },
+
+  /* ── Simulation end ─────────────────────────────────────── */
+  { type: "sim_end_block", fields: { MSG: "Spring-Mass simulation complete." } },
 ];
 
 /* ── Export ───────────────────────────────────────────── */

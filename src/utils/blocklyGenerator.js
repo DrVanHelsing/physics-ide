@@ -15,6 +15,9 @@
 
 let initialized = false;
 
+/* ── Custom constants registry (shared: push here to add to dropdown) ── */
+export const customConstantsRegistry = [];
+
 function getPythonGen(Blockly) {
   return Blockly.Python || null;
 }
@@ -149,7 +152,23 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       message0: "%1 . %2",
       args0: [
         { type: "field_variable", name: "OBJ", variable: "ball" },
-        { type: "field_input",    name: "PROP", text: "velocity" },
+        {
+          type: "field_dropdown",
+          name: "PROP",
+          options: [
+            ["pos",        "pos"],
+            ["velocity",   "velocity"],
+            ["radius",     "radius"],
+            ["color",      "color"],
+            ["axis",       "axis"],
+            ["size",       "size"],
+            ["visible",    "visible"],
+            ["opacity",    "opacity"],
+            ["mass",       "mass"],
+            ["momentum",   "momentum"],
+            ["trail_color", "trail_color"],
+          ],
+        },
       ],
       inputsInline: true,
       output: null,
@@ -479,7 +498,28 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       message0: "%1 . %2 = %3",
       args0: [
         { type: "field_variable", name: "OBJ", variable: "ball" },
-        { type: "field_input", name: "ATTR", text: "pos" },
+        {
+          type: "field_dropdown",
+          name: "ATTR",
+          options: [
+            ["pos",        "pos"],
+            ["pos.x",      "pos.x"],
+            ["pos.y",      "pos.y"],
+            ["pos.z",      "pos.z"],
+            ["velocity",   "velocity"],
+            ["velocity.x", "velocity.x"],
+            ["velocity.y", "velocity.y"],
+            ["velocity.z", "velocity.z"],
+            ["color",      "color"],
+            ["radius",     "radius"],
+            ["axis",       "axis"],
+            ["size",       "size"],
+            ["visible",    "visible"],
+            ["opacity",    "opacity"],
+            ["mass",       "mass"],
+            ["text",       "text"],
+          ],
+        },
         { type: "input_value", name: "VALUE" },
       ],
       inputsInline: true,
@@ -493,7 +533,23 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       message0: "%1 . %2 += %3",
       args0: [
         { type: "field_variable", name: "OBJ", variable: "ball" },
-        { type: "field_input", name: "ATTR", text: "velocity" },
+        {
+          type: "field_dropdown",
+          name: "ATTR",
+          options: [
+            ["velocity",   "velocity"],
+            ["velocity.x", "velocity.x"],
+            ["velocity.y", "velocity.y"],
+            ["velocity.z", "velocity.z"],
+            ["pos",        "pos"],
+            ["pos.x",      "pos.x"],
+            ["pos.y",      "pos.y"],
+            ["pos.z",      "pos.z"],
+            ["axis",       "axis"],
+            ["size",       "size"],
+            ["mass",       "mass"],
+          ],
+        },
         { type: "input_value", name: "VALUE" },
       ],
       inputsInline: true,
@@ -600,7 +656,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
        ══════════════════════════════════════════════════════ */
     {
       type: "comment_block",
-      message0: "\ud83d\udcac %1",
+      message0: "# %1",
       args0: [
         { type: "field_input", name: "TEXT", text: "describe your model" },
       ],
@@ -683,32 +739,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
        PHYSICS CONSTANTS + PRESET QUICK-CREATE BLOCKS
        ══════════════════════════════════════════════════════ */
 
-    /* ── Physics constants dropdown ──────────────────── */
-    {
-      type: "physics_const_block",
-      message0: "\u26db %1",
-      args0: [
-        {
-          type: "field_dropdown",
-          name: "CONST",
-          options: [
-            ["g = 9.81 m/s\u00b2",         "g"],
-            ["G = 6.674\u00d710\u207b\u00b9\u00b9", "G"],
-            ["\u03c0  (pi)",              "pi"],
-            ["e  (Euler\u2019s)",          "euler"],
-            ["c = 3\u00d710\u2078 m/s",    "c"],
-            ["k\u2091  Coulomb",           "ke"],
-            ["h  Planck",                  "h"],
-            ["m\u2091  electron",          "me"],
-            ["m\u209a  proton",            "mp"],
-          ],
-        },
-      ],
-      output: null,
-      colour: 230,
-      tooltip:
-        "Standard physics constant. g=9.81, G=6.674e-11, pi, e=2.718, c=3e8, k_e=8.988e9, h=6.626e-34, m_e=9.109e-31, m_p=1.673e-27.",
-    },
+    /* ── physics_const_block: defined manually below (dynamic dropdown) ── */
 
     /* ── Quick-create: sphere (all fields inline) ─────── */
     {
@@ -766,7 +797,69 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       colour: 230,
       tooltip: "Define a named constant once. Snap in a physics constant, number, or expression. The name appears in the Variables category so you can reuse it anywhere without retyping.",
     },
+
+    /* ══════════════════════════════════════════════════════
+       SIMULATION START / END BLOCKS
+       ══════════════════════════════════════════════════════ */
+    {
+      type: "sim_start_block",
+      message0: "Simulation Start  %1  %2",
+      args0: [
+        { type: "field_input", name: "TITLE", text: "My Simulation" },
+        { type: "input_dummy" },
+      ],
+      message1: "%1",
+      args1: [{ type: "input_statement", name: "SETUP" }],
+      nextStatement: null,
+      colour: 120,
+      tooltip: "Marks the beginning of a simulation. Place all setup blocks (scene, objects, constants) inside.",
+      hat: "cap",
+    },
+    {
+      type: "sim_end_block",
+      message0: "Simulation End  %1",
+      args0: [
+        { type: "field_input", name: "MSG", text: "Simulation complete" },
+      ],
+      previousStatement: null,
+      colour: 0,
+      tooltip: "Marks the end of a simulation. Prints a completion message.",
+    },
   ]);
+
+  /* ── physics_const_block — dynamic dropdown with custom constants ── */
+  Blockly.Blocks["physics_const_block"] = {
+    init: function () {
+      this.appendDummyInput()
+        .appendField("")
+        .appendField(
+          new Blockly.FieldDropdown(function () {
+            const base = [
+              ["+ Create new\u2026",                             "__NEW__"],
+              ["g = 9.81 m/s\u00b2",                          "g"],
+              ["G = 6.674\u00d710\u207b\u00b9\u00b9",         "G"],
+              ["\u03c0  (pi)",                                 "pi"],
+              ["e  (Euler\u2019s)",                            "euler"],
+              ["c = 3\u00d710\u2078 m/s",                      "c"],
+              ["k\u2091  Coulomb",                             "ke"],
+              ["h  Planck",                                    "h"],
+              ["m\u2091  electron",                            "me"],
+              ["m\u209a  proton",                              "mp"],
+            ];
+            customConstantsRegistry.forEach(function (c) {
+              base.push([c.name + " = " + c.value, c.name]);
+            });
+            return base;
+          }),
+          "CONST"
+        );
+      this.setOutput(true, null);
+      this.setColour(230);
+      this.setTooltip(
+        "Standard physics constant. g=9.81, G=6.674e-11, pi, e=2.718, c=3e8, k_e=8.988e9, h=6.626e-34, m_e=9.109e-31, m_p=1.673e-27."
+      );
+    },
+  };
 
   /* ──────────────────────────────────────────────────────────
      CODE GENERATORS  (Python.forBlock)
@@ -1067,6 +1160,10 @@ export function defineCustomBlocksAndGenerator(Blockly) {
   /* ── Physics constants + preset blocks ───────────────── */
   gen["physics_const_block"] = function (block) {
     const c = block.getFieldValue("CONST") || "g";
+    if (c === "__NEW__") {
+      // Will be handled by the validator; fallback to 0
+      return ["0", Python.ORDER_ATOMIC];
+    }
     const map = {
       g:     "9.81",
       G:     "6.674e-11",
@@ -1078,6 +1175,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       me:    "9.109e-31",
       mp:    "1.673e-27",
     };
+    // If not in map, it's a custom constant — emit its name directly
     return [map[c] || c, Python.ORDER_ATOMIC];
   };
 
@@ -1113,12 +1211,33 @@ export function defineCustomBlocksAndGenerator(Blockly) {
     return `${name} = ${v}\n`;
   };
 
+  /* ── Simulation start / end blocks ────────────────────── */
+  gen["sim_start_block"] = function (block) {
+    const title = escPy(block.getFieldValue("TITLE") || "My Simulation");
+    const raw = Python.statementToCode(block, "SETUP") || "";
+    // statementToCode adds one indent level; strip it — setup is top-level code
+    const indent = Python.INDENT || "  ";
+    const re = new RegExp("^" + indent.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gm");
+    const setup = raw.replace(re, "");
+    return `# === Simulation Start: ${title} ===\nscene.title = "${title}"\n${setup}`;
+  };
+
+  gen["sim_end_block"] = function (block) {
+    const msg = escPy(block.getFieldValue("MSG") || "Simulation complete");
+    return `# === Simulation End ===\nprint("${msg}")\n`;
+  };
+
+  /* ── Physics constant: handle __NEW__ custom constant ── */
+  // Intercept the dropdown change to create custom constants via popup
+  // This is done by registering a validator on the field after workspace init
+  // (See BlocklyWorkspace.js for the validator registration)
+
   initialized = true;
 }
 
 /* ── Block catalogue — used by the search bar ───────────── */
 export const BLOCK_CATALOGUE = [
-  // 🚀 Starter
+  // Starter
   { type: "preset_sphere_block",   label: "Quick Sphere / Ball",           category: "\uD83D\uDE80 Starter", keywords: ["sphere","ball","create","quick","object"] },
   { type: "preset_box_block",      label: "Quick Box / Wall / Floor",      category: "\uD83D\uDE80 Starter", keywords: ["box","wall","floor","create","quick","object"] },
   { type: "physics_const_block",   label: "Physics Constant  (g, G, \u03c0\u2026)", category: "\uD83D\uDE80 Starter", keywords: ["constant","g","gravity","pi","G","c","h"] },
@@ -1188,6 +1307,9 @@ export const BLOCK_CATALOGUE = [
   { type: "math_single",           label: "Math function  (sqrt, abs\u2026)", category: "Math", keywords: ["sqrt","abs","square","root","power","log","math"] },
   { type: "math_trig",             label: "Trig  (sin, cos, tan)",         category: "Math", keywords: ["sin","cos","tan","trig","angle","radians","degrees"] },
   { type: "math_constant",         label: "Math constant  (\u03c0, e, \u221a2)", category: "Math", keywords: ["pi","e","constant","phi","golden"] },
+  // Simulation structure
+  { type: "sim_start_block",       label: "Simulation Start",              category: "\uD83D\uDE80 Starter", keywords: ["start","begin","simulation","setup","init"] },
+  { type: "sim_end_block",         label: "Simulation End",                category: "\uD83D\uDE80 Starter", keywords: ["end","stop","finish","simulation","complete"] },
 ];
 
 /* ================================================================
