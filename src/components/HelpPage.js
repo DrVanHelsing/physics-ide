@@ -816,9 +816,9 @@ export default function HelpPage({ onClose }) {
             <SectionAnchor id="templates" />
             <section className="help-section">
               <SectionHeader id="templates">Built-in Templates</SectionHeader>
-              <p>Physics IDE ships with three fully worked simulations available in both Code and Blocks modes.</p>
+              <p>Physics IDE ships with four fully worked simulations available in both Code and Blocks modes.</p>
               <Note type="tip">
-                All three Blocks templates are built entirely from semantic blocks — no <Code>python_raw_block</Code> is used.
+                All four Blocks templates are built entirely from semantic blocks — no <Code>python_raw_block</Code> is used.
                 Every scene property, object constructor, for-loop, if-statement, and telemetry update
                 has a dedicated block. This makes the templates fully inspectable and editable in the Block Editor.
               </Note>
@@ -868,6 +868,27 @@ export default function HelpPage({ onClose }) {
                 The orbit uses dimensionless units (G=10 rather than 6.674×10⁻¹¹) so that a
                 visually interesting orbit fits comfortably on screen. The physics is identical —
                 only the scale is different.
+              </Note>
+
+              <h3 className="help-h3">4 · Simple Pendulum</h3>
+              <Tag color="blue">Code</Tag>&nbsp;<Tag color="purple">Blocks</Tag>
+              <p>
+                A 1 kg bob on a 2 m rigid rod pivoting about the origin. The simulation includes:
+              </p>
+              <ul className="help-list">
+                <li><strong>Full nonlinear ODE</strong> — <Code>α = −(g/L)·sin(θ)</Code> with no small-angle approximation; accurate for large swing angles</li>
+                <li><strong>Linear damping</strong> — <Code>−b·ω</Code> added to the angular acceleration; set b=0 for ideal undamped oscillation</li>
+                <li><strong>Symplectic (semi-implicit) Euler</strong> — omega is updated before theta each step; this preserves the Hamiltonian structure and keeps E_total stable without energy drift</li>
+                <li><strong>Live geometry update</strong> — the rod cylinder axis and bob sphere position are recomputed from <Code>θ</Code> every frame using <Code>bob_x = L·sin(θ), bob_y = −L·cos(θ)</Code></li>
+                <li><strong>Golden bob trail</strong> — 200-point trail traces the arc of oscillation</li>
+                <li><strong>Full energy telemetry</strong> — live KE, PE, and E_total readout; total energy decays slowly with damping active</li>
+              </ul>
+              <Pre>{`# Key parameters you can change:\nL = 2.0              # pendulum length (m) \u2014 affects period T \u2248 2\u03c0\u221a(L/g)\nm = 1.0              # bob mass (kg)\nb = 0.10             # damping coefficient \u2014 0 = undamped, ~0.5 = heavy damping\ntheta = radians(30)  # initial angle \u2014 try 90\u00b0 for large-angle nonlinear behaviour`}</Pre>
+              <Note type="tip">
+                The Blocks template uses only composable blocks — no <Code>python_raw_block</Code>.
+                The angular acceleration is built from <Code>math_trig_block</Code> (sin, cos, radians),
+                <Code>vector_compose_block</Code>, <Code>math_pow_block</Code>, and nested arithmetic
+                blocks. Students can read the physics directly from the block stack.
               </Note>
             </section>
 
@@ -1012,6 +1033,38 @@ export default function HelpPage({ onClose }) {
                 A moon is gravitationally bound to its planet when its orbital radius is less than
                 about half the Hill sphere radius.
               </Note>
+
+              <h3 className="help-h3">Simple Pendulum</h3>
+              <div className="help-equation">
+                <p><strong>Governing equation (nonlinear ODE)</strong></p>
+                <p>Full nonlinear: <code className="help-eq">θ̈ = α = −(g/L)·sin(θ) − b·ω</code></p>
+                <p>Small-angle (|θ| ≪ 1 rad): <code className="help-eq">θ̈ ≈ −(g/L)·θ</code></p>
+                <p>Period (small-angle, undamped): <code className="help-eq">T = 2π√(L/g) ≈ 2.84 s for L = 2 m</code></p>
+                <p>Energy: <code className="help-eq">KE = ½mL²ω²</code> &nbsp; <code className="help-eq">PE = mgL(1−cosθ)</code></p>
+              </div>
+              <table className="help-table">
+                <thead><tr><th>Symbol</th><th>Value</th><th>Meaning</th></tr></thead>
+                <tbody>
+                  <tr><td><Code>L</Code></td><td>2.0 m</td><td>Pendulum length (pivot to bob centre)</td></tr>
+                  <tr><td><Code>m</Code></td><td>1.0 kg</td><td>Bob mass</td></tr>
+                  <tr><td><Code>b</Code></td><td>0.10 Ns/rad</td><td>Linear damping coefficient — proportional to ω</td></tr>
+                  <tr><td><Code>θ₀</Code></td><td>30° = π/6 rad</td><td>Initial angle from vertical; bob released from rest</td></tr>
+                  <tr><td><Code>ω₀</Code></td><td>0 rad/s</td><td>Initial angular velocity</td></tr>
+                  <tr><td><Code>g</Code></td><td>9.81 m/s²</td><td>Gravitational acceleration</td></tr>
+                  <tr><td><Code>dt</Code></td><td>0.005 s</td><td>Time step (200 Hz)</td></tr>
+                </tbody>
+              </table>
+              <Pre>{`# Integration scheme: Symplectic (semi-implicit) Euler\nalpha = -(g / L) * sin(theta) - b * omega\nomega = omega + alpha * dt   # update omega first (symplectic step)\ntheta = theta + omega * dt   # then theta (uses updated omega)\n\n# Bob Cartesian position\nbob_x = L * sin(theta)\nbob_y = -L * cos(theta)\n\n# Mechanical energy\nKE      = 0.5 * m * L**2 * omega**2      # rotational KE\nPE      = m * g * L * (1 - cos(theta))  # gravitational PE (zero at bottom)\nE_total = KE + PE                        # decays slowly when b > 0`}</Pre>
+              <Note type="info">
+                <strong>Symplectic vs standard Euler:</strong> Standard Euler updates theta before omega,
+                causing artificial energy gain — the bob drifts outward over time even with b=0.
+                Symplectic Euler (omega updated first) preserves the Hamiltonian structure of the equations
+                of motion and keeps E_total numerically stable across thousands of oscillations.
+              </Note>
+              <p>With b=0.10 the system is <strong>lightly damped</strong>. The critical damping coefficient
+              is <code className="help-eq">b_crit = 2mω₀L = 2×1.0×√(g/L)×2.0 ≈ 5.6 Ns/rad</code>; at b=0.10 the
+              damping ratio is only ζ ≈ 0.018 — oscillations decay very slowly, making the energy decay
+              clearly visible in the telemetry over many cycles.</p>
             </section>
 
             {/* ══════════════ EXPORT ══════════════ */}
@@ -1134,9 +1187,18 @@ export default function HelpPage({ onClose }) {
                 <div className="help-lesson-card">
                   <div className="help-lesson-num">05</div>
                   <div className="help-lesson-body">
+                    <strong>Pendulum &amp; nonlinear dynamics</strong>
+                    <p>Open the Pendulum template. Compare period at 5° (small-angle) vs 60° (large-angle).
+                    Measure how E_total decays with damping. Derive T analytically and compare to simulation.</p>
+                    <Tag color="red">Advanced</Tag>
+                  </div>
+                </div>
+                <div className="help-lesson-card">
+                  <div className="help-lesson-num">06</div>
+                  <div className="help-lesson-body">
                     <strong>Build from scratch</strong>
                     <p>Students create a custom simulation in a Blank Project — e.g. a bouncing ball,
-                    pendulum, or electric field visualisation. Assessment via code PDF + blocks XML.</p>
+                    charged particle, or two-body collision. Assessment via code PDF + blocks XML.</p>
                     <Tag color="red">Advanced</Tag>
                   </div>
                 </div>
@@ -1167,6 +1229,11 @@ export default function HelpPage({ onClose }) {
                     <td>Circular orbit speed</td>
                     <td><Code>v = √(GM/r)</Code></td>
                     <td>v ≈ 3.55 at G=10, M=10.33, r=8.2</td>
+                  </tr>
+                  <tr>
+                    <td>Pendulum period (small-angle)</td>
+                    <td><Code>T = 2π√(L/g)</Code></td>
+                    <td>T ≈ 2.84 s at L=2.0, g=9.81</td>
                   </tr>
                 </tbody>
               </table>

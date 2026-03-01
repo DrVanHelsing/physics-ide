@@ -1428,6 +1428,225 @@ const SPRING_BLOCKS = [
   { type: "sim_end_block", fields: { MSG: "Spring-Mass simulation complete." } },
 ];
 
+/* ═══════════════════════════════════════════════════════════
+   PENDULUM BLOCKS — Nonlinear damped pendulum with energy telemetry
+   ═══════════════════════════════════════════════════════════ */
+
+const PENDULUM_BLOCKS = [
+
+  /* ── Simulation start ─────────────────────────────────── */
+  { type: "sim_start_block", fields: { TITLE: "Simple Pendulum" } },
+
+  /* ── Scene setup ─────────────────────────────────────── */
+  { type: "comment_block", fields: { TEXT: "Scene setup" } },
+  { type: "scene_camera_block", fields: { PROP: "background" }, values: { VALUE: vec(0.05, 0.05, 0.10) } },
+  { type: "scene_camera_block", fields: { PROP: "range" },      values: { VALUE: num(3) } },
+  { type: "scene_camera_block", fields: { PROP: "center" },     values: { VALUE: vec(0, -1, 0) } },
+
+  /* ── Colours ─────────────────────────────────────────── */
+  { type: "comment_block", fields: { TEXT: "Colours" } },
+  { type: "set_scalar_block", fields: { NAME: "c_support" }, values: { VALUE: vec(0.60, 0.60, 0.65) } },
+  { type: "set_scalar_block", fields: { NAME: "c_rod" },     values: { VALUE: vec(0.85, 0.80, 0.60) } },
+  { type: "set_scalar_block", fields: { NAME: "c_bob" },     values: { VALUE: vec(0.95, 0.30, 0.25) } },
+  { type: "set_scalar_block", fields: { NAME: "c_trail" },   values: { VALUE: vec(1.00, 0.88, 0.25) } },
+
+  /* ── Physics parameters ───────────────────────────────── */
+  { type: "comment_block", fields: { TEXT: "Pendulum parameters: L = length (m), m = mass (kg), b = damping" } },
+  { type: "set_scalar_block", fields: { NAME: "L" }, values: { VALUE: num(2.0) } },
+  { type: "set_scalar_block", fields: { NAME: "m" }, values: { VALUE: num(1.0) } },
+  { type: "set_scalar_block", fields: { NAME: "b" }, values: { VALUE: num(0.1) } },
+
+  /* ── Initial conditions ──────────────────────────────── */
+  { type: "comment_block", fields: { TEXT: "Initial angle (radians) and angular velocity (rad/s)" } },
+  {
+    type: "set_scalar_block",
+    fields: { NAME: "theta" },
+    values: { VALUE: trig("radians", num(30)) },
+  },
+  { type: "set_scalar_block", fields: { NAME: "omega" }, values: { VALUE: num(0) } },
+
+  /* ── Time step ───────────────────────────────────────── */
+  { type: "time_step_block", fields: { DT: "0.005" } },
+  { type: "set_scalar_block", fields: { NAME: "t" }, values: { VALUE: num(0) } },
+
+  /* ── 3D Objects ──────────────────────────────────────── */
+  { type: "comment_block", fields: { TEXT: "Support post at pivot point" } },
+  {
+    type: "cylinder_block",
+    fields: { NAME: "support" },
+    values: {
+      POS:    vec(0, 0, 0),
+      AXIS:   vec(0, 0.25, 0),
+      RADIUS: num(0.04),
+      COL:    v("c_support"),
+    },
+  },
+  { type: "comment_block", fields: { TEXT: "Rod: axis vector points from pivot toward bob (updated each frame)" } },
+  {
+    type: "cylinder_block",
+    fields: { NAME: "rod" },
+    values: {
+      POS:    vec(0, 0, 0),
+      AXIS:   vec(1.0, -1.732, 0),
+      RADIUS: num(0.025),
+      COL:    v("c_rod"),
+    },
+  },
+  { type: "comment_block", fields: { TEXT: "Bob: pendulum mass with glowing trail" } },
+  {
+    type: "sphere_trail_block",
+    fields: { NAME: "bob" },
+    values: {
+      POS:       vec(1.0, -1.732, 0),
+      RADIUS:    num(0.15),
+      COL:       v("c_bob"),
+      TRAIL_R:   num(0.03),
+      TRAIL_COL: v("c_trail"),
+      RETAIN:    num(200),
+    },
+  },
+  { type: "comment_block", fields: { TEXT: "Telemetry live display label" } },
+  {
+    type: "label_full_block",
+    fields: { NAME: "telemetry", TEXT: "" },
+    values: { POS: vec(3.0, 1.5, 0), HEIGHT: num(14) },
+  },
+
+  /* ── Animation loop ──────────────────────────────────── */
+  {
+    type: "forever_loop_block",
+    body: [
+      { type: "rate_block", fields: { N: 200 } },
+
+      /* α = −(g/L)·sin(θ) − b·ω */
+      { type: "comment_block", fields: { TEXT: "Angular acceleration: alpha = -(g/L)*sin(theta) - b*omega" } },
+      {
+        type: "set_scalar_block",
+        fields: { NAME: "alpha" },
+        values: {
+          VALUE: sub(
+            mul(
+              div(mul(num(-1), physicsConst("g")), v("L")),
+              trig("sin", v("theta"))
+            ),
+            mul(v("b"), v("omega"))
+          ),
+        },
+      },
+
+      /* Symplectic Euler: update omega first, then theta */
+      { type: "comment_block", fields: { TEXT: "Symplectic Euler: update omega first, then theta" } },
+      {
+        type: "set_scalar_block",
+        fields: { NAME: "omega" },
+        values: { VALUE: add(v("omega"), mul(v("alpha"), v("dt"))) },
+      },
+      {
+        type: "set_scalar_block",
+        fields: { NAME: "theta" },
+        values: { VALUE: add(v("theta"), mul(v("omega"), v("dt"))) },
+      },
+
+      /* Bob position in Cartesian coordinates */
+      { type: "comment_block", fields: { TEXT: "Bob coordinates: bob_x = L*sin(theta), bob_y = -L*cos(theta)" } },
+      {
+        type: "set_scalar_block",
+        fields: { NAME: "bob_x" },
+        values: { VALUE: mul(v("L"), trig("sin", v("theta"))) },
+      },
+      {
+        type: "set_scalar_block",
+        fields: { NAME: "bob_y" },
+        values: { VALUE: mul(mul(num(-1), v("L")), trig("cos", v("theta"))) },
+      },
+
+      /* Update rod axis and bob position */
+      { type: "comment_block", fields: { TEXT: "Update rod axis and bob position" } },
+      {
+        type: "set_attr_expr_block",
+        fields: { OBJ: "rod", ATTR: "axis" },
+        values: { VALUE: vecC(v("bob_x"), v("bob_y"), num(0)) },
+      },
+      {
+        type: "set_attr_expr_block",
+        fields: { OBJ: "bob", ATTR: "pos" },
+        values: { VALUE: vecC(v("bob_x"), v("bob_y"), num(0)) },
+      },
+
+      /* Energy calculations */
+      { type: "comment_block", fields: { TEXT: "KE = 0.5*m*L^2*omega^2   PE = m*g*L*(1 - cos(theta))" } },
+      {
+        type: "set_scalar_block",
+        fields: { NAME: "KE" },
+        values: {
+          VALUE: mul(
+            num(0.5),
+            mul(v("m"), mul(powOf(v("L"), num(2)), powOf(v("omega"), num(2))))
+          ),
+        },
+      },
+      {
+        type: "set_scalar_block",
+        fields: { NAME: "PE" },
+        values: {
+          VALUE: mul(
+            v("m"),
+            mul(physicsConst("g"), mul(v("L"), sub(num(1), trig("cos", v("theta")))))
+          ),
+        },
+      },
+      {
+        type: "set_scalar_block",
+        fields: { NAME: "E_total" },
+        values: { VALUE: add(v("KE"), v("PE")) },
+      },
+
+      /* Telemetry */
+      { type: "comment_block", fields: { TEXT: "Live telemetry readout" } },
+      {
+        type: "telemetry_update_block",
+        fields: { LABEL: "telemetry", M: "t", D: 2, U: "s" },
+        values: { V: v("t") },
+      },
+      {
+        type: "telemetry_update_block",
+        fields: { LABEL: "telemetry", M: "theta", D: 3, U: "rad" },
+        values: { V: v("theta") },
+      },
+      {
+        type: "telemetry_update_block",
+        fields: { LABEL: "telemetry", M: "omega", D: 3, U: "rad/s" },
+        values: { V: v("omega") },
+      },
+      {
+        type: "telemetry_update_block",
+        fields: { LABEL: "telemetry", M: "KE", D: 3, U: "J" },
+        values: { V: v("KE") },
+      },
+      {
+        type: "telemetry_update_block",
+        fields: { LABEL: "telemetry", M: "PE", D: 3, U: "J" },
+        values: { V: v("PE") },
+      },
+      {
+        type: "telemetry_update_block",
+        fields: { LABEL: "telemetry", M: "E_total", D: 3, U: "J" },
+        values: { V: v("E_total") },
+      },
+
+      /* Advance time */
+      {
+        type: "set_scalar_block",
+        fields: { NAME: "t" },
+        values: { VALUE: add(v("t"), v("dt")) },
+      },
+    ],
+  },
+
+  /* ── Simulation end ─────────────────────────────────────── */
+  { type: "sim_end_block", fields: { MSG: "Pendulum simulation complete." } },
+];
+
 /* ── Export ───────────────────────────────────────────── */
 
 export const BLOCK_TEMPLATES = [
@@ -1454,6 +1673,14 @@ export const BLOCK_TEMPLATES = [
     description:
       "Moon orbits Earth while Earth orbits Sun. Velocity-Verlet integration for long-term stability, with starfield, trails, and telemetry.",
     xml: buildTemplate(normalizeSimulationFlow(ORBIT_BLOCKS)),
+  },
+  {
+    id: "blocks_pendulum",
+    title: "Simple Pendulum (Blocks Template)",
+    subtitle: "Nonlinear damped pendulum with energy telemetry",
+    description:
+      "Full nonlinear ODE \u03b1 = \u2212(g/L)\u00b7sin(\u03b8) \u2212 b\u00b7\u03c9 with symplectic Euler integration. Live KE, PE, and E_total telemetry. Rod and bob geometry update every frame.",
+    xml: buildTemplate(normalizeSimulationFlow(PENDULUM_BLOCKS)),
   },
 ];
 

@@ -92,8 +92,9 @@ Custom Physics blocks use native Blockly variable fields (`field_variable`) for 
 - `blocks_projectile` — animated projectile with drag model and telemetry
 - `blocks_spring` — damped spring-mass oscillator with KE/PE telemetry
 - `blocks_orbits` — animated orbital system with softened gravity and telemetry
+- `blocks_pendulum` — nonlinear pendulum, symplectic Euler, full energy telemetry
 
-All three use `python_raw_block` only for scene setup; all physics logic uses semantic custom blocks.
+All four use `python_raw_block` only where needed; all physics logic uses semantic custom blocks. The pendulum Blocks template uses zero raw blocks.
 
 ---
 
@@ -166,18 +167,67 @@ Why this matters:
 - `projectile` — drag + telemetry + lighting
 - `spring` — damped oscillator + energy telemetry
 - `orbits` — star/planet/moon gravity + telemetry
+- `pendulum` — nonlinear damped pendulum with KE/PE/E_total telemetry
 
 ## Block Templates (`src/utils/blockTemplates.js`)
 
 - `blocks_projectile` — animated projectile with drag model and telemetry
 - `blocks_spring` — damped spring-mass oscillator with KE/PE telemetry
 - `blocks_orbits` — animated orbital system with softened gravity and telemetry
+- `blocks_pendulum` — nonlinear pendulum with symplectic Euler integration and energy telemetry
 
 ### Template design rules
 
 - Prefer custom blocks where possible
 - Use raw Python blocks only for logic not yet represented by custom blocks
 - Add comment blocks before raw sections to explain intent
+
+---
+
+### 4 · Simple Pendulum (new)
+
+**Physics:** Full nonlinear ODE — no small-angle approximation.
+
+| Parameter | Value | Description |
+|---|---|---|
+| `L` | 2.0 m | Pendulum length (pivot to bob centre) |
+| `m` | 1.0 kg | Bob mass |
+| `b` | 0.10 Ns/rad | Linear damping coefficient |
+| `θ₀` | 30° = π/6 rad | Initial angle from vertical |
+| `ω₀` | 0 rad/s | Initial angular velocity (released from rest) |
+| `dt` | 0.005 s | Integration time step |
+
+**Governing equations:**
+
+```
+α = −(g/L)·sin(θ) − b·ω       # angular acceleration (nonlinear damped ODE)
+
+# Symplectic (semi-implicit) Euler integration:
+ω(t+dt) = ω(t) + α·dt          # update angular velocity first
+θ(t+dt) = θ(t) + ω(t+dt)·dt    # then angle (uses updated ω)
+
+# Bob Cartesian coordinates:
+bob_x = L·sin(θ)
+bob_y = −L·cos(θ)
+
+# Mechanical energy:
+KE      = ½ m L² ω²
+PE      = m g L (1 − cos θ)     # zero at bottom of swing
+E_total = KE + PE               # slowly decays with damping
+```
+
+**Period (small-angle, undamped):** T = 2π√(L/g) ≈ 2.84 s for L = 2.0 m
+
+**Why symplectic Euler?**  
+Standard Euler (update θ before ω) introduces energy gain — the bob drifts outward over time even with b=0. Symplectic Euler (ω updated first) preserves the Hamiltonian structure, keeping E_total stable across thousands of oscillations.
+
+**Key features of the simulation:**
+
+- Rod cylinder `axis` and bob sphere `pos` are recomputed from θ every frame
+- 200-point golden trail traces the arc of oscillation  
+- Live telemetry: t, θ (rad), ω (rad/s), KE, PE, E_total
+
+**Blocks template note:** `blocks_pendulum` uses zero `python_raw_block` blocks. The angular acceleration formula is built entirely from `math_trig_block` (sin, cos, radians), `math_pow_block`, `vector_compose_block`, and nested `math_arithmetic` blocks.
 
 ---
 

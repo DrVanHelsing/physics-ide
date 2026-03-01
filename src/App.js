@@ -102,6 +102,7 @@ function App() {
       projectile: "blocks_projectile",
       spring:     "blocks_spring",
       orbits:     "blocks_orbits",
+      pendulum:   "blocks_pendulum",
     };
     const blockId = idToBlockTemplate[codeId];
     return BLOCK_TEMPLATES.find((tpl) => tpl.id === blockId) || null;
@@ -112,6 +113,7 @@ function App() {
       blocks_projectile: "projectile",
       blocks_spring:     "spring",
       blocks_orbits:     "orbits",
+      blocks_pendulum:   "pendulum",
     };
     const codeId = blockToCodeId[blockId];
     return EXAMPLES.find((tpl) => tpl.id === codeId) || null;

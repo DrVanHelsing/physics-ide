@@ -18,9 +18,11 @@ const CARD_ICONS = {
   projectile:        RocketIcon,
   spring:            SpringIcon,
   orbits:            GlobeIcon,
+  pendulum:          AtomIcon,
   blocks_projectile: BlocksIcon,
   blocks_spring:     SpringIcon,
   blocks_orbits:     BlocksIcon,
+  blocks_pendulum:   AtomIcon,
   code_blank:        FileCodeIcon,
   blocks_blank:      FileBlocksIcon,
 };
@@ -29,9 +31,11 @@ const ACCENT_COLORS = {
   projectile:        "var(--accent-blue)",
   spring:            "var(--peach)",
   orbits:            "var(--accent-blue)",
+  pendulum:          "var(--accent-green)",
   blocks_projectile: "var(--mauve)",
   blocks_spring:     "var(--peach)",
   blocks_orbits:     "var(--mauve)",
+  blocks_pendulum:   "var(--accent-green)",
   code_blank:        "var(--accent-blue)",
   blocks_blank:      "var(--mauve)",
 };

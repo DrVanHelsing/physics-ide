@@ -334,4 +334,133 @@ while True:
   t = t + dt
 `,
   },
+  {
+    id: "pendulum",
+    title: "Simple Pendulum",
+    subtitle: "Nonlinear damped pendulum with energy telemetry",
+    description:
+      "Full nonlinear ODE \u03b1 = \u2212(g/L)\u00b7sin(\u03b8) \u2212 b\u00b7\u03c9 with symplectic Euler integration. Live KE, PE, and E_total telemetry. Rod and bob geometry update every frame.",
+    code: `GlowScript 3.2 VPython
+# ── Simple Pendulum Simulation ────────────────────────────────────────────────
+# Nonlinear damped pendulum: alpha = -(g/L)*sin(theta) - b*omega
+#
+# Integration: Symplectic (semi-implicit) Euler
+#   Update omega first, then theta — conserves energy better than standard Euler.
+#
+# State variables:
+#   theta  – angle from vertical (rad, positive = right/clockwise)
+#   omega  – angular velocity (rad/s)
+#
+# Energy:
+#   KE      = 0.5 * m * L**2 * omega**2     (rotational kinetic energy)
+#   PE      = m * g * L * (1 - cos(theta))  (gravitational potential, zero at bottom)
+#   E_total = KE + PE                        (decays slowly with damping)
+#
+# Small-angle period (b = 0):  T = 2*pi*sqrt(L/g) ≈ 2.84 s for L = 2.0 m
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ── Scene ─────────────────────────────────────────────────────────────────────
+scene.title      = "Simple Pendulum"
+scene.background = vector(0.05, 0.05, 0.10)
+scene.range      = 3
+scene.center     = vector(0, -1, 0)
+
+# ── Colours ───────────────────────────────────────────────────────────────────
+c_support = vector(0.60, 0.60, 0.65)
+c_rod     = vector(0.85, 0.80, 0.60)
+c_bob     = vector(0.95, 0.30, 0.25)
+c_trail   = vector(1.00, 0.88, 0.25)
+
+# ── Parameters ────────────────────────────────────────────────────────────────
+g = 9.81   # gravitational acceleration (m/s²)
+L = 2.0    # pendulum length — pivot to bob centre (m)
+m = 1.0    # bob mass (kg)
+b = 0.10   # linear damping coefficient (Ns/rad) — set 0.0 for undamped ideal motion
+
+# ── Initial conditions ────────────────────────────────────────────────────────
+theta = radians(30)  # initial angle from vertical (30° = pi/6 rad)
+omega = 0.0          # initial angular velocity — released from rest
+
+# ── Time ──────────────────────────────────────────────────────────────────────
+dt = 0.005
+t  = 0.0
+
+# ── Objects ───────────────────────────────────────────────────────────────────
+# Vertical support post at pivot
+support = cylinder(
+    pos    = vector(0, 0, 0),
+    axis   = vector(0, 0.25, 0),
+    radius = 0.04,
+    color  = c_support)
+
+# Pivot cap — small sphere at the hinge point
+pivot_cap = sphere(
+    pos     = vector(0, 0, 0),
+    radius  = 0.055,
+    color   = c_support,
+    opacity = 0.9)
+
+# Rod connecting pivot to bob (axis updated each frame)
+rod = cylinder(
+    pos    = vector(0, 0, 0),
+    axis   = vector(L * sin(theta), -L * cos(theta), 0),
+    radius = 0.025,
+    color  = c_rod)
+
+# Bob (pendulum mass) with golden trail
+bob = sphere(
+    pos          = vector(L * sin(theta), -L * cos(theta), 0),
+    radius       = 0.15,
+    color        = c_bob,
+    make_trail   = True,
+    trail_radius = 0.03,
+    trail_color  = c_trail,
+    retain       = 200)
+
+# Live telemetry label
+telemetry = label(
+    pos    = vector(3.0, 1.5, 0),
+    text   = "",
+    height = 14,
+    box    = False,
+    color  = color.white,
+    opacity = 0)
+
+# ── Animation loop ────────────────────────────────────────────────────────────
+while True:
+    rate(200)
+
+    # Angular acceleration: full nonlinear ODE + linear damping
+    alpha = -(g / L) * sin(theta) - b * omega
+
+    # Symplectic (semi-implicit) Euler integration
+    omega = omega + alpha * dt   # update angular velocity first
+    theta = theta + omega * dt   # then angle (uses updated omega)
+
+    # Cartesian position of bob
+    bob_x = L * sin(theta)
+    bob_y = -L * cos(theta)
+
+    # Update 3D geometry each frame
+    rod.axis = vector(bob_x, bob_y, 0)
+    bob.pos  = vector(bob_x, bob_y, 0)
+
+    # Mechanical energy
+    KE      = 0.5 * m * L**2 * omega**2
+    PE      = m * g * L * (1 - cos(theta))
+    E_total = KE + PE
+
+    # Live telemetry display
+    telemetry.text = (
+        "t       = " + str(round(t, 2))       + " s\\n"
+        "theta   = " + str(round(theta, 3))   + " rad\\n"
+        "omega   = " + str(round(omega, 3))   + " rad/s\\n"
+        "KE      = " + str(round(KE, 3))      + " J\\n"
+        "PE      = " + str(round(PE, 3))      + " J\\n"
+        "E_total = " + str(round(E_total, 3)) + " J"
+    )
+
+    t = t + dt
+`,
+  },
 ];
