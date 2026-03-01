@@ -36,8 +36,42 @@ function App() {
   const [splitPct, setSplitPct] = useState(50);           // editor panel width %
   const [viewportHidden, setViewportHidden] = useState(false); // hide 3D viewport panel
   const [beginnerMode, setBeginnerMode] = useState(false);  // simplified toolbox
+  const [traceVisible, setTraceVisible] = useState(false);  // live trace table
+  const [traceData, setTraceData] = useState(() => new Map()); // Map<name,{value,blockId,count,flashKey}>
+  const highlightTimerRef = useRef(null);
 
   const handleHelp = useCallback(() => setShowHelp(true), []);
+
+  /* ── Trace callback — registered on window so glowRunner iframe can call it ── */
+  useEffect(() => {
+    window.__physide_trace_cb = (batch) => {
+      setTraceData((prev) => {
+        const next = new Map(prev);
+        for (const [name, { v, b }] of Object.entries(batch)) {
+          const existing = prev.get(name);
+          next.set(name, {
+            value: v,
+            blockId: b,
+            count: (existing?.count || 0) + 1,
+            flashKey: (existing?.flashKey || 0) + 1,
+          });
+        }
+        return next;
+      });
+      // Highlight the last traced block in the Blockly workspace
+      const entries = Object.entries(batch);
+      if (entries.length > 0 && workspaceRef.current) {
+        const lastBlockId = entries[entries.length - 1][1].b;
+        try { workspaceRef.current.highlightBlock(lastBlockId); } catch (_) {}
+        if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
+        highlightTimerRef.current = setTimeout(() => {
+          try { workspaceRef.current?.highlightBlock(null); } catch (_) {}
+        }, 250);
+      }
+    };
+    return () => { window.__physide_trace_cb = null; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // setTraceData and workspaceRef are both stable
 
   const findBlockTemplateByCodeId = useCallback((codeId) => {
     const idToBlockTemplate = {
@@ -98,6 +132,7 @@ function App() {
     const code = mode === "text" ? pythonCode : syncFromBlocks();
     setStatus({ text: "Running...", type: "" });
     setRunning(true);
+    setTraceData(new Map()); // Clear trace from previous run
     try {
       stopPython("glowscript-host");
       await runPython(code, "glowscript-host");
@@ -234,6 +269,9 @@ function App() {
   const handleToggleBeginnerMode = useCallback(() => {
     setBeginnerMode((b) => !b);
   }, []);
+
+  const handleToggleTrace = useCallback(() => setTraceVisible((v) => !v), []);
+  const handleClearTrace = useCallback(() => setTraceData(new Map()), []);
   /* ── Mode toggle ───────────────────────────────────────── */
   const handleModeChange = useCallback(
     (nextMode) => {
@@ -371,6 +409,8 @@ function App() {
         onToggleViewport={handleToggleViewport}
         beginnerMode={beginnerMode}
         onToggleBeginnerMode={handleToggleBeginnerMode}
+        traceVisible={traceVisible}
+        onToggleTrace={handleToggleTrace}
       >
         <ModeToggle
           mode={mode}
@@ -437,7 +477,15 @@ function App() {
           <div className="pane-header pane-header--viewport">
             <GlobeIcon size={14} /> 3D Viewport
           </div>
-          <GlowCanvas running={running} />
+          <GlowCanvas
+            running={running}
+            traceData={traceData}
+            traceVisible={traceVisible}
+            onHighlightBlock={(id) => {
+              try { workspaceRef.current?.highlightBlock(id); } catch (_) {}
+            }}
+            onClearTrace={handleClearTrace}
+          />
         </section>
       </div>
 

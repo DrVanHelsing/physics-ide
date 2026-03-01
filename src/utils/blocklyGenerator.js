@@ -825,6 +825,90 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       colour: 0,
       tooltip: "Marks the end of a simulation. Prints a completion message.",
     },
+
+    /* ══ 3D Math blocks ═══════════════════════════════════════════════ */
+    {
+      type: "cross_product_block",
+      message0: "cross( %1 , %2 )",
+      args0: [
+        { type: "input_value", name: "A" },
+        { type: "input_value", name: "B" },
+      ],
+      inputsInline: true,
+      output: null,
+      colour: 230,
+      tooltip: "Cross product of two 3D vectors. Returns a vector perpendicular to both (right-hand rule).",
+    },
+    {
+      type: "dot_product_block",
+      message0: "dot( %1 , %2 )",
+      args0: [
+        { type: "input_value", name: "A" },
+        { type: "input_value", name: "B" },
+      ],
+      inputsInline: true,
+      output: null,
+      colour: 230,
+      tooltip: "Dot product of two vectors. Returns a scalar (used for work, projection, angle).",
+    },
+    {
+      type: "math_trig_block",
+      message0: "%1 ( %2 )",
+      args0: [
+        { type: "field_dropdown", name: "OP", options: [
+          ["sin",     "sin"],
+          ["cos",     "cos"],
+          ["tan",     "tan"],
+          ["asin",    "asin"],
+          ["acos",    "acos"],
+          ["atan",    "atan"],
+          ["radians", "radians"],
+          ["degrees", "degrees"],
+          ["sqrt",    "sqrt"],
+          ["abs",     "abs"],
+        ]},
+        { type: "input_value", name: "X" },
+      ],
+      inputsInline: true,
+      output: null,
+      colour: 230,
+      tooltip: "Trig / math function. sin/cos/tan expect radians; use radians() to convert from degrees.",
+    },
+    {
+      type: "rotate_object_block",
+      message0: "rotate %1 by %2 \u00b0 around axis %3",
+      args0: [
+        { type: "field_variable", name: "OBJ", variable: "ball" },
+        { type: "input_value", name: "ANGLE" },
+        { type: "input_value", name: "AXIS" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 160,
+      tooltip: "Rotate an object by an angle in degrees around an axis vector (right-hand rule).",
+    },
+    {
+      type: "scene_camera_block",
+      message0: "scene.%1 = %2",
+      args0: [
+        { type: "field_dropdown", name: "PROP", options: [
+          ["center",  "center"],
+          ["forward", "forward"],
+          ["up",      "up"],
+          ["range",   "range"],
+          ["width",   "width"],
+          ["height",  "height"],
+          ["background", "background"],
+        ]},
+        { type: "input_value", name: "VALUE" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 45,
+      tooltip: "Set a scene / camera property: center/forward/up control the camera, range controls zoom.",
+    },
   ]);
 
   /* ── physics_const_block — dynamic dropdown with custom constants ── */
@@ -877,6 +961,10 @@ export function defineCustomBlocksAndGenerator(Blockly) {
     const resolved = model ? model.name : id;
     return (resolved || fallback).trim();
   };
+
+  // Helper: emit a live-trace call after an assignment (no-op if runtime isn't tracing)
+  const tr = (name, expr, blockId) =>
+    `_physide_trace(${JSON.stringify(name)}, str(${expr}), ${JSON.stringify(blockId)})\n`;
 
   /* ── Value blocks ─────────────────────────────────────── */
   gen["vector_block"] = function (block) {
@@ -1050,14 +1138,14 @@ export function defineCustomBlocksAndGenerator(Blockly) {
   gen["update_position_block"] = function (block) {
     const obj = varName(block, "OBJ", "ball");
     const dt = val(block, "DT", "dt");
-    return `${obj}.pos = ${obj}.pos + ${obj}.velocity * ${dt}\n`;
+    return `${obj}.pos = ${obj}.pos + ${obj}.velocity * ${dt}\n` + tr(`${obj}.pos`, `${obj}.pos`, block.id);
   };
 
   gen["apply_force_block"] = function (block) {
     const obj = varName(block, "OBJ", "ball");
     const a = val(block, "ACCEL", "vector(0,-9.81,0)");
     const dt = val(block, "DT", "dt");
-    return `${obj}.velocity = ${obj}.velocity + ${a} * ${dt}\n`;
+    return `${obj}.velocity = ${obj}.velocity + ${a} * ${dt}\n` + tr(`${obj}.velocity`, `${obj}.velocity`, block.id);
   };
 
   gen["set_gravity_block"] = function (block) {
@@ -1068,21 +1156,21 @@ export function defineCustomBlocksAndGenerator(Blockly) {
   gen["set_scalar_block"] = function (block) {
     const name = varName(block, "NAME", "x");
     const v = val(block, "VALUE", "0");
-    return `${name} = ${v}\n`;
+    return `${name} = ${v}\n` + tr(name, name, block.id);
   };
 
   gen["set_attr_expr_block"] = function (block) {
     const obj = varName(block, "OBJ", "obj");
     const attr = (block.getFieldValue("ATTR") || "pos").trim();
     const v = val(block, "VALUE", "0");
-    return `${obj}.${attr} = ${v}\n`;
+    return `${obj}.${attr} = ${v}\n` + tr(`${obj}.${attr}`, `${obj}.${attr}`, block.id);
   };
 
   gen["add_attr_expr_block"] = function (block) {
     const obj = varName(block, "OBJ", "ball");
     const attr = (block.getFieldValue("ATTR") || "velocity").trim();
     const v = val(block, "VALUE", "0");
-    return `${obj}.${attr} += ${v}\n`;
+    return `${obj}.${attr} += ${v}\n` + tr(`${obj}.${attr}`, `${obj}.${attr}`, block.id);
   };
 
   /* ── Control blocks ───────────────────────────────────── */
@@ -1105,7 +1193,8 @@ export function defineCustomBlocksAndGenerator(Blockly) {
   };
 
   gen["time_step_block"] = function (block) {
-    return `dt = ${block.getFieldValue("DT")}\n`;
+    const dt = block.getFieldValue("DT");
+    return `dt = ${dt}\n` + tr("dt", "dt", block.id);
   };
 
   gen["if_block"] = function (block) {
@@ -1208,7 +1297,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
   gen["define_const_block"] = function (block) {
     const name = varName(block, "NAME", "CONST");
     const v = val(block, "VALUE", "0");
-    return `${name} = ${v}\n`;
+    return `${name} = ${v}\n` + tr(name, name, block.id);
   };
 
   /* ── Simulation start / end blocks ────────────────────── */
@@ -1231,6 +1320,38 @@ export function defineCustomBlocksAndGenerator(Blockly) {
   // Intercept the dropdown change to create custom constants via popup
   // This is done by registering a validator on the field after workspace init
   // (See BlocklyWorkspace.js for the validator registration)
+
+  /* ── 3D Math generators ──────────────────────────────────────── */
+  gen["cross_product_block"] = function (block) {
+    const a = val(block, "A", "vector(0,0,0)");
+    const b = val(block, "B", "vector(0,0,0)");
+    return [`cross(${a}, ${b})`, Python.ORDER_FUNCTION_CALL];
+  };
+
+  gen["dot_product_block"] = function (block) {
+    const a = val(block, "A", "vector(0,0,0)");
+    const b = val(block, "B", "vector(0,0,0)");
+    return [`dot(${a}, ${b})`, Python.ORDER_FUNCTION_CALL];
+  };
+
+  gen["math_trig_block"] = function (block) {
+    const op = block.getFieldValue("OP") || "sin";
+    const x = val(block, "X", "0");
+    return [`${op}(${x})`, Python.ORDER_FUNCTION_CALL];
+  };
+
+  gen["rotate_object_block"] = function (block) {
+    const obj = varName(block, "OBJ", "ball");
+    const angle = val(block, "ANGLE", "0");
+    const axis = val(block, "AXIS", "vector(0,1,0)");
+    return `${obj}.rotate(angle=radians(${angle}), axis=${axis})\n`;
+  };
+
+  gen["scene_camera_block"] = function (block) {
+    const prop = block.getFieldValue("PROP") || "center";
+    const v = val(block, "VALUE", "vector(0,0,0)");
+    return `scene.${prop} = ${v}\n`;
+  };
 
   initialized = true;
 }
@@ -1310,6 +1431,12 @@ export const BLOCK_CATALOGUE = [
   // Simulation structure
   { type: "sim_start_block",       label: "Simulation Start",              category: "\uD83D\uDE80 Starter", keywords: ["start","begin","simulation","setup","init"] },
   { type: "sim_end_block",         label: "Simulation End",                category: "\uD83D\uDE80 Starter", keywords: ["end","stop","finish","simulation","complete"] },
+  // 3D Math
+  { type: "cross_product_block",   label: "Cross product  cross(a, b)",    category: "3D Math", keywords: ["cross","product","perpendicular","torque","angular","3d"] },
+  { type: "dot_product_block",     label: "Dot product  dot(a, b)",        category: "3D Math", keywords: ["dot","product","scalar","work","projection","angle"] },
+  { type: "math_trig_block",       label: "Trig / math  (sin, cos, radians…)", category: "3D Math", keywords: ["sin","cos","tan","trig","radians","degrees","sqrt","abs","asin","acos"] },
+  { type: "rotate_object_block",   label: "Rotate object  (angle, axis)",  category: "3D Math", keywords: ["rotate","spin","angle","axis","angular","rotation","3d"] },
+  { type: "scene_camera_block",    label: "Scene / camera  (center, forward…)", category: "3D Math", keywords: ["scene","camera","forward","up","center","range","zoom","view"] },
 ];
 
 /* ================================================================

@@ -221,4 +221,28 @@ export const GraduationCapIcon = ({ size } = {}) => (
   <svg {...sz(size)}><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
 );
 
+export const TableIcon = ({ size } = {}) => (
+  <svg {...sz(size)}><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="9" x2="9" y2="21"/></svg>
+);
+
+export const CrossVecIcon = ({ size } = {}) => (
+  <svg {...sz(size)}><path d="M12 2v20M2 12h20" strokeWidth="2.2"/><circle cx="12" cy="12" r="3" fill="currentColor" stroke="none" opacity=".35"/></svg>
+);
+
+export const DotVecIcon = ({ size } = {}) => (
+  <svg {...sz(size)}><line x1="4" y1="12" x2="9" y2="12"/><circle cx="12" cy="12" r="1.8" fill="currentColor" stroke="none"/><line x1="15" y1="12" x2="20" y2="12"/><path d="M7 7l10 10M17 7L7 17" opacity=".4"/></svg>
+);
+
+export const RotateIcon = ({ size } = {}) => (
+  <svg {...sz(size)}><path d="M2.5 8A9.5 9.5 0 0112 2.5c3.7 0 6.9 2.1 8.5 5.1"/><polyline points="22 2 22 8 16 8"/><path d="M21.5 16A9.5 9.5 0 0112 21.5c-3.7 0-6.9-2.1-8.5-5.1"/><polyline points="2 22 2 16 8 16"/></svg>
+);
+
+export const SceneCamIcon = ({ size } = {}) => (
+  <svg {...sz(size)}><path d="M15 10l4.553-2.069A1 1 0 0121 8.82v6.36a1 1 0 01-1.447.889L15 14"/><rect x="3" y="7" width="12" height="10" rx="2"/><circle cx="9" cy="12" r="2" opacity=".5"/></svg>
+);
+
+export const TrigIcon = ({ size } = {}) => (
+  <svg {...sz(size)}><path d="M2 18 Q6 4 10 12 Q14 20 18 6" fill="none"/><text x="18" y="18" fontSize="6" strokeWidth=".5" fill="currentColor" stroke="currentColor">θ</text></svg>
+);
+
 

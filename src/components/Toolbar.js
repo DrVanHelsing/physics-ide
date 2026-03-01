@@ -21,6 +21,7 @@ import {
   PanelRightCloseIcon,
   PanelRightOpenIcon,
   GraduationCapIcon,
+  TableIcon,
 } from "./Icons";
 
 /* ── Dropdown menu component ─────────────────────────────── */
@@ -117,6 +118,8 @@ function Toolbar({
   onHelp,
   onToggleViewport,
   onToggleBeginnerMode,
+  traceVisible,
+  onToggleTrace,
   isDark,
   running,
   mode,
@@ -208,6 +211,19 @@ function Toolbar({
         >
           {viewportHidden ? <PanelRightOpenIcon size={13} /> : <PanelRightCloseIcon size={13} />}
           <span className="tb-btn-label">{viewportHidden ? "Viewport" : "Viewport"}</span>
+        </button>
+      )}
+
+      {/* ── Live trace table toggle ── */}
+      {onToggleTrace && (
+        <button
+          type="button"
+          className={`tb-btn tb-btn--subtle${traceVisible ? " tb-btn--active" : ""}`}
+          onClick={onToggleTrace}
+          title={traceVisible ? "Hide live trace table" : "Show live trace table"}
+        >
+          <TableIcon size={13} />
+          <span className="tb-btn-label">Trace</span>
         </button>
       )}
 

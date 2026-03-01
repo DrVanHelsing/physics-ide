@@ -288,6 +288,28 @@ async function executeCompiled(frameWindow, compiledCode) {
     };
   }
 
+  /* Inject live-trace helper ─ batches calls and fires the parent callback
+     registered on window.__physide_trace_cb by the React app.
+     The closure captures the *parent* window, so calling the parent callback
+     directly avoids any cross-origin postMessage complications. */
+  (function injectTraceHelper(fw) {
+    var p = {}, t = null;
+    fw._physide_trace = function (name, val, bid) {
+      p[name] = { v: String(val), b: bid };
+      if (!t) {
+        t = setTimeout(function () {
+          try {
+            if (typeof window.__physide_trace_cb === "function") {
+              window.__physide_trace_cb(p);
+            }
+          } catch (e) {}
+          p = {};
+          t = null;
+        }, 50);
+      }
+    };
+  })(frameWindow);
+
   try {
     frameWindow.eval(compiledCode);
   } catch (runtimeErr) {

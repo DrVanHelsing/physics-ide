@@ -289,6 +289,23 @@ const TOOLBOX_XML = `
     <block type="math_random_float"></block>
   </category>
 
+  <!-- ── 3D MATH ───────────────────────────────────────── -->
+  <category name="3D Math" colour="#3a7bd5">
+    <label text="Vectors" web-class="tb-label"></label>
+    <block type="cross_product_block"></block>
+    <block type="dot_product_block"></block>
+    <label text="Trig &amp; Math" web-class="tb-label"></label>
+    <block type="math_trig_block"></block>
+    <label text="Objects &amp; Camera" web-class="tb-label"></label>
+    <block type="rotate_object_block">
+      <value name="ANGLE"><block type="math_number"><field name="NUM">45</field></block></value>
+      <value name="AXIS"><block type="vector_block"><field name="X">0</field><field name="Y">1</field><field name="Z">0</field></block></value>
+    </block>
+    <block type="scene_camera_block">
+      <value name="VALUE"><block type="vector_block"><field name="X">0</field><field name="Y">0</field><field name="Z">8</field></block></value>
+    </block>
+  </category>
+
   <!-- ── TEXT ───────────────────────────────────────────── -->
   <category name="Text" colour="#5ba58c">
     <block type="text"></block>
@@ -447,6 +464,19 @@ const TOOLBOX_BEGINNER_XML = `
     <block type="math_arithmetic"></block>
     <block type="math_single"></block>
     <block type="math_trig"></block>
+  </category>
+
+  <category name="3D Math" colour="#3a7bd5">
+    <block type="cross_product_block"></block>
+    <block type="dot_product_block"></block>
+    <block type="math_trig_block"></block>
+    <block type="rotate_object_block">
+      <value name="ANGLE"><block type="math_number"><field name="NUM">45</field></block></value>
+      <value name="AXIS"><block type="vector_block"><field name="X">0</field><field name="Y">1</field><field name="Z">0</field></block></value>
+    </block>
+    <block type="scene_camera_block">
+      <value name="VALUE"><block type="vector_block"><field name="X">0</field><field name="Y">0</field><field name="Z">8</field></block></value>
+    </block>
   </category>
 
   <category name="Variables" colour="#a55b80" custom="VARIABLE"></category>
