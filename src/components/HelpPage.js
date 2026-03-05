@@ -733,7 +733,7 @@ CHARGE = 1.6e-19`}</Pre>
                   <div className="help-block-name">physics_const_block</div>
                   <div className="help-block-desc">
                     Insert a standard physics constant via a dropdown. Choose from:
-                    <Pre>g = 9.81         (standard gravity, m/s\u00b2){"\n"}G = 6.674e-11    (gravitational constant){"\n"}\u03c0 = pi          (used directly in VPython){"\n"}e = 2.718         (Euler\u2019s number){"\n"}c = 3e8           (speed of light, m/s){"\n"}k\u2091 = 8.988e9   (Coulomb\u2019s constant){"\n"}h = 6.626e-34    (Planck\u2019s constant){"\n"}m\u2091 = 9.109e-31 (electron mass, kg){"\n"}m\u209a = 1.673e-27 (proton mass, kg)</Pre>
+                    <Pre>g  = 9.81         (standard gravity, m/s²){"\n"}G  = 6.674e-11    (gravitational constant){"\n"}π  = pi           (used directly in VPython){"\n"}e  = 2.718        (Euler's number){"\n"}c  = 3e8          (speed of light, m/s){"\n"}kₑ = 8.988e9     (Coulomb's constant){"\n"}h  = 6.626e-34   (Planck's constant){"\n"}mₑ = 9.109e-31   (electron mass, kg){"\n"}mₚ = 1.673e-27   (proton mass, kg)</Pre>
                     Snap into any numeric slot instead of typing raw values. Improves
                     readability and prevents transcription errors.
                   </div>
