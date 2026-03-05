@@ -5,7 +5,7 @@
  * Covers every feature from blocks to code to physics models.
  * Designed for junior developers, senior developers, and educators.
  */
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   AtomIcon, RocketIcon, BlocksIcon, BookOpenIcon, CodeIcon,
   DownloadIcon, ZapIcon, LayersIcon, EditIcon, UsersIcon,
@@ -73,6 +73,108 @@ function SectionHeader({ id, children }) {
   );
 }
 
+/* ── Searchable content index ───────────────────────────── */
+const SEARCH_INDEX = [
+  {
+    id: "overview",
+    title: "Overview",
+    content: "Physics IDE browser-based physics simulation environment block editor VPython GlowScript 3D viewport WebGL architecture two ways to build blocks code blank project toggle view",
+  },
+  {
+    id: "getting-started",
+    title: "Getting Started",
+    content: "start menu blocks template code example blank project run simulation stop toolbar 3D viewport orbit pan zoom camera mouse drag scroll auto-save localStorage export restore session",
+  },
+  {
+    id: "block-editor",
+    title: "Block Editor",
+    content: "Google Blockly v11 toolbox drag connect blocks right-click duplicate delete undo redo Ctrl+Z Ctrl+Y code mirror beginner advanced mode starter category sphere box gravity loop forever rate update position apply force logic loops math functions text variables physics constants",
+  },
+  {
+    id: "block-reference",
+    title: "Block Reference",
+    content: "block reference objects motion forces physics constants values math logic control loops functions lists text advanced raw Python sphere box cylinder arrow helix ring trail velocity acceleration gravity mass bounce friction scene background expr_block expression custom code python_raw_block python_raw_expr_block define_const_block constant sim_start_block sim_end_block simulation structure rotate_object_block scene_camera_block cross_product_block dot_product_block math_trig_block sin cos tan radians degrees sqrt abs vector_compose_block math_pow_block math_min_block math_max_block math_clamp_block clamp power exponent 3D math trig",
+  },
+  {
+    id: "code-editor",
+    title: "Code Editor",
+    content: "Monaco editor VS Code syntax highlighting autocomplete IntelliSense VPython Python code template blank project read-only editable font size minimap line numbers keybindings shortcuts",
+  },
+  {
+    id: "templates",
+    title: "Built-in Templates",
+    content: "built-in templates precoded examples projectile motion pendulum spring orbital gravity solar system bouncing ball collision momentum energy wave interference electric field magnetic",
+  },
+  {
+    id: "custom-scenes",
+    title: "Custom Scenes",
+    content: "custom scenes variable dialog add variable rename delete variable management custom objects scene setup camera background colour color title",
+  },
+  {
+    id: "vpython-ref",
+    title: "VPython Reference",
+    content: "VPython reference GlowScript 3.2 sphere box cylinder arrow helix ring curve points scene canvas rate loop vector vec color opacity texture pos radius axis up make_trail scene.title scene.background scene.camera scene.width scene.height",
+  },
+  {
+    id: "physics-models",
+    title: "Physics Models",
+    content: "physics models kinematics Newton laws force mass acceleration gravity friction drag projectile circular motion orbital spring Hooke's law pendulum energy momentum conservation wave oscillation electric magnetic field Coulomb Lorentz",
+  },
+  {
+    id: "export",
+    title: "Export & Share",
+    content: "export share download save PNG screenshot PDF print trace table CSV blocks workspace XML VPython code copy clipboard report",
+  },
+  {
+    id: "educators",
+    title: "For Educators",
+    content: "educators teachers classroom students beginner advanced mode guided learning assessment print PDF trace table variable dialog custom scenes lesson plan curriculum",
+  },
+  {
+    id: "shortcuts",
+    title: "Keyboard Shortcuts",
+    content: "keyboard shortcuts Ctrl+Z undo Ctrl+Y redo Ctrl+A select all Delete Backspace Escape close help F1 run stop space Enter",
+  },
+];
+
+/* ── Search results component ────────────────────────────── */
+function highlight(text, query) {
+  if (!query.trim()) return text;
+  const regex = new RegExp(`(${query.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "gi");
+  const parts = text.split(regex);
+  return parts.map((part, i) =>
+    regex.test(part) ? <mark key={i} className="help-search-highlight">{part}</mark> : part
+  );
+}
+
+function SearchResults({ query, results, onNavigate }) {
+  if (!query.trim()) return null;
+  return (
+    <div className="help-search-results">
+      <p className="help-search-results-meta">
+        {results.length === 0
+          ? `No results for "${query}"`
+          : `${results.length} section${results.length !== 1 ? "s" : ""} matching "${query}"`}
+      </p>
+      {results.map(({ id, title, snippet }) => (
+        <button
+          key={id}
+          className="help-search-result-item"
+          onClick={() => onNavigate(id)}
+        >
+          <span className="help-search-result-icon">
+            {React.createElement(SECTION_ICON_MAP[id] || AtomIcon, { size: 14 })}
+          </span>
+          <span className="help-search-result-body">
+            <span className="help-search-result-title">{highlight(title, query)}</span>
+            <span className="help-search-result-snippet">{highlight(snippet, query)}</span>
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 /* ── Navigation structure ────────────────────────────────── */
 const NAV = [
   { id: "overview",        label: "Overview",               Icon: AtomIcon },
@@ -94,7 +196,29 @@ const NAV = [
    ═══════════════════════════════════════════════════════════ */
 export default function HelpPage({ onClose }) {
   const [activeSection, setActiveSection] = useState("overview");
+  const [searchQuery, setSearchQuery] = useState("");
   const contentRef = useRef(null);
+  const searchInputRef = useRef(null);
+
+  /* Compute search results */
+  const searchResults = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return [];
+    return SEARCH_INDEX
+      .map((entry) => {
+        const titleMatch = entry.title.toLowerCase().includes(q);
+        const contentMatch = entry.content.toLowerCase().includes(q);
+        if (!titleMatch && !contentMatch) return null;
+        /* Build a short snippet around the first match in content */
+        const words = entry.content.split(" ");
+        const idx = words.findIndex((w) => w.toLowerCase().includes(q));
+        const start = Math.max(0, idx - 4);
+        const snippet = words.slice(start, start + 12).join(" ") + (words.length > start + 12 ? "…" : "");
+        return { id: entry.id, title: entry.title, snippet, titleMatch };
+      })
+      .filter(Boolean)
+      .sort((a, b) => (b.titleMatch ? 1 : 0) - (a.titleMatch ? 1 : 0));
+  }, [searchQuery]);
 
   /* Close on Escape */
   useEffect(() => {
@@ -128,6 +252,12 @@ export default function HelpPage({ onClose }) {
     setActiveSection(id);
   }
 
+  function handleSearchNavigate(id) {
+    setSearchQuery("");
+    /* Small delay so the content re-renders before scrolling */
+    setTimeout(() => scrollTo(id), 50);
+  }
+
   return (
     <div className="help-overlay" role="dialog" aria-modal="true" aria-label="Physics IDE Help">
       <div className="help-shell">
@@ -145,6 +275,30 @@ export default function HelpPage({ onClose }) {
         <div className="help-body">
           {/* ── Sidebar ── */}
           <nav className="help-sidebar">
+            {/* Search input */}
+            <div className="help-search-box">
+              <svg className="help-search-icon" viewBox="0 0 24 24" width={13} height={13} fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input
+                ref={searchInputRef}
+                className="help-search-input"
+                type="text"
+                placeholder="Search help…"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                aria-label="Search help"
+              />
+              {searchQuery && (
+                <button
+                  className="help-search-clear"
+                  onClick={() => { setSearchQuery(""); searchInputRef.current?.focus(); }}
+                  title="Clear search"
+                  aria-label="Clear search"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+
             <p className="help-sidebar-label">Sections</p>
             {NAV.map(({ id, label, Icon: NavIcon }) => (
               <button
@@ -160,6 +314,14 @@ export default function HelpPage({ onClose }) {
 
           {/* ── Main content ── */}
           <div className="help-content" ref={contentRef}>
+            {searchQuery.trim() && (
+              <SearchResults
+                query={searchQuery}
+                results={searchResults}
+                onNavigate={handleSearchNavigate}
+              />
+            )}
+            <div style={searchQuery.trim() ? { display: "none" } : {}}>
 
             {/* ══════════════ OVERVIEW ══════════════ */}
             <SectionAnchor id="overview" />
@@ -523,9 +685,48 @@ export default function HelpPage({ onClose }) {
                 <div className="help-block-row">
                   <div className="help-block-name">expr_block</div>
                   <div className="help-block-desc">
-                    Type any Python expression. Snaps into number, vector, or colour
-                    slots. Useful for complex formulas — for common physics quantities
-                    use the dedicated blocks below instead.
+                    <strong>The Swiss-army expression block.</strong> Type any Python expression
+                    into the text field — the block wraps it in parentheses and snaps into
+                    <em>any</em> value socket (number, vector, colour, boolean).
+                    <Pre>{`# Snap into a velocity slot:
+ball.velocity = (5 * cos(radians(45)))
+
+# Snap into a colour slot:
+ball.color = (vector(abs(ball.pos.y)/10, 0.2, 1))
+
+# Snap into a force slot:
+ball.velocity += (vector(0, -9.81 * mass, 0)) * dt
+
+# Snap into a boolean condition slot:
+(mag(ball.velocity) < 0.05 and ball.pos.y < 0.1)`}</Pre>
+                    <Note type="tip">
+                      Start simple: drag an <Code>expr_block</Code> into a slot and type a variable name
+                      (e.g. <Code>g</Code>). As formulas grow more complex, use dedicated
+                      Physics Expression blocks instead for readability.
+                    </Note>
+                    <Note type="warning">
+                      The field is a single-line text input. For multi-line logic, use
+                      <Code>if_block</Code> or <Code>if_else_block</Code> — never newlines inside expr_block.
+                    </Note>
+                  </div>
+                </div>
+                <div className="help-block-row">
+                  <div className="help-block-name">define_const_block</div>
+                  <div className="help-block-desc">
+                    Define a reusable named constant at the top of your program. Set the variable
+                    name in the dropdown and snap any value block (number, physics constant, expression)
+                    into the <Code>= </Code> slot.
+                    <Pre>{`MASS   = 0.5   # kg
+SPRING = 12.0  # N/m
+CHARGE = 1.6e-19`}</Pre>
+                    The constant name appears in the Blockly <em>Variables</em> category so you can
+                    reference it anywhere without retyping. Pair with <Code>physics_const_block</Code>
+                    to snap in a standard value:
+                    <Pre>GRAVITY = 9.81  # from the g constant block</Pre>
+                    <Note type="tip">
+                      Use ALL_CAPS names by convention to visually distinguish constants from loop
+                      variables.
+                    </Note>
                   </div>
                 </div>
                 <div className="help-block-row">
@@ -751,19 +952,190 @@ export default function HelpPage({ onClose }) {
                 <div className="help-block-row">
                   <div className="help-block-name">python_raw_block</div>
                   <div className="help-block-desc">
-                    <strong>Power-user block</strong> — inserts any raw Python code as a statement.
-                    Use when no specific block exists for what you need. Also supports multi-line
-                    Python via <Code>\n</Code> in the field text. The built-in templates use this
-                    block for scene setup (title, background, range) since those are raw property
-                    assignments with no dedicated semantic block.
+                    <strong>Advanced statement block</strong> — inlines any raw Python <em>statement</em>
+                    exactly as typed. The text is emitted verbatim followed by a newline.
+                    <Pre>{`# Single-statement examples:
+scene.title = "Spring Mass"
+scene.background = vector(0.05, 0.05, 0.1)
+scene.range = 12
+
+# Multi-line: separate lines with \n in the field
+if t > 10:\n    break`}</Pre>
+                    Built-in templates use this for scene setup properties that have no dedicated
+                    semantic block. In the Block Toolbox it lives under the{" "}
+                    <Tag color="red">Advanced</Tag> category.
+                    <Note type="warning">
+                      Do not use for expressions that produce a return value — use
+                      <Code>python_raw_expr_block</Code> or <Code>expr_block</Code> for those.
+                    </Note>
                   </div>
                 </div>
                 <div className="help-block-row">
                   <div className="help-block-name">python_raw_expr_block</div>
                   <div className="help-block-desc">
-                    Like <Code>python_raw_block</Code> but acts as an <em>expression output</em>
-                    (connectable to value sockets). Use to pass complex expressions like
-                    <Code>mag(v)</Code> or <Code>norm(r_vec)</Code> into other blocks.
+                    <strong>Advanced expression block</strong> — like <Code>python_raw_block</Code>
+                    but acts as an <em>value output</em> (connectable to any value socket).
+                    Use when a formula is too complex for <Code>expr_block</Code> or the structured
+                    Physics Expression blocks.
+                    <Pre>{`# Examples snapped into value slots:
+norm(earth.pos - sun.pos)   # unit direction vector
+mag(ball.velocity) ** 2     # speed squared
+abs(stretch / L0)           # normalised stretch`}</Pre>
+                    <Note type="tip">
+                      The only difference from <Code>expr_block</Code> is cosmetic — the block
+                      label reads <Code>expr:</Code> and it lives in the Advanced toolbox category.
+                      For everyday use, prefer <Code>expr_block</Code> (purple) since it is easier
+                      to find in beginner and intermediate toolboxes.
+                    </Note>
+                  </div>
+                </div>
+              </div>
+
+              <h3 className="help-h3">Simulation Structure <Tag color="green">colour 120/0</Tag></h3>
+              <p className="help-tip">
+                These blocks define the overall scaffold of a simulation — setup, teardown, scene
+                camera, object rotation, and named constants.
+              </p>
+              <div className="help-block-table">
+                <div className="help-block-row">
+                  <div className="help-block-name">sim_start_block</div>
+                  <div className="help-block-desc">
+                    <strong>Simulation header block</strong> — a hat block (always at the top of
+                    the stack) that sets the scene title and wraps all setup code inside its body.
+                    <Pre>{`# === Simulation Start: Spring Mass ===
+scene.title = "Spring Mass"
+  # ... all blocks inside the body execute here at top-level`}</Pre>
+                    Drag all scene setup blocks (<Code>preset_sphere_block</Code>,
+                    <Code>time_step_block</Code>, constants, etc.) into its body slot.
+                    The hat shape prevents accidentally attaching code above it.
+                  </div>
+                </div>
+                <div className="help-block-row">
+                  <div className="help-block-name">sim_end_block</div>
+                  <div className="help-block-desc">
+                    <strong>Simulation footer block</strong> — emits a completion message after the
+                    animation loop exits (e.g. after a <Code>break_loop_block</Code>).
+                    <Pre>print("Simulation complete")</Pre>
+                    Place immediately after the forever loop block.
+                  </div>
+                </div>
+                <div className="help-block-row">
+                  <div className="help-block-name">rotate_object_block</div>
+                  <div className="help-block-desc">
+                    Rotate a VPython object by a given angle (in degrees) around an axis vector.
+                    Internally converts to radians using <Code>radians()</Code>.
+                    <Pre>{`obj.rotate(angle=radians(45), axis=vector(0,1,0))  # 45° around Y`}</Pre>
+                    Snap a <Code>vector_block</Code> or <Code>get_prop_block</Code> into the axis slot
+                    for dynamic rotation axes. Useful for spinning wheels, precessing gyroscopes, and
+                    orbiting labels.
+                  </div>
+                </div>
+                <div className="help-block-row">
+                  <div className="help-block-name">scene_camera_block</div>
+                  <div className="help-block-desc">
+                    Set any <Code>scene.*</Code> property at runtime using a dropdown.
+                    Available properties:
+                    <Pre>{`scene.center     = vector(0, 0, 0)   # camera look-at target
+scene.forward    = vector(0, 0, -1)  # camera direction
+scene.up         = vector(0, 1, 0)   # camera up direction
+scene.range      = 10                # zoom level
+scene.width      = 800               # canvas width (px)
+scene.height     = 600               # canvas height (px)
+scene.background = vector(0, 0, 0.1) # background colour`}</Pre>
+                    Snap a <Code>vector_block</Code> or <Code>expr_block</Code> (for scalar range) into the value slot.
+                  </div>
+                </div>
+              </div>
+
+              <h3 className="help-h3">3D Math <Tag color="teal">colour 230</Tag></h3>
+              <p className="help-tip">
+                All of these blocks output values — snap them into any numeric or vector slot.
+              </p>
+              <div className="help-block-table">
+                <div className="help-block-row">
+                  <div className="help-block-name">vector_compose_block</div>
+                  <div className="help-block-desc">
+                    Build a <Code>vector(x, y, z)</Code> from three <em>value sockets</em> rather
+                    than three plain number fields. Use when the components come from variables,
+                    expressions, or other blocks.
+                    <Pre>{`# x from a get_prop_block, y from expr_block, z constant:
+vector(ball.velocity.x * 0.5,  -9.81 * mass,  0)`}</Pre>
+                    The plain <Code>vector_block</Code> uses number fields — prefer
+                    <Code>vector_compose_block</Code> whenever any component is a variable or formula.
+                  </div>
+                </div>
+                <div className="help-block-row">
+                  <div className="help-block-name">cross_product_block</div>
+                  <div className="help-block-desc">
+                    Cross product of two vectors (right-hand rule): returns a vector perpendicular
+                    to both inputs. Essential for magnetic force <code>F = q·v × B</code>.
+                    <Pre>{`F_mag = cross(ball.velocity, B_field)  # magnetic force direction`}</Pre>
+                    Snap two <Code>get_prop_block</Code> or <Code>vector_block</Code> outputs into
+                    the <Code>A</Code> and <Code>B</Code> slots.
+                  </div>
+                </div>
+                <div className="help-block-row">
+                  <div className="help-block-name">dot_product_block</div>
+                  <div className="help-block-desc">
+                    Dot product of two vectors: returns a scalar. Used for work
+                    (<Code>W = F·d</Code>), projection, and angle-between-vectors.
+                    <Pre>{`work      = dot(force, displacement)  # scalar W
+cos_angle = dot(norm(a), norm(b))     # cosine of angle`}</Pre>
+                  </div>
+                </div>
+                <div className="help-block-row">
+                  <div className="help-block-name">math_trig_block</div>
+                  <div className="help-block-desc">
+                    Trigonometric and maths functions via a dropdown. All operate on VPython-compatible
+                    values.
+                    <Pre>{`sin(theta)      # theta in radians
+cos(theta)
+tan(theta)
+asin(x)         # returns radians
+acos(x)
+atan(y)         # arctangent
+radians(deg)    # convert degrees → radians
+degrees(rad)    # convert radians → degrees
+sqrt(x)         # square root
+abs(x)          # absolute value`}</Pre>
+                    <Note type="tip">
+                      Use <Code>radians(45)</Code> to convert 45° before passing to
+                      <Code>sin</Code> or <Code>cos</Code>.
+                    </Note>
+                  </div>
+                </div>
+                <div className="help-block-row">
+                  <div className="help-block-name">math_pow_block</div>
+                  <div className="help-block-desc">
+                    Raise a base to an exponent (<Code>BASE ** EXP</Code>). Common uses:
+                    <Pre>{`r ** 2        # squared — inverse-square gravity/electric
+v ** 3        # cubed  — drag at high speed
+mass ** 0.5   # square root via ** 0.5`}</Pre>
+                    Snap value blocks into both <Code>BASE</Code> and <Code>EXP</Code> slots.
+                  </div>
+                </div>
+                <div className="help-block-row">
+                  <div className="help-block-name">math_min_block / math_max_block</div>
+                  <div className="help-block-desc">
+                    Returns the smaller (or larger) of two values.
+                    <Pre>{`# Bounce floor — never go below radius:
+ball.pos.y = max(ball.pos.y, ball.radius)
+
+# Cap speed to terminal velocity:
+speed = min(mag(ball.velocity), v_term)`}</Pre>
+                    Pair with <Code>set_attr_expr_block</Code> or snap into another expression.
+                  </div>
+                </div>
+                <div className="help-block-row">
+                  <div className="help-block-name">math_clamp_block</div>
+                  <div className="help-block-desc">
+                    Restrict a value to the range <Code>[lo, hi]</Code>.
+                    Generates <Code>max(lo, min(val, hi))</Code>.
+                    <Pre>{`# Keep opacity between 0 and 1:
+ball.opacity = clamp(energy / E_max, 0, 1)
+
+# Clamp steering angle:
+angle = clamp(input_angle, -30, 30)`}</Pre>
                   </div>
                 </div>
               </div>
@@ -1274,6 +1646,7 @@ export default function HelpPage({ onClose }) {
             <div className="help-footer">
               Physics IDE — Open source physics simulation environment · Built with React, Blockly & GlowScript 3.2 VPython
             </div>
+            </div>{/* end hidden-when-searching wrapper */}
           </div>
         </div>
       </div>
