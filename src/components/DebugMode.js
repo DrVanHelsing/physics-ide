@@ -107,7 +107,32 @@ export default function DebugMode({
   }, [onToggleBreakpoint]);
 
   const isCodeOnly = projectType === "code_blank" || projectType === "code_template";
-  const bpCount = (!isCodeOnly && breakpoints) ? breakpoints.size : 0;
+
+  /* For code projects, derive Set<number> of breakpointed line numbers from
+     the shared breakpoints Set which stores "line_N" style IDs.            */
+  const codeBreakpointLines = isCodeOnly
+    ? new Set(
+        [...(breakpoints || [])].flatMap((id) => {
+          const m = String(id).match(/^line_(\d+)$/);
+          return m ? [parseInt(m[1], 10)] : [];
+        })
+      )
+    : new Set();
+
+  /* Derive current executing line number for code projects */
+  const executingLine = (() => {
+    if (!isCodeOnly || !executingBlockId) return null;
+    const m = String(executingBlockId).match(/^line_(\d+)$/);
+    return m ? parseInt(m[1], 10) : null;
+  })();
+
+  /* Toggle breakpoint by line number (code projects) */
+  const handleCodeLineBreakpoint = useCallback((lineNum) => {
+    onToggleBreakpoint?.(`line_${lineNum}`);
+  }, [onToggleBreakpoint]);
+
+  /* Count all breakpoints (block IDs and line_N alike) */
+  const bpCount = breakpoints ? breakpoints.size : 0;
 
   /* ── Keyboard shortcut: Space = pause/resume, F10 = step, Esc = exit ── */
   useEffect(() => {
@@ -246,8 +271,10 @@ export default function DebugMode({
         <div className="dm-panel dm-panel--blocks" style={{ width: leftW, minWidth: leftW, maxWidth: leftW }}>
           <div className="dm-panel-header">
             <span className="dm-panel-title">{isCodeOnly ? "Code" : "Blocks"}</span>
-            {!isCodeOnly && bpCount > 0 && <BpBadge count={bpCount} />}
-            {!isCodeOnly && <span className="dm-panel-hint">Click block to toggle breakpoint</span>}
+            {bpCount > 0 && <BpBadge count={bpCount} />}
+            {isCodeOnly
+              ? <span className="dm-panel-hint">Click line number to toggle breakpoint</span>
+              : <span className="dm-panel-hint">Click block to toggle breakpoint</span>}
           </div>
           {isCodeOnly ? (
             <div className="dm-code-wrap">
@@ -256,6 +283,9 @@ export default function DebugMode({
                 onChange={() => {}}
                 isDark={isDark}
                 readOnly={true}
+                breakpointLines={codeBreakpointLines}
+                onToggleLineBreakpoint={handleCodeLineBreakpoint}
+                executingLine={executingLine}
               />
             </div>
           ) : (

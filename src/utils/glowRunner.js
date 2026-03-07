@@ -10,6 +10,119 @@ import { traceRegistry } from './blocklyGenerator';
 let activeRunToken = 0;
 let activeFrameWindow = null;
 
+/* ── Code-project trace entries (populated by instrumentPythonForDebug) ── */
+let codeTraceEntries = [];
+
+/**
+ * Scan a VPython source string and inject _phtr_ trace assignments inside the
+ * first while-loop body.  Returns the instrumented source and the corresponding
+ * trace-registry entries so the compiled-JS injection can add postMessage calls
+ * and pause checks automatically.
+ *
+ * Each injected variable gets a unique safeName  "varName_lineN" so that every
+ * assignment site has its own blockId ("line_N"), enabling per-line breakpoints.
+ */
+export function instrumentPythonForDebug(pythonSource) {
+  /* VPython 3D-object constructors — skip variables whose RHS starts with one */
+  const SKIP_CONSTRUCTORS = [
+    'sphere(', 'box(', 'cylinder(', 'arrow(', 'helix(', 'ring(',
+    'curve(', 'points(', 'graph(', 'gcurve(', 'gdots(', 'gvbars(',
+    'label(', 'wtext(', 'text(',
+  ];
+
+  /* Known builtins / VPython names to exclude from tracing */
+  const BUILTINS = new Set([
+    'sphere', 'box', 'cylinder', 'arrow', 'helix', 'ring', 'curve', 'points',
+    'canvas', 'scene', 'vector', 'vec', 'color', 'textures',
+    'rate', 'sleep', 'mag', 'norm', 'hat', 'cross', 'dot', 'diff_angle',
+    'sqrt', 'abs', 'sin', 'cos', 'tan', 'asin', 'acos', 'atan', 'atan2',
+    'radians', 'degrees', 'pow', 'log', 'exp', 'pi',
+    'min', 'max', 'sum', 'round', 'floor', 'ceil',
+    'True', 'False', 'None', 'print', 'str', 'int', 'float', 'bool',
+    'range', 'len', 'list', 'dict', 'set', 'tuple', 'type',
+    'GlowScript', 'WebVPython',
+    'graph', 'gcurve', 'gdots', 'bar', 'gvbars', 'label', 'wtext',
+    'attach_trail', 'make_trail',
+  ]);
+
+  /*
+   * Assignment regex: leading spaces + identifier + optional compound-op + '='
+   * NOT followed by another '=' (avoids matching == comparisons).
+   * Examples matched: "    t = 0", "  x += dt", "  KE *= 0.5"
+   * Not matched: "  if x == 0:", "  obj.attr = v" (stops at the dot)
+   */
+  const ASSIGN_RE = /^(\s*)([a-zA-Z_]\w*)\s*(?:[+\-*/%&|^]|\*\*|\/\/)?=(?!=)/;
+
+  const lines   = pythonSource.split('\n');
+  const output  = [];
+  const entries = [];  /* {safeName, displayName, blockId} */
+
+  let inLoop        = false;
+  let loopBaseIndent = -1;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line    = lines[i];
+    const stripped = line.trimStart();
+    output.push(line);
+
+    if (!stripped || stripped.startsWith('#')) continue;
+
+    /* Detect while-loop entry */
+    const loopMatch = line.match(/^(\s*)while\s+/);
+    if (loopMatch) {
+      /* Only track the FIRST (outermost) while loop */
+      if (!inLoop) {
+        inLoop = true;
+        loopBaseIndent = loopMatch[1].length;
+      }
+      continue;
+    }
+
+    /* Detect leaving the loop (non-blank non-comment at indent <= loopBase) */
+    if (inLoop) {
+      const indentLen = (line.match(/^(\s*)/) || ['', ''])[1].length;
+      if (stripped && indentLen <= loopBaseIndent) {
+        if (!stripped.match(/^(?:else|elif|except|finally)\b/)) {
+          inLoop = false;
+          loopBaseIndent = -1;
+          /* Check if this line is ANOTHER while loop */
+          const newLoop = line.match(/^(\s*)while\s+/);
+          if (newLoop) { inLoop = true; loopBaseIndent = newLoop[1].length; }
+        }
+        if (!inLoop) continue;
+      }
+    }
+
+    if (!inLoop) continue;
+
+    const am = line.match(ASSIGN_RE);
+    if (!am) continue;
+
+    const indent  = am[1];
+    const varName = am[2];
+
+    /* Must be inside loop body */
+    if (indent.length <= loopBaseIndent) continue;
+    if (BUILTINS.has(varName)) continue;
+    if (varName.startsWith('_')) continue;
+
+    /* Skip VPython object constructor assignments */
+    const eqIdx  = line.search(/(?:[+\-*/%&|^]|\*\*|\/\/)?=(?!=)/);
+    const rhsTrim = eqIdx >= 0 ? line.slice(eqIdx + 1).trim() : '';
+    if (SKIP_CONSTRUCTORS.some(c => rhsTrim.startsWith(c))) continue;
+
+    const lineNum  = i + 1;                       /* 1-based */
+    const safeName = `${varName}_line${lineNum}`;  /* unique per site */
+    const blockId  = `line_${lineNum}`;            /* breakpoint key */
+
+    entries.push({ safeName, displayName: varName, blockId });
+    /* Inject trace assignment on the very next line */
+    output.push(`${indent}_phtr_${safeName} = str(${varName})`);
+  }
+
+  return { source: output.join('\n'), entries };
+}
+
 const GLOWSCRIPT_SCRIPTS = {
   jquery: "https://cdn.jsdelivr.net/npm/jquery@2.1.4/dist/jquery.min.js",
   jqueryTextChange:
@@ -274,7 +387,7 @@ function extractCompiledCode(compiled) {
   return compiledCode;
 }
 
-async function executeCompiled(frameWindow, compiledCode) {
+async function executeCompiled(frameWindow, compiledCode, traceEntries) {
   activeFrameWindow = frameWindow;
   frameWindow.__physide_paused = false;
   frameWindow.__physide_steps = 0;
@@ -312,10 +425,10 @@ async function executeCompiled(frameWindow, compiledCode) {
      in the JS and append parent.postMessage(...) so trace data flows to the
      React TraceTable via window.__physide_trace_cb.  */
   let traceInjected = compiledCode;
-  if (traceRegistry.length > 0) {
+  if (traceEntries.length > 0) {
     // Build safe-name → display-name lookup
     const nameMap = {};
-    for (const entry of traceRegistry) {
+    for (const entry of traceEntries) {
       nameMap[entry.safeName] = entry;
     }
     // Single regex pass over compiled JS
@@ -398,6 +511,9 @@ export async function runPython(codeString, hostId = "glowscript-host") {
   activeRunToken += 1;
   const thisRunToken = activeRunToken;
 
+  /* Reset code-project trace entries for this run */
+  codeTraceEntries = [];
+
   if (typeof codeString !== "string") {
     throw new Error("Compile error: VPython source is not a string.");
   }
@@ -427,10 +543,27 @@ export async function runPython(codeString, hostId = "glowscript-host") {
     }
 
     const source = buildSource(codeString);
-    const compiled = compileSource(compile, source);
+
+    /* For code-only projects (no block trace declarations), auto-instrument
+       the source so that pause/step/trace work exactly like block projects. */
+    let compilableSource = source;
+    let traceEntries = traceRegistry;
+    if (traceRegistry.length === 0) {
+      const result = instrumentPythonForDebug(source);
+      compilableSource = result.source;
+      codeTraceEntries = result.entries;
+      traceEntries = codeTraceEntries;
+      if (codeTraceEntries.length > 0) {
+        console.log(
+          "[PhysicsIDE] Code instrumentation: " + codeTraceEntries.length + " trace vars injected"
+        );
+      }
+    }
+
+    const compiled = compileSource(compile, compilableSource);
     const compiledCode = extractCompiledCode(compiled);
 
-    await executeCompiled(frameWindow, compiledCode);
+    await executeCompiled(frameWindow, compiledCode, traceEntries);
 
     if (thisRunToken !== activeRunToken) {
       return;

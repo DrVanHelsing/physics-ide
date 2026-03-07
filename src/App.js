@@ -227,6 +227,9 @@ function App() {
     try {
       stopPython("glowscript-host");
       await runPython(code, "glowscript-host");
+      /* Sync any pre-set breakpoints to the newly created iframe (the iframe
+         resets __physide_breakpoints to an empty Set on each run).          */
+      syncBreakpointsToIframe(breakpointsRef.current);
       setStatus({ text: debugMode ? "Debug simulation started" : "Simulation started", type: "success" });
     } catch (err) {
       console.error(err);

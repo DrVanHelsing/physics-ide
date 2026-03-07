@@ -825,6 +825,26 @@ button {
   stroke: #d97706 !important;
   filter: drop-shadow(0 0 6px rgba(217,119,6,0.6)) !important;
 }
+
+/* ── Code-editor debug decorations (Monaco) ────────────────── */
+/* Red dot in the glyph margin for breakpointed lines */
+.dbg-glyph-bp {
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 55%, #ef4444 38%, #991b1b 60%, transparent 62%);
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
+}
+/* Yellow arrow in the glyph margin for the executing line */
+.dbg-glyph-executing {
+  background: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><polygon points='2,4 10,8 2,12' fill='%23facc15'/></svg>") center/10px no-repeat;
+  width: 100%;
+  height: 100%;
+}
+/* Yellow background highlight for the executing line */
+.dbg-executing-line {
+  background: rgba(250, 204, 21, 0.12) !important;
+}
 .pane-header--code-preview {
   background: var(--bg-overlay);
   font-size: 10px;
