@@ -12,8 +12,10 @@ import { BlocksIcon, CodeIcon, GlobeIcon } from "./components/Icons";
 import { useTheme } from "./ThemeContext";
 import { generatePythonFromWorkspace } from "./utils/blocklyGenerator";
 import { exportBlocks, exportPython } from "./utils/exportUtils";
+import * as dialogService from "./utils/dialogService";
 import { exportBlocksPdf, exportCodePdf } from "./utils/pdfExport";
-import { runPython, stopPython } from "./utils/glowRunner";
+import { runPython, stopPython, pausePython, resumePython, stepPython, setBreakpoints as syncBreakpointsToIframe } from "./utils/glowRunner";
+import DebugMode from "./components/DebugMode";
 import { loadState, saveState } from "./utils/storage";
 import { EXAMPLES } from "./utils/precodedExamples";
 import { BLOCK_TEMPLATES } from "./utils/blockTemplates";
@@ -36,35 +38,97 @@ function App() {
   const [splitPct, setSplitPct] = useState(50);           // editor panel width %
   const [viewportHidden, setViewportHidden] = useState(false); // hide 3D viewport panel
   const [beginnerMode, setBeginnerMode] = useState(false);  // simplified toolbox
-  const [traceVisible, setTraceVisible] = useState(false);  // live trace table
   const [traceData, setTraceData] = useState(() => new Map()); // Map<name,{value,blockId,count,flashKey}>
+  const [debugMode, setDebugMode] = useState(false);
+  const [paused, setPaused] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const [breakpoints, setBreakpoints] = useState(() => new Set());
+  const [executingBlockId, setExecutingBlockId] = useState(null);
+  const recordBufferRef = useRef([]);
+  const recordingRef   = useRef(false);
+  const breakpointsRef = useRef(new Set());
   const highlightTimerRef = useRef(null);
+
+  // Keep refs in sync with state for use inside stable closures
+  useEffect(() => {
+    breakpointsRef.current = breakpoints;
+    syncBreakpointsToIframe(breakpoints);
+  }, [breakpoints]);
 
   const handleHelp = useCallback(() => setShowHelp(true), []);
 
   /* ── Trace callback — registered on window so glowRunner iframe can call it ── */
   useEffect(() => {
     window.__physide_trace_cb = (batch) => {
+      // When recording, buffer the timestamped rows
+      if (recordingRef.current) {
+        const t = Date.now();
+        for (const [name, { v }] of Object.entries(batch)) {
+          recordBufferRef.current.push({ t, name, value: v, delta: null, min: null, max: null });
+        }
+      }
+
+      // Check breakpoints — auto-pause when a traced block ID matches
+      if (breakpointsRef.current.size > 0) {
+        for (const { b } of Object.values(batch)) {
+          if (b && breakpointsRef.current.has(b)) {
+            pausePython();
+            setPaused(true);
+            break;
+          }
+        }
+      }
+
       setTraceData((prev) => {
         const next = new Map(prev);
         for (const [name, { v, b }] of Object.entries(batch)) {
           const existing = prev.get(name);
+          const prevVal  = existing?.value;
+          const numV     = parseFloat(v);
+          const numPrev  = parseFloat(prevVal);
+          const isNum    = !isNaN(numV);
+
+          // Delta: difference from previous numeric value
+          const delta = (isNum && existing && !isNaN(numPrev))
+            ? parseFloat((numV - numPrev).toFixed(6))
+            : null;
+
+          // Min / max tracking
+          const prevMin = existing?.min;
+          const prevMax = existing?.max;
+          const newMin  = isNum ? (prevMin === null || prevMin === undefined ? numV : Math.min(prevMin, numV)) : null;
+          const newMax  = isNum ? (prevMax === null || prevMax === undefined ? numV : Math.max(prevMax, numV)) : null;
+
+          // Rolling history (last 60 values, numeric only)
+          const prevHistory = existing?.history || [];
+          const history = isNum
+            ? [...prevHistory.slice(-59), v]
+            : prevHistory;
+
           next.set(name, {
-            value: v,
-            blockId: b,
-            count: (existing?.count || 0) + 1,
+            value:    v,
+            blockId:  b,
+            count:    (existing?.count || 0) + 1,
             flashKey: (existing?.flashKey || 0) + 1,
+            delta,
+            min:      newMin,
+            max:      newMax,
+            history,
           });
         }
         return next;
       });
       // Highlight the last traced block in the Blockly workspace
       const entries = Object.entries(batch);
-      if (entries.length > 0 && workspaceRef.current) {
+      if (entries.length > 0) {
         const lastBlockId = entries[entries.length - 1][1].b;
-        try { workspaceRef.current.highlightBlock(lastBlockId); } catch (_) {}
+        setExecutingBlockId(lastBlockId);
+        if (workspaceRef.current) {
+          try { workspaceRef.current.highlightBlock(lastBlockId); } catch (_) {}
+        }
         if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
         highlightTimerRef.current = setTimeout(() => {
+          setExecutingBlockId(null);
           try { workspaceRef.current?.highlightBlock(null); } catch (_) {}
         }, 250);
       }
@@ -158,56 +222,93 @@ function App() {
     const code = mode === "text" ? pythonCode : syncFromBlocks();
     setStatus({ text: "Running...", type: "" });
     setRunning(true);
+    setPaused(false);
     setTraceData(new Map()); // Clear trace from previous run
     try {
       stopPython("glowscript-host");
       await runPython(code, "glowscript-host");
-      setStatus({ text: "Simulation started", type: "success" });
+      setStatus({ text: debugMode ? "Debug simulation started" : "Simulation started", type: "success" });
     } catch (err) {
       console.error(err);
       setRunning(false);
       setStatus({ text: err.message || "Runtime error", type: "error" });
     }
-  }, [mode, pythonCode, syncFromBlocks]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, pythonCode, syncFromBlocks, debugMode]);
 
   const handleStop = useCallback(() => {
     stopPython("glowscript-host");
     setRunning(false);
+    setExecutingBlockId(null);
     setStatus({ text: "Simulation stopped", type: "" });
   }, []);
 
-  const handleExportPy = useCallback(() => {
-    exportPython(mode, pythonCode, workspaceRef.current);
-    setStatus({ text: "Exported .py file", type: "success" });
-  }, [mode, pythonCode]);
+  /* ── Resolve export filename: from sim_start_block, code comment, or prompt ── */
+  const getExportName = useCallback(async () => {
+    // 1. Try sim_start_block TITLE in the live workspace
+    if (workspaceRef.current) {
+      try {
+        const blocks = workspaceRef.current.getAllBlocks(false);
+        const startBlock = blocks.find((b) => b.type === "sim_start_block");
+        if (startBlock) {
+          const title = startBlock.getFieldValue("TITLE");
+          if (title && title.trim() && title.trim() !== "My Simulation") {
+            // eslint-disable-next-line no-control-regex
+            return title.trim().replace(/[<>:"/\\|?*\x00-\x1F]/g, "").replace(/\s+/g, "_");
+          }
+        }
+      } catch (_) {}
+    }
+    // 2. Try parsing from pythonCode comment
+    const codeMatch = pythonCode.match(/# === Simulation Start:\s*(.+?)\s*===/);
+    if (codeMatch && codeMatch[1] && codeMatch[1] !== "My Simulation") {
+      // eslint-disable-next-line no-control-regex
+      return codeMatch[1].trim().replace(/[<>:"/\\|?*\x00-\x1F]/g, "").replace(/\s+/g, "_");
+    }
+    // 3. Prompt the user
+    return dialogService.promptFileName("Name this file:", "simulation");
+  }, [pythonCode]);
 
-  const handleExportBlocks = useCallback(() => {
-    exportBlocks(workspaceRef.current);
-    setStatus({ text: "Exported blocks XML", type: "success" });
-  }, []);
+  const handleExportPy = useCallback(async () => {
+    const name = await getExportName();
+    if (!name) return;
+    exportPython(mode, pythonCode, workspaceRef.current, name);
+    setStatus({ text: `Exported ${name}.py`, type: "success" });
+  }, [mode, pythonCode, getExportName]);
+
+  const handleExportBlocks = useCallback(async () => {
+    const name = await getExportName();
+    if (!name) return;
+    exportBlocks(workspaceRef.current, name);
+    setStatus({ text: `Exported ${name}.xml`, type: "success" });
+  }, [getExportName]);
 
   const handleExportBlocksPdf = useCallback(async () => {
+    const name = await getExportName();
+    if (!name) return;
     setStatus({ text: "Generating blocks PDF...", type: "" });
     try {
-      await exportBlocksPdf(workspaceRef.current);
-      setStatus({ text: "Blocks PDF saved", type: "success" });
+      await exportBlocksPdf(workspaceRef.current, name);
+      setStatus({ text: `Blocks PDF saved as ${name}.pdf`, type: "success" });
     } catch (err) {
       console.error(err);
       setStatus({ text: err.message || "PDF export failed", type: "error" });
     }
-  }, []);
+  }, [getExportName]);
 
   const handleExportCodePdf = useCallback(async () => {
+    const name = await getExportName();
+    if (!name) return;
     const code = mode === "text" ? pythonCode : syncFromBlocks();
     setStatus({ text: "Generating code PDF...", type: "" });
     try {
-      await exportCodePdf(code);
-      setStatus({ text: "Code PDF saved", type: "success" });
+      await exportCodePdf(code, name);
+      setStatus({ text: `Code PDF saved as ${name}.pdf`, type: "success" });
     } catch (err) {
       console.error(err);
       setStatus({ text: err.message || "PDF export failed", type: "error" });
     }
-  }, [mode, pythonCode, syncFromBlocks]);
+  }, [mode, pythonCode, syncFromBlocks, getExportName]);
 
   const handleResetToBlocks = useCallback(() => {
     stopPython("glowscript-host");
@@ -221,9 +322,10 @@ function App() {
   }, []);
 
   /* ── Clear workspace (trash all blocks) ────────────────── */
-  const handleClearWorkspace = useCallback(() => {
+  const handleClearWorkspace = useCallback(async () => {
     if (!workspaceRef.current) return;
-    if (!window.confirm("Clear all blocks from the workspace?")) return;
+    const ok = await dialogService.confirm("Clear all blocks from the workspace? This cannot be undone.");
+    if (!ok) return;
     workspaceRef.current.clear();
     setPythonCode(DEFAULT_CODE);
     setStatus({ text: "Workspace cleared", type: "" });
@@ -239,23 +341,68 @@ function App() {
     });
   }, [mode, pythonCode, syncFromBlocks]);
 
+  /* ── Import .py or .xml file ─────────────────────────── */
+  const handleImport = useCallback((file) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const content = e.target.result;
+      if (file.name.endsWith(".xml")) {
+        stopPython("glowscript-host");
+        setRunning(false);
+        setProjectType("custom");
+        // If the Blockly workspace is already live, load directly into it
+        if (workspaceRef.current && window.Blockly) {
+          try {
+            workspaceRef.current.clear();
+            const dom = window.Blockly.utils.xml.textToDom(content);
+            window.Blockly.Xml.domToWorkspace(dom, workspaceRef.current);
+            const newCode = generatePythonFromWorkspace(workspaceRef.current);
+            setPythonCode(newCode || DEFAULT_CODE);
+          } catch (err) {
+            console.warn("Direct XML load failed, falling back to remount:", err);
+          }
+        }
+        // Always update state so workspace remounts correctly if in text mode
+        setWorkspaceXml(content);
+        setMode("blocks");
+        setStatus({ text: `Imported blocks from ${file.name}`, type: "success" });
+      } else if (file.name.endsWith(".py")) {
+        stopPython("glowscript-host");
+        setRunning(false);
+        setPythonCode(content);
+        setMode("text");
+        setProjectType("code_blank");
+        setStatus({ text: `Imported Python from ${file.name}`, type: "success" });
+      } else {
+        setStatus({ text: "Unsupported file type. Use .py or .xml", type: "error" });
+      }
+    };
+    reader.onerror = () => {
+      setStatus({ text: "Failed to read file", type: "error" });
+    };
+    reader.readAsText(file);
+  }, []);
+
   /* ── Export screenshot of 3D viewport ──────────────────── */
   const handleExportScreenshot = useCallback(async () => {
     const host = document.getElementById("glowscript-host");
     if (!host) { setStatus({ text: "No viewport to capture", type: "error" }); return; }
+    const name = await getExportName();
+    if (!name) return;
     setStatus({ text: "Capturing screenshot...", type: "" });
     try {
       const canvas = await html2canvas(host, { backgroundColor: "#0a0a0f", useCORS: true });
       const link = document.createElement("a");
-      link.download = "viewport.png";
+      link.download = `${name}.png`;
       link.href = canvas.toDataURL("image/png");
       link.click();
-      setStatus({ text: "Screenshot saved", type: "success" });
+      setStatus({ text: `Screenshot saved as ${name}.png`, type: "success" });
     } catch (err) {
       console.error(err);
       setStatus({ text: "Screenshot failed", type: "error" });
     }
-  }, []);
+  }, [getExportName]);
 
   /* ── Zoom handler for Blockly workspace ────────────────── */
   const handleZoomChange = useCallback((pct) => {
@@ -305,8 +452,66 @@ function App() {
     setBeginnerMode((b) => !b);
   }, []);
 
-  const handleToggleTrace = useCallback(() => setTraceVisible((v) => !v), []);
   const handleClearTrace = useCallback(() => setTraceData(new Map()), []);
+
+  /* ── Debug Mode handlers ──────────────────────────────────── */
+  const handleEnterDebug = useCallback(() => {
+    stopPython("glowscript-host");
+    setRunning(false);
+    setPaused(false);
+    setDebugMode(true);
+    setStatus({ text: 'Debug Mode', type: '' });
+  }, []);
+
+  const handleExitDebug = useCallback(() => {
+    stopPython("glowscript-host");
+    setRunning(false);
+    setPaused(false);
+    setRecording(false);
+    recordingRef.current = false;
+    setDebugMode(false);
+    setStatus({ text: 'Ready', type: '' });
+  }, []);
+
+  const handlePause = useCallback(() => {
+    pausePython();
+    setPaused(true);
+  }, []);
+
+  const handleResume = useCallback(() => {
+    resumePython();
+    setPaused(false);
+  }, []);
+
+  const handleStep = useCallback(() => {
+    setPaused(true);
+    stepPython();
+  }, []);
+
+  /* ── Recording handlers ─────────────────────────────────────── */
+  const handleStartRecord = useCallback(() => {
+    recordBufferRef.current = [];
+    recordingRef.current = true;
+    setRecording(true);
+    setStatus({ text: 'Recording…', type: '' });
+  }, []);
+
+  const handleStopRecord = useCallback(() => {
+    recordingRef.current = false;
+    setRecording(false);
+    setStatus({ text: `Recording stopped — ${recordBufferRef.current.length} rows`, type: 'success' });
+  }, []);
+
+  /* ── Breakpoint handlers ────────────────────────────────────── */
+  const handleToggleBreakpoint = useCallback((blockId) => {
+    if (!blockId) return;
+    setBreakpoints((prev) => {
+      const next = new Set(prev);
+      if (next.has(blockId)) next.delete(blockId);
+      else next.add(blockId);
+      return next;
+    });
+  }, []);
   /* ── Mode toggle ───────────────────────────────────────── */
   const handleModeChange = useCallback(
     (nextMode) => {
@@ -397,8 +602,44 @@ function App() {
   if (showStart) {
     return (
       <>
-        <StartMenu onSelect={handleStartSelect} onHelp={handleHelp} />
+        <StartMenu onSelect={handleStartSelect} onHelp={handleHelp} onImport={(file) => { handleImport(file); setShowStart(false); }} />
         {showHelp && <HelpPage onClose={() => setShowHelp(false)} />}
+      </>
+    );
+  }
+
+  /* ── IF debug mode ─────────────────────────────────────── */
+  if (debugMode) {
+    return (
+      <>
+        <VariableDialog />
+        {showHelp && <HelpPage onClose={() => setShowHelp(false)} />}
+        <DebugMode
+          workspaceXml={workspaceXml}
+          pythonCode={pythonCode}
+          isDark={isDark}
+          running={running}
+          paused={paused}
+          onRun={handleRun}
+          onStop={handleStop}
+          onPause={handlePause}
+          onResume={handleResume}
+          onStep={handleStep}
+          traceData={traceData}
+          onHighlightBlock={(id) => {
+            try { workspaceRef.current?.highlightBlock(id); } catch (_) {}
+          }}
+          onClearTrace={handleClearTrace}
+          recording={recording}
+          onStartRecord={handleStartRecord}
+          onStopRecord={handleStopRecord}
+          recordBuffer={recordBufferRef.current}
+          projectType={projectType}
+          breakpoints={breakpoints}
+          onToggleBreakpoint={handleToggleBreakpoint}
+          executingBlockId={executingBlockId}
+          onExitDebug={handleExitDebug}
+        />
       </>
     );
   }
@@ -430,6 +671,7 @@ function App() {
         onExportCodePdf={handleExportCodePdf}
         onExportScreenshot={handleExportScreenshot}
         onCopyCode={handleCopyCode}
+        onImport={handleImport}
         onReset={handleResetToBlocks}
         onClearWorkspace={handleClearWorkspace}
         onToggleTheme={toggleTheme}
@@ -444,8 +686,7 @@ function App() {
         onToggleViewport={handleToggleViewport}
         beginnerMode={beginnerMode}
         onToggleBeginnerMode={handleToggleBeginnerMode}
-        traceVisible={traceVisible}
-        onToggleTrace={handleToggleTrace}
+        onDebugMode={handleEnterDebug}
       >
         <ModeToggle
           mode={mode}
@@ -514,12 +755,6 @@ function App() {
           </div>
           <GlowCanvas
             running={running}
-            traceData={traceData}
-            traceVisible={traceVisible}
-            onHighlightBlock={(id) => {
-              try { workspaceRef.current?.highlightBlock(id); } catch (_) {}
-            }}
-            onClearTrace={handleClearTrace}
           />
         </section>
       </div>

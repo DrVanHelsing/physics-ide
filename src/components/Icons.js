@@ -245,4 +245,28 @@ export const TrigIcon = ({ size } = {}) => (
   <svg {...sz(size)}><path d="M2 18 Q6 4 10 12 Q14 20 18 6" fill="none"/><text x="18" y="18" fontSize="6" strokeWidth=".5" fill="currentColor" stroke="currentColor">θ</text></svg>
 );
 
+export const UploadIcon = ({ size } = {}) => (
+  <svg {...sz(size)}><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+);
+
+export const BugIcon = ({ size } = {}) => (
+  <svg {...sz(size)}><path d="M8 2l1.88 1.88"/><path d="M14.12 3.88L16 2"/><path d="M9 7.13v-1a3.003 3.003 0 116 0v1"/><path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 014-4h4a4 4 0 014 4v3c0 3.3-2.7 6-6 6z"/><path d="M12 20v-9"/><path d="M6.53 9C4.6 8.8 3 7.1 3 5"/><path d="M6 13H2"/><path d="M3 21c0-2.1 1.7-3.9 3.8-4"/><path d="M20.97 5c0 2.1-1.6 3.8-3.5 4"/><path d="M22 13h-4"/><path d="M17.2 17c2.1.1 3.8 1.9 3.8 4"/></svg>
+);
+
+export const RecordIcon = ({ size } = {}) => (
+  <svg {...sz(size)}><circle cx="12" cy="12" r="7" fill="currentColor" stroke="none"/></svg>
+);
+
+export const PauseIcon = ({ size } = {}) => (
+  <svg {...sz(size)}><rect x="6" y="4" width="4" height="16" rx="1" fill="currentColor" stroke="none"/><rect x="14" y="4" width="4" height="16" rx="1" fill="currentColor" stroke="none"/></svg>
+);
+
+export const StepForwardIcon = ({ size } = {}) => (
+  <svg {...sz(size)}><polygon points="5 4 15 12 5 20 5 4" fill="currentColor" stroke="none"/><rect x="17" y="4" width="2.5" height="16" rx="1" fill="currentColor" stroke="none"/></svg>
+);
+
+export const ArrowLeftIcon = ({ size } = {}) => (
+  <svg {...sz(size)}><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+);
+
 

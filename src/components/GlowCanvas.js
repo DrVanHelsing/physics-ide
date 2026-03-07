@@ -1,9 +1,8 @@
 import React from "react";
-import TraceTable from "./TraceTable";
 
-function GlowCanvas({ running, traceData, traceVisible, onHighlightBlock, onClearTrace }) {
+function GlowCanvas({ running }) {
   return (
-    <div className={`canvas-wrap${traceVisible ? " canvas-wrap--split" : ""}`}>
+    <div className="canvas-wrap">
       {/* ── 3D viewport ── */}
       <div className="canvas-viewport">
         {!running && (
@@ -41,18 +40,6 @@ function GlowCanvas({ running, traceData, traceVisible, onHighlightBlock, onClea
           </div>
         )}
       </div>
-
-      {/* ── Trace table (split view) ── */}
-      {traceVisible && (
-        <>
-          <div className="trace-divider" />
-          <TraceTable
-            data={traceData || new Map()}
-            onHighlight={onHighlightBlock}
-            onClear={onClearTrace}
-          />
-        </>
-      )}
     </div>
   );
 }

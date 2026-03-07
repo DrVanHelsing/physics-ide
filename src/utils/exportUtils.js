@@ -12,17 +12,17 @@ function downloadFile(content, fileName, mimeType) {
   URL.revokeObjectURL(url);
 }
 
-export function exportPython(mode, pythonCode, workspace) {
+export function exportPython(mode, pythonCode, workspace, fileName) {
   const content = mode === "text" ? pythonCode : generatePythonFromWorkspace(workspace);
-  downloadFile(content, "model.py", "text/x-python;charset=utf-8");
+  downloadFile(content, `${fileName || "model"}.py`, "text/x-python;charset=utf-8");
 }
 
-export function exportBlocks(workspace) {
+export function exportBlocks(workspace, fileName) {
   if (!workspace || !window.Blockly) {
     window.alert("No Blockly workspace to export.");
     return;
   }
   const xmlDom = window.Blockly.Xml.workspaceToDom(workspace);
   const xmlText = window.Blockly.Xml.domToText(xmlDom);
-  downloadFile(xmlText, "workspace.xml", "application/xml;charset=utf-8");
+  downloadFile(xmlText, `${fileName || "workspace"}.xml`, "application/xml;charset=utf-8");
 }

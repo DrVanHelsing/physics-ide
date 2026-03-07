@@ -3,6 +3,7 @@ import {
   PlayIcon,
   StopIcon,
   DownloadIcon,
+  UploadIcon,
   TrashIcon,
   RefreshIcon,
   SunIcon,
@@ -22,6 +23,7 @@ import {
   PanelRightOpenIcon,
   GraduationCapIcon,
   TableIcon,
+  BugIcon,
 } from "./Icons";
 
 /* ── Dropdown menu component ─────────────────────────────── */
@@ -111,6 +113,7 @@ function Toolbar({
   onExportCodePdf,
   onExportScreenshot,
   onCopyCode,
+  onImport,
   onReset,
   onClearWorkspace,
   onToggleTheme,
@@ -120,6 +123,7 @@ function Toolbar({
   onToggleBeginnerMode,
   traceVisible,
   onToggleTrace,
+  onDebugMode,
   isDark,
   running,
   mode,
@@ -129,6 +133,19 @@ function Toolbar({
   beginnerMode,
   children,
 }) {
+  const importInputRef = useRef(null);
+
+  const handleImportClick = () => {
+    if (importInputRef.current) {
+      importInputRef.current.value = "";
+      importInputRef.current.click();
+    }
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file && onImport) onImport(file);
+  };
   return (
     <header className="toolbar">
       {/* ── Brand ── */}
@@ -227,6 +244,19 @@ function Toolbar({
         </button>
       )}
 
+      {/* ── Debug Mode button ── */}
+      {onDebugMode && (
+        <button
+          type="button"
+          className="tb-btn tb-btn--subtle"
+          onClick={onDebugMode}
+          title="Open Debug Mode — step-through, breakpoints, recording"
+        >
+          <BugIcon size={13} />
+          <span className="tb-btn-label">Debug</span>
+        </button>
+      )}
+
       {/* ── Beginner mode toggle ── */}
       {onToggleBeginnerMode && (
         <button
@@ -241,6 +271,28 @@ function Toolbar({
       )}
 
       <div className="tb-separator" />
+
+      {/* ── Import button ── */}
+      {onImport && (
+        <>
+          <input
+            ref={importInputRef}
+            type="file"
+            accept=".py,.xml"
+            style={{ display: "none" }}
+            onChange={handleFileChange}
+          />
+          <button
+            type="button"
+            className="tb-btn tb-btn--subtle"
+            onClick={handleImportClick}
+            title="Import a .py or .xml file from a previous session"
+          >
+            <UploadIcon size={13} />
+            <span className="tb-btn-label">Import</span>
+          </button>
+        </>
+      )}
 
       {/* ── Export dropdown ── */}
       <DropdownMenu

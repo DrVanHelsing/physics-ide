@@ -1009,13 +1009,17 @@ function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, isD
 }
 
 /* ── Read-only Blockly (for showing block reference alongside code) ── */
-function ReadOnlyBlockly({ xml, isDark }) {
+function ReadOnlyBlockly({ xml, isDark, breakpoints, onBlockClick, executingBlockId }) {
   const hostRef = useRef(null);
   const wsRef = useRef(null);
+  const onBlockClickRef = useRef(onBlockClick);
+  const bpDotsRef = useRef(new Map());  // blockId → SVG circle element
+  useEffect(() => { onBlockClickRef.current = onBlockClick; }, [onBlockClick]);
 
   useEffect(() => {
     const Blockly = window.Blockly;
     if (!Blockly || !hostRef.current) return undefined;
+    const dots = bpDotsRef.current;
 
     defineCustomBlocksAndGenerator(Blockly);
     const theme = buildBlocklyTheme(Blockly, isDark);
@@ -1040,7 +1044,26 @@ function ReadOnlyBlockly({ xml, isDark }) {
       }
     }
 
+    /* Blockly readOnly mode suppresses workspace change-events for clicks,
+       so we use a native DOM click handler on the SVG and walk up the
+       element tree to find the block's data-id attribute. */
+    const svg = ws.getParentSvg();
+    const domClickHandler = (e) => {
+      let el = e.target;
+      while (el && el !== svg) {
+        const blockId = el.getAttribute && el.getAttribute('data-id');
+        if (blockId) {
+          onBlockClickRef.current?.(blockId);
+          return;
+        }
+        el = el.parentElement;
+      }
+    };
+    if (svg) svg.addEventListener('click', domClickHandler);
+
     return () => {
+      if (svg) svg.removeEventListener('click', domClickHandler);
+      dots.clear();
       ws.dispose();
       wsRef.current = null;
     };
@@ -1055,7 +1078,58 @@ function ReadOnlyBlockly({ xml, isDark }) {
     ws.setTheme(theme);
   }, [isDark]);
 
-  return <div ref={hostRef} className="blockly-host blockly-readonly" />;
+  // ── Breakpoint red dots ──
+  useEffect(() => {
+    const ws = wsRef.current;
+    if (!ws) return;
+    const svg = ws.getParentSvg();
+    if (!svg) return;
+    const bpSet = breakpoints || new Set();
+    const dots = bpDotsRef.current;
+
+    // Remove dots for blocks no longer breakpointed
+    for (const [bid, circle] of dots) {
+      if (!bpSet.has(bid)) {
+        circle.remove();
+        dots.delete(bid);
+      }
+    }
+
+    // Add dots for new breakpoints
+    for (const bid of bpSet) {
+      if (dots.has(bid)) continue;
+      const block = ws.getBlockById(bid);
+      if (!block) continue;
+      const svgGroup = block.getSvgRoot();
+      if (!svgGroup) continue;
+
+      const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      circle.setAttribute('cx', '-8');
+      circle.setAttribute('cy', '14');
+      circle.setAttribute('r', '5');
+      circle.setAttribute('class', 'dm-bp-dot');
+      svgGroup.insertBefore(circle, svgGroup.firstChild);
+      dots.set(bid, circle);
+    }
+  }, [breakpoints]);
+
+  // ── Execution highlight (yellow glow on running block) ──
+  useEffect(() => {
+    const ws = wsRef.current;
+    if (!ws) return;
+    const allBlocks = ws.getAllBlocks(false);
+    for (const block of allBlocks) {
+      const svgGroup = block.getSvgRoot();
+      if (!svgGroup) continue;
+      if (block.id === executingBlockId) {
+        svgGroup.classList.add('dm-block-executing');
+      } else {
+        svgGroup.classList.remove('dm-block-executing');
+      }
+    }
+  }, [executingBlockId]);
+
+  return <div ref={hostRef} className="blockly-host blockly-readonly" style={{ cursor: onBlockClick ? 'pointer' : undefined }} />;
 }
 
 export default BlocklyWorkspace;

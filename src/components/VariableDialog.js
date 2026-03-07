@@ -15,7 +15,8 @@ import { registerDialogService } from "../utils/dialogService";
  */
 function VariableDialog() {
   const [state, setState] = useState(null);
-  // state = { type: "prompt"|"alert"|"confirm", msg: string, defaultVal: string, resolve: fn }
+  const [error, setError]   = useState("");
+  // state = { type: "prompt"|"alert"|"confirm", msg, defaultVal, resolve, validator?, validatorMsg? }
 
   const inputRef = useRef(null);
   const okRef    = useRef(null);
@@ -23,7 +24,7 @@ function VariableDialog() {
   /* ── Register with the service on mount ─────────────────── */
   useEffect(() => {
     registerDialogService({
-      prompt:  (msg, def) => new Promise(resolve => setState({ type: "prompt",  msg, defaultVal: def ?? "", resolve })),
+      prompt:  (msg, def, options = {}) => new Promise(resolve => setState({ type: "prompt",  msg, defaultVal: def ?? "", resolve, validator: options.validator, validatorMsg: options.validatorMsg })),
       alert:   (msg)      => new Promise(resolve => setState({ type: "alert",   msg, resolve })),
       confirm: (msg)      => new Promise(resolve => setState({ type: "confirm", msg, resolve })),
     });
@@ -32,6 +33,7 @@ function VariableDialog() {
   /* ── Focus the input (or OK button) when dialog opens ───── */
   useEffect(() => {
     if (!state) return;
+    setError(""); // reset validation error whenever dialog opens
     if (state.type === "prompt" && inputRef.current) {
       inputRef.current.focus();
       inputRef.current.select();
@@ -43,16 +45,24 @@ function VariableDialog() {
   if (!state) return null;
 
   const handleOk = () => {
-    const val = state.type === "prompt"
-      ? (inputRef.current?.value ?? "")
-      : true;
-    state.resolve(val);
+    if (state.type === "prompt") {
+      const val = inputRef.current?.value ?? "";
+      if (state.validator && !state.validator(val)) {
+        setError(state.validatorMsg || "Invalid input.");
+        return;
+      }
+      state.resolve(val);
+    } else {
+      state.resolve(true);
+    }
     setState(null);
+    setError("");
   };
 
   const handleCancel = () => {
     state.resolve(state.type === "confirm" ? false : null);
     setState(null);
+    setError("");
   };
 
   const handleKeyDown = (e) => {
@@ -92,15 +102,19 @@ function VariableDialog() {
           )}
 
           {state.type === "prompt" && (
-            <input
-              ref={inputRef}
-              className="vdialog-input"
-              type="text"
-              defaultValue={state.defaultVal}
-              placeholder="Variable name…"
-              spellCheck={false}
-              autoComplete="off"
-            />
+            <>
+              <input
+                ref={inputRef}
+                className={`vdialog-input${error ? " vdialog-input--error" : ""}`}
+                type="text"
+                defaultValue={state.defaultVal}
+                placeholder="Variable name…"
+                spellCheck={false}
+                autoComplete="off"
+                onChange={() => setError("")}
+              />
+              {error && <p className="vdialog-error">{error}</p>}
+            </>
           )}
         </div>
 

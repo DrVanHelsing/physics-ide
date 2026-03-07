@@ -14,9 +14,12 @@ export function registerDialogService(service) {
   _service = service;
 }
 
-/** Called by BlocklyWorkspace to show a prompt dialog. Returns a Promise. */
-export function prompt(msg, defaultVal) {
-  if (_service) return _service.prompt(msg, defaultVal ?? "");
+/** Called by BlocklyWorkspace to show a prompt dialog. Returns a Promise.
+ *  options.validator(value) → bool  — inline validation
+ *  options.validatorMsg      → string - message shown on failure
+ */
+export function prompt(msg, defaultVal, options = {}) {
+  if (_service) return _service.prompt(msg, defaultVal ?? "", options);
   return Promise.resolve(window.prompt(msg, defaultVal ?? ""));
 }
 
@@ -30,4 +33,21 @@ export function alert(msg) {
 export function confirm(msg) {
   if (_service) return _service.confirm(msg);
   return Promise.resolve(window.confirm(msg));
+}
+
+/** Prompt for a filename with inline validation. Returns sanitised string or null if cancelled. */
+export async function promptFileName(message, defaultName) {
+  const raw = await prompt(
+    message,
+    defaultName ?? "",
+    {
+      validator: (v) => v.trim().length > 0,
+      validatorMsg: "File name cannot be empty. Please enter a name.",
+    }
+  );
+  if (raw === null) return null;
+  // Strip characters that are invalid in filesystem names
+  // eslint-disable-next-line no-control-regex
+  const sanitized = raw.trim().replace(/[<>:"/\\|?*\x00-\x1F]/g, "").trim();
+  return sanitized || null;
 }

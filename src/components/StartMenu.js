@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { EXAMPLES } from "../utils/precodedExamples";
 import { BLOCK_TEMPLATES } from "../utils/blockTemplates";
 import {
@@ -12,6 +12,7 @@ import {
   FileCodeIcon,
   FileBlocksIcon,
   PlusIcon,
+  UploadIcon,
 } from "./Icons";
 
 const CARD_ICONS = {
@@ -46,8 +47,16 @@ const FILTERS = [
   { key: "blocks", label: "Block Templates", Icon: BlocksIcon },
 ];
 
-export default function StartMenu({ onSelect, onHelp }) {
+export default function StartMenu({ onSelect, onHelp, onImport }) {
   const [filter, setFilter] = useState("all");
+  const importRef = useRef(null);
+
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    if (onImport) onImport(file);
+  };
 
   const showCode   = filter === "all" || filter === "code";
   const showBlocks = filter === "all" || filter === "blocks";
@@ -88,6 +97,21 @@ export default function StartMenu({ onSelect, onHelp }) {
                 <HelpIcon size={16} /> Documentation
               </button>
             )}
+            <hr className="start-action-separator" />
+            <input
+              ref={importRef}
+              type="file"
+              accept=".py,.xml"
+              style={{ display: "none" }}
+              onChange={handleFileChange}
+            />
+            <button
+              className="start-action-btn"
+              onClick={() => importRef.current?.click()}
+              title="Open a saved .py or .xml project file"
+            >
+              <UploadIcon size={16} /> Open File…
+            </button>
           </nav>
         </aside>
 

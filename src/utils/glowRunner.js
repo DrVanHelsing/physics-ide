@@ -8,6 +8,7 @@
 import { traceRegistry } from './blocklyGenerator';
 
 let activeRunToken = 0;
+let activeFrameWindow = null;
 
 const GLOWSCRIPT_SCRIPTS = {
   jquery: "https://cdn.jsdelivr.net/npm/jquery@2.1.4/dist/jquery.min.js",
@@ -274,6 +275,10 @@ function extractCompiledCode(compiled) {
 }
 
 async function executeCompiled(frameWindow, compiledCode) {
+  activeFrameWindow = frameWindow;
+  frameWindow.__physide_paused = false;
+  frameWindow.__physide_steps = 0;
+  frameWindow.__physide_breakpoints = new Set();
   const mount = frameWindow.document.createElement("div");
   mount.id = "glowscript";
   mount.style.width = "100%";
@@ -325,7 +330,18 @@ async function executeCompiled(frameWindow, compiledCode) {
           prefix + value + semi +
           "try{parent.postMessage({type:'__phtr',n:'" + dn +
           "',v:String(_phtr_" + safeName +
-          "),b:'" + bid + "'},'*')}catch(_e){}"
+          "),b:'" + bid + "'},'*');" +
+          "if(window.__physide_breakpoints&&window.__physide_breakpoints.has('" + bid + "')){" +
+          "window.__physide_paused=true;window.__physide_steps=0;}" +
+          "if(window.__physide_paused){" +
+          "if(window.__physide_steps>0){window.__physide_steps--;}" +
+          "else{await new Promise(function(r){" +
+          "var _pi=setInterval(function(){" +
+          "if(!window.__physide_paused||window.__physide_steps>0){" +
+          "clearInterval(_pi);" +
+          "if(window.__physide_steps>0)window.__physide_steps--;" +
+          "r();}},30);})}" +
+          "}}catch(_e){}"
         );
       }
     );
@@ -442,9 +458,37 @@ export async function runPython(codeString, hostId = "glowscript-host") {
 
 export function stopPython(hostId = "glowscript-host") {
   activeRunToken += 1;
+  activeFrameWindow = null;
 
   const host = document.getElementById(hostId);
   if (host) {
     host.innerHTML = "";
+  }
+}
+
+export function pausePython() {
+  if (activeFrameWindow) {
+    activeFrameWindow.__physide_paused = true;
+    activeFrameWindow.__physide_steps = 0;
+  }
+}
+
+export function resumePython() {
+  if (activeFrameWindow) {
+    activeFrameWindow.__physide_paused = false;
+    activeFrameWindow.__physide_steps = 0;
+  }
+}
+
+export function stepPython() {
+  if (activeFrameWindow) {
+    activeFrameWindow.__physide_paused = true;
+    activeFrameWindow.__physide_steps = (activeFrameWindow.__physide_steps || 0) + 1;
+  }
+}
+
+export function setBreakpoints(bpSet) {
+  if (activeFrameWindow) {
+    activeFrameWindow.__physide_breakpoints = bpSet instanceof Set ? bpSet : new Set(bpSet);
   }
 }

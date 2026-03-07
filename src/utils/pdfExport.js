@@ -5,7 +5,6 @@
  * Uses jsPDF + html2canvas.
  */
 import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
 
 /* ── Python syntax highlighting (simple tokeniser) ───── */
 const PY_KEYWORDS = new Set([
@@ -113,46 +112,23 @@ function tokenizePython(code) {
   return tokens;
 }
 
-/**
- * Build a syntax-highlighted HTML string from Python source code.
- */
-function buildHighlightedHtml(code) {
-  const tokens = tokenizePython(code);
+/* ── Blocks → PDF (SVG clone – full workspace, all pages) ─
+   Strategy: all Blockly blocks live in the SVG DOM at all
+   times; only the viewport clips them. We deep-clone the
+   SVG, reset the blocklyBlockCanvas scroll/scale transform,
+   set a viewBox that covers every block via
+   getBlocksBoundingBox(), then rasterise to canvas and
+   paginate into an A4 PDF.  No DOM mutation of the live
+   workspace, no html2canvas, no scroll tricks.
 
-  const COLORS = {
-    keyword:  "#c678dd",
-    builtin:  "#61afef",
-    string:   "#98c379",
-    number:   "#d19a66",
-    comment:  "#5c6370",
-    ident:    "#e5e5e5",
-    punct:    "#abb2bf",
-    ws:       "",
-    newline:  "",
-  };
-
-  let html = "";
-  for (const t of tokens) {
-    if (t.type === "newline") {
-      html += "<br/>";
-      continue;
-    }
-    if (t.type === "ws") {
-      html += t.text.replace(/ /g, "&nbsp;");
-      continue;
-    }
-    const escaped = t.text
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;");
-    const col = COLORS[t.type] || COLORS.ident;
-    html += `<span style="color:${col}">${escaped}</span>`;
-  }
-  return html;
-}
-
-/* ── Blocks → PDF (full workspace capture via SVG) ───── */
-export async function exportBlocksPdf(workspace) {
+   Special handling: editable fields (text inputs, numbers,
+   variable names) are rendered as <foreignObject> HTML in
+   the live SVG.  Browsers drop foreignObject content when
+   drawing an SVG blob into a canvas <img>, causing the
+   "black box" effect.  We capture the live .value of every
+   input BEFORE cloning, then replace each <foreignObject>
+   in the clone with an equivalent SVG <text> element.      */
+export async function exportBlocksPdf(workspace, fileName) {
   if (!workspace) {
     window.alert("Switch to Blocks mode first to export the block workspace.");
     return;
@@ -166,247 +142,298 @@ export async function exportBlocksPdf(workspace) {
   const contentH = bbox.bottom - bbox.top;
   if (contentW === 0 || contentH === 0) { window.alert("No blocks to export."); return; }
 
-  const padding = 60;
-  const viewW = contentW   + padding * 2;
-  const viewH = contentH   + padding * 2;
-  const dpr   = 2;
+  /* ── 1. Locate the live workspace SVG ──────────────── */
+  const svgRoot = workspace.getParentSvg
+    ? workspace.getParentSvg()
+    : document.querySelector(".blockly-host svg");
+  if (!svgRoot) { window.alert("Cannot locate workspace SVG."); return; }
 
-  let canvas;
-  const blocklyHost = document.querySelector(".blockly-host");
-  if (!blocklyHost) { window.alert("Switch to Blocks mode first."); return; }
+  /* ── 2. Capture live field values BEFORE cloning ───────
+     foreignObject > input .value is a live DOM property;
+     cloneNode copies the attribute (default) not the current
+     value. We read it now, skipping anything inside the flyout
+     (which gets stripped later) so indices stay aligned.    */
+  const liveFOs = Array.from(svgRoot.querySelectorAll("foreignObject")).filter(
+    (fo) => !fo.closest(".blocklyFlyout")
+  );
+  const foValues = liveFOs.map((fo) => {
+    const inp = fo.querySelector("input, textarea");
+    if (inp) return inp.value;
+    const editable = fo.querySelector("[contenteditable]");
+    if (editable) return editable.textContent;
+    return fo.textContent;
+  });
 
-  const origScale   = workspace.getScale();
-  const origScrollX = workspace.scrollX;
-  const origScrollY = workspace.scrollY;
-  const origCss     = blocklyHost.style.cssText;
-  const toolbox = blocklyHost.querySelector(".blocklyToolboxDiv");
-  const flyout  = blocklyHost.querySelector(".blocklyFlyout");
-  if (toolbox) toolbox.style.display = "none";
-  if (flyout)  flyout.style.display  = "none";
+  /* ── 2b. Snapshot computed text fills from the LIVE SVG ─
+     Blockly styles block labels via CSS (.blocklyText {fill:#fff}).
+     When the clone is serialised to a blob URL the stylesheet is
+     NOT included, so every <text> defaults to fill:black —
+     invisible on dark-coloured blocks.  Capture fills now and
+     stamp them as inline attributes on the clone later (6b). */
+  const liveTextEls = Array.from(
+    svgRoot.querySelectorAll("text, tspan")
+  ).filter((el) => !el.closest(".blocklyFlyout, .blocklyZoom"));
+  const computedFills = liveTextEls.map((el) => {
+    try { return window.getComputedStyle(el).fill || "#ffffff"; }
+    catch (e) { return "#ffffff"; }
+  });
+  const computedFontSizes = liveTextEls.map((el) => {
+    try { return window.getComputedStyle(el).fontSize || ""; }
+    catch (e) { return ""; }
+  });
 
-  const renderW = viewW, renderH = viewH;
-  blocklyHost.style.cssText = "";
-  blocklyHost.style.position = "fixed";
-  blocklyHost.style.top      = "-30000px";
-  blocklyHost.style.left     = "0";
-  blocklyHost.style.width    = renderW + "px";
-  blocklyHost.style.height   = renderH + "px";
-  blocklyHost.style.zIndex   = "-1";
-  blocklyHost.style.overflow = "hidden";
-  workspace.setScale(1);
-  if (workspace.resize) workspace.resize();
-  workspace.scroll(padding - bbox.left, padding - bbox.top);
-  await new Promise((r) => setTimeout(r, 300));
+  /* ── 3. Define viewBox in workspace-unit coordinates ── */
+  const pad  = 40;
+  const vbX  = bbox.left   - pad;
+  const vbY  = bbox.top    - pad;
+  const vbW  = contentW    + pad * 2;
+  const vbH  = contentH    + pad * 2;
 
-  try {
-    canvas = await html2canvas(blocklyHost, {
-      backgroundColor: "#1a1b2e",
-      scale: dpr,
-      useCORS: true,
-      logging: false,
-      width: renderW,
-      height: renderH,
-      foreignObjectRendering: true,
-    });
-  } finally {
-    blocklyHost.style.cssText = origCss;
-    if (toolbox) toolbox.style.display = "";
-    if (flyout)  flyout.style.display  = "";
-    workspace.setScale(origScale);
-    if (workspace.resize) workspace.resize();
-    workspace.scroll(origScrollX, origScrollY);
-  }
+  /* ── 4. Deep-clone SVG so we never touch the live DOM ── */
+  const svgClone = svgRoot.cloneNode(true);
 
-  if (!canvas) return;
+  /* ── 5. Reset canvas group transform ───────────────────
+     Removes the scroll/scale offset so block groups sit at
+     their raw workspace coordinates, matching the viewBox.  */
+  const blockCanvas  = svgClone.querySelector(".blocklyBlockCanvas");
+  const bubbleCanvas = svgClone.querySelector(".blocklyBubbleCanvas");
+  if (blockCanvas)  blockCanvas.setAttribute("transform",  "translate(0,0)");
+  if (bubbleCanvas) bubbleCanvas.setAttribute("transform", "translate(0,0)");
 
-  /* ── Paginate canvas into PDF (A4) ─────────────────── */
-  const imgData = canvas.toDataURL("image/png");
-  const imgW    = canvas.width;
-  const imgH    = canvas.height;
-  const pdf     = new jsPDF({
-    orientation: imgW > imgH ? "landscape" : "portrait",
+  /* ── 6. Strip non-block UI from the clone ───────────────
+     Do NOT include "foreignObject" here – we convert them
+     to SVG text in the next step instead of removing them.  */
+  [
+    ".blocklyScrollbar",
+    ".blocklyScrollbarBackground",
+    ".blocklyScrollbarHandle",
+    ".blocklyZoom",
+    ".blocklyFlyoutBackground",
+    ".blocklyFlyout",
+  ].forEach((sel) => svgClone.querySelectorAll(sel).forEach((el) => el.remove()));
+
+  /* ── 6b. Inline text fills on every <text> / <tspan> ────
+     Stamp the computed fills captured in step 2b so text is
+     readable when the SVG is rendered without the page CSS. */
+  const NS = "http://www.w3.org/2000/svg";
+  const cloneTextEls = Array.from(svgClone.querySelectorAll("text, tspan"));
+  cloneTextEls.forEach((el, i) => {
+    if (i < computedFills.length) {
+      el.setAttribute("fill", computedFills[i]);
+      if (computedFontSizes[i]) el.setAttribute("font-size", computedFontSizes[i]);
+    } else if (!el.getAttribute("fill")) {
+      el.setAttribute("fill", "#ffffff");
+    }
+    if (!el.getAttribute("font-family")) {
+      el.setAttribute("font-family", "sans-serif");
+    }
+  });
+
+  /* ── 7. Replace foreignObjects with SVG <text> elements ─
+     After stripping .blocklyFlyout the remaining fOs in the
+     clone correspond 1-to-1 (document order) with liveFOs.  */
+  const clonedFOs = Array.from(svgClone.querySelectorAll("foreignObject"));
+  clonedFOs.forEach((fo, i) => {
+    const val = (foValues[i] ?? "").trim();
+    if (!val) { fo.remove(); return; }
+
+    const x = parseFloat(fo.getAttribute("x")      || "0");
+    const y = parseFloat(fo.getAttribute("y")      || "0");
+    const w = parseFloat(fo.getAttribute("width")  || "40");
+    const h = parseFloat(fo.getAttribute("height") || "16");
+
+    const textEl = document.createElementNS(NS, "text");
+    textEl.setAttribute("x",              String(x + w / 2));
+    textEl.setAttribute("y",              String(y + h * 0.74));
+    textEl.setAttribute("text-anchor",    "middle");
+    textEl.setAttribute("fill",           "#ffffff");
+    textEl.setAttribute("font-size",      "12");
+    textEl.setAttribute("font-family",    "sans-serif");
+    textEl.setAttribute("pointer-events", "none");
+    textEl.textContent = val;
+
+    if (fo.parentNode) fo.parentNode.replaceChild(textEl, fo);
+  });
+
+  /* ── 8. White background rect behind all blocks ─────── */
+  const bgRect = document.createElementNS(NS, "rect");
+  bgRect.setAttribute("x",      String(vbX));
+  bgRect.setAttribute("y",      String(vbY));
+  bgRect.setAttribute("width",  String(vbW));
+  bgRect.setAttribute("height", String(vbH));
+  bgRect.setAttribute("fill",   "#ffffff");
+  const anchor = svgClone.querySelector(".blocklyWorkspace") || svgClone.firstElementChild;
+  svgClone.insertBefore(bgRect, anchor);
+
+  /* ── 9. Set viewBox + pixel dimensions ─────────────── */
+  const DPR     = 2;
+  const renderW = Math.ceil(vbW * DPR);
+  const renderH = Math.ceil(vbH * DPR);
+  svgClone.setAttribute("viewBox",  `${vbX} ${vbY} ${vbW} ${vbH}`);
+  svgClone.setAttribute("width",    String(renderW));
+  svgClone.setAttribute("height",   String(renderH));
+  svgClone.removeAttribute("style");
+
+  /* ── 10. Serialise SVG → Blob URL → Image → Canvas ─── */
+  let svgStr = new XMLSerializer().serializeToString(svgClone);
+  if (!svgStr.includes("xmlns="))
+    svgStr = svgStr.replace("<svg", '<svg xmlns="http://www.w3.org/2000/svg"');
+
+  const blob = new Blob([svgStr], { type: "image/svg+xml;charset=utf-8" });
+  const url  = URL.createObjectURL(blob);
+
+  const img = new Image();
+  await new Promise((resolve, reject) => {
+    img.onload  = resolve;
+    img.onerror = () => reject(new Error("SVG workspace render failed"));
+    img.src     = url;
+  });
+  URL.revokeObjectURL(url);
+
+  const canvas = document.createElement("canvas");
+  canvas.width  = renderW;
+  canvas.height = renderH;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, renderW, renderH);
+  ctx.drawImage(img, 0, 0);
+
+  /* ── 11. Paginate canvas into A4 PDF ────────────────── */
+  const pdf = new jsPDF({
+    orientation: renderW > renderH ? "landscape" : "portrait",
     unit: "pt", format: "a4",
   });
 
-  const pageW   = pdf.internal.pageSize.getWidth();
-  const pageH   = pdf.internal.pageSize.getHeight();
-  const margin  = 36;
-  const usableW = pageW - margin * 2;
+  const PAGE_W     = pdf.internal.pageSize.getWidth();
+  const PAGE_H     = pdf.internal.pageSize.getHeight();
+  const MARGIN     = 36;
+  const TITLE_H    = 40;
+  const usableW    = PAGE_W - MARGIN * 2;
+  const firstPageH = PAGE_H - MARGIN * 2 - TITLE_H;
+  const otherPageH = PAGE_H - MARGIN * 2;
 
+  pdf.setFont("helvetica", "bold");
   pdf.setFontSize(16); pdf.setTextColor(60, 60, 80);
-  pdf.text("Physics IDE \u2014 Block Workspace", margin, margin + 12);
+  pdf.text("Physics IDE \u2014 Block Workspace", MARGIN, MARGIN + 12);
+  pdf.setFont("helvetica", "normal");
   pdf.setFontSize(9);  pdf.setTextColor(130, 130, 150);
-  pdf.text(new Date().toLocaleString(), margin, margin + 26);
+  pdf.text(new Date().toLocaleString(), MARGIN, MARGIN + 26);
 
-  const titleH     = 40;
-  const firstPageH = pageH - margin * 2 - titleH;
-  const otherPageH = pageH - margin * 2;
-  const pdfScale   = usableW / imgW;
-  const drawW      = imgW * pdfScale;
-  const drawH      = imgH * pdfScale;
+  const pdfScale = usableW / renderW;
+  const drawW    = renderW * pdfScale;
+  const drawH    = renderH * pdfScale;
 
   if (drawH <= firstPageH) {
-    pdf.addImage(imgData, "PNG", margin, margin + titleH, drawW, drawH);
+    pdf.addImage(canvas.toDataURL("image/png"), "PNG", MARGIN, MARGIN + TITLE_H, drawW, drawH);
   } else {
     let yOff = 0, page = 0;
     while (yOff < drawH) {
       if (page > 0) pdf.addPage();
       const usableH   = page === 0 ? firstPageH : otherPageH;
-      const topMargin = page === 0 ? margin + titleH : margin;
+      const topMargin = page === 0 ? MARGIN + TITLE_H : MARGIN;
       const sliceH    = Math.min(usableH, drawH - yOff);
-      const srcH      = sliceH / pdfScale;
+      const srcY      = Math.floor(yOff   / pdfScale);
+      const srcH      = Math.ceil(sliceH  / pdfScale);
       const sc        = document.createElement("canvas");
       sc.width  = canvas.width;
-      sc.height = Math.ceil(srcH);
-      sc.getContext("2d").drawImage(
-        canvas, 0, Math.floor(yOff / pdfScale), canvas.width, Math.ceil(srcH),
-        0, 0, canvas.width, Math.ceil(srcH)
-      );
-      pdf.addImage(sc.toDataURL("image/png"), "PNG", margin, topMargin, drawW, sliceH);
+      sc.height = srcH;
+      sc.getContext("2d").drawImage(canvas, 0, srcY, canvas.width, srcH, 0, 0, canvas.width, srcH);
+      pdf.addImage(sc.toDataURL("image/png"), "PNG", MARGIN, topMargin, drawW, sliceH);
       yOff += sliceH;
       page++;
     }
   }
 
-  pdf.save("blocks-workspace.pdf");
+  pdf.save(`${fileName || "blocks-workspace"}.pdf`);
 }
 
-/* ── Code → PDF (syntax highlighted) ─────────────────── */
-export async function exportCodePdf(code) {
+/* ── Code → PDF (direct jsPDF text – no html2canvas) ────
+   Renders syntax-highlighted Python straight into the PDF
+   without needing an off-screen DOM element, so it always
+   produces a real page instead of a blank one.            */
+export async function exportCodePdf(code, fileName) {
   if (!code || !code.trim()) {
     window.alert("No code to export.");
     return;
   }
 
-  // Create a hidden container with highlighted code
-  const container = document.createElement("div");
-  container.style.cssText = `
-    position: fixed;
-    top: -10000px;
-    left: 0;
-    width: 680px;
-    padding: 32px 28px;
-    background: #282c34;
-    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', 'Monaco', monospace;
-    font-size: 12px;
-    line-height: 1.7;
-    color: #abb2bf;
-    border-radius: 8px;
-    z-index: -1;
-  `;
+  const pdf        = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
+  const PAGE_W     = pdf.internal.pageSize.getWidth();
+  const PAGE_H     = pdf.internal.pageSize.getHeight();
+  const MARGIN     = 36;
+  const FONT_SIZE  = 8;
+  const LINE_H     = 13;
+  const LN_W       = 28;                 // line-number column width
+  const CODE_LEFT  = MARGIN + LN_W + 5;  // x where code starts
+  const TITLE_H    = 50;                 // height of title block on page 1
 
-  // Title header
-  const header = document.createElement("div");
-  header.style.cssText = `
-    margin-bottom: 18px;
-    padding-bottom: 12px;
-    border-bottom: 1px solid #3e4451;
-  `;
-  header.innerHTML = `
-    <div style="font-family: Inter, system-ui, sans-serif; font-size: 16px; font-weight: 600; color: #e5e5e5; margin-bottom: 4px;">
-      Physics IDE — Python Source
-    </div>
-    <div style="font-family: Inter, system-ui, sans-serif; font-size: 10px; color: #5c6370;">
-      ${new Date().toLocaleString()} &nbsp;|&nbsp; VPython 3.2
-    </div>
-  `;
-  container.appendChild(header);
+  /* ── Page-1 title ───────────────────────────────────── */
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(13);
+  pdf.setTextColor(40, 40, 60);
+  pdf.text("Physics IDE \u2014 Python Source", MARGIN, 22);
 
-  // Line numbers + highlighted code
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(8);
+  pdf.setTextColor(110, 110, 130);
+  pdf.text(`${new Date().toLocaleString()}  \u2022  VPython 3.2`, MARGIN, 35);
+
+  pdf.setDrawColor(190, 190, 210);
+  pdf.setLineWidth(0.5);
+  pdf.line(MARGIN, 42, PAGE_W - MARGIN, 42);
+
+  /* ── Dark code-block background (first page) ────────── */
+  pdf.setFillColor(40, 44, 52);
+  pdf.rect(MARGIN, TITLE_H, PAGE_W - MARGIN * 2, PAGE_H - TITLE_H - MARGIN, "F");
+
+  let y = TITLE_H + LINE_H;
+
+  const addCodePage = () => {
+    pdf.addPage();
+    pdf.setFillColor(40, 44, 52);
+    pdf.rect(MARGIN, MARGIN, PAGE_W - MARGIN * 2, PAGE_H - MARGIN * 2, "F");
+    y = MARGIN + LINE_H;
+  };
+
+  /* ── Render line by line ─────────────────────────────── */
+  pdf.setFont("courier", "normal");
+  pdf.setFontSize(FONT_SIZE);
+
   const lines = code.split("\n");
-  const codeBlock = document.createElement("div");
-  codeBlock.style.cssText = "display: flex; gap: 0;";
 
-  // Line numbers column
-  const lineNums = document.createElement("div");
-  lineNums.style.cssText = `
-    text-align: right;
-    padding-right: 14px;
-    margin-right: 14px;
-    border-right: 1px solid #3e4451;
-    color: #4b5263;
-    font-size: 11px;
-    line-height: 1.7;
-    user-select: none;
-    min-width: 28px;
-  `;
-  lineNums.innerHTML = lines.map((_, i) => `${i + 1}<br/>`).join("");
+  for (let li = 0; li < lines.length; li++) {
+    if (y + LINE_H > PAGE_H - MARGIN) addCodePage();
 
-  // Code column
-  const codeCol = document.createElement("div");
-  codeCol.style.cssText = `
-    flex: 1;
-    min-width: 0;
-    white-space: pre-wrap;
-    word-break: break-all;
-  `;
-  codeCol.innerHTML = buildHighlightedHtml(code);
+    /* line number */
+    pdf.setFontSize(FONT_SIZE - 0.5);
+    pdf.setTextColor(75, 82, 99);
+    pdf.text(String(li + 1), MARGIN + LN_W - 2, y, { align: "right" });
+    pdf.setFontSize(FONT_SIZE);
 
-  codeBlock.appendChild(lineNums);
-  codeBlock.appendChild(codeCol);
-  container.appendChild(codeBlock);
-  document.body.appendChild(container);
+    /* tokens */
+    const tokens = tokenizePython(lines[li]);
+    let x = CODE_LEFT;
 
-  // Capture to canvas
-  try {
-    const canvas = await html2canvas(container, {
-      backgroundColor: "#282c34",
-      scale: 2,
-      logging: false,
-    });
+    for (const tok of tokens) {
+      if (tok.type === "newline") continue;
+      const text = tok.text.replace(/\t/g, "    ");
+      if (!text) continue;
 
-    const imgW = canvas.width;
-    const imgH = canvas.height;
+      switch (tok.type) {
+        case "keyword": pdf.setTextColor(198, 120, 221); break;
+        case "builtin": pdf.setTextColor(97,  175, 239); break;
+        case "string":  pdf.setTextColor(152, 195, 121); break;
+        case "number":  pdf.setTextColor(209, 154, 102); break;
+        case "comment": pdf.setTextColor(92,   99, 112); break;
+        default:        pdf.setTextColor(171, 178, 191); break;
+      }
 
-    const pdf = new jsPDF({
-      orientation: "portrait",
-      unit: "pt",
-      format: "a4",
-    });
-
-    const pageW = pdf.internal.pageSize.getWidth();
-    const pageH = pdf.internal.pageSize.getHeight();
-    const margin = 28;
-    const usableW = pageW - margin * 2;
-
-    const scale = usableW / imgW;
-    const drawW = imgW * scale;
-    const drawH = imgH * scale;
-
-    // If the rendered code is taller than one page, paginate
-    const usablePageH = pageH - margin * 2;
-    let yOffset = 0;
-    let page = 0;
-
-    while (yOffset < drawH) {
-      if (page > 0) pdf.addPage();
-
-      // How much of the source image fits on this page
-      const sliceH = Math.min(usablePageH, drawH - yOffset);
-      const srcSliceH = sliceH / scale;
-
-      // Create a temporary canvas for this page slice
-      const sliceCanvas = document.createElement("canvas");
-      sliceCanvas.width = canvas.width;
-      sliceCanvas.height = Math.ceil(srcSliceH);
-      const ctx = sliceCanvas.getContext("2d");
-      ctx.drawImage(
-        canvas,
-        0, Math.floor(yOffset / scale),
-        canvas.width, Math.ceil(srcSliceH),
-        0, 0,
-        canvas.width, Math.ceil(srcSliceH)
-      );
-
-      const sliceData = sliceCanvas.toDataURL("image/png");
-      pdf.addImage(sliceData, "PNG", margin, margin, drawW, sliceH);
-
-      yOffset += sliceH;
-      page++;
+      pdf.text(text, x, y);
+      x += pdf.getTextWidth(text);
     }
 
-    pdf.save("code-export.pdf");
-  } finally {
-    document.body.removeChild(container);
+    y += LINE_H;
   }
+
+  pdf.save(`${fileName || "code-export"}.pdf`);
 }
