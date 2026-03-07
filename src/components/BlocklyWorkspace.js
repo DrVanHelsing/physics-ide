@@ -1013,7 +1013,7 @@ function ReadOnlyBlockly({ xml, isDark, breakpoints, onBlockClick, executingBloc
   const hostRef = useRef(null);
   const wsRef = useRef(null);
   const onBlockClickRef = useRef(onBlockClick);
-  const bpDotsRef = useRef(new Map());  // blockId → SVG circle element
+  const bpDotsRef = useRef(new Map());  // blockId → SVG group element
   useEffect(() => { onBlockClickRef.current = onBlockClick; }, [onBlockClick]);
 
   useEffect(() => {
@@ -1087,15 +1087,15 @@ function ReadOnlyBlockly({ xml, isDark, breakpoints, onBlockClick, executingBloc
     const bpSet = breakpoints || new Set();
     const dots = bpDotsRef.current;
 
-    // Remove dots for blocks no longer breakpointed
-    for (const [bid, circle] of dots) {
+    // Remove highlight from blocks no longer breakpointed
+    for (const [bid, svgGroup] of dots) {
       if (!bpSet.has(bid)) {
-        circle.remove();
+        svgGroup.classList.remove('dm-bp-block');
         dots.delete(bid);
       }
     }
 
-    // Add dots for new breakpoints
+    // Add highlight to new breakpoints
     for (const bid of bpSet) {
       if (dots.has(bid)) continue;
       const block = ws.getBlockById(bid);
@@ -1103,13 +1103,8 @@ function ReadOnlyBlockly({ xml, isDark, breakpoints, onBlockClick, executingBloc
       const svgGroup = block.getSvgRoot();
       if (!svgGroup) continue;
 
-      const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-      circle.setAttribute('cx', '-8');
-      circle.setAttribute('cy', '14');
-      circle.setAttribute('r', '5');
-      circle.setAttribute('class', 'dm-bp-dot');
-      svgGroup.insertBefore(circle, svgGroup.firstChild);
-      dots.set(bid, circle);
+      svgGroup.classList.add('dm-bp-block');
+      dots.set(bid, svgGroup);
     }
   }, [breakpoints]);
 

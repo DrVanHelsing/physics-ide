@@ -807,13 +807,15 @@ button {
 .blockly-readonly {
   opacity: 0.88;
 }
-/* Breakpoint red dot — injected SVG circle on block groups */
-.dm-bp-dot {
-  fill: #dc2626;
-  stroke: #7f1d1d;
-  stroke-width: 1;
-  filter: drop-shadow(0 0 2px rgba(220,38,38,0.7));
-  pointer-events: none;
+/* Breakpoint red highlight — outline/glow on breakpointed block */
+.dm-bp-block > .blocklyPath {
+  stroke: #ef4444 !important;
+  stroke-width: 3px !important;
+  filter: drop-shadow(0 0 7px rgba(239,68,68,0.85)) !important;
+}
+[data-theme="light"] .dm-bp-block > .blocklyPath {
+  stroke: #dc2626 !important;
+  filter: drop-shadow(0 0 6px rgba(220,38,38,0.65)) !important;
 }
 /* Execution highlight — bright outline/glow on the currently running block */
 .dm-block-executing > .blocklyPath {
