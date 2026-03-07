@@ -31,6 +31,21 @@ It is designed for teaching and experimentation: beginners can build simulations
 
 ## What's New
 
+### Debug Mode
+
+A full-screen debug overlay for step-through simulation inspection:
+
+- **Three-panel layout** — read-only Blocks panel (or read-only Code editor for Blank Projects / Code Examples) | 3D Viewport | Trace Table
+- **Pause / Resume / Step** — pause the running simulation at any point; step one trace event at a time (`F10`); resume (`Space`)
+- **Breakpoints** — click any block in the Blocks panel to toggle a breakpoint (red dot indicator appears); execution stops synchronously when that block executes
+- **Execution highlight** — yellow glow on the block that is currently executing, updated in real time
+- **Recording + CSV export** — press Record to capture all trace data; export as CSV with variable, value, delta, min, max, and timestamp columns
+- **Code-only support** — Blank Projects and Code Examples show a read-only code editor in the left panel instead of the Blockly workspace
+
+Access via the **🐛 Debug** button in the toolbar.
+
+---
+
 ### Composable logic & variable blocks
 
 Four new fully composable blocks eliminate the need for `expr_block` in boolean conditions:
@@ -495,6 +510,7 @@ Toolbar supports:
 - Export blocks `.xml`
 - Export Blocks PDF
 - Export Code PDF
+- Export recorded trace data as **CSV** (from Debug Mode — Record → Stop Rec → ↓ CSV)
 
 PDF features include:
 
@@ -536,10 +552,12 @@ PDF features include:
 - `src/components/Toolbar.js` — run/stop/export/reset/theme controls
 - `src/components/BlocklyWorkspace.js` — Blockly inject/toolbox/workspace events
 - `src/components/GlowCanvas.js` — viewport host element
+- `src/components/DebugMode.js` — full-screen debug overlay (pause/step/breakpoints/execution highlight/recording)
+- `src/components/TraceTable.js` — live variable trace table with sparklines, pin, delta/min/max, search, CSV export
 - `src/utils/blocklyGenerator.js` — block definitions + Python generators
 - `src/utils/blockTemplates.js` — block template XML
 - `src/utils/precodedExamples.js` — code template strings
-- `src/utils/glowRunner.js` — iframe runtime load/compile/execute/stop
+- `src/utils/glowRunner.js` — iframe runtime load/compile/execute/stop/pause/step/breakpoints
 
 ---
 
@@ -548,4 +566,3 @@ PDF features include:
 - Custom block for gravitational acceleration between two named bodies
 - Validation warnings when raw blocks contain multiple semicolon statements
 - Template self-check command that validates generated code for loop/update presence
-- Import `.xml` button on Start Menu for restoring saved block workspaces

@@ -8,7 +8,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   AtomIcon, RocketIcon, BlocksIcon, BookOpenIcon, CodeIcon,
-  DownloadIcon, ZapIcon, LayersIcon, EditIcon, UsersIcon,
+  DownloadIcon, ZapIcon, LayersIcon, EditIcon, UsersIcon, BugIcon,
 } from "./Icons";
 
 /* ── Tiny inline components ──────────────────────────────── */
@@ -49,6 +49,7 @@ function SectionAnchor({ id }) {
 const SECTION_ICON_MAP = {
   "overview":        AtomIcon,
   "getting-started": RocketIcon,
+  "debug-mode":      BugIcon,
   "block-editor":    BlocksIcon,
   "block-reference": BookOpenIcon,
   "code-editor":     CodeIcon,
@@ -84,6 +85,11 @@ const SEARCH_INDEX = [
     id: "getting-started",
     title: "Getting Started",
     content: "start menu blocks template code example blank project run simulation stop toolbar 3D viewport orbit pan zoom camera mouse drag scroll auto-save localStorage export restore session",
+  },
+  {
+    id: "debug-mode",
+    title: "Debug Mode",
+    content: "debug mode breakpoints pause resume step execution highlight yellow glow red dot trace recording CSV synchronous stop block click toggle debugger inspect simulation code-only step forward F10 space pause BugIcon overlay three panel",
   },
   {
     id: "block-editor",
@@ -179,6 +185,7 @@ function SearchResults({ query, results, onNavigate }) {
 const NAV = [
   { id: "overview",        label: "Overview",               Icon: AtomIcon },
   { id: "getting-started", label: "Getting Started",        Icon: RocketIcon },
+  { id: "debug-mode",      label: "Debug Mode",             Icon: BugIcon },
   { id: "block-editor",    label: "Block Editor",           Icon: BlocksIcon },
   { id: "block-reference", label: "Block Reference",        Icon: BookOpenIcon },
   { id: "code-editor",     label: "Code Editor",            Icon: CodeIcon },
@@ -435,6 +442,123 @@ export default function HelpPage({ onClose }) {
                 Physics IDE <strong>auto-saves</strong> your workspace every 2 seconds to browser
                 localStorage. Your session will be restored when you reopen the app. For permanent
                 saves use the <strong>Export</strong> buttons.
+              </p>
+            </section>
+
+            {/* ══════════════ DEBUG MODE ══════════════ */}
+            <SectionAnchor id="debug-mode" />
+            <section className="help-section">
+              <SectionHeader id="debug-mode">Debug Mode</SectionHeader>
+              <p>
+                Debug Mode is a full-screen overlay for step-through inspection of a running
+                simulation. Access it by clicking the <Tag color="purple">🐛 Debug</Tag> button in
+                the toolbar. The simulation pauses immediately and the debug overlay opens.
+              </p>
+
+              <h3 className="help-h3">Three-panel layout</h3>
+              <p>Debug Mode divides the screen into three resizable panels:</p>
+              <ul className="help-list">
+                <li>
+                  <strong>Left — Blocks / Code panel</strong> — a read-only view of the simulation's
+                  block workspace (or a read-only code editor for Blank Projects and Code Examples).
+                  Click any block to <strong>toggle a breakpoint</strong> on it.
+                </li>
+                <li>
+                  <strong>Centre — 3D Viewport</strong> — the live GlowScript viewport, exactly as it
+                  appears during normal execution. The simulation is paused but the camera is still
+                  interactive.
+                </li>
+                <li>
+                  <strong>Right — Trace Table</strong> — a live variable trace with sparklines, delta,
+                  min and max columns, a search filter, and pin-to-top support.
+                </li>
+              </ul>
+
+              <h3 className="help-h3">Playback controls</h3>
+              <table className="help-table">
+                <thead><tr><th>Button</th><th>Keyboard</th><th>Action</th></tr></thead>
+                <tbody>
+                  <tr>
+                    <td><Tag color="green">▶ Run</Tag></td>
+                    <td>—</td>
+                    <td>Start or continue the simulation from the beginning</td>
+                  </tr>
+                  <tr>
+                    <td><Tag color="red">■ Stop</Tag></td>
+                    <td>—</td>
+                    <td>Stop the simulation and clear trace data</td>
+                  </tr>
+                  <tr>
+                    <td><Tag color="yellow">⏸ Pause</Tag></td>
+                    <td><Kbd>Space</Kbd></td>
+                    <td>Pause the simulation at the current frame</td>
+                  </tr>
+                  <tr>
+                    <td><Tag color="yellow">▶ Resume</Tag></td>
+                    <td><Kbd>Space</Kbd></td>
+                    <td>Resume a paused simulation</td>
+                  </tr>
+                  <tr>
+                    <td><Tag color="blue">⏭ Step</Tag></td>
+                    <td><Kbd>F10</Kbd></td>
+                    <td>Advance one trace event (one simulation step) while paused</td>
+                  </tr>
+                  <tr>
+                    <td><Tag color="purple">✕ Exit Debug</Tag></td>
+                    <td><Kbd>Esc</Kbd></td>
+                    <td>Close Debug Mode and return to the normal editor</td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <h3 className="help-h3">Breakpoints</h3>
+              <p>
+                In block-based projects, you can set breakpoints directly in the Blocks panel:
+              </p>
+              <ol className="help-list">
+                <li>Click any block in the left panel — a <strong>red dot</strong> appears on the block to indicate a breakpoint is set.</li>
+                <li>Click the same block again to remove the breakpoint.</li>
+                <li>When the simulation runs and reaches a breakpointed block, execution stops
+                    <strong> synchronously</strong> — the simulation freezes at that exact point.</li>
+                <li>Use <Kbd>F10</Kbd> to step forward, or <Kbd>Space</Kbd> to resume running.</li>
+              </ol>
+              <Note type="tip">
+                Breakpoints are retained until you exit Debug Mode or stop the simulation.
+                Set multiple breakpoints to jump between key moments in your simulation loop.
+              </Note>
+
+              <h3 className="help-h3">Execution highlight</h3>
+              <p>
+                While the simulation is running in Debug Mode, the <strong>block that is currently
+                executing</strong> is highlighted with a <strong>yellow glow</strong>. This lets you
+                see — in real time — where execution is at any given moment, which is especially
+                useful when stepping through a simulation manually with <Kbd>F10</Kbd>.
+              </p>
+
+              <h3 className="help-h3">Trace recording &amp; CSV export</h3>
+              <p>
+                The Trace Table on the right side of Debug Mode can record all variable values over
+                time for post-run analysis:
+              </p>
+              <ol className="help-list">
+                <li>Click <Tag color="red">⏺ Record</Tag> to start recording.</li>
+                <li>Run or step through the simulation — every trace update is captured.</li>
+                <li>Click <Tag color="red">⏹ Stop Rec</Tag> to end the recording.</li>
+                <li>Click <Tag color="blue">↓ CSV</Tag> to download the recorded data as a CSV
+                    file containing variable, value, delta, min, max, and timestamp columns.</li>
+              </ol>
+              <Note type="info">
+                The CSV export is a snapshot of the <em>recorded</em> data. If you record
+                while stepping, each step produces one row per active variable.
+              </Note>
+
+              <h3 className="help-h3">Code-only projects</h3>
+              <p>
+                When debugging a <Tag color="green">Blank Project</Tag> or{" "}
+                <Tag color="blue">Code Example</Tag>, the Blocks panel is replaced by a
+                read-only code editor showing the VPython source. Breakpoints are not available
+                in this mode — use Pause / Step to inspect execution. All other Debug Mode features
+                (execution highlight, trace recording, CSV export) work normally.
               </p>
             </section>
 
@@ -1471,6 +1595,12 @@ angle = clamp(input_angle, -30, 30)`}</Pre>
                     <td>Formatted VPython source code</td>
                     <td>Assessment submissions, code review printouts</td>
                   </tr>
+                  <tr>
+                    <td><Tag color="blue">↓ CSV</Tag></td>
+                    <td>CSV file</td>
+                    <td>Recorded trace data (variable, value, delta, min, max, timestamp)</td>
+                    <td>Post-run analysis, data export — available in Debug Mode after recording</td>
+                  </tr>
                 </tbody>
               </table>
               <Note type="tip">
@@ -1639,6 +1769,9 @@ angle = clamp(input_angle, -30, 30)`}</Pre>
                   <tr><td>3D Viewport</td><td>Left drag</td><td>Orbit camera</td></tr>
                   <tr><td>3D Viewport</td><td>Right drag</td><td>Pan camera</td></tr>
                   <tr><td>3D Viewport</td><td>Scroll wheel</td><td>Zoom in / out</td></tr>
+                  <tr><td>Debug Mode</td><td><Kbd>Space</Kbd></td><td>Pause / Resume simulation</td></tr>
+                  <tr><td>Debug Mode</td><td><Kbd>F10</Kbd></td><td>Step forward one trace event</td></tr>
+                  <tr><td>Debug Mode</td><td><Kbd>Esc</Kbd></td><td>Exit Debug Mode</td></tr>
                 </tbody>
               </table>
             </section>
