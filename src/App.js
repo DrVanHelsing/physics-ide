@@ -419,11 +419,13 @@ function App() {
   }, []);
 
   /* ── Resize Blockly canvas when split or viewport visibility changes ── */
+  // ResizeObserver inside BlocklyWorkspace is the primary resize mechanism.
+  // This effect acts as a fallback for any layout change not caught by the
+  // observer (e.g. initial render, toolbox switch). We intentionally do NOT
+  // cancel the rAF in the cleanup — cancelling it on every rapid re-render
+  // would prevent resize() from ever firing during a drag.
   useEffect(() => {
-    const ws = workspaceRef.current;
-    if (!ws) return;
-    const id = requestAnimationFrame(() => ws.resize());
-    return () => cancelAnimationFrame(id);
+    requestAnimationFrame(() => workspaceRef.current?.resize());
   }, [splitPct, viewportHidden]);
 
   /* ── Viewport pane resize & show\/hide ────────────────────────── */
@@ -751,7 +753,7 @@ function App() {
         )}
         <section
           className="canvas-pane"
-          style={viewportHidden ? { display: "none" } : { flex: `0 0 ${100 - splitPct}%`, maxWidth: `${100 - splitPct}%` }}
+          style={viewportHidden ? { display: "none" } : { flex: "1 1 0", minWidth: 0 }}
         >
           <div className="pane-header pane-header--viewport">
             <GlobeIcon size={14} /> 3D Viewport

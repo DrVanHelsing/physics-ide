@@ -78,8 +78,15 @@ export default function DebugMode({
     e.preventDefault();
     const startX = e.clientX;
     const startW = leftW;
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
     const onMove = (me) => setLeftW(Math.max(160, Math.min(500, startW + me.clientX - startX)));
-    const onUp   = () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); };
+    const onUp = () => {
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
   }, [leftW]);
@@ -89,8 +96,15 @@ export default function DebugMode({
     e.preventDefault();
     const startX = e.clientX;
     const startW = rightW;
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
     const onMove = (me) => setRightW(Math.max(220, Math.min(600, startW - me.clientX + startX)));
-    const onUp   = () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); };
+    const onUp = () => {
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
   }, [rightW]);

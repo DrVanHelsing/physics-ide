@@ -963,7 +963,17 @@ function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, isD
     };
     workspace.addChangeListener(constListener);
 
+    /* ── Keep Blockly SVG sized to its container at all times ─────────
+       ResizeObserver fires whenever the host element's layout box
+       changes (drag-resize, window resize, viewport toggle, etc.)
+       and tells Blockly to re-measure and redraw itself.           */
+    const resizeObserver = new ResizeObserver(() => {
+      requestAnimationFrame(() => { workspace.resize(); });
+    });
+    resizeObserver.observe(hostRef.current);
+
     return () => {
+      resizeObserver.disconnect();
       workspace.removeChangeListener(listener);
       workspace.removeChangeListener(constListener);
       workspace.dispose();
@@ -1061,8 +1071,15 @@ function ReadOnlyBlockly({ xml, isDark, breakpoints, onBlockClick, executingBloc
     };
     if (svg) svg.addEventListener('click', domClickHandler);
 
+    /* ── Keep Blockly SVG sized to its container at all times ── */
+    const resizeObserver = new ResizeObserver(() => {
+      requestAnimationFrame(() => { ws.resize?.(); });
+    });
+    resizeObserver.observe(hostRef.current);
+
     return () => {
       if (svg) svg.removeEventListener('click', domClickHandler);
+      resizeObserver.disconnect();
       dots.clear();
       ws.dispose();
       wsRef.current = null;
