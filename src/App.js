@@ -425,7 +425,15 @@ function App() {
   // cancel the rAF in the cleanup — cancelling it on every rapid re-render
   // would prevent resize() from ever firing during a drag.
   useEffect(() => {
-    requestAnimationFrame(() => workspaceRef.current?.resize());
+    requestAnimationFrame(() => {
+      const workspace = workspaceRef.current;
+      if (!workspace) return;
+      if (typeof window.Blockly?.svgResize === "function") {
+        window.Blockly.svgResize(workspace);
+        return;
+      }
+      workspace.resize?.();
+    });
   }, [splitPct, viewportHidden]);
 
   /* ── Viewport pane resize & show\/hide ────────────────────────── */

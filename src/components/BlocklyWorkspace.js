@@ -820,6 +820,17 @@ function normalizeSimulationStructure(workspace) {
   return changed;
 }
 
+function resizeBlocklyWorkspace(Blockly, workspace) {
+  if (!workspace) return;
+  if (typeof Blockly?.svgResize === "function") {
+    Blockly.svgResize(workspace);
+    return;
+  }
+  if (typeof workspace.resize === "function") {
+    workspace.resize();
+  }
+}
+
 function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, isDark, beginnerMode = false }) {
   const hostRef = useRef(null);
   const workspaceRef = useRef(null);
@@ -968,9 +979,15 @@ function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, isD
        changes (drag-resize, window resize, viewport toggle, etc.)
        and tells Blockly to re-measure and redraw itself.           */
     const resizeObserver = new ResizeObserver(() => {
-      requestAnimationFrame(() => { workspace.resize(); });
+      requestAnimationFrame(() => {
+        resizeBlocklyWorkspace(Blockly, workspace);
+      });
     });
     resizeObserver.observe(hostRef.current);
+
+    requestAnimationFrame(() => {
+      resizeBlocklyWorkspace(Blockly, workspace);
+    });
 
     return () => {
       resizeObserver.disconnect();
@@ -1073,9 +1090,15 @@ function ReadOnlyBlockly({ xml, isDark, breakpoints, onBlockClick, executingBloc
 
     /* ── Keep Blockly SVG sized to its container at all times ── */
     const resizeObserver = new ResizeObserver(() => {
-      requestAnimationFrame(() => { ws.resize?.(); });
+      requestAnimationFrame(() => {
+        resizeBlocklyWorkspace(Blockly, ws);
+      });
     });
     resizeObserver.observe(hostRef.current);
+
+    requestAnimationFrame(() => {
+      resizeBlocklyWorkspace(Blockly, ws);
+    });
 
     return () => {
       if (svg) svg.removeEventListener('click', domClickHandler);
