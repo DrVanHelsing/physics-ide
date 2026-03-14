@@ -7,7 +7,8 @@
     "jspdf": "^4.1.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-scripts": "5.0.1"
+    "react-scripts": "5.0.1",
+    "vercel": "^50.32.5"
   },
   "scripts": {
     "start": "react-scripts start",
