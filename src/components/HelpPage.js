@@ -431,10 +431,10 @@ export default function HelpPage({ onClose }) {
               <h3 className="help-h3">Running a simulation</h3>
               <ol className="help-list">
                 <li>Select a template or build your own model.</li>
-                <li>Click <Tag color="green">▶ Run</Tag> in the toolbar.</li>
+                <li>Click <Tag color="green">Run</Tag> in the toolbar.</li>
                 <li>The 3D Viewport will initialise the GlowScript runtime and start rendering.</li>
                 <li>Use the mouse to <strong>orbit</strong> (left drag), <strong>pan</strong> (right drag), and <strong>zoom</strong> (scroll wheel) inside the viewport.</li>
-                <li>Click <Tag color="red">■ Stop</Tag> to halt the simulation.</li>
+                <li>Click <Tag color="red">Stop</Tag> to halt the simulation.</li>
               </ol>
 
               <h3 className="help-h3">Saving your work</h3>
@@ -451,7 +451,7 @@ export default function HelpPage({ onClose }) {
               <SectionHeader id="debug-mode">Debug Mode</SectionHeader>
               <p>
                 Debug Mode is a full-screen overlay for step-through inspection of a running
-                simulation. Access it by clicking the <Tag color="purple">🐛 Debug</Tag> button in
+                simulation. Access it by clicking the <Tag color="purple">Debug</Tag> button in
                 the toolbar. The simulation pauses immediately and the debug overlay opens.
               </p>
 
@@ -479,32 +479,32 @@ export default function HelpPage({ onClose }) {
                 <thead><tr><th>Button</th><th>Keyboard</th><th>Action</th></tr></thead>
                 <tbody>
                   <tr>
-                    <td><Tag color="green">▶ Run</Tag></td>
+                    <td><Tag color="green">Run</Tag></td>
                     <td>—</td>
                     <td>Start or continue the simulation from the beginning</td>
                   </tr>
                   <tr>
-                    <td><Tag color="red">■ Stop</Tag></td>
+                    <td><Tag color="red">Stop</Tag></td>
                     <td>—</td>
                     <td>Stop the simulation and clear trace data</td>
                   </tr>
                   <tr>
-                    <td><Tag color="yellow">⏸ Pause</Tag></td>
+                    <td><Tag color="yellow">Pause</Tag></td>
                     <td><Kbd>Space</Kbd></td>
                     <td>Pause the simulation at the current frame</td>
                   </tr>
                   <tr>
-                    <td><Tag color="yellow">▶ Resume</Tag></td>
+                    <td><Tag color="yellow">Resume</Tag></td>
                     <td><Kbd>Space</Kbd></td>
                     <td>Resume a paused simulation</td>
                   </tr>
                   <tr>
-                    <td><Tag color="blue">⏭ Step</Tag></td>
+                    <td><Tag color="blue">Step</Tag></td>
                     <td><Kbd>F10</Kbd></td>
                     <td>Advance one trace event (one simulation step) while paused</td>
                   </tr>
                   <tr>
-                    <td><Tag color="purple">✕ Exit Debug</Tag></td>
+                    <td><Tag color="purple">Exit Debug</Tag></td>
                     <td><Kbd>Esc</Kbd></td>
                     <td>Close Debug Mode and return to the normal editor</td>
                   </tr>
@@ -541,10 +541,10 @@ export default function HelpPage({ onClose }) {
                 time for post-run analysis:
               </p>
               <ol className="help-list">
-                <li>Click <Tag color="red">⏺ Record</Tag> to start recording.</li>
+                <li>Click <Tag color="red">Record</Tag> to start recording.</li>
                 <li>Run or step through the simulation — every trace update is captured.</li>
-                <li>Click <Tag color="red">⏹ Stop Rec</Tag> to end the recording.</li>
-                <li>Click <Tag color="blue">↓ CSV</Tag> to download the recorded data as a CSV
+                <li>Click <Tag color="red">Stop Rec</Tag> to end the recording.</li>
+                <li>Click <Tag color="blue">CSV</Tag> to download the recorded data as a CSV
                     file containing variable, value, delta, min, max, and timestamp columns.</li>
               </ol>
               <Note type="info">
@@ -569,7 +569,7 @@ export default function HelpPage({ onClose }) {
               <p>
                 The Block Editor uses <strong>Google Blockly v11</strong>. Blocks are grouped into
                 categories in the toolbox on the left. Drag a block onto the canvas, connect it to
-                others, and click <Tag color="green">▶ Run</Tag> — Physics IDE translates the block
+                others, and click <Tag color="green">Run</Tag> — Physics IDE translates the block
                 stack into VPython and executes it instantly.
               </p>
 
@@ -618,7 +618,7 @@ export default function HelpPage({ onClose }) {
               </p>
               <ul className="help-list">
                 <li>
-                  <Tag color="green">Beginner</Tag> — shows only the <strong>\uD83D\uDE80 Starter</strong> category
+                  <Tag color="green">Beginner</Tag> — shows only the <strong>Starter</strong> category
                   plus stripped-down Values, Objects, Motion, Control, Logic, and Math categories.
                   Advanced topics (Functions, Lists, Text, raw Python) are hidden.
                 </li>
@@ -628,11 +628,11 @@ export default function HelpPage({ onClose }) {
                 </li>
               </ul>
               <Note type="tip">
-                Start new students in <strong>Beginner</strong> mode. The \uD83D\uDE80 Starter
+                Start new students in <strong>Beginner</strong> mode. The Starter
                 category has every block needed to build a complete physics simulation on a single screen.
               </Note>
 
-              <h3 className="help-h3">\uD83D\uDE80 Starter category</h3>
+              <h3 className="help-h3">Starter category</h3>
               <p>
                 The <strong>Starter</strong> category appears at the top of the toolbox in both modes.
                 It is a curated shortcut panel containing the most commonly needed blocks
@@ -1596,7 +1596,7 @@ angle = clamp(input_angle, -30, 30)`}</Pre>
                     <td>Assessment submissions, code review printouts</td>
                   </tr>
                   <tr>
-                    <td><Tag color="blue">↓ CSV</Tag></td>
+                    <td><Tag color="blue">CSV</Tag></td>
                     <td>CSV file</td>
                     <td>Recorded trace data (variable, value, delta, min, max, timestamp)</td>
                     <td>Post-run analysis, data export — available in Debug Mode after recording</td>

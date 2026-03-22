@@ -149,6 +149,18 @@ export const XIcon = ({ size } = {}) => (
   <svg {...sz(size)}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
 );
 
+export const CheckIcon = ({ size } = {}) => (
+  <svg {...sz(size)}><polyline points="20 6 9 17 4 12"/></svg>
+);
+
+export const BellIcon = ({ size } = {}) => (
+  <svg {...sz(size)}><path d="M18 8a6 6 0 10-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+);
+
+export const PinIcon = ({ size } = {}) => (
+  <svg {...sz(size)}><path d="M15 3l6 6-4 1-3 3v7l-2-2v-5l-3-3-4 1 6-6z" fill="currentColor" stroke="none"/></svg>
+);
+
 export const MaximizeIcon = ({ size } = {}) => (
   <svg {...sz(size)}><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/></svg>
 );

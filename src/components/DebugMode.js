@@ -3,7 +3,7 @@
  *
  * Full-screen debug overlay with:
  *  ┌─────────────────────────── Debug Toolbar ────────────────────────────┐
- *  │ [← Exit]  [▶ Run] [■ Stop]  [⏸ Pause] [→ Step] [▶ Resume]  [● Rec] │
+ *  │ [Exit] [Run] [Stop] [Pause] [Step] [Resume] [Record]                 │
  *  └─────────────────────────────────────────────────────────────────────-┘
  *  ┌──────────────┬─────────────────────────┬──────────────────────────────┐
  *  │  Read-only   │   3-D Viewport          │   Trace Table                │
@@ -18,6 +18,7 @@ import CodeEditor from "./CodeEditor";
 import TraceTable from "./TraceTable";
 import {
   ArrowLeftIcon,
+  DownloadIcon,
   PlayIcon,
   StopIcon,
   PauseIcon,
@@ -68,46 +69,54 @@ export default function DebugMode({
   /* exit */
   onExitDebug,
 }) {
-  /* Resizable left panel */
-  const [leftW,  setLeftW]  = useState(280);
-  const [rightW, setRightW] = useState(320);
+  /* ── Resizable panels — percentage-of-container (same approach as main pane divider) ── */
+  const [leftPct,  setLeftPct]  = useState(22); // % of dm-body width
+  const [rightPct, setRightPct] = useState(28); // % of dm-body width
   const containerRef = useRef(null);
 
   /* ── Left resize handle drag ── */
   const startLeftResize = useCallback((e) => {
     e.preventDefault();
-    const startX = e.clientX;
-    const startW = leftW;
-    document.body.style.cursor = "col-resize";
-    document.body.style.userSelect = "none";
-    const onMove = (me) => setLeftW(Math.max(160, Math.min(500, startW + me.clientX - startX)));
-    const onUp = () => {
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
+    const container = containerRef.current;
+    if (!container) return;
+    const onMouseMove = (ev) => {
+      const rect = container.getBoundingClientRect();
+      const pct = Math.min(40, Math.max(12, ((ev.clientX - rect.left) / rect.width) * 100));
+      setLeftPct(pct);
     };
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
-  }, [leftW]);
+    const onMouseUp = () => {
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup",   onMouseUp);
+      document.body.style.cursor     = "";
+      document.body.style.userSelect = "";
+    };
+    document.body.style.cursor     = "col-resize";
+    document.body.style.userSelect = "none";
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup",   onMouseUp);
+  }, []);
 
   /* ── Right resize handle drag ── */
   const startRightResize = useCallback((e) => {
     e.preventDefault();
-    const startX = e.clientX;
-    const startW = rightW;
-    document.body.style.cursor = "col-resize";
-    document.body.style.userSelect = "none";
-    const onMove = (me) => setRightW(Math.max(220, Math.min(600, startW - me.clientX + startX)));
-    const onUp = () => {
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
+    const container = containerRef.current;
+    if (!container) return;
+    const onMouseMove = (ev) => {
+      const rect = container.getBoundingClientRect();
+      const pct = Math.min(50, Math.max(18, ((rect.right - ev.clientX) / rect.width) * 100));
+      setRightPct(pct);
     };
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
-  }, [rightW]);
+    const onMouseUp = () => {
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup",   onMouseUp);
+      document.body.style.cursor     = "";
+      document.body.style.userSelect = "";
+    };
+    document.body.style.cursor     = "col-resize";
+    document.body.style.userSelect = "none";
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup",   onMouseUp);
+  }, []);
 
   /* ── Highlight block when a variable row is clicked ── */
   const handleHighlight = useCallback((blockId) => {
@@ -264,7 +273,8 @@ export default function DebugMode({
             title={`Export recording CSV (${recordBuffer ? recordBuffer.length : 0} rows)`}
             disabled={!recordBuffer || recordBuffer.length === 0}
           >
-            ↓ CSV
+            <DownloadIcon size={11} />
+            <span>CSV</span>
           </button>
           {recording && recordBuffer && (
             <span className="dm-rec-count">{recordBuffer.length} rows</span>
@@ -282,7 +292,7 @@ export default function DebugMode({
       <div className="dm-body" ref={containerRef}>
 
         {/* Left panel: Blockly (block projects) or read-only code (code-only projects) */}
-        <div className="dm-panel dm-panel--blocks" style={{ width: leftW, minWidth: leftW, maxWidth: leftW }}>
+        <div className="dm-panel dm-panel--blocks" style={{ flex: `0 0 ${leftPct}%`, maxWidth: `${leftPct}%` }}>
           <div className="dm-panel-header">
             <span className="dm-panel-title">{isCodeOnly ? "Code" : "Blocks"}</span>
             {bpCount > 0 && <BpBadge count={bpCount} />}
@@ -342,7 +352,7 @@ export default function DebugMode({
         />
 
         {/* Right: trace table */}
-        <div className="dm-panel dm-panel--trace" style={{ width: rightW, minWidth: rightW, maxWidth: rightW }}>
+        <div className="dm-panel dm-panel--trace" style={{ flex: `0 0 ${rightPct}%`, maxWidth: `${rightPct}%` }}>
           <TraceTable
             data={traceData}
             onHighlight={handleHighlight}

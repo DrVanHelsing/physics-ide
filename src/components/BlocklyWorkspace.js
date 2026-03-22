@@ -15,7 +15,7 @@ import * as dialogService from "../utils/dialogService";
    ──────────────────────────────────────────────────────────── */
 const TOOLBOX_XML = `
 <xml>  <!-- ── STARTER ──────────────────────────────────────── -->
-  <category name="\uD83D\uDE80 Starter" colour="#5cb85c">
+  <category name="Starter" colour="#5cb85c">
     <label text="Simulation structure" web-class="tb-label"></label>
     <block type="sim_start_block"></block>
     <block type="sim_end_block"></block>
@@ -402,7 +402,7 @@ const TOOLBOX_XML = `
 const TOOLBOX_BEGINNER_XML = `
 <xml>
   <!-- Beginner mode: Starter + simplified categories -->
-  <category name="\uD83D\uDE80 Starter" colour="#5cb85c">
+  <category name="Starter" colour="#5cb85c">
     <label text="Simulation structure" web-class="tb-label"></label>
     <block type="sim_start_block"></block>
     <block type="sim_end_block"></block>

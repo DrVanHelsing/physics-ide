@@ -1,4 +1,15 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
+import {
+  BellIcon,
+  CheckIcon,
+  ClipboardIcon,
+  DownloadIcon,
+  PinIcon,
+  RecordIcon,
+  SearchIcon,
+  XIcon,
+  ZapIcon,
+} from "./Icons";
 
 /* ── Truncate long values for display ─────────────────────── */
 function truncate(str, max) {
@@ -90,11 +101,11 @@ function AlertEditRow({ name, alertConfig, onSave, onDelete, onCancel }) {
             onClick={() => onSave(name, op, val)}
             disabled={val === ""}
           >
-            ✓
+            <CheckIcon size={12} />
           </button>
           {alertConfig && (
             <button className="trace-alert-del" onClick={() => onDelete(name)}>
-              ✕
+              <XIcon size={12} />
             </button>
           )}
           <button className="trace-icon-btn" style={{ marginLeft: "auto" }} onClick={onCancel}>
@@ -182,7 +193,7 @@ function TraceRow({
             onClick={(e) => { e.stopPropagation(); onPin(name); }}
             title={pinned ? "Unpin" : "Pin to top"}
           >
-            {pinned ? "★" : "☆"}
+            <PinIcon size={12} />
           </button>
         </td>
 
@@ -215,7 +226,7 @@ function TraceRow({
           )}
           {snapshotVal !== undefined && (
             <div className="trace-snap-chip">
-              <span className="trace-snap-val">⊡ {truncate(String(snapshotVal), 7)}</span>
+              <span className="trace-snap-val"><ClipboardIcon size={10} />{truncate(String(snapshotVal), 7)}</span>
               {snapDiffStr && <span className={snapDiffClass}>{snapDiffStr}</span>}
             </div>
           )}
@@ -232,7 +243,7 @@ function TraceRow({
             onClick={(e) => { e.stopPropagation(); onAlertEdit(isEditing ? null : name); }}
             title={alertConfig ? `Alert ≡ ${alertConfig.op} ${alertConfig.val}` : "Set threshold alert"}
           >
-            {isFiring ? "⚡" : "🔔"}
+            {isFiring ? <ZapIcon size={12} /> : <BellIcon size={12} />}
           </button>
         </td>
       </tr>
@@ -387,96 +398,97 @@ function TraceTable({
     <div className="trace-panel">
       {/* ── Header ── */}
       <div className="trace-panel-header">
-        <div className="trace-panel-title">
-          <span className="trace-live-dot" />
-          Variables
-        </div>
-        <div className="trace-panel-meta">
-          <span className="trace-var-count">{data.size} var{data.size !== 1 ? "s" : ""}</span>
-          {firingCount > 0 && (
-            <span className="trace-alert-badge">⚡ {firingCount}</span>
-          )}
-          {recording && (
-            <span className="trace-alert-badge" style={{ background: "var(--rec-color, #e53e3e)" }}>
-              ● {recordBuffer.length}
-            </span>
-          )}
-          {snapshot && (
-            <span className="trace-snap-badge">⊡ snap</span>
-          )}
-        </div>
-        {/* Recording controls */}
-        {onStartRecord && (
-          <>
-            {recording ? (
-              <button
-                type="button"
-                className="trace-icon-btn trace-rec-btn trace-rec-btn--active"
-                onClick={onStopRecord}
-                title="Stop recording"
-              >
-                <span className="trace-rec-dot" />
-                REC
-              </button>
-            ) : (
-              <button
-                type="button"
-                className="trace-icon-btn trace-rec-btn"
-                onClick={onStartRecord}
-                title="Start recording all variable data to CSV"
-                disabled={data.size === 0}
-              >
-                ⏺ Record
-              </button>
+        <div className="trace-header-top">
+          <div className="trace-panel-title">
+            <span className="trace-live-dot" />
+            Variables
+          </div>
+          <div className="trace-panel-meta">
+            <span className="trace-var-count">{data.size} var{data.size !== 1 ? "s" : ""}</span>
+            {firingCount > 0 && (
+              <span className="trace-alert-badge"><ZapIcon size={10} /> {firingCount}</span>
             )}
-            <button
-              type="button"
-              className="trace-icon-btn"
-              onClick={() => exportRecordingCsv(recordBuffer)}
-              title={`Export recording (${recordBuffer.length} rows)`}
-              disabled={recordBuffer.length === 0}
-            >
-              ↓ Rec.CSV
-            </button>
-          </>
-        )}
-        {/* Snapshot toggle */}
-        <button
-          type="button"
-          className={`trace-icon-btn${snapshot ? " trace-icon-btn--active" : ""}`}
-          onClick={snapshot ? handleClearSnapshot : handleSnapshot}
-          title={snapshot ? "Clear snapshot" : "Snapshot current values"}
-          disabled={data.size === 0}
-        >
-          {snapshot ? "✕ Snap" : "⊡ Snap"}
-        </button>
-        {/* CSV */}
-        <button
-          type="button"
-          className="trace-icon-btn"
-          onClick={() => exportCsv(data)}
-          title="Export as CSV"
-          disabled={data.size === 0}
-        >
-          ↓ CSV
-        </button>
-        {/* Clear */}
-        <button
-          type="button"
-          className="trace-clear-btn"
-          onClick={() => { onClear(); setSnapshot(null); setEditingAlert(null); }}
-          title="Clear trace data"
-        >
-          Clear
-        </button>
+            {recording && (
+              <span className="trace-alert-badge" style={{ background: "var(--rec-color, #e53e3e)" }}>
+                <RecordIcon size={10} /> {recordBuffer.length}
+              </span>
+            )}
+            {snapshot && (
+              <span className="trace-snap-badge"><ClipboardIcon size={10} /> Snap</span>
+            )}
+          </div>
+        </div>
+        <div className="trace-header-actions">
+          {/* Recording controls */}
+          {onStartRecord && (
+            <>
+              {recording ? (
+                <button
+                  type="button"
+                  className="trace-icon-btn trace-rec-btn trace-rec-btn--active"
+                  onClick={onStopRecord}
+                  title="Stop recording"
+                >
+                  <span className="trace-rec-dot" />
+                  REC
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="trace-icon-btn trace-rec-btn"
+                  onClick={onStartRecord}
+                  title="Start recording all variable data to CSV"
+                  disabled={data.size === 0}
+                >
+                  <RecordIcon size={10} /> Record
+                </button>
+              )}
+              <button
+                type="button"
+                className="trace-icon-btn"
+                onClick={() => exportRecordingCsv(recordBuffer)}
+                title={`Export recording (${recordBuffer.length} rows)`}
+                disabled={recordBuffer.length === 0}
+              >
+                <DownloadIcon size={11} /> Rec.CSV
+              </button>
+            </>
+          )}
+          {/* Snapshot toggle */}
+          <button
+            type="button"
+            className={`trace-icon-btn${snapshot ? " trace-icon-btn--active" : ""}`}
+            onClick={snapshot ? handleClearSnapshot : handleSnapshot}
+            title={snapshot ? "Clear snapshot" : "Snapshot current values"}
+            disabled={data.size === 0}
+          >
+            {snapshot ? <><XIcon size={11} /> Snap</> : <><ClipboardIcon size={11} /> Snap</>}
+          </button>
+          {/* CSV */}
+          <button
+            type="button"
+            className="trace-icon-btn"
+            onClick={() => exportCsv(data)}
+            title="Export as CSV"
+            disabled={data.size === 0}
+          >
+            <DownloadIcon size={11} /> CSV
+          </button>
+          {/* Clear */}
+          <button
+            type="button"
+            className="trace-clear-btn"
+            onClick={() => { onClear(); setSnapshot(null); setEditingAlert(null); }}
+            title="Clear trace data"
+          >
+            Clear
+          </button>
+        </div>
       </div>
 
       {/* ── Search ── */}
       <div className="trace-search-bar">
-        <svg className="trace-search-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-          <circle cx="6.5" cy="6.5" r="4.5" />
-          <line x1="10.5" y1="10.5" x2="14" y2="14" />
-        </svg>
+        <SearchIcon size={12} />
         <input
           className="trace-search-input"
           type="text"
@@ -486,7 +498,7 @@ function TraceTable({
           spellCheck={false}
         />
         {filter && (
-          <button className="trace-search-clear" onClick={() => setFilter("")} aria-label="Clear filter">✕</button>
+          <button className="trace-search-clear" onClick={() => setFilter("")} aria-label="Clear filter"><XIcon size={11} /></button>
         )}
       </div>
 
@@ -516,7 +528,7 @@ function TraceTable({
                 {pinnedRows.length > 0 && (
                   <>
                     <tr className="trace-section-row">
-                      <td colSpan={5}><span className="trace-section-label">★ Pinned</span></td>
+                      <td colSpan={5}><span className="trace-section-label">Pinned</span></td>
                     </tr>
                     {renderRows(pinnedRows, true)}
                   </>
