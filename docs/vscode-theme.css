@@ -1,0 +1,312 @@
+/* ─────────────────────────────────────────────────────────────
+   VS Code Dark+ Theme for Physics IDE Documentation PDFs
+   ───────────────────────────────────────────────────────────── */
+
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Inter:wght@400;500;600;700&display=swap');
+
+/* ── Reset & Base ── */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  background-color: #1e1e1e;
+  color: #d4d4d4;
+  font-family: 'Inter', 'Segoe UI', -apple-system, system-ui, sans-serif;
+  font-size: 13.5px;
+  line-height: 1.7;
+}
+
+body {
+  padding: 16px 20px;
+  max-width: 100%;
+  margin: 0;
+}
+
+/* ── Activity-bar-style page border ── */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 6px;
+  height: 100%;
+  background: linear-gradient(180deg, #007acc 0%, #0098ff 50%, #4ec9b0 100%);
+}
+
+/* ── Headings ── */
+h1 {
+  color: #4ec9b0;
+  font-size: 2em;
+  font-weight: 700;
+  border-bottom: 2px solid #007acc;
+  padding-bottom: 10px;
+  margin: 32px 0 20px;
+  letter-spacing: -0.02em;
+}
+
+h2 {
+  color: #569cd6;
+  font-size: 1.45em;
+  font-weight: 600;
+  border-bottom: 1px solid #3e3e3e;
+  padding-bottom: 6px;
+  margin: 36px 0 14px;
+}
+
+h3 {
+  color: #9cdcfe;
+  font-size: 1.15em;
+  font-weight: 600;
+  margin: 24px 0 10px;
+}
+
+h4 {
+  color: #dcdcaa;
+  font-size: 1em;
+  font-weight: 600;
+  margin: 18px 0 8px;
+}
+
+h5, h6 {
+  color: #c586c0;
+  font-size: 0.95em;
+  font-weight: 600;
+  margin: 14px 0 6px;
+}
+
+/* ── Paragraphs & Body Text ── */
+p {
+  margin: 10px 0;
+  color: #d4d4d4;
+}
+
+strong {
+  color: #ffffff;
+  font-weight: 600;
+}
+
+em {
+  color: #ce9178;
+  font-style: italic;
+}
+
+/* ── Links ── */
+a {
+  color: #4fc1ff;
+  text-decoration: none;
+  border-bottom: 1px dashed #4fc1ff44;
+}
+
+/* ── Inline Code ── */
+code {
+  background-color: #2d2d2d;
+  color: #9cdcfe;
+  font-family: 'JetBrains Mono', 'Cascadia Code', 'Consolas', 'Courier New', monospace;
+  font-size: 0.88em;
+  padding: 2px 6px;
+  border-radius: 3px;
+  border: 1px solid #404040;
+}
+
+/* ── Code Blocks ── */
+pre {
+  background-color: #1f1f1f;
+  border: 1px solid #3c3c3c;
+  border-left: 4px solid #007acc;
+  border-radius: 0 4px 4px 0;
+  padding: 16px 18px;
+  margin: 16px 0;
+  overflow-x: auto;
+  position: relative;
+}
+
+pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #d4d4d4;
+  font-size: 0.83em;
+  line-height: 1.6;
+}
+
+/* Shell / bash prompts */
+pre code .token.comment { color: #6a9955; }
+pre code .token.string  { color: #ce9178; }
+pre code .token.keyword { color: #569cd6; }
+pre code .token.number  { color: #b5cea8; }
+
+/* ── Blockquotes (used for version/metadata callouts) ── */
+blockquote {
+  border-left: 4px solid #007acc;
+  background-color: #252526;
+  margin: 16px 0;
+  padding: 12px 18px;
+  color: #cccccc;
+  border-radius: 0 4px 4px 0;
+  font-size: 0.95em;
+}
+
+blockquote p {
+  margin: 4px 0;
+  color: #cccccc;
+}
+
+blockquote strong {
+  color: #9cdcfe;
+}
+
+/* ── Horizontal Rules ── */
+hr {
+  border: none;
+  border-top: 1px solid #3e3e3e;
+  margin: 32px 0;
+}
+
+/* ── Tables — VS Code Explorer / panel style ── */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 18px 0;
+  font-size: 0.9em;
+  border: 1px solid #3c3c3c;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+thead {
+  background-color: #252526;
+  border-bottom: 2px solid #007acc;
+}
+
+thead tr th {
+  color: #9cdcfe;
+  padding: 10px 14px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.9em;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+tbody tr td {
+  padding: 8px 14px;
+  border-bottom: 1px solid #2d2d2d;
+  color: #d4d4d4;
+  vertical-align: top;
+}
+
+tbody tr:nth-child(even) {
+  background-color: #252526;
+}
+
+tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Table: code inside cells */
+td code {
+  font-size: 0.85em;
+  color: #4ec9b0;
+  background-color: #1f1f1f;
+}
+
+/* ── Lists ── */
+ul, ol {
+  padding-left: 24px;
+  margin: 10px 0;
+}
+
+li {
+  margin: 5px 0;
+  color: #d4d4d4;
+}
+
+li > code {
+  color: #9cdcfe;
+}
+
+/* Nested list indent */
+li > ul, li > ol {
+  margin: 4px 0;
+}
+
+/* Checkbox lists */
+li input[type="checkbox"] {
+  accent-color: #007acc;
+}
+
+/* ── Cover / Title Area — h1 at very top of doc ── */
+body > h1:first-of-type {
+  font-size: 2.2em;
+  color: #4ec9b0;
+  margin-top: 8px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #007acc;
+}
+
+/* ── Table of Contents styling ── */
+/* ToC links look like VS Code breadcrumbs */
+body > ul:first-of-type a,
+body > ol:first-of-type a {
+  color: #858585;
+  font-size: 0.92em;
+}
+
+/* ── Keyboard Shortcuts — inline code used as KBD ── */
+kbd {
+  display: inline-block;
+  background: #3c3c3c;
+  border: 1px solid #555;
+  border-bottom-width: 2px;
+  border-radius: 3px;
+  padding: 1px 6px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.82em;
+  color: #dcdcaa;
+}
+
+/* ── Page breaks — prevent cutting inside code blocks or tables ── */
+pre, table, blockquote {
+  page-break-inside: avoid;
+}
+
+h1, h2, h3 {
+  page-break-after: avoid;
+}
+
+/* ── Subtle "editor line number" gutter effect on code blocks ── */
+pre::before {
+  content: attr(data-lang);
+  display: block;
+  color: #569cd6;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72em;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #3c3c3c;
+  opacity: 0.6;
+}
+
+/* ── Section number color reset — use h2 color ── */
+h2::before {
+  color: #569cd6;
+}
+
+/* ── Small/caption text ── */
+small, caption {
+  color: #858585;
+  font-size: 0.85em;
+}
+
+/* ── Status-bar style footer hint for blockquote at doc end ── */
+blockquote:last-child {
+  background-color: #007acc22;
+  border-left-color: #4ec9b0;
+  color: #858585;
+  font-style: italic;
+}

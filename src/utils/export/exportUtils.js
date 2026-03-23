@@ -1,4 +1,4 @@
-import { generatePythonFromWorkspace } from "./blocklyGenerator";
+import { generatePythonFromWorkspace } from "../blockly/blocklyGenerator";
 
 function downloadFile(content, fileName, mimeType) {
   const blob = new Blob([content], { type: mimeType });

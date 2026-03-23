@@ -4,9 +4,9 @@ import {
   generatePythonFromWorkspace,
   BLOCK_CATALOGUE,
   customConstantsRegistry,
-} from "../utils/blocklyGenerator";
+} from "../utils/blockly/blocklyGenerator";
 import { SearchIcon, XIcon } from "./Icons";
-import * as dialogService from "../utils/dialogService";
+import * as dialogService from "../utils/export/dialogService";
 
 /* ── Toolbox XML ─────────────────────────────────────────────
    Custom VPython blocks are defined in blocklyGenerator.js.
