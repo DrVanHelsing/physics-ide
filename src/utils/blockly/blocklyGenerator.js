@@ -13,14 +13,15 @@
  *   Advanced  – raw Python code/expression
  */
 
+import { traceRegistry, clearTraceRegistry } from './traceRegistry';
+
 let initialized = false;
 
 /* ── Custom constants registry (shared: push here to add to dropdown) ── */
 export const customConstantsRegistry = [];
 
-/* ── Trace registry: populated during code generation, read by glowRunner ── */
-export const traceRegistry = [];
-export function clearTraceRegistry() { traceRegistry.length = 0; }
+/* ── Trace registry re-exported for consumers that import from this module ── */
+export { traceRegistry, clearTraceRegistry };
 
 function getPythonGen(Blockly) {
   return Blockly.Python || null;

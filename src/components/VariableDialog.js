@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { registerDialogService } from "../utils/dialogService";
+import { registerDialogService } from "../utils/export/dialogService";
 
 /**
  * VariableDialog
