@@ -35,6 +35,8 @@ import { BlocksIcon, CodeIcon, GlobeIcon } from "../Icons";
 
 import { fromTraceBuffer } from "../../utils/dataset/dataset";
 import { saveDataset } from "../../hooks/useDataset";
+import { generateDsJsFromWorkspace } from "../../utils/blockly/dsGenerator";
+import { runDsCode } from "../../utils/runner/dsRunner";
 
 import { useTheme }              from "../../contexts/ThemeContext";
 import { useSimulationContext }  from "../../contexts/SimulationContext";
@@ -73,6 +75,21 @@ export default function IDELayout() {
 
   /* ── Simple UI handlers (defined here to avoid extra hook) */
   const handleHelp = useCallback(() => setShowHelp(true), [setShowHelp]);
+
+  /* ── DS panel outputs ────────────────────────────────────── */
+  const [dsOutputs, setDsOutputs] = useState([]);
+
+  const handleWorkspaceChange = useCallback(
+    (xml, code) => {
+      sim.handleWorkspaceChange(xml, code);
+      if (isDataGoal && workspaceRef.current) {
+        const jsCode = generateDsJsFromWorkspace(workspaceRef.current);
+        runDsCode(jsCode).then(({ outputs }) => setDsOutputs(outputs));
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [sim, isDataGoal, workspaceRef]
+  );
 
   /* ── Chart overlay (Phase A: trace -> dataset -> chart spike) ── */
   const [chartDataset, setChartDataset] = useState(null);
@@ -242,7 +259,7 @@ export default function IDELayout() {
                 <BlocklyWorkspace
                   initialXml={workspaceXml}
                   onWorkspaceReady={sim.handleWorkspaceReady}
-                  onWorkspaceChange={sim.handleWorkspaceChange}
+                  onWorkspaceChange={handleWorkspaceChange}
                   isDark={isDark}
                   beginnerMode={beginnerMode}
                 />
@@ -286,7 +303,11 @@ export default function IDELayout() {
             className="canvas-pane"
             style={viewportHidden ? { display: "none" } : { flex: "1 1 0", minWidth: 0 }}
           >
-            <DataPanel goal={goal} datasetCount={proj.activeManifest?.datasets?.length || 0} />
+            <DataPanel
+              goal={goal}
+              datasetCount={proj.activeManifest?.datasets?.length || 0}
+              dsOutputs={dsOutputs}
+            />
           </section>
         ) : (
           <section

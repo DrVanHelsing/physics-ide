@@ -1011,6 +1011,57 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       colour: 45,
       tooltip: "Set a scene / camera property: center/forward/up control the camera, range controls zoom.",
     },
+
+    /* ══════════════════════════════════════════════════════
+       DATA SCIENCE BLOCKS
+       ══════════════════════════════════════════════════════ */
+    {
+      type: "ds_load_builtin_block",
+      message0: "%1 = load dataset %2",
+      args0: [
+        { type: "field_variable", name: "VAR", variable: "df" },
+        {
+          type: "field_dropdown",
+          name: "ID",
+          options: [
+            ["Planets",  "planets"],
+            ["Penguins", "penguins"],
+            ["Weather",  "weather"],
+          ],
+        },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 160,
+      tooltip: "Load a built-in dataset (planets, penguins, weather) into a variable.",
+    },
+    {
+      type: "ds_show_table_block",
+      message0: "show table %1",
+      args0: [
+        { type: "field_variable", name: "VAR", variable: "df" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 160,
+      tooltip: "Display the dataset as a scrollable table in the Data panel.",
+    },
+    {
+      type: "ds_calc_mean_block",
+      message0: "%1 = mean( %2 . %3 )",
+      args0: [
+        { type: "field_variable", name: "RESULT", variable: "result" },
+        { type: "field_variable", name: "VAR",    variable: "df" },
+        { type: "field_input",    name: "COL",    text: "value" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 160,
+      tooltip: "Calculate the mean of a numeric column and store it in a variable.",
+    },
   ]);
 
   /* ── physics_const_block — dynamic dropdown with custom constants ── */
@@ -1515,6 +1566,25 @@ export function defineCustomBlocksAndGenerator(Blockly) {
     const prop = block.getFieldValue("PROP") || "center";
     const v = val(block, "VALUE", "vector(0,0,0)");
     return `scene.${prop} = ${v}\n`;
+  };
+
+  /* ── Data Science blocks (Python is reveal-only — execution is JS) ── */
+  gen["ds_load_builtin_block"] = function (block) {
+    const name = varName(block, "VAR", "df");
+    const id = block.getFieldValue("ID") || "planets";
+    return `${name} = load_dataset("${id}")\n`;
+  };
+
+  gen["ds_show_table_block"] = function (block) {
+    const name = varName(block, "VAR", "df");
+    return `show_table(${name})\n`;
+  };
+
+  gen["ds_calc_mean_block"] = function (block) {
+    const result = varName(block, "RESULT", "result");
+    const dsVar  = varName(block, "VAR", "df");
+    const col    = (block.getFieldValue("COL") || "value").trim();
+    return `${result} = mean(${dsVar}, "${col}")\n`;
   };
 
   initialized = true;

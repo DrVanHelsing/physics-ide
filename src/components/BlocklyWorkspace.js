@@ -595,6 +595,20 @@ const TOOLBOX_BEGINNER_XML = `
   </category>
 
   <category name="Variables" colour="#a55b80" custom="VARIABLE"></category>
+
+  <!-- ── DATA SCIENCE ──────────────────────────────────────── -->
+  <category name="Data Science" colour="#2da56f">
+    <label text="Load data" web-class="tb-label"></label>
+    <block type="ds_load_builtin_block"></block>
+    <sep gap="8"></sep>
+    <label text="Inspect" web-class="tb-label"></label>
+    <block type="ds_show_table_block"></block>
+    <sep gap="8"></sep>
+    <label text="Statistics" web-class="tb-label"></label>
+    <block type="ds_calc_mean_block">
+      <field name="COL">mass</field>
+    </block>
+  </category>
 </xml>`;
 
 /* ── Block search bar component ────────────────────────── */
@@ -910,26 +924,31 @@ function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, isD
     // Emit changes
     let normalizing = false;
     const listener = (event) => {
-      if (
-        event.type === Blockly.Events.UI ||
-        event.type === Blockly.Events.VIEWPORT_CHANGE
-      ) {
-        return;
-      }
-
-      if (!normalizing) {
-        normalizing = true;
-        try {
-          normalizeSimulationStructure(workspace);
-        } finally {
-          normalizing = false;
+      try {
+        if (
+          event.type === Blockly.Events.UI ||
+          event.type === Blockly.Events.VIEWPORT_CHANGE ||
+          event.type === "block_drag"
+        ) {
+          return;
         }
-      }
 
-      const dom = Blockly.Xml.workspaceToDom(workspace);
-      const xmlText = Blockly.Xml.domToText(dom);
-      const code = generatePythonFromWorkspace(workspace);
-      onChangeRef.current(xmlText, code);
+        if (!normalizing && !workspace.isDragging()) {
+          normalizing = true;
+          try {
+            normalizeSimulationStructure(workspace);
+          } finally {
+            normalizing = false;
+          }
+        }
+
+        const dom = Blockly.Xml.workspaceToDom(workspace);
+        const xmlText = Blockly.Xml.domToText(dom);
+        const code = generatePythonFromWorkspace(workspace);
+        onChangeRef.current(xmlText, code);
+      } catch (err) {
+        console.warn("Workspace change listener error:", err);
+      }
     };
     workspace.addChangeListener(listener);
 
