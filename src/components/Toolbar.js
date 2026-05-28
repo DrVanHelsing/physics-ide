@@ -131,8 +131,14 @@ function Toolbar({
   onZoomChange,
   viewportHidden,
   beginnerMode,
+  goal = "physics",
   children,
 }) {
+  /* ── Capability flags driven by the project goal (Phase B.8).
+     The toolbar only renders actions that make sense for the active goal.
+     Physics and Hybrid show simulation controls; pure Data Science does
+     not. Phase C will populate DS-specific actions in this same slot. */
+  const showSimActions = goal === "physics" || goal === "hybrid";
   const importInputRef = useRef(null);
 
   const handleImportClick = () => {
@@ -168,25 +174,29 @@ function Toolbar({
         <span className="tb-btn-label">Help</span>
       </button>
 
-      <div className="tb-separator" />
+      {showSimActions && (
+        <>
+          <div className="tb-separator" />
 
-      {/* ── Simulation controls ── */}
-      <div className="tb-group tb-group--sim">
-        <button type="button" className="tb-btn tb-btn--run" onClick={onRun} title="Run simulation (Ctrl+Enter)">
-          <PlayIcon size={13} />
-          <span className="tb-btn-label">Run</span>
-        </button>
-        <button
-          type="button"
-          className={`tb-btn tb-btn--stop${running ? "" : " tb-btn--disabled"}`}
-          onClick={running ? onStop : undefined}
-          disabled={!running}
-          title={running ? "Stop simulation" : "No simulation running"}
-        >
-          <StopIcon size={13} />
-          <span className="tb-btn-label">Stop</span>
-        </button>
-      </div>
+          {/* ── Simulation controls (physics / hybrid) ── */}
+          <div className="tb-group tb-group--sim">
+            <button type="button" className="tb-btn tb-btn--run" onClick={onRun} title="Run simulation (Ctrl+Enter)">
+              <PlayIcon size={13} />
+              <span className="tb-btn-label">Run</span>
+            </button>
+            <button
+              type="button"
+              className={`tb-btn tb-btn--stop${running ? "" : " tb-btn--disabled"}`}
+              onClick={running ? onStop : undefined}
+              disabled={!running}
+              title={running ? "Stop simulation" : "No simulation running"}
+            >
+              <StopIcon size={13} />
+              <span className="tb-btn-label">Stop</span>
+            </button>
+          </div>
+        </>
+      )}
 
       <div className="tb-separator" />
 
@@ -218,8 +228,8 @@ function Toolbar({
         </>
       )}
 
-      {/* ── Viewport toggle ── */}
-      {onToggleViewport && (
+      {/* ── Viewport toggle (physics / hybrid) ── */}
+      {showSimActions && onToggleViewport && (
         <button
           type="button"
           className="tb-btn tb-btn--subtle"
@@ -231,8 +241,8 @@ function Toolbar({
         </button>
       )}
 
-      {/* ── Live trace table toggle ── */}
-      {onToggleTrace && (
+      {/* ── Live trace table toggle (physics / hybrid) ── */}
+      {showSimActions && onToggleTrace && (
         <button
           type="button"
           className={`tb-btn tb-btn--subtle${traceVisible ? " tb-btn--active" : ""}`}
@@ -244,8 +254,8 @@ function Toolbar({
         </button>
       )}
 
-      {/* ── Debug Mode button ── */}
-      {onDebugMode && (
+      {/* ── Debug Mode button (physics / hybrid) ── */}
+      {showSimActions && onDebugMode && (
         <button
           type="button"
           className="tb-btn tb-btn--subtle"

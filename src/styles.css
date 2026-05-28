@@ -3031,6 +3031,60 @@ mark.help-search-highlight {
   outline-offset: 2px;
 }
 
+/* ── DataPanel (Phase B.9 scaffold) ───────────────────────── */
+.data-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--bg-app, #16161d);
+  color: var(--text, #e6e6e6);
+  overflow: hidden;
+}
+.data-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border, #2a2a36);
+  background: var(--bg-base, #0e0e14);
+}
+.data-panel-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+.data-panel-meta {
+  font-size: 11px;
+  opacity: 0.6;
+}
+.data-panel-body {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 24px;
+  text-align: center;
+  gap: 8px;
+}
+.data-panel-empty-title {
+  margin: 0;
+  font-size: 14px;
+  opacity: 0.85;
+}
+.data-panel-empty-hint {
+  margin: 0;
+  max-width: 320px;
+  font-size: 12px;
+  opacity: 0.6;
+  line-height: 1.5;
+}
+
 /* ── StartMenu B.5: project list + goal cards + wizard ───── */
 .start-card--goal {
   min-height: 130px;

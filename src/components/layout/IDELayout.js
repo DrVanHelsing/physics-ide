@@ -30,6 +30,7 @@ import HelpPage     from "../HelpPage";
 import VariableDialog from "../VariableDialog";
 import DebugMode    from "../DebugMode";
 import ChartOverlay from "../ChartOverlay";
+import DataPanel    from "../DataPanel";
 import { BlocksIcon, CodeIcon, GlobeIcon } from "../Icons";
 
 import { fromTraceBuffer } from "../../utils/dataset/dataset";
@@ -97,6 +98,12 @@ export default function IDELayout() {
 
   const { mode, pythonCode, workspaceXml, projectType, running,
           blocklyZoom, viewportHidden, beginnerMode } = sim;
+
+  /* Goal of the active project (Phase B.8 + B.9). Defaults to 'physics'
+     so the toolbar and layout behave identically to v1 when there is no
+     active manifest yet. */
+  const goal = proj.activeManifest?.goal || "physics";
+  const isDataGoal = goal === "datascience";
 
   const isCustom       = projectType === "custom";
   const lockedMode     = projectType === "code_blank" ? "blocks" : null;
@@ -175,6 +182,7 @@ export default function IDELayout() {
       </div>
 
       <Toolbar
+        goal={goal}
         onRun={sim.handleRun}
         onStop={sim.handleStop}
         onExportPy={exp.handleExportPy}
@@ -272,16 +280,25 @@ export default function IDELayout() {
           <div className="pane-divider" onMouseDown={handleDividerMouseDown} />
         )}
 
-        {/* ── Canvas pane ── */}
-        <section
-          className="canvas-pane"
-          style={viewportHidden ? { display: "none" } : { flex: "1 1 0", minWidth: 0 }}
-        >
-          <div className="pane-header pane-header--viewport">
-            <GlobeIcon size={14} /> 3D Viewport
-          </div>
-          <GlowCanvas running={running} />
-        </section>
+        {/* ── Right pane: 3D viewport (physics / hybrid) or data panel (DS) ── */}
+        {isDataGoal ? (
+          <section
+            className="canvas-pane"
+            style={viewportHidden ? { display: "none" } : { flex: "1 1 0", minWidth: 0 }}
+          >
+            <DataPanel goal={goal} datasetCount={proj.activeManifest?.datasets?.length || 0} />
+          </section>
+        ) : (
+          <section
+            className="canvas-pane"
+            style={viewportHidden ? { display: "none" } : { flex: "1 1 0", minWidth: 0 }}
+          >
+            <div className="pane-header pane-header--viewport">
+              <GlobeIcon size={14} /> 3D Viewport
+            </div>
+            <GlowCanvas running={running} />
+          </section>
+        )}
       </div>
 
       {/* ── Status bar ── */}
