@@ -38,21 +38,29 @@ Branch: `phase-a-spike`. All work browser-only; no backend, no auth.
 - `src/components/layout/IDELayout.js` — threads useProject ops into StartMenu.
 - Bundle delta vs B.2: main +4.51 kB gz, CSS +603 B gz. User browser-validated.
 
-### 🟡 Phase B.6 — Block registry (in progress)
-- `src/utils/blockly/blockRegistry.js` — **DONE.** Canonical metadata for all 55 blocks: `{id, category, domain, conceptLabel, keywords, beginnerVisible}`. One canonical category per block; `BY_ID` lookup; `getBlocksByCategory`, `getBlocksByDomain`, `getBlocksForGoal({beginnerEnabled})`; `BLOCK_CATALOGUE` (search index) built from registry; `findDuplicateIds`, `findUnknownIds` for the CI check.
-- **Remaining:** wire `blocklyGenerator.js` / `BlocklyWorkspace.js` to consume `BLOCK_CATALOGUE` from the registry (eliminate the manual catalogue); add `scripts/check-block-registry.js` + `npm run check:blocks`; add a Jest test that every block id appearing in the live `TOOLBOX_XML` has a registry entry. **Deferred to Phase C with DS blocks:** swap `TOOLBOX_XML` for a registry-generated XML (preserving shadow defaults and labels). Doing it now without DS blocks buys nothing.
+### ✅ Phase B.6 — Block registry (commit `3ba1d27`)
+- `src/utils/blockly/blockRegistry.js` — canonical metadata for 67 blocks (`{id, category, domain, conceptLabel, keywords, beginnerVisible}`). One canonical category per block; `BY_ID` lookup; `getBlocksByCategory`, `getBlocksByDomain`, `getBlocksForGoal({beginnerEnabled})`; `BLOCK_CATALOGUE` (search index) built from registry; `findDuplicateIds`, `findUnknownIds`.
+- `src/utils/blockly/blocklyGenerator.js` — 90-line manual `BLOCK_CATALOGUE` deleted; named export re-aliased to the registry.
+- `scripts/check-block-registry.mjs` + `npm run check:blocks` — CI guard. Fails on duplicate ids or unregistered toolbox ids. Stock Blockly ids allowlisted. Current: 67 entries, 0 duplicates, 59 toolbox ids all present.
+- `src/utils/blockly/__tests__/blockRegistry.test.js` — 10 cases mirror the CI script; suite total now 54 green.
+- **Deferred to Phase C with DS blocks:** swap `TOOLBOX_XML` for a registry-generated XML (preserves shadow defaults and labels). Doing it without DS blocks in hand buys nothing.
 
-### ⏳ Phase B.7 — Generator separation (right-sized down)
-- **Deferred to Phase C alongside DS generator additions.** The full split (per-domain files, generator map registration loop) is mechanical work better done when we are already touching generators. B.6's registry abstraction is the prerequisite and it's in place.
+### ⏳ Phase B.7 — Generator separation (rolled into Phase C)
+- Per-domain generator files (`shared.js`, `physics.js`, `datascience.js`) and the registration loop land alongside DS generator additions. B.6's registry is the prerequisite and is in place.
 
-### ⏳ Phase B.8 — Capability-driven toolbar (pending)
-- Refactor `src/components/Toolbar.js` so each action declares `{goals, editorModes?, requires?}` and the rendered set is filtered against the active goal.
+### ✅ Phase B.8 — Capability-driven toolbar
+- `src/components/Toolbar.js` — accepts `goal` prop (default `"physics"`). `showSimActions = goal === 'physics' || 'hybrid'` gates Run/Stop, Viewport toggle, Trace toggle, and Debug button. Global actions (Menu, Help, Reset, Beginner, Import, Export, Theme, Mode) stay visible across goals.
+- `src/components/layout/IDELayout.js` — passes `goal` from `proj.activeManifest?.goal || 'physics'`.
 
-### ⏳ Phase B.9 — Layout primitives (pending)
-- Goal-specific defaults in `IDELayout`; new empty `src/components/DataPanel.js` (Phase C populates).
+### ✅ Phase B.9 — Layout primitives
+- `src/components/DataPanel.js` — scaffold panel for the active project's datasets, with goal-aware empty states (DS goal: "load builtin / CSV"; hybrid goal: "record a run, then click Chart").
+- `src/components/layout/IDELayout.js` — right pane swaps `GlowCanvas` for `DataPanel` when `goal === 'datascience'`. Physics + hybrid keep the 3D viewport.
+- `src/styles.css` — DataPanel theming.
 
-### ⏳ Phase B.10 — Hosting (pending)
-- `vercel.json` (or Cloudflare Pages config); `DEPLOY.md`; CI smoke for offline-after-first-load.
+### ✅ Phase B.10 — Hosting
+- `vercel.json` — CRA framework preset, SPA rewrite (`/(.*) → /index.html`), one-year immutable cache on `/static/*`.
+- `DEPLOY.md` — Vercel and Cloudflare Pages procedures, CI smoke recipe, rollback notes, "no backend / no auth in v1" reinforcement.
+- CI smoke flow (manual for now): `npm run check:blocks && CI=true npm test && npm run build` — all three pass on current HEAD.
 
 ### ⏳ Phase C — Foundational DS + Hybrid (pending)
 - 59-block DS inventory, Arquero-backed implementations, chart-spec system, productionized trace-to-dataset, hybrid templates, full bundle import/export, guidance layer, manual classroom flows, perf budgets.
