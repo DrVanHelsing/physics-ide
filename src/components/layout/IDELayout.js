@@ -18,7 +18,7 @@
  *               │    └─ .canvas-pane  (GlowCanvas)
  *               └─ .status-bar
  */
-import React, { useCallback } from "react";
+import React, { useCallback, useState } from "react";
 
 import BlocklyWorkspace, { ReadOnlyBlockly } from "../BlocklyWorkspace";
 import CodeEditor   from "../CodeEditor";
@@ -29,7 +29,11 @@ import StartMenu    from "../StartMenu";
 import HelpPage     from "../HelpPage";
 import VariableDialog from "../VariableDialog";
 import DebugMode    from "../DebugMode";
+import ChartOverlay from "../ChartOverlay";
 import { BlocksIcon, CodeIcon, GlobeIcon } from "../Icons";
+
+import { fromTraceBuffer } from "../../utils/dataset/dataset";
+import { saveDataset } from "../../hooks/useDataset";
 
 import { useTheme }              from "../../contexts/ThemeContext";
 import { useSimulationContext }  from "../../contexts/SimulationContext";
@@ -67,6 +71,22 @@ export default function IDELayout() {
   /* ── Simple UI handlers (defined here to avoid extra hook) */
   const handleHelp = useCallback(() => setShowHelp(true), [setShowHelp]);
 
+  /* ── Chart overlay (Phase A: trace -> dataset -> chart spike) ── */
+  const [chartDataset, setChartDataset] = useState(null);
+  const handleSaveAsDataset = useCallback(async (recordBuffer) => {
+    if (!recordBuffer || recordBuffer.length === 0) return;
+    const dataset = fromTraceBuffer(recordBuffer, {
+      name: `Run @ ${new Date().toLocaleTimeString()}`,
+    });
+    try {
+      await saveDataset(dataset);
+    } catch (err) {
+      console.warn("Could not persist dataset to localForage:", err);
+    }
+    setChartDataset(dataset);
+  }, []);
+  const handleCloseChart = useCallback(() => setChartDataset(null), []);
+
   /* ── Derived presentation values ─────────────────────── */
   const statusClass =
     status.type === "error"   ? "console-bar console-bar--error"   :
@@ -92,6 +112,7 @@ export default function IDELayout() {
           onImport={(file) => { sim.handleImport(file); setShowStart(false); }}
         />
         {showHelp && <HelpPage onClose={() => setShowHelp(false)} />}
+        {chartDataset && <ChartOverlay dataset={chartDataset} onClose={handleCloseChart} />}
       </>
     );
   }
@@ -122,12 +143,14 @@ export default function IDELayout() {
           onStartRecord={trc.handleStartRecord}
           onStopRecord={trc.handleStopRecord}
           recordBuffer={recordBufferRef.current}
+          onSaveAsDataset={handleSaveAsDataset}
           projectType={projectType}
           breakpoints={dbg.breakpoints}
           onToggleBreakpoint={dbg.toggleBreakpoint}
           executingBlockId={dbg.executingBlockId}
           onExitDebug={dbg.handleExitDebug}
         />
+        {chartDataset && <ChartOverlay dataset={chartDataset} onClose={handleCloseChart} />}
       </>
     );
   }
@@ -266,6 +289,8 @@ export default function IDELayout() {
           Mode: {mode === "blocks" ? "Blocks" : isCustom ? "Code View Only" : "Code"} | VPython 3.2
         </span>
       </div>
+
+      {chartDataset && <ChartOverlay dataset={chartDataset} onClose={handleCloseChart} />}
     </div>
   );
 }
