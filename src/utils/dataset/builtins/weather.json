@@ -1,0 +1,43 @@
+{
+  "id": "builtin:weather",
+  "name": "Weather (Cape Town vs Johannesburg, winter 2025)",
+  "description": "Daily weather observations across two cities for a representative two-week winter window. Synthesised from typical seasonal ranges; intended for time-series visualisation and group comparison exercises.",
+  "columns": [
+    { "name": "date", "inferredType": "date" },
+    { "name": "city", "inferredType": "text" },
+    { "name": "temp_high_c", "inferredType": "number" },
+    { "name": "temp_low_c", "inferredType": "number" },
+    { "name": "precip_mm", "inferredType": "number" },
+    { "name": "condition", "inferredType": "text", "description": "sunny | cloudy | rain | storm" }
+  ],
+  "rows": [
+    { "date": "2025-06-15", "city": "Cape Town",    "temp_high_c": 17, "temp_low_c": 11, "precip_mm": 4.2,  "condition": "rain" },
+    { "date": "2025-06-15", "city": "Johannesburg", "temp_high_c": 18, "temp_low_c": 4,  "precip_mm": 0,    "condition": "sunny" },
+    { "date": "2025-06-16", "city": "Cape Town",    "temp_high_c": 16, "temp_low_c": 10, "precip_mm": 12.8, "condition": "storm" },
+    { "date": "2025-06-16", "city": "Johannesburg", "temp_high_c": 19, "temp_low_c": 5,  "precip_mm": 0,    "condition": "sunny" },
+    { "date": "2025-06-17", "city": "Cape Town",    "temp_high_c": 15, "temp_low_c": 9,  "precip_mm": 6.5,  "condition": "rain" },
+    { "date": "2025-06-17", "city": "Johannesburg", "temp_high_c": 17, "temp_low_c": 3,  "precip_mm": 0,    "condition": "sunny" },
+    { "date": "2025-06-18", "city": "Cape Town",    "temp_high_c": 14, "temp_low_c": 8,  "precip_mm": 0.4,  "condition": "cloudy" },
+    { "date": "2025-06-18", "city": "Johannesburg", "temp_high_c": 16, "temp_low_c": 2,  "precip_mm": 0,    "condition": "sunny" },
+    { "date": "2025-06-19", "city": "Cape Town",    "temp_high_c": 18, "temp_low_c": 12, "precip_mm": 0,    "condition": "sunny" },
+    { "date": "2025-06-19", "city": "Johannesburg", "temp_high_c": 14, "temp_low_c": 1,  "precip_mm": 1.1,  "condition": "cloudy" },
+    { "date": "2025-06-20", "city": "Cape Town",    "temp_high_c": 19, "temp_low_c": 12, "precip_mm": 0,    "condition": "sunny" },
+    { "date": "2025-06-20", "city": "Johannesburg", "temp_high_c": 13, "temp_low_c": 0,  "precip_mm": 0.3,  "condition": "cloudy" },
+    { "date": "2025-06-21", "city": "Cape Town",    "temp_high_c": 17, "temp_low_c": 11, "precip_mm": 2.1,  "condition": "rain" },
+    { "date": "2025-06-21", "city": "Johannesburg", "temp_high_c": 15, "temp_low_c": 2,  "precip_mm": 0,    "condition": "sunny" },
+    { "date": "2025-06-22", "city": "Cape Town",    "temp_high_c": 16, "temp_low_c": 10, "precip_mm": 0.8,  "condition": "cloudy" },
+    { "date": "2025-06-22", "city": "Johannesburg", "temp_high_c": 17, "temp_low_c": 4,  "precip_mm": 0,    "condition": "sunny" },
+    { "date": "2025-06-23", "city": "Cape Town",    "temp_high_c": 14, "temp_low_c": 9,  "precip_mm": 9.7,  "condition": "storm" },
+    { "date": "2025-06-23", "city": "Johannesburg", "temp_high_c": 18, "temp_low_c": 5,  "precip_mm": 0,    "condition": "sunny" },
+    { "date": "2025-06-24", "city": "Cape Town",    "temp_high_c": 15, "temp_low_c": 10, "precip_mm": 3.4,  "condition": "rain" },
+    { "date": "2025-06-24", "city": "Johannesburg", "temp_high_c": 19, "temp_low_c": 6,  "precip_mm": 0,    "condition": "sunny" },
+    { "date": "2025-06-25", "city": "Cape Town",    "temp_high_c": 17, "temp_low_c": 11, "precip_mm": 0,    "condition": "sunny" },
+    { "date": "2025-06-25", "city": "Johannesburg", "temp_high_c": 20, "temp_low_c": 7,  "precip_mm": 0,    "condition": "sunny" },
+    { "date": "2025-06-26", "city": "Cape Town",    "temp_high_c": 18, "temp_low_c": 12, "precip_mm": 0,    "condition": "sunny" },
+    { "date": "2025-06-26", "city": "Johannesburg", "temp_high_c": 16, "temp_low_c": 3,  "precip_mm": 1.4,  "condition": "cloudy" },
+    { "date": "2025-06-27", "city": "Cape Town",    "temp_high_c": 16, "temp_low_c": 10, "precip_mm": 5.6,  "condition": "rain" },
+    { "date": "2025-06-27", "city": "Johannesburg", "temp_high_c": 14, "temp_low_c": 1,  "precip_mm": 2.3,  "condition": "rain" },
+    { "date": "2025-06-28", "city": "Cape Town",    "temp_high_c": 15, "temp_low_c": 9,  "precip_mm": 1.2,  "condition": "cloudy" },
+    { "date": "2025-06-28", "city": "Johannesburg", "temp_high_c": 13, "temp_low_c": 0,  "precip_mm": 0,    "condition": "sunny" }
+  ]
+}
