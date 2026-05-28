@@ -40,5 +40,11 @@
     "extends": [
       "react-app"
     ]
+  },
+  "jest": {
+    "transformIgnorePatterns": [
+      "[/\\\\]node_modules[/\\\\](?!(arquero|@uwdata|apache-arrow|@observablehq|internmap|d3-[a-z-]+)[/\\\\]).+\\.(js|jsx|mjs|cjs|ts|tsx)$",
+      "^.+\\.module\\.(css|sass|scss)$"
+    ]
   }
 }
