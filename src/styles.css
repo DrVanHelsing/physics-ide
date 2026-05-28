@@ -3085,6 +3085,73 @@ mark.help-search-highlight {
   line-height: 1.5;
 }
 
+/* ── DataPanel: DS table renderer ──────────────────────── */
+.ds-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: calc(100% - 80px);
+  border: 1px solid var(--border, #2d2d44);
+  border-radius: 4px;
+}
+.ds-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.ds-table th,
+.ds-table td {
+  padding: 4px 10px;
+  border-bottom: 1px solid var(--border, #2d2d44);
+  text-align: left;
+}
+.ds-table th {
+  background: var(--bg-base, #0e0e14);
+  position: sticky;
+  top: 0;
+  font-weight: 600;
+  opacity: 0.85;
+  z-index: 1;
+}
+.ds-table tr:last-child td {
+  border-bottom: none;
+}
+.ds-table td {
+  opacity: 0.75;
+}
+.ds-table-overflow {
+  margin: 4px 0 0;
+  font-size: 11px;
+  opacity: 0.45;
+  text-align: center;
+}
+.ds-values {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+  width: 100%;
+}
+.ds-value-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 12px;
+  padding: 4px 8px;
+  background: var(--bg-base, #0e0e14);
+  border-radius: 4px;
+  border: 1px solid var(--border, #2d2d44);
+}
+.ds-value-label {
+  opacity: 0.7;
+  font-family: monospace;
+}
+.ds-value-num {
+  font-weight: 600;
+  font-family: monospace;
+}
+
 /* ── StartMenu B.5: project list + goal cards + wizard ───── */
 .start-card--goal {
   min-height: 130px;

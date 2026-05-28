@@ -258,6 +258,17 @@ const REGISTRY = [
   { id: "scene_camera_block", category: "Scene", domain: "physics",
     conceptLabel: "Scene / camera (center, forward…)", beginnerVisible: false,
     keywords: ["scene", "camera", "forward", "up", "center", "range", "zoom", "view"] },
+
+  /* ── Data Science (Phase C.3 vertical slice) ─────────────── */
+  { id: "ds_load_builtin_block", category: "Data Science", domain: "datascience",
+    conceptLabel: "Load built-in dataset", beginnerVisible: true,
+    keywords: ["load", "dataset", "data", "planets", "penguins", "weather", "import", "builtin"] },
+  { id: "ds_show_table_block", category: "Data Science", domain: "datascience",
+    conceptLabel: "Show table", beginnerVisible: true,
+    keywords: ["show", "table", "display", "view", "dataset", "rows", "columns"] },
+  { id: "ds_calc_mean_block", category: "Data Science", domain: "datascience",
+    conceptLabel: "Calculate mean", beginnerVisible: true,
+    keywords: ["mean", "average", "statistics", "column", "compute", "calculate"] },
 ];
 
 /* ── Public surface ──────────────────────────────────────── */
