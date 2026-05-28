@@ -62,8 +62,41 @@ Branch: `phase-a-spike`. All work browser-only; no backend, no auth.
 - `DEPLOY.md` — Vercel and Cloudflare Pages procedures, CI smoke recipe, rollback notes, "no backend / no auth in v1" reinforcement.
 - CI smoke flow (manual for now): `npm run check:blocks && CI=true npm test && npm run build` — all three pass on current HEAD.
 
-### ⏳ Phase C — Foundational DS + Hybrid (pending)
-- 59-block DS inventory, Arquero-backed implementations, chart-spec system, productionized trace-to-dataset, hybrid templates, full bundle import/export, guidance layer, manual classroom flows, perf budgets.
+### Phase C — Foundational DS + Hybrid
+
+#### ✅ Phase C.2 — Dataset module + built-in datasets (commit `ca40524`)
+- `src/utils/dataset/dataset.js` productionized. `transform(ds, op)` covers filter / limit / distinct / dropMissing / groupBy (count, mean, sum, min, max) on top of the existing select / sort. Statistical helpers: median, mode, min, max, range, sum, count, stddev (sample), uniqueCount, numericValues. `fromCsvText` parses quoted-comma CSV with type + missing-value inference. `fromBuiltin(id)` dynamic-imports JSON modules. `serializeDescriptor` splits inline vs `rowsRef` for the manifest.
+- `src/utils/dataset/builtins/{planets.json, penguins.json, weather.json}` — planets 9 rows (NASA values), penguins 30-row teaching subset across three species, weather 28 rows (Cape Town vs Johannesburg, two winter weeks). All lazy-imported so physics-only projects never pay for them on first load.
+- `src/utils/dataset/__tests__/dataset.test.js` — 32 cases. Suite total now 86 green.
+- `src/setupTests.js` — polyfills TextDecoder / TextEncoder for jsdom (Arquero's flechette dep needs them).
+- `package.json` — `jest.transformIgnorePatterns` whitelists Arquero, @uwdata, apache-arrow, @observablehq, internmap, d3-*.
+
+#### 🟡 Phase C.3+ — DS block implementations (next active work)
+
+**Design decision pending:** DS block execution. The existing block flow (`generatePythonFromWorkspace` → `runPython` → GlowScript iframe) targets VPython — it does not work for DS blocks that operate on JS-side `Dataset` objects. Three options:
+
+  1. **Generate JS and eval client-side** (recommended). DS blocks emit JS via a new `Blockly.JavaScript` generator namespace; the runtime executes that JS via the `Function` constructor inside a sandbox that exposes Arquero, the dataset module, and the built-in loaders. Same blocks also emit Python for the "Show generated Python" reveal (visualisation only — never executed). Lowest implementation cost, fits free-hosting (no extra runtime).
+  2. **Pyodide in-browser.** Real Python execution for both physics and DS. ~10 MB runtime download. Heavy but unifies the model. Probably wrong for v1 given the bundle-size pressure.
+  3. **Custom block-tree walker.** Skip code generation; interpret the workspace directly against the dataset module. Simplest mental model but loses the "Show generated Python" reveal pattern that the foundational doc treats as load-bearing.
+
+Recommended path: option 1.
+
+**Vertical-slice C.3 (next step):** 3-block proof of runtime, not the full 59 at once.
+  - `load_builtin_dataset` (Cat 1) — picks penguins / weather / planets, outputs `dataset`.
+  - `show_table` (Cat 2) — takes `dataset`, renders it in `DataPanel`.
+  - `calc_mean` (Cat 3) — takes `dataset` + column name, outputs `number`.
+  Plus the runtime scaffolding: `src/utils/runner/dsRunner.js`, a JS generator alongside the existing Python one, and a `DataPanel` table renderer.
+
+If the slice works, the remaining 56 blocks are pattern repetition over the same infrastructure.
+
+#### ⏳ Phase C.4+ — Remaining DS work (after C.3 slice)
+- Categories 1–6 full inventory (56 more blocks), each with registry entry + Blockly def + JS generator + Python reveal generator + unit test.
+- Chart system: `chartSpec.js` + Plot bindings for all five foundational chart types (bar / line / scatter / histogram / box). Phase A handles line + scatter.
+- Trace-to-dataset productionization: variable selection UI, time-window selector, `RunSnapshot` persistence, `RunComparisonView`.
+- Template packs for DS and Hybrid.
+- Guidance layer for beginner mode.
+- Bundle import/export (JSON + lazy JSZip).
+- Quality bar: tests, manual flows, perf budgets.
 
 ### Phases D + E — Deferred, no work in progress
 - Both behind explicit triggers in `docs/product-contract.md`. Do not start.
