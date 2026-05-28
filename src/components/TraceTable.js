@@ -7,6 +7,7 @@ import {
   PinIcon,
   RecordIcon,
   SearchIcon,
+  TableIcon,
   XIcon,
   ZapIcon,
 } from "./Icons";
@@ -300,6 +301,7 @@ function TraceTable({
   onStartRecord,
   onStopRecord,
   recordBuffer = [],
+  onSaveAsDataset,
 }) {
   const [filter,       setFilter]       = useState("");
   const [pinned,       setPinned]       = useState(() => new Set());
@@ -452,6 +454,17 @@ function TraceTable({
               >
                 <DownloadIcon size={11} /> Rec.CSV
               </button>
+              {onSaveAsDataset && (
+                <button
+                  type="button"
+                  className="trace-icon-btn"
+                  onClick={() => onSaveAsDataset(recordBuffer)}
+                  title={`Save recording as a dataset and open chart (${recordBuffer.length} rows)`}
+                  disabled={recordBuffer.length === 0}
+                >
+                  <TableIcon size={11} /> Chart
+                </button>
+              )}
             </>
           )}
           {/* Snapshot toggle */}
