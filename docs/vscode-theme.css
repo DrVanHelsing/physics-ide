@@ -255,6 +255,43 @@ body > ol:first-of-type a {
   font-size: 0.92em;
 }
 
+/* TOC visual polish */
+h2 + ol {
+  margin-top: 10px;
+  padding: 14px 18px 10px 28px;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  background: #111827;
+}
+
+h2 + ol li {
+  margin: 5px 0;
+}
+
+h2 + ol a {
+  color: #cbd5e1;
+  border-bottom: none;
+}
+
+/* If supported by the PDF engine, show target page numbers in TOC links */
+@supports (content: target-counter(attr(href), page)) {
+  h2 + ol a {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  h2 + ol a::after {
+    content: target-counter(attr(href), page);
+    color: #93c5fd;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85em;
+    min-width: 2ch;
+    text-align: right;
+  }
+}
+
 /* ── Keyboard Shortcuts — inline code used as KBD ── */
 kbd {
   display: inline-block;
@@ -309,4 +346,170 @@ blockquote:last-child {
   border-left-color: #4ec9b0;
   color: #858585;
   font-style: italic;
+}
+
+/* Manual page-break marker used in markdown */
+.page-break {
+  break-before: page;
+  page-break-before: always;
+}
+
+/* ── Embedded diagrams ── */
+img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 14px auto 8px;
+  border: 1px solid #3c3c3c;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+/* ── Print quality rules (for md-to-pdf) ── */
+@page {
+  size: A4;
+  margin: 12mm;
+}
+
+@media print {
+  html,
+  body {
+    background: #ffffff !important;
+    color: #111827 !important;
+    font-size: 10.5pt;
+    line-height: 1.5;
+  }
+
+  body {
+    padding: 0;
+  }
+
+  body::before {
+    display: none;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  p,
+  li,
+  td,
+  th,
+  blockquote,
+  small,
+  caption {
+    color: #111827 !important;
+  }
+
+  h1 {
+    border-bottom-color: #2563eb;
+    page-break-before: auto;
+  }
+
+  h2 {
+    border-bottom-color: #d1d5db;
+    page-break-after: avoid;
+    break-after: avoid-page;
+    margin-top: 22pt;
+    break-before: page;
+    page-break-before: always;
+  }
+
+  /* Do not force a break before the very first content section */
+  h2:first-of-type {
+    break-before: auto;
+    page-break-before: auto;
+  }
+
+  h3,
+  h4 {
+    page-break-after: avoid;
+    break-after: avoid-page;
+  }
+
+  pre,
+  table,
+  blockquote,
+  img {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  figure,
+  p:has(img) {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  h2 + ol,
+  h2 + ul {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  h2 + ol li,
+  h2 + ul li {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  p,
+  li {
+    orphans: 3;
+    widows: 3;
+  }
+
+  code {
+    background: #f3f4f6 !important;
+    color: #1f2937 !important;
+    border-color: #d1d5db;
+  }
+
+  pre {
+    background: #f8fafc !important;
+    border-color: #d1d5db;
+    border-left-color: #2563eb;
+  }
+
+  pre code {
+    color: #111827 !important;
+  }
+
+  table {
+    border-color: #d1d5db;
+    font-size: 9.5pt;
+  }
+
+  thead {
+    background: #eff6ff;
+    border-bottom-color: #2563eb;
+  }
+
+  tbody tr:nth-child(even) {
+    background: #f9fafb;
+  }
+
+  a {
+    color: #1d4ed8 !important;
+    border-bottom-color: #93c5fd;
+  }
+
+  img {
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    margin-top: 10pt;
+    margin-bottom: 6pt;
+    max-height: 210mm;
+    object-fit: contain;
+  }
+
+  /* Caption lines written as italic paragraph directly below figures */
+  img + em,
+  p:has(img) + p em {
+    color: #475569 !important;
+    font-size: 9pt;
+  }
 }

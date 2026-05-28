@@ -26,6 +26,7 @@ pdf_options:
 4. [Complete Source Map](#4-complete-source-map)
 5. [Simulation Execution Pipeline](#5-simulation-execution-pipeline)
 6. [Build & Deployment](#6-build--deployment)
+   - [6.6 Hosting Physics IDE on ilifu](#66-hosting-physics-ide-on-ilifu)
 7. [Security Architecture](#7-security-architecture)
 8. [Performance Profile](#8-performance-profile)
 9. [Sustainability & Maintenance](#9-sustainability--maintenance)
@@ -39,16 +40,19 @@ pdf_options:
 
 ---
 
+<div class="page-break"></div>
+
 ## 1. Executive Summary
 
-Physics IDE is a **zero-install, browser-based 3D physics simulation environment** built as a single-page React application. It requires no backend server, no database, and no user accounts. Students construct and run physically accurate 3D simulations using a visual block editor (Google Blockly) or a Python code editor (Monaco), with results rendered live in a WebGL viewport powered by GlowScript/VPython 3.2.
+Physics IDE is a **zero-install, browser-based 3D physics simulation environment** built as a single-page React application. The current production release is client-only (no backend server, no database, no user accounts). The target institutional release on ilifu extends this with authentication, teacher/student roles, persistent cloud storage, and controlled code sharing, while retaining browser-native simulation execution through GlowScript/VPython 3.2.
 
 **Key technical facts:**
 - React 18 SPA, bundled by Create React App (Webpack 5)
 - Build output: ~249 kB gzip (JS) + ~9 kB (CSS)
-- Deployment: Vercel static hosting (zero server maintenance)
-- No backend, no database, no user accounts
-- All student data stored exclusively in browser `localStorage`
+- Current deployment: Vercel static hosting (zero server maintenance)
+- Current release: no backend, no database, no user accounts
+- Planned ilifu release: login, teacher/student roles, database persistence, and code sharing
+- Current student data is stored in browser `localStorage`; planned release adds institution-managed server-side persistence
 - Three CDN-loaded libraries: Blockly v11, Monaco 0.45, GlowScript 3.2
 - Fully HTTPS; compatible with Sakai Web Content tool (iframe embedding)
 
@@ -58,77 +62,29 @@ Physics IDE is a **zero-install, browser-based 3D physics simulation environment
 
 ### 2.1 High-Level Overview
 
-```
-Browser
-│
-├── React SPA (https://physics-ide.vercel.app)
-│   ├── App.js           — Context provider tree
-│   ├── IDELayout.js     — Render orchestrator
-│   ├── hooks/           — All business logic
-│   ├── components/      — Pure rendering
-│   └── utils/           — Stateless utilities
-│
-├── GlowScript iframe    — Sandboxed VPython runtime
-│   └── https://www.glowscript.org  (external, different origin)
-│
-└── CDN resources (loaded at startup)
-    ├── https://unpkg.com/blockly@11/...
-    └── https://unpkg.com/monaco-editor@0.45/...
-```
+![Physics IDE runtime architecture](diagrams/technical-system-overview.svg)
+
+*Figure 1. Browser runtime topology showing SPA shell, sandboxed GlowScript execution, and CDN dependencies.*
 
 ### 2.2 Context + Hooks Architecture
 
 Physics IDE uses a strict **provider / consumer separation**:
 
-```
-App.js
-└── ThemeProvider           (light/dark theme state)
-    └── SimulationProvider  (core IDE state)
-        └── DebugProvider   (debug mode, breakpoints)
-            └── TraceProvider  (variable trace data)
-                └── ErrorBoundary
-                    └── IDELayout   (consumes all contexts via hooks)
-```
+![Provider and hook architecture](diagrams/technical-provider-architecture.svg)
+
+*Figure 2. Nested provider hierarchy with hook and component consumption paths.*
 
 **Rule**: Components never call `useState` for shared state. All shared state lives in contexts. All actions live in hooks. Components receive only the data and callbacks they need via props.
 
 ### 2.3 Data Flow
 
-```
-User action
-    │
-    ▼
-Hook handler (e.g., useSimulation.handleRun)
-    │
-    ├── Dispatches state update via context setter
-    │       └── React re-renders affected components
-    │
-    └── Calls utility (e.g., glowRunner.runPython)
-            └── Posts message to GlowScript iframe
-                    └── Simulation updates WebGL canvas
-```
+![Run and debug data flow](diagrams/technical-dataflow-debug.svg)
+
+*Figure 3. End-to-end execution flow for Run/Debug from UI action to trace rendering.*
 
 ### 2.4 Debug Mode Data Flow
 
-```
-glowRunner.runPython (debug=true)
-    │
-    ├── instrumentor.instrumentPythonForDebug(source)
-    │       └── Inserts __physide_trace_cb(lineNo, vars) at each line
-    │
-    └── Injects instrumented code into iframe
-            │
-            ▼
-    iframe: simulation executes; calls window.__physide_trace_cb at each line
-            │
-    postMessage({type:'trace', line, vars}) to parent window
-            │
-    useTrace.handleTraceMessage (debounced 50ms)
-            │
-    TraceContext.updateTrace(variable, value)
-            │
-    TraceTable renders updated data + sparklines
-```
+Debug mode uses the same execution pipeline as Figure 3, with the instrumentation branch enabled (`instrumentPythonForDebug`) before runtime injection.
 
 ### 2.5 Editor ↔ Simulation Bridge
 
@@ -558,13 +514,264 @@ Vercel auto-detects Create React App; no `vercel.json` is required for basic dep
 | **GitHub Pages** | Free; requires `homepage` in `package.json` and `gh-pages` npm package |
 | **Docker + Nginx** | For on-premise hosting; serve `build/` as static files |
 | **UWC Web Server** | Contact ICT; provide the `build/` folder contents to serve as a static site |
+| **ilifu (OpenStack VM + Nginx)** | South African national research cloud; UWC is a consortium partner. Recommended for institutionally-managed hosting — see Section 6.6 |
 
-### 6.6 Environment Variables
+---
 
-No environment variables are required for the current version. If a backend is added (Phase 2), use:
+### 6.6 Hosting Physics IDE on ilifu
+
+#### 6.6.1 What Is ilifu?
+
+**ilifu** (meaning "cloud" in isiXhosa) is a South African national research computing facility focused primarily on astronomy and bioinformatics. It is managed by a consortium of six universities and research organisations:
+
+| Partner | Role |
+|---|---|
+| **University of Cape Town (UCT)** | Lead institution; system hosted at UCT ICTS data centre |
+| **University of the Western Cape (UWC)** | Consortium member |
+| **Stellenbosch University (SU)** | Consortium member |
+| **Cape Peninsula University of Technology (CPUT)** | Consortium member |
+| **Sol Plaatje University (SPU)** | Consortium member |
+| **South African Radio Astronomy Observatory (SARAO)** | Consortium member |
+
+The facility is funded by [DIRISA](https://www.dirisa.ac.za/) (Data-Intensive Research Initiative of South Africa) as part of NICIS (the National Integrated Cyberinfrastructure System), with additional hardware contributions from IDIA (Inter-University Institute for Data-Intensive Astronomy) and UCT's Computational Biology Group (CBIO).
+
+Its principal use cases are processing MeerKAT / SKA radio-astronomy data and running large-scale genomics pipelines. Because **UWC is a founding partner institution**, UWC staff and students have access to ilifu resources — making it a viable and appropriate home for UWC-hosted educational tooling.
+
+#### 6.6.2 ilifu Infrastructure Summary
+
+| Resource | Specification |
+|---|---|
+| Compute nodes | 110 × 32-CPU / 256 GB RAM nodes (plus high-memory and GPU nodes) |
+| Storage | 8.8 PiB CephFS (usable) |
+| HPC scheduler | Slurm (slurm.ilifu.ac.za) |
+| Interactive computing | JupyterLab (jupyter.ilifu.ac.za) |
+| Cloud VMs | OpenStack (openstack.ilifu.ac.za) |
+| Science gateway | IDIA Science Gateway (gateway.idia.ac.za) — SSO, SSH key management, usage dashboard |
+
+For static web hosting, the relevant service is **OpenStack** — ilifu's cloud platform for provisioning virtual machines.
+
+#### 6.6.3 OpenStack VM Flavours Available on ilifu
+
+| Flavour | vCPUs | RAM (GB) | Disk (GB) | Recommended use |
+|---|---|---|---|---|
+| **ilifu-A** | 1 | 4 | 20 | ✅ Sufficient for current static Physics IDE hosting (Nginx) |
+| ilifu-B | 2 | 8 | 20 | Recommended minimum for API + auth + database services |
+| ilifu-C | 2 | 16 | 20 | Recommended for multi-class usage with sharing and analytics |
+| ilifu-D | 4 | 32 | 20 | Oversized |
+| ilifu-E through ilifu-H | 8–32 | 64–500 | 20 | Not required |
+
+For the **current static release**, an **ilifu-A** (1 vCPU, 4 GB RAM, 20 GB disk) instance running Nginx is sufficient because the server only delivers pre-built files and all simulation computation happens in the student's browser. For the **planned managed release** (authentication, teacher/student roles, database persistence, and code sharing), ilifu-B or ilifu-C is the practical starting point.
+
+#### 6.6.4 Why the Current Release Requires No HPC Allocation
+
+A common misconception when proposing to use a research computing facility for web hosting is that Slurm HPC compute allocation will be needed. This is **not the case** for Physics IDE.
+
+| Concern | Clarification |
+|---|---|
+| Does the server need to run Python? | **No.** All VPython simulation runs inside GlowScript, which executes in the student's browser via a sandboxed iframe |
+| Does the server need to run any simulation code? | **No.** Physics IDE is a 100% client-side application |
+| Is Slurm job allocation needed? | **No.** Slurm is for batch HPC jobs. Physics IDE hosting requires only a long-running VM, not job scheduling |
+| Does the server need GPU resources? | **No.** WebGL rendering occurs in the student's own browser/GPU |
+| How much server CPU is needed? | Nginx serving static files uses well under 1% CPU even under concurrent load |
+
+For the current release, the only ilifu service required is an **OpenStack virtual machine** to host the Nginx web server. No Slurm, no JupyterHub, no GPU, no HPC allocation.
+
+For the planned managed release, the same principle remains: this is still a web application workload rather than an HPC batch workload. Additional API/auth/database services can run on OpenStack VMs without requiring Slurm or GPU partitions.
+
+#### 6.6.5 Resource Estimates (Current Static Release)
+
+**Server-side resources (ilifu VM):**
+
+| Resource | Estimate | Notes |
+|---|---|---|
+| vCPUs | 1 | Nginx static serving is single-threaded and I/O-bound |
+| RAM | 512 MB – 1 GB (OS + Nginx) | ilifu-A has 4 GB; ample headroom |
+| Disk | < 10 MB | The entire `build/` folder (uncompressed) is ~3 MB |
+| Uptime | Persistent VM; no job scheduling | Nginx runs as a systemd service |
+
+**Per-student network load (served from the ilifu VM):**
+
+| Asset | Gzip size | Notes |
+|---|---|---|
+| `index.html` + CSS | ~9 kB | Tiny |
+| `main.[hash].js` (React + jsPDF) | ~249 kB | Core SPA bundle |
+| Code-split chunks | ~80 kB | Lazy-loaded |
+| **Total from ilifu VM (first load)** | **~338 kB per student** | |
+| **Subsequent loads (cached)** | **< 5 kB** | Browser-cached; only `index.html` re-fetched |
+
+**CDN-loaded assets (served externally, NOT from ilifu):**
+
+| Library | Approximate gzip size | Source |
+|---|---|---|
+| Blockly v11 | ~1.1 MB | unpkg.com |
+| Monaco Editor 0.45 | ~900 kB | unpkg.com |
+| GlowScript 3.2 runtime | ~400 kB | glowscript.org |
+
+These CDN assets are loaded directly by each student's browser and do **not** consume ilifu network capacity.
+
+**For a 30-student lab session (first load):**
+
+| Component | Total bandwidth |
+|---|---|
+| From ilifu VM | ~10.1 MB (30 × ~338 kB) |
+| From CDN (not from ilifu) | ~72.0 MB (30 × ~2.4 MB) |
+| ilifu VM disk read | < 1 MB (gzip-compressed files are cached in RAM by Nginx) |
+
+These are negligible figures for a facility designed to process MeerKAT petabyte-scale telescope data.
+
+#### 6.6.6 Planned Managed Platform on ilifu (Auth, Roles, DB, Sharing)
+
+The ilifu deployment target is not limited to static hosting. A managed platform profile can be introduced incrementally with:
+
+- **Authentication and identity** (institutional login and session management)
+- **Role model** (teacher, student, and optional teaching-assistant roles)
+- **Course/class context** (course-scoped workspaces and permission boundaries)
+- **Persistent database storage** (server-side project/workspace history)
+- **Code sharing workflows** (teacher templates, student submissions, controlled peer sharing with mandatory username attribution)
+
+For academic integrity and anti-cheat controls, all sharing and submission events must be attributable to user identities. Shared artifacts should always capture:
+
+- **Owner username** (who created the original project)
+- **Sharer username** (who initiated the share action)
+- **Recipient username(s) or class group**
+- **Submission/share timestamps**
+- **Workspace or code version identifier (hash or revision ID)**
+
+This ensures each shared or submitted code asset has a verifiable audit trail tied to real user accounts.
+
+This evolution keeps the simulation runtime unchanged (still executed in the browser) while adding institutional features required for formal teaching workflows.
+
+Suggested baseline for this managed profile on ilifu:
+
+| Component | Suggested starting point |
+|---|---|
+| Web/API tier | ilifu-C OpenStack VM (2 vCPU, 16 GB RAM) recommended baseline |
+| Database | PostgreSQL (recommended) with daily backup and point-in-time restore policy |
+| Storage model | Per-user and per-course records with retention controls |
+| Access control | Role-based authorization (teacher/student) |
+| Sharing model | Course-scoped sharing, template publishing, read/write permissions with username attribution |
+| Audit and anti-cheat trail | Immutable event logs with usernames, timestamps, and version IDs |
+
+Indicative starting hardware profile for managed deployment:
+
+| Service | Suggested minimum |
+|---|---|
+| Application/API VM | 2 vCPU, 8-16 GB RAM, 80 GB SSD |
+| Database VM/service | 2 vCPU, 8 GB RAM, 100 GB SSD |
+| Backup retention | 30-90 days, daily snapshots |
+
+This is a practical baseline for first-year class operations with authenticated users and attributable sharing. Scale can be increased after observing real course load.
+
+Rollout should be staged behind feature flags so the current static path remains available while managed capabilities are piloted.
+
+#### 6.6.7 Deployment Architecture on ilifu
+
+![ilifu deployment architecture](diagrams/technical-ilifu-deployment.svg)
+
+*Figure 4. OpenStack VM topology for static hosting with external runtime/CDN dependencies.*
+
+The Nginx server has a single responsibility: serve pre-built static files. All simulation execution, code editing, and 3D rendering occur in the student's browser.
+
+#### 6.6.8 Nginx Configuration
+
+```nginx
+server {
+    listen 443 ssl http2;
+    server_name physics-ide.ilifu.ac.za;  # or appropriate hostname
+
+    ssl_certificate     /etc/letsencrypt/live/physics-ide.ilifu.ac.za/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/physics-ide.ilifu.ac.za/privkey.pem;
+
+    root /var/www/physics-ide/build;
+    index index.html;
+
+    # Gzip compression for static assets
+    gzip on;
+    gzip_types text/css application/javascript application/json;
+
+    # Cache hashed static assets for 1 year
+    location /static/ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+
+    # SPA fallback: all routes return index.html
+    location / {
+        try_files $uri /index.html;
+    }
+
+    # Security headers (iframe embedding: allow from UWC iKamva)
+    add_header X-Content-Type-Options nosniff;
+    add_header X-Frame-Options "ALLOW-FROM https://ikamva.uwc.ac.za";
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' unpkg.com glowscript.org; frame-src 'self' glowscript.org; style-src 'self' 'unsafe-inline' unpkg.com; img-src 'self' data: blob:; font-src 'self' data: unpkg.com;";
+}
+
+server {
+    listen 80;
+    server_name physics-ide.ilifu.ac.za;
+    return 301 https://$host$request_uri;
+}
+```
+
+#### 6.6.9 Deployment Steps
+
+1. **Request an OpenStack VM** from ilifu support (support@ilifu.ac.za). Provide justification: static web hosting for a UWC Physics education tool. Request an ilifu-A flavour VM running Ubuntu 22.04 LTS.
+
+2. **Access the VM** via SSH once provisioned:
+   ```bash
+   ssh ubuntu@<vm-ip-address>
+   ```
+
+3. **Install Nginx**:
+   ```bash
+   sudo apt update
+   sudo apt install nginx certbot python3-certbot-nginx -y
+   ```
+
+4. **Copy the build output** to the VM:
+   ```bash
+   # From your local machine (after running npm run build)
+   scp -r build/ ubuntu@<vm-ip-address>:/var/www/physics-ide/
+   ```
+
+5. **Configure Nginx** using the template in Section 6.6.7 above.
+
+6. **Obtain a TLS certificate** (requires a DNS entry pointing to the VM):
+   ```bash
+   sudo certbot --nginx -d physics-ide.ilifu.ac.za
+   ```
+
+7. **Enable and start Nginx**:
+   ```bash
+   sudo systemctl enable nginx
+   sudo systemctl start nginx
+   ```
+
+8. **Test** by opening `https://physics-ide.ilifu.ac.za` in a browser.
+
+#### 6.6.10 Network Connectivity Note
+
+The three CDN libraries that Physics IDE loads (Blockly via `unpkg.com`, Monaco Editor via `unpkg.com`, and GlowScript via `glowscript.org`) are loaded directly by the student's browser — **not** routed through the ilifu VM. Campus network policies and firewalls must permit outbound HTTPS access to these domains from student workstations. This is typically the case on university networks and is consistent with the access required for any browser-based external learning tool.
+
+#### 6.6.11 Access Request Process
+
+Access to ilifu OpenStack for non-HPC hosting is obtained by contacting **support@ilifu.ac.za** with:
+- Institutional affiliation (UWC — a consortium partner, granting access entitlement)
+- Brief description of the intended use (static web hosting for an educational React application)
+- Requested VM flavour (ilifu-A is sufficient)
+- Estimated lifetime of the deployment
+
+Because Physics IDE requires no Slurm compute allocation, no fairshare quota application or DIRISA allocation committee approval is needed. The request is an OpenStack VM provisioning request handled directly by ilifu support staff.
+
+---
+
+### 6.7 Environment Variables
+
+No environment variables are required for the current static version. For the planned managed ilifu release (backend + auth + database), use variables such as:
 
 ```
 REACT_APP_API_URL=https://api.example.com
+REACT_APP_AUTH_PROVIDER_URL=https://auth.example.com
 ```
 
 CRA automatically injects `REACT_APP_*` variables at build time.
@@ -793,27 +1000,9 @@ LTI 1.3 uses OpenID Connect (OIDC) for the launch flow and replaces HMAC-SHA1 wi
 
 #### LTI 1.3 Architecture
 
-```
-Student clicks tool in iKamva
-    │
-    Sakai sends OIDC login initiation request
-    ├── POST https://physics-ide.vercel.app/lti/login
-    │
-    Physics IDE serverless function:
-    ├── Validates state parameter
-    ├── Returns redirect to Sakai's OIDC authorize endpoint
-    │
-    Sakai sends id_token (JWT)
-    ├── POST https://physics-ide.vercel.app/lti/launch
-    │
-    Serverless function:
-    ├── Verifies JWT signature (Sakai's public JWKs)
-    ├── Extracts user_id, course_id, role, custom params
-    ├── Generates a short-lived session token
-    └── Redirects to SPA: https://physics-ide.vercel.app/?token=...
-                │
-    Physics IDE SPA reads token, initialises with user context
-```
+![LTI 1.3 launch sequence](diagrams/technical-lti-flow.svg)
+
+*Figure 5. OIDC launch and token validation flow between iKamva, serverless endpoints, and the SPA.*
 
 See Appendix C for the LTI 1.3 registration checklist.
 
@@ -876,6 +1065,18 @@ If LTI integration is implemented and Physics IDE receives Sakai user identifier
 
 UWC's existing Sakai data processing agreements cover the LMS platform itself. Physics IDE would need to be registered as a processing activity in UWC's Information Officer records.
 
+### 11.4 Academic Integrity Metadata (Planned Managed Release)
+
+When code sharing and submissions are enabled, username-linked metadata becomes required for anti-cheat controls and dispute resolution. At minimum, each share or submission record should include:
+
+- Username of originator
+- Username of sender (if different)
+- Username(s) of recipient(s)
+- Course/module context
+- Timestamp and revision/version ID
+
+This metadata should be write-once in audit logs and visible to authorized teaching staff only.
+
 ---
 
 ## 12. Accessibility
@@ -935,8 +1136,12 @@ The VPython simulation viewport renders entirely in WebGL via an iframe. WebGL c
 |---|---|---|
 | Vite migration (retire CRA) | Developer | 4–8 hours |
 | CSS Modules (per-component styles) | Developer | 1–2 days |
+| Authentication and role model (teacher/student) | Developer + ICT | 1–2 weeks |
+| Course/class model and enrolment mapping | Developer + e-Learning | 1 week |
 | LTI 1.3 serverless launch handler | Developer | 3–5 days |
-| Per-user workspace persistence (Supabase) | Developer | 1 week |
+| Persistent database integration (workspace/project storage) | Developer | 1 week |
+| Code sharing with username attribution and audit trail | Developer | 1–2 weeks |
+| Basic anti-cheat analytics (similarity and unusual submission timing flags) | Developer + Academic Lead | 1 week |
 | Self-hosted CDN assets (offline support) | Developer | 1–2 days |
 | Mobile-responsive layout | Developer | 2–3 days |
 

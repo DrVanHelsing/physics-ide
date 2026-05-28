@@ -39,6 +39,8 @@ pdf_options:
 
 ---
 
+<div class="page-break"></div>
+
 ## 1. What is Physics IDE?
 
 **Physics IDE** is a browser-based 3D physics simulation environment. It lets you create, run, and debug physically accurate 3D simulations without installing any software. Everything runs in the browser.
@@ -167,22 +169,9 @@ The Block Editor uses **Google Blockly v11** — the same engine used in Scratch
 
 ### Layout
 
-```
-┌──────────────────┬────────────────────────────────────┐
-│   Toolbox        │          Canvas (workspace)        │
-│  (category list) │                                    │
-│  ─────────────── │   ┌─────────────────────────────┐  │
-│  Starter         │   │ Simulation Start   "My Sim" │  │
-│  Objects         │   │   ┌─ Define: GRAV = g ────┐ │  │
-│  Motion          │   │   └─ Set velocity ─────────┘ │  │
-│  State           │   │ Forever loop                │  │
-│  Control         │   │   ┌─ Rate: 60 fps ─────────┐ │  │
-│  Values          │   │   │ Update position ...    │ │  │
-│  3D Math         │   └─────────────────────────────┘  │
-│  Logic           │                                    │
-│  ...             │                                    │
-└──────────────────┴────────────────────────────────────┘
-```
+![Blockly workspace layout](diagrams/user-block-editor-layout.svg)
+
+*Figure 1. Block editor structure: toolbox categories on the left and a composable simulation program canvas on the right.*
 
 ### Using the toolbox
 

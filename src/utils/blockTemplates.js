@@ -1683,4 +1683,3 @@ export const BLOCK_TEMPLATES = [
     xml: buildTemplate(normalizeSimulationFlow(PENDULUM_BLOCKS)),
   },
 ];
-
