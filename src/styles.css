@@ -3031,6 +3031,271 @@ mark.help-search-highlight {
   outline-offset: 2px;
 }
 
+/* ── StartMenu B.5: project list + goal cards + wizard ───── */
+.start-card--goal {
+  min-height: 130px;
+}
+.start-project-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 24px;
+}
+.start-project-row {
+  display: flex;
+  align-items: stretch;
+  background: var(--bg-app, #16161d);
+  border: 1px solid var(--border, #2a2a36);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.start-project-row:hover {
+  border-color: rgba(255, 255, 255, 0.18);
+}
+.start-project-open {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: transparent;
+  border: none;
+  color: var(--text, #e6e6e6);
+  padding: 10px 14px;
+  text-align: left;
+  cursor: pointer;
+}
+.start-project-open:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+.start-project-icon {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.8;
+}
+.start-project-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.start-project-title {
+  font-size: 13px;
+  font-weight: 500;
+}
+.start-project-sub {
+  font-size: 11px;
+  opacity: 0.6;
+  text-transform: capitalize;
+}
+.start-project-delete {
+  background: transparent;
+  border: none;
+  color: var(--text, #e6e6e6);
+  opacity: 0.5;
+  padding: 0 12px;
+  cursor: pointer;
+}
+.start-project-delete:hover {
+  background: rgba(255, 70, 70, 0.12);
+  opacity: 1;
+  color: #ff7070;
+}
+
+.start-wizard {
+  background: var(--bg-app, #16161d);
+  border: 1px solid var(--border, #2a2a36);
+  border-left: 3px solid var(--card-accent, var(--accent));
+  border-radius: 8px;
+  overflow: hidden;
+  max-width: 720px;
+}
+.start-wizard-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border, #2a2a36);
+}
+.start-wizard-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+}
+.start-wizard-icon {
+  color: var(--card-accent, var(--accent));
+}
+.start-wizard-cancel {
+  background: transparent;
+  border: 1px solid var(--border, #2a2a36);
+  color: var(--text, #e6e6e6);
+  border-radius: 6px;
+  padding: 6px 8px;
+  cursor: pointer;
+}
+.start-wizard-body {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.start-wizard-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+.start-wizard-field > span,
+.start-wizard-field > legend {
+  font-size: 12px;
+  opacity: 0.75;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0;
+}
+.start-wizard-field input[type="text"],
+.start-wizard-field input:not([type]) {
+  background: var(--bg-base, #0e0e14);
+  color: var(--text, #e6e6e6);
+  border: 1px solid var(--border, #2a2a36);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 13px;
+}
+.start-wizard-radios {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.start-wizard-radio {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: var(--bg-base, #0e0e14);
+  border: 1px solid var(--border, #2a2a36);
+  border-radius: 6px;
+  padding: 10px 12px;
+  cursor: pointer;
+}
+.start-wizard-radio--active {
+  border-color: var(--card-accent, var(--accent));
+  background: color-mix(in srgb, var(--card-accent, var(--accent)) 8%, var(--bg-base, #0e0e14));
+}
+.start-wizard-radio--disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.start-wizard-radio input {
+  margin-top: 2px;
+  accent-color: var(--card-accent, var(--accent));
+}
+.start-wizard-radio-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.start-wizard-radio-label {
+  font-size: 13px;
+  font-weight: 500;
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+.start-wizard-radio-hint {
+  font-size: 11px;
+  opacity: 0.65;
+}
+.start-wizard-templates {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+.start-wizard-template {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: var(--bg-base, #0e0e14);
+  border: 1px solid var(--border, #2a2a36);
+  border-radius: 6px;
+  padding: 10px 12px;
+  cursor: pointer;
+  text-align: left;
+  color: var(--text, #e6e6e6);
+}
+.start-wizard-template--active {
+  border-color: var(--card-accent, var(--accent));
+}
+.start-wizard-template-icon {
+  color: var(--card-accent, var(--accent));
+  margin-top: 2px;
+}
+.start-wizard-template-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.start-wizard-template-meta strong {
+  font-size: 13px;
+}
+.start-wizard-template-meta span {
+  font-size: 11px;
+  opacity: 0.65;
+}
+.start-wizard-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+}
+.start-wizard-toggle input {
+  margin-top: 4px;
+  accent-color: var(--card-accent, var(--accent));
+}
+.start-wizard-toggle span {
+  font-size: 12px;
+}
+.start-wizard-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 14px 18px;
+  border-top: 1px solid var(--border, #2a2a36);
+}
+.start-wizard-secondary {
+  background: transparent;
+  border: 1px solid var(--border, #2a2a36);
+  color: var(--text, #e6e6e6);
+  border-radius: 6px;
+  padding: 8px 14px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.start-wizard-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--card-accent, var(--accent));
+  border: none;
+  color: #fff;
+  border-radius: 6px;
+  padding: 8px 14px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+}
+.start-wizard-primary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 /* ── Chart Overlay (Phase A) ──────────────────────────────── */
 .chart-overlay {
   position: fixed;
