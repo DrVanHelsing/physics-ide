@@ -4,6 +4,64 @@ A unified classroom IDE with three project goals (Physics Modelling, Data Scienc
 
 This plan replaces the previous version. It keeps the original's product decisions (goal-first IA, no block duplication, hybrid as first-class, beginner toggle as cross-cutting) and discards the premature backend stack (NestJS + Postgres + Redis + BullMQ + FastAPI) that was incompatible with the free-hosting constraint.
 
+---
+
+## Progress (running ledger)
+
+Branch: `phase-a-spike`. All work browser-only; no backend, no auth.
+
+### ✅ Phase A — Vertical slice spike (commit `5eea239`)
+- `src/utils/dataset/dataset.js` — `Dataset` shape + `fromTraceBuffer` (long→wide pivot, forward fill) + `filterRows` + `meanOfColumn` + `transform`.
+- `src/utils/charts/plotRender.js` — line + scatter via Observable Plot; numeric columns force `type: "linear"` with `ticks: 8`, `tickFormat: ".3~f"`, `tickRotate: -30` (fix landed for the over-condensed x-axis the user surfaced).
+- `src/components/ChartOverlay.js` — modal overlay, X/Y/type/title controls, SVG + PNG export.
+- `src/hooks/useDataset.js` — localForage `saveDataset` + `useDataset(id)`.
+- `src/components/TraceTable.js` — "Chart" action next to Rec.CSV.
+- `src/components/DebugMode.js` — threads `onSaveAsDataset`.
+- `src/components/layout/IDELayout.js` — owns chart-overlay state; mounts `ChartOverlay` in all three render branches.
+- `src/styles.css` — overlay styles.
+- `scripts/phase-a-perf.mjs` — Node smoke test.
+- `docs/phase-a-eval.md` — Gate A pass: bundle +148.63 kB gz (target ≤ 200), Arquero ops on 10 k rows 1.3–4.9 ms (target < 200 ms), pivot 21.3 ms.
+
+### ✅ Phase B.1 + B.2 — Product contract + manifest schema (commit `731ba5f`)
+- `docs/product-contract.md` — locked decisions, exclusion list, Phase D/E deferral gates.
+- `src/utils/manifest/schema.js` — `SCHEMA_VERSION = 2`, hand-written shape guards (`isManifest`, `isDatasetDescriptor`, `isRunSnapshot`, `isChartSpec`, `isColumn`, `explainManifest`).
+- `src/utils/manifest/factory.js` — `createManifest()` with enum validation.
+- `src/utils/manifest/migrate.js` — v2 passthrough, future-schema reject, legacy v1 wrap, `readLegacyV1` helper.
+- 32 Jest cases. All green.
+
+### ✅ Phase B.3 + B.4 + B.5 — Multi-project library + goal-first start menu (commit `6f2060b`)
+- `src/utils/storage/projectStore.js` — localForage CRUD; manifest validated on every read/write; project summaries under one key; 12 tests (44 total green).
+- `src/contexts/ProjectContext.js` — `activeProjectId`, `activeManifest`, `projectList`, `loaded`; bootstrap auto-migrates legacy `physics-lab-state-v1` localStorage on first run.
+- `src/hooks/useProject.js` — bridges ProjectContext ↔ SimulationContext (`applyManifestToWorkingState`, `captureWorkingStateInto`, `selectProject`, `createNew`, `saveCurrent`).
+- `src/components/StartMenu.js` — full rewrite: Continue (project list), three goal cards (Physics, Data Science, Hybrid), wizard panel (title, start path, editor, beginner, hybrid model/data-first).
+- `src/App.js` — mounts `ProjectProvider` inside `SimulationProvider`.
+- `src/components/layout/IDELayout.js` — threads useProject ops into StartMenu.
+- Bundle delta vs B.2: main +4.51 kB gz, CSS +603 B gz. User browser-validated.
+
+### 🟡 Phase B.6 — Block registry (in progress)
+- `src/utils/blockly/blockRegistry.js` — **DONE.** Canonical metadata for all 55 blocks: `{id, category, domain, conceptLabel, keywords, beginnerVisible}`. One canonical category per block; `BY_ID` lookup; `getBlocksByCategory`, `getBlocksByDomain`, `getBlocksForGoal({beginnerEnabled})`; `BLOCK_CATALOGUE` (search index) built from registry; `findDuplicateIds`, `findUnknownIds` for the CI check.
+- **Remaining:** wire `blocklyGenerator.js` / `BlocklyWorkspace.js` to consume `BLOCK_CATALOGUE` from the registry (eliminate the manual catalogue); add `scripts/check-block-registry.js` + `npm run check:blocks`; add a Jest test that every block id appearing in the live `TOOLBOX_XML` has a registry entry. **Deferred to Phase C with DS blocks:** swap `TOOLBOX_XML` for a registry-generated XML (preserving shadow defaults and labels). Doing it now without DS blocks buys nothing.
+
+### ⏳ Phase B.7 — Generator separation (right-sized down)
+- **Deferred to Phase C alongside DS generator additions.** The full split (per-domain files, generator map registration loop) is mechanical work better done when we are already touching generators. B.6's registry abstraction is the prerequisite and it's in place.
+
+### ⏳ Phase B.8 — Capability-driven toolbar (pending)
+- Refactor `src/components/Toolbar.js` so each action declares `{goals, editorModes?, requires?}` and the rendered set is filtered against the active goal.
+
+### ⏳ Phase B.9 — Layout primitives (pending)
+- Goal-specific defaults in `IDELayout`; new empty `src/components/DataPanel.js` (Phase C populates).
+
+### ⏳ Phase B.10 — Hosting (pending)
+- `vercel.json` (or Cloudflare Pages config); `DEPLOY.md`; CI smoke for offline-after-first-load.
+
+### ⏳ Phase C — Foundational DS + Hybrid (pending)
+- 59-block DS inventory, Arquero-backed implementations, chart-spec system, productionized trace-to-dataset, hybrid templates, full bundle import/export, guidance layer, manual classroom flows, perf budgets.
+
+### Phases D + E — Deferred, no work in progress
+- Both behind explicit triggers in `docs/product-contract.md`. Do not start.
+
+---
+
 ### Hosting Strategy (locked)
 - Frontend: static SPA hosted on Cloudflare Pages or Vercel (both free, generous limits, no cold starts on the critical path).
 - Templates and built-in datasets: static JSON shipped with the build, served from the same CDN.

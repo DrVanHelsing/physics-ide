@@ -14,6 +14,12 @@
  */
 
 import { traceRegistry, clearTraceRegistry } from './traceRegistry';
+import { BLOCK_CATALOGUE as REGISTRY_BLOCK_CATALOGUE } from './blockRegistry';
+
+// Re-export the canonical search index built from the block registry
+// (Phase B.6). Consumers (BlocklyWorkspace search bar, etc.) keep their
+// import sites unchanged.
+export const BLOCK_CATALOGUE = REGISTRY_BLOCK_CATALOGUE;
 
 let initialized = false;
 
@@ -1514,97 +1520,6 @@ export function defineCustomBlocksAndGenerator(Blockly) {
   initialized = true;
 }
 
-/* ── Block catalogue — used by the search bar ───────────── */
-export const BLOCK_CATALOGUE = [
-  // Starter
-  { type: "preset_sphere_block",   label: "Quick Sphere / Ball",           category: "Starter", keywords: ["sphere","ball","create","quick","object"] },
-  { type: "preset_box_block",      label: "Quick Box / Wall / Floor",      category: "Starter", keywords: ["box","wall","floor","create","quick","object"] },
-  { type: "physics_const_block",   label: "Physics Constant  (g, G, \u03c0\u2026)", category: "Starter", keywords: ["constant","g","gravity","pi","G","c","h"] },
-  { type: "time_step_block",       label: "Time step  dt",                 category: "Starter", keywords: ["dt","time","step","timestep"] },
-  { type: "set_gravity_block",     label: "Gravity  (g = 9.81)",           category: "Starter", keywords: ["gravity","g","9.81","downward"] },
-  { type: "forever_loop_block",    label: "Forever loop",                  category: "Starter", keywords: ["loop","forever","while","simulation","main"] },
-  { type: "rate_block",            label: "Rate  (animation fps)",         category: "Starter", keywords: ["rate","fps","speed","animation"] },
-  { type: "update_position_block", label: "Update position  pos += v\u00d7dt", category: "Starter", keywords: ["position","pos","move","update","euler"] },
-  { type: "apply_force_block",     label: "Apply force  v += a\u00d7dt",   category: "Starter", keywords: ["force","velocity","acceleration","apply","gravity"] },
-  { type: "if_block",              label: "If  condition",                 category: "Starter", keywords: ["if","when","condition","check"] },
-  { type: "if_else_block",         label: "If / Else",                     category: "Starter", keywords: ["if","else","condition","branch","otherwise"] },
-  // Values
-  { type: "define_const_block",    label: "Define constant  (const NAME = \u2026)",  category: "Values", keywords: ["constant","define","const","mass","spring","charge","named","reuse"] },
-  { type: "physics_const_block",   label: "Physics Constant  (g, G, \u03c0\u2026)", category: "Values", keywords: ["constant","g","G","pi","c","h","m_e","m_p"] },
-  { type: "vector_block",          label: "Vector  (x, y, z)",             category: "Values", keywords: ["vector","vec","position","velocity","axis"] },
-  { type: "colour_block",          label: "Colour",                        category: "Values", keywords: ["colour","color","red","blue","green","hue"] },
-  { type: "expr_block",            label: "Expression  (any Python)",      category: "Values", keywords: ["expression","expr","formula","code","custom"] },
-  { type: "var_read_block",        label: "Read variable  (var x)",         category: "Values", keywords: ["variable","read","var","name","value","get"] },
-  { type: "get_prop_block",        label: "Object property  (ball.pos)",   category: "Values", keywords: ["property","prop","dot","ball","pos","velocity","radius"] },
-  { type: "get_component_block",   label: "Vector component  .x .y .z",   category: "Values", keywords: ["component","x","y","z","scalar"] },
-  { type: "mag_block",             label: "Magnitude  mag(vec)",           category: "Values", keywords: ["magnitude","mag","speed","length","scalar"] },
-  { type: "norm_block",            label: "Unit vector  norm(vec)",        category: "Values", keywords: ["normalise","norm","unit","direction","hat"] },
-  // Objects
-  { type: "preset_sphere_block",   label: "Quick Sphere (preset)",         category: "Objects", keywords: ["sphere","preset","quick","ball","create"] },
-  { type: "preset_box_block",      label: "Quick Box (preset)",            category: "Objects", keywords: ["box","preset","quick","wall","floor","create"] },
-  { type: "sphere_block",          label: "Sphere",                        category: "Objects", keywords: ["sphere","ball","circle","round"] },
-  { type: "sphere_trail_block",    label: "Sphere + trail",                category: "Objects", keywords: ["sphere","trail","track","path","particle"] },
-  { type: "sphere_emissive_block", label: "Glowing sphere",                category: "Objects", keywords: ["sphere","glow","emissive","star","sun","light"] },
-  { type: "box_block",             label: "Box",                           category: "Objects", keywords: ["box","cube","wall","floor","ground","rect"] },
-  { type: "box_opacity_block",     label: "Box (transparent)",             category: "Objects", keywords: ["box","opacity","transparent","glass","semi"] },
-  { type: "cylinder_block",        label: "Cylinder",                      category: "Objects", keywords: ["cylinder","rod","pipe","tube","circle"] },
-  { type: "arrow_block",           label: "Arrow",                         category: "Objects", keywords: ["arrow","vector","force","direction","axis"] },
-  { type: "helix_block",           label: "Helix / Spring",                category: "Objects", keywords: ["helix","spring","coil","spiral"] },
-  { type: "helix_full_block",      label: "Helix detailed",                category: "Objects", keywords: ["helix","spring","coils","thickness","detailed"] },
-  { type: "label_block",           label: "Text label",                    category: "Objects", keywords: ["label","text","display","print","show"] },
-  { type: "label_full_block",      label: "Live display label",            category: "Objects", keywords: ["label","telemetry","live","display","hud"] },
-  { type: "local_light_block",     label: "Point light source",            category: "Objects", keywords: ["light","lamp","glow","local","point"] },
-  // Motion
-  { type: "set_velocity_block",    label: "Set velocity",                  category: "Motion", keywords: ["velocity","speed","v","motion","initial","set"] },
-  { type: "update_position_block", label: "Update position",               category: "Motion", keywords: ["position","pos","update","move","euler","step"] },
-  { type: "apply_force_block",     label: "Apply force / acceleration",    category: "Motion", keywords: ["force","acceleration","gravity","apply","net"] },
-  { type: "set_gravity_block",     label: "Gravity constant",              category: "Motion", keywords: ["gravity","g","9.81","vector","down"] },
-  // State
-  { type: "define_const_block",    label: "Define constant",               category: "State", keywords: ["constant","define","const","named","global"] },
-  { type: "set_scalar_block",      label: "Set variable  (x = \u2026)",   category: "State", keywords: ["variable","set","assign","scalar","number"] },
-  { type: "set_attr_expr_block",   label: "Set object attribute",          category: "State", keywords: ["set","attribute","property","object","dot"] },
-  { type: "add_attr_expr_block",   label: "Add to attribute  (+=)",        category: "State", keywords: ["add","increment","plus","attribute","update"] },
-  { type: "telemetry_update_block",label: "Live display update",           category: "State", keywords: ["telemetry","display","live","update","show","hud"] },
-  // Control
-  { type: "time_step_block",       label: "Time step  dt",                 category: "Control", keywords: ["dt","time","step","timestep"] },
-  { type: "rate_block",            label: "Rate  (fps)",                   category: "Control", keywords: ["rate","fps","animation","framerate"] },
-  { type: "forever_loop_block",    label: "Forever loop",                  category: "Control", keywords: ["loop","forever","while","main","simulation"] },
-  { type: "for_range_block",       label: "For loop  (range)",             category: "Control", keywords: ["for","loop","range","repeat","iterate","i"] },
-  { type: "if_block",              label: "If  condition",                 category: "Control", keywords: ["if","condition","when","check"] },
-  { type: "if_else_block",         label: "If / Else",                     category: "Control", keywords: ["if","else","condition","branch"] },
-  { type: "break_loop_block",      label: "Break loop",                    category: "Control", keywords: ["break","stop","exit","end","quit"] },
-  { type: "comment_block",         label: "Comment / Note",                category: "Control", keywords: ["comment","note","describe","explain","text"] },
-  // Advanced
-  { type: "python_raw_block",      label: "Raw Python code",               category: "Advanced", keywords: ["python","code","raw","custom","advanced","statement"] },
-  { type: "python_raw_expr_block", label: "Raw Python expression",         category: "Advanced", keywords: ["python","expression","raw","custom","advanced","value"] },
-  // Standard Blockly (commonly searched)
-  { type: "logic_compare",         label: "Compare  (< > == \u2260)",      category: "Logic", keywords: ["compare","less","greater","equal","condition","lt","gt"] },
-  { type: "logic_operation",       label: "AND / OR",                      category: "Logic", keywords: ["and","or","logic","boolean","both"] },
-  { type: "logic_negate",          label: "NOT",                           category: "Logic", keywords: ["not","negate","invert","false","true"] },
-  { type: "logic_boolean",         label: "True / False",                  category: "Logic", keywords: ["true","false","boolean"] },
-  { type: "compare_block",         label: "Compare  (< ≤ > ≥ = ≠)",         category: "Logic", keywords: ["compare","less","greater","equal","condition","lt","gt","custom"] },
-  { type: "logic_and_or_block",    label: "AND / OR  (custom)",             category: "Logic", keywords: ["and","or","logic","boolean","both","either","combine"] },
-  { type: "logic_not_block",       label: "NOT  (custom)",                  category: "Logic", keywords: ["not","negate","invert","flip"] },
-  { type: "math_number",           label: "Number",                        category: "Math", keywords: ["number","value","digit","constant","scalar"] },
-  { type: "math_arithmetic",       label: "Maths  (+ \u2212 \u00d7 \u00f7)", category: "Math", keywords: ["add","subtract","multiply","divide","arithmetic","math"] },
-  { type: "math_single",           label: "Math function  (sqrt, abs\u2026)", category: "Math", keywords: ["sqrt","abs","square","root","power","log","math"] },
-  { type: "math_trig",             label: "Trig  (sin, cos, tan)",         category: "Math", keywords: ["sin","cos","tan","trig","angle","radians","degrees"] },
-  { type: "math_constant",         label: "Math constant  (\u03c0, e, \u221a2)", category: "Math", keywords: ["pi","e","constant","phi","golden"] },
-  // Simulation structure
-  { type: "sim_start_block",       label: "Simulation Start",              category: "Starter", keywords: ["start","begin","simulation","setup","init"] },
-  { type: "sim_end_block",         label: "Simulation End",                category: "Starter", keywords: ["end","stop","finish","simulation","complete"] },
-  // 3D Math
-  { type: "cross_product_block",   label: "Cross product  cross(a, b)",    category: "3D Math", keywords: ["cross","product","perpendicular","torque","angular","3d"] },
-  { type: "dot_product_block",     label: "Dot product  dot(a, b)",        category: "3D Math", keywords: ["dot","product","scalar","work","projection","angle"] },
-  { type: "math_trig_block",       label: "Trig / math  (sin, cos, radians…)", category: "3D Math", keywords: ["sin","cos","tan","trig","radians","degrees","sqrt","abs","asin","acos"] },
-  { type: "vector_compose_block",  label: "Vector compose  (x, y, z slots)", category: "3D Math", keywords: ["vector","compose","build","variable","dynamic","expression"] },
-  { type: "math_min_block",        label: "Min  min(a, b)",               category: "3D Math", keywords: ["min","minimum","smaller","clamp","floor","lower"] },
-  { type: "math_max_block",        label: "Max  max(a, b)",               category: "3D Math", keywords: ["max","maximum","larger","clamp","ceiling","upper"] },
-  { type: "math_pow_block",        label: "Power  a ** b",                category: "3D Math", keywords: ["power","exponent","squared","cubed","inverse","square"] },
-  { type: "math_clamp_block",      label: "Clamp  (val, lo, hi)",         category: "3D Math", keywords: ["clamp","constrain","bound","limit","range","between"] },
-  { type: "rotate_object_block",   label: "Rotate object  (angle, axis)",  category: "3D Math", keywords: ["rotate","spin","angle","axis","angular","rotation","3d"] },
-  { type: "scene_camera_block",    label: "Scene / camera  (center, forward…)", category: "3D Math", keywords: ["scene","camera","forward","up","center","range","zoom","view"] },
-];
 
 /* ================================================================
    generatePythonFromWorkspace
