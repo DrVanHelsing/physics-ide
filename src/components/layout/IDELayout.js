@@ -44,6 +44,7 @@ import { useDebug }       from "../../hooks/useDebug";
 import { useTrace }       from "../../hooks/useTrace";
 import { useExport }      from "../../hooks/useExport";
 import { useSplitPane }   from "../../hooks/useSplitPane";
+import { useProject }     from "../../hooks/useProject";
 
 export default function IDELayout() {
   /* ── Theme ───────────────────────────────────────────── */
@@ -66,6 +67,7 @@ export default function IDELayout() {
   const dbg = useDebug();
   const trc = useTrace();
   const exp = useExport();
+  const proj = useProject();
   const { splitPct, handleDividerMouseDown } = useSplitPane();
 
   /* ── Simple UI handlers (defined here to avoid extra hook) */
@@ -107,9 +109,12 @@ export default function IDELayout() {
     return (
       <>
         <StartMenu
-          onSelect={sim.handleStartSelect}
-          onHelp={handleHelp}
+          projectList={proj.projectList}
+          onOpenProject={(id) => { proj.selectProject(id); }}
+          onDeleteProject={(id) => { proj.removeProject(id); }}
+          onCreate={(spec) => { proj.createNew(spec); }}
           onImport={(file) => { sim.handleImport(file); setShowStart(false); }}
+          onHelp={handleHelp}
         />
         {showHelp && <HelpPage onClose={() => setShowHelp(false)} />}
         {chartDataset && <ChartOverlay dataset={chartDataset} onClose={handleCloseChart} />}
