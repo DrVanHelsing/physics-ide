@@ -1,2 +1,15 @@
 .vercel
 node_modules
+md2pdf.config.json
+docs/Physics_IDE_Technical.pdf
+docs/vscode-theme.css
+docs/diagrams/technical-dataflow-debug.svg
+docs/diagrams/technical-ilifu-deployment.svg
+docs/diagrams/technical-lti-flow.svg
+docs/diagrams/technical-provider-architecture.svg
+docs/diagrams/technical-system-overview.svg
+docs/diagrams/user-block-editor-layout.svg
+docs/Physics_IDE_User_Guide.pdf
+docs/Physics_IDE_Technical.md
+docs/vscode-theme.css
+docs/Physics_IDE_User_Guide.pdf
