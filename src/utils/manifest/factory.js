@@ -60,7 +60,9 @@ export function createManifest({
       : defaultTitle(goal);
 
   const defaultXml =
-    goal === "datascience" && !workspaceXml ? DS_STARTER_XML : (workspaceXml || "");
+    (goal === "datascience" || goal === "hybrid") && !workspaceXml
+      ? DS_STARTER_XML
+      : (workspaceXml || "");
 
   return {
     schemaVersion: SCHEMA_VERSION,
