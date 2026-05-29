@@ -5,8 +5,8 @@
  *
  * Fails (exit 1) on:
  *   - Duplicate ids in src/utils/blockly/blockRegistry.js.
- *   - Any <block type="..."> appearing in src/components/BlocklyWorkspace.js's
- *     TOOLBOX_XML or TOOLBOX_BEGINNER_XML that does not have a registry entry.
+ *   - Any <block type="..."> appearing in src/utils/blockly/toolbox.js's
+ *     MASTER_TOOLBOX_XML that does not have a registry entry.
  *     Stock Blockly utility-category blocks (controls_*, variables_*,
  *     procedures_*, text_*, lists_*) are ignored because they are sourced
  *     from Blockly itself, not from our registry.
@@ -49,7 +49,7 @@ async function main() {
     process.exit(1);
   }
 
-  const toolboxPath = resolve(repoRoot, "src/components/BlocklyWorkspace.js");
+  const toolboxPath = resolve(repoRoot, "src/utils/blockly/toolbox.js");
   const toolboxSrc = readFileSync(toolboxPath, "utf8");
   const blockIdRe = /<block\s+type="([^"]+)"|<shadow\s+type="([^"]+)"/g;
   const toolboxIds = new Set();

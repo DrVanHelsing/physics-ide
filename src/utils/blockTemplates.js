@@ -1654,7 +1654,10 @@ const DS_PENGUINS_STATS_XML = `<xml xmlns="https://developers.google.com/blockly
     <variable id="ds-peng">df</variable>
     <variable id="ds-peng2">mean_bill</variable>
   </variables>
-  <block type="ds_load_builtin_block" x="40" y="40">
+  <block type="ds_start_block" x="40" y="40">
+    <field name="TITLE">Penguins: basic stats</field>
+    <statement name="BODY">
+  <block type="ds_load_builtin_block">
     <field name="VAR" id="ds-peng">df</field>
     <field name="ID">penguins</field>
     <next>
@@ -1678,6 +1681,8 @@ const DS_PENGUINS_STATS_XML = `<xml xmlns="https://developers.google.com/blockly
       </block>
     </next>
   </block>
+    </statement>
+  </block>
 </xml>`;
 
 const DS_WEATHER_FILTER_XML = `<xml xmlns="https://developers.google.com/blockly/xml">
@@ -1685,7 +1690,10 @@ const DS_WEATHER_FILTER_XML = `<xml xmlns="https://developers.google.com/blockly
     <variable id="ds-wx">weather</variable>
     <variable id="ds-ct">cape_town</variable>
   </variables>
-  <block type="ds_load_builtin_block" x="40" y="40">
+  <block type="ds_start_block" x="40" y="40">
+    <field name="TITLE">Weather: filter a city</field>
+    <statement name="BODY">
+  <block type="ds_load_builtin_block">
     <field name="VAR" id="ds-wx">weather</field>
     <field name="ID">weather</field>
     <next>
@@ -1710,13 +1718,18 @@ const DS_WEATHER_FILTER_XML = `<xml xmlns="https://developers.google.com/blockly
       </block>
     </next>
   </block>
+    </statement>
+  </block>
 </xml>`;
 
 const DS_PLANETS_CHART_XML = `<xml xmlns="https://developers.google.com/blockly/xml">
   <variables>
     <variable id="ds-pl">planets</variable>
   </variables>
-  <block type="ds_load_builtin_block" x="40" y="40">
+  <block type="ds_start_block" x="40" y="40">
+    <field name="TITLE">Planets: distance vs period</field>
+    <statement name="BODY">
+  <block type="ds_load_builtin_block">
     <field name="VAR" id="ds-pl">planets</field>
     <field name="ID">planets</field>
     <next>
@@ -1738,13 +1751,18 @@ const DS_PLANETS_CHART_XML = `<xml xmlns="https://developers.google.com/blockly/
       </block>
     </next>
   </block>
+    </statement>
+  </block>
 </xml>`;
 
 const DS_HYBRID_ANALYSIS_XML = `<xml xmlns="https://developers.google.com/blockly/xml">
   <variables>
     <variable id="ds-run1">run_data</variable>
   </variables>
-  <block type="ds_load_trace_block" x="40" y="40">
+  <block type="ds_start_block" x="40" y="40">
+    <field name="TITLE">Analyse a simulation run</field>
+    <statement name="BODY">
+  <block type="ds_load_trace_block">
     <field name="VAR" id="ds-run1">run_data</field>
     <field name="DATASET_NAME">Run @ (paste label from saved dataset)</field>
     <next>
@@ -1760,6 +1778,8 @@ const DS_HYBRID_ANALYSIS_XML = `<xml xmlns="https://developers.google.com/blockl
         </next>
       </block>
     </next>
+  </block>
+    </statement>
   </block>
 </xml>`;
 

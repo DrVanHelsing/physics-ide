@@ -14,7 +14,7 @@ A browser-based classroom IDE for physics modelling and foundational data scienc
 - **Data Science** — foundational table analysis on built-in or imported datasets.
 - **Hybrid** — both goals composed; simulations promote runs into datasets for analysis.
 
-Inside each goal the student picks an editing mode: **Blocks** or **Code**. Beginner mode is a cross-cutting toggle, not a fork.
+Inside each goal the student picks an editing mode: **Blocks** or **Code**. There is no beginner/advanced *mode* — the block toolbox is generated per goal from the canonical registry, and rarely-used categories collapse under an **Advanced** drawer. (A guided **Walkthrough Mode**, selectable at project creation, is a planned future phase — see the roadmap note below.)
 
 ---
 
@@ -31,8 +31,9 @@ Inside each goal the student picks an editing mode: **Blocks** or **Code**. Begi
 | Project model | **Multi-project library** | Start menu lists saved projects; manifest carries `id` used as storage key. |
 | Built-in datasets | **Penguins, Weather, Planets** | Titanic intentionally excluded — death-outcome ethics. |
 | Bundle export | **Both `.physide.json` and `.physide.zip`** | JSON default; ZIP offered when project has large datasets or chart PNGs. JSZip lazy-loaded. |
-| Beginner mode (DS) | **No block hiding** | Affects guidance prompts only; blocks remain discoverable by category and search. |
-| Beginner mode (Physics) | Toolbox subset (existing behavior unchanged) | The existing palette filter stays. |
+| Block toolbox | **Generated per goal from the registry** | One source of truth ([src/utils/blockly/toolbox.js](../src/utils/blockly/toolbox.js)); `buildToolboxXml(goal)` filters by each block's domain tag, so DS projects never show physics blocks and vice-versa. No hand-maintained duplicate toolboxes. |
+| Toolbox complexity | **Single toolbox + "Advanced" drawer** | Beginner/Advanced *mode* removed. Power-user categories (3D Math, Raw Python, Loops, Text, Lists, Functions) collapse under one Advanced section, MakeCode-style. |
+| Program anchor | **Hat blocks + disable-orphans** | Physics uses `sim_start`/`sim_end`; data analyses use a `ds_start` "Start analysis" hat. Top-level blocks outside the anchor are greyed and ignored, so "in use vs unused" is visible. |
 | Goal field | **Additive** | New `goal` on the manifest; existing `projectType` (custom / code_blank / code_template / block_template) stays as origin metadata. They are orthogonal axes. |
 | Runtime abstraction | **Deferred** | No interface until a concrete second runtime exists. Physics stays in `src/utils/runner/glowRunner.js`; DS calls Arquero / Plot directly from block generators. |
 | Type system | **Minimal** | Blockly connection checks + the new shared type tags. No coercion engine in v1. |
@@ -85,6 +86,10 @@ Start only when a feature spec requires identity. Likely triggers (none committe
 If green-lit: Supabase auth (method picked by actual user demand), one `users` table linking auth ids to existing anonymous project keys so anonymous work isn't lost on sign-in.
 
 ---
+
+### Future — Guided Walkthrough Mode (feature, not infrastructure)
+
+A step-by-step guided mode for beginners, **selectable at project creation** per goal (Physics / Data Science / Hybrid). It walks a learner through the intended block flow rather than hiding blocks — this replaces the removed beginner *toggle*. The retained [src/components/BeginnerGuide.js](../src/components/BeginnerGuide.js) component (goal-aware tips) is the seed. Browser-only UI, no backend and no auth, so it carries **no deferral gate** and can land any time after v1. Tracked as **Phase W** in [plan.md](../plan.md).
 
 ## Quality bar (v1.0 ship gate)
 

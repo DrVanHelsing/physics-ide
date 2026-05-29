@@ -13,14 +13,19 @@ const DS_STARTER_XML = `<xml xmlns="https://developers.google.com/blockly/xml">
   <variables>
     <variable id="ds-starter-df">df</variable>
   </variables>
-  <block type="ds_load_builtin_block" x="40" y="40">
-    <field name="VAR" id="ds-starter-df">df</field>
-    <field name="ID">penguins</field>
-    <next>
-      <block type="ds_show_table_block">
+  <block type="ds_start_block" x="40" y="40">
+    <field name="TITLE">My Analysis</field>
+    <statement name="BODY">
+      <block type="ds_load_builtin_block">
         <field name="VAR" id="ds-starter-df">df</field>
+        <field name="ID">penguins</field>
+        <next>
+          <block type="ds_show_table_block">
+            <field name="VAR" id="ds-starter-df">df</field>
+          </block>
+        </next>
       </block>
-    </next>
+    </statement>
   </block>
 </xml>`;
 

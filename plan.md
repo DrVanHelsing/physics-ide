@@ -43,7 +43,7 @@ Branch: `phase-a-spike`. All work browser-only; no backend, no auth.
 - `src/utils/blockly/blocklyGenerator.js` — 90-line manual `BLOCK_CATALOGUE` deleted; named export re-aliased to the registry.
 - `scripts/check-block-registry.mjs` + `npm run check:blocks` — CI guard. Fails on duplicate ids or unregistered toolbox ids. Stock Blockly ids allowlisted. Current: 67 entries, 0 duplicates, 59 toolbox ids all present.
 - `src/utils/blockly/__tests__/blockRegistry.test.js` — 10 cases mirror the CI script; suite total now 54 green.
-- **Deferred to Phase C with DS blocks:** swap `TOOLBOX_XML` for a registry-generated XML (preserves shadow defaults and labels). Doing it without DS blocks in hand buys nothing.
+- **✅ Done in Phase J:** `TOOLBOX_XML` replaced by a registry-generated, goal-filtered toolbox ([src/utils/blockly/toolbox.js](src/utils/blockly/toolbox.js)); shadow defaults and group labels preserved.
 
 ### ⏳ Phase B.7 — Generator separation (rolled into Phase C)
 - Per-domain generator files (`shared.js`, `physics.js`, `datascience.js`) and the registration loop land alongside DS generator additions. B.6's registry is the prerequisite and is in place.
@@ -114,6 +114,15 @@ Branch: `phase-a-spike`. All work browser-only; no backend, no auth.
 
 ### ✅ Phase C COMPLETE
 
+### ✅ Phase J — Registry-driven toolbox + mode removal + DS analysis anchor
+- **Single-source toolbox:** deleted both hand-written `TOOLBOX_XML` and `TOOLBOX_BEGINNER_XML`; the toolbox is generated from the block registry by [src/utils/blockly/toolbox.js](src/utils/blockly/toolbox.js). `buildToolboxXml(goal)` filters every block by its registry domain tag, so DS/Hybrid projects finally surface the Data Science category (the reported bug) and physics projects never show DS blocks.
+- **Removed the "Starter" category;** simulation anchors (`sim_start`/`sim_end`) moved into Control.
+- **Removed beginner/advanced *mode*** entirely — context state, toolbar toggle, start-menu toggle, persistence wiring, and the `BeginnerGuide` strip. Complexity is now managed by a MakeCode-style collapsible **Advanced** drawer (3D Math, Raw Python, Loops, Text, Lists, Functions).
+- **Goal threaded into the workspace;** the toolbox rebuilds when the project goal changes.
+- **DS analysis anchor:** new `ds_start_block` "Start analysis" hat (mirrors physics `sim_start`). DS codegen walks only the hat's body (falls back to all top blocks for legacy projects); a disable-orphans pass greys top-level blocks left outside the hat. Seeded into new DS projects and all DS/Hybrid templates.
+- **Gate check passed:** 90/90 tests (4 new goal-filter cases), `check:blocks` 115 entries / 107 toolbox ids, clean production build.
+- Origin & rationale: [docs/makecode-audit.md](docs/makecode-audit.md) (items P0–P1).
+
 ### Phases D + E — Deferred, no work in progress
 - Both behind explicit triggers in `docs/product-contract.md`. Do not start.
 
@@ -156,6 +165,7 @@ Branch: `phase-a-spike`. All work browser-only; no backend, no auth.
 | **C** — Foundational DS + Hybrid | DS block set, trace-to-dataset, hybrid templates | No | No |
 | **D** — *Deferred* cloud save | Optional Supabase-backed save *if* user demand justifies it | Supabase only | Still no — anonymous keyed bundles |
 | **E** — *Deferred* multi-user | Auth + sharing + classroom features, *only when* required | Yes | Yes |
+| **W** — *Future* Guided Walkthrough | Optional step-by-step guided mode, selectable per goal at project creation; teaches the block flow for beginners (replaces the removed beginner toggle). Seed: the retained `BeginnerGuide` component. Browser-only — no deferral gate. | No | No |
 
 Phases A–C are the initial release. D and E are explicitly out of scope until a feature need is documented and approved.
 
@@ -437,7 +447,7 @@ New files to introduce:
 - **Removed:** NestJS + Fastify, PostgreSQL, Redis, BullMQ, FastAPI Python worker, eight-service backend, auth model, runtime strategy interface, capability contract abstraction, block-level type coercion engine.
 - **Deferred (with explicit gates):** cloud save, auth, multi-user, teacher features, second runtime, full type system.
 - **Added:** Phase A vertical-slice spike before any refactor, hosting target lock to a free static CDN, explicit zero-backend rule for v1, library choice gated on real measurements.
-- **Kept:** goal-first IA, no block duplication, hybrid as first-class, beginner toggle as cross-cutting, shared dataset abstraction, trace-to-dataset pipeline, canonical block registry, manifest schema with versioning, foundational DS scope as defined in the docs.
+- **Kept:** goal-first IA, no block duplication, hybrid as first-class, registry-driven goal-filtered toolbox, shared dataset abstraction, trace-to-dataset pipeline, canonical block registry, manifest schema with versioning, foundational DS scope as defined in the docs.
 
 ---
 

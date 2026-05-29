@@ -18,6 +18,7 @@ import {
   findUnknownIds,
   BLOCK_CATALOGUE,
 } from "../blockRegistry";
+import { buildToolboxXml } from "../toolbox";
 
 const STOCK_PREFIXES = ["controls_", "variables_", "procedures_", "lists_", "text_"];
 const STOCK_ONLY_IDS = new Set([
@@ -33,7 +34,7 @@ function isStockBlock(id) {
 }
 
 function extractToolboxBlockIds() {
-  const toolboxPath = resolve(__dirname, "../../../components/BlocklyWorkspace.js");
+  const toolboxPath = resolve(__dirname, "../toolbox.js");
   const src = readFileSync(toolboxPath, "utf8");
   const re = /<block\s+type="([^"]+)"|<shadow\s+type="([^"]+)"/g;
   const ids = new Set();
@@ -116,5 +117,47 @@ describe("blockRegistry guarantees", () => {
     const hybrid = getBlocksForGoal("hybrid");
     const allowed = new Set(["shared", "physics", "datascience", "hybrid"]);
     expect(hybrid.every((e) => allowed.has(e.domain))).toBe(true);
+  });
+});
+
+describe("buildToolboxXml goal filtering", () => {
+  function typesIn(xml) {
+    const set = new Set();
+    const re = /<block\s+type="([^"]+)"|<shadow\s+type="([^"]+)"/g;
+    let m;
+    while ((m = re.exec(xml))) set.add(m[1] || m[2]);
+    return set;
+  }
+
+  test("physics toolbox has physics + shared blocks, never datascience", () => {
+    const t = typesIn(buildToolboxXml("physics"));
+    expect(t.has("sphere_block")).toBe(true);            // physics
+    expect(t.has("math_number")).toBe(true);             // shared / stock
+    expect(t.has("ds_load_builtin_block")).toBe(false);  // datascience
+    expect(t.has("ds_start_block")).toBe(false);
+  });
+
+  test("datascience toolbox has DS + shared, never physics-only", () => {
+    const t = typesIn(buildToolboxXml("datascience"));
+    expect(t.has("ds_start_block")).toBe(true);
+    expect(t.has("ds_load_builtin_block")).toBe(true);
+    expect(t.has("if_block")).toBe(true);                // shared (Control)
+    expect(t.has("sphere_block")).toBe(false);           // physics-only
+    expect(t.has("set_velocity_block")).toBe(false);
+    expect(t.has("sim_start_block")).toBe(false);        // physics anchor dropped
+  });
+
+  test("hybrid toolbox is the union of physics + datascience", () => {
+    const t = typesIn(buildToolboxXml("hybrid"));
+    expect(t.has("sphere_block")).toBe(true);
+    expect(t.has("ds_load_builtin_block")).toBe(true);
+    expect(t.has("sim_start_block")).toBe(true);
+  });
+
+  test("empty categories are pruned, dynamic categories survive", () => {
+    const ds = buildToolboxXml("datascience");
+    expect(ds.includes('custom="VARIABLE"')).toBe(true); // dynamic — keep
+    expect(ds.includes('name="Objects"')).toBe(false);   // physics-only — pruned
+    expect(ds.includes('name="Data Science"')).toBe(true);
   });
 });

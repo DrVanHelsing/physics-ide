@@ -32,7 +32,6 @@ import DebugMode    from "../DebugMode";
 import ChartOverlay from "../ChartOverlay";
 import DataPanel    from "../DataPanel";
 import TracePromoteDialog from "../TracePromoteDialog";
-import BeginnerGuide from "../BeginnerGuide";
 import { BlocksIcon, CodeIcon, GlobeIcon } from "../Icons";
 
 import { fromTraceBuffer, toCsvText, serializeDescriptor } from "../../utils/dataset/dataset";
@@ -169,7 +168,6 @@ export default function IDELayout() {
       console.warn("Could not persist dataset to localForage:", err);
     }
     // Persist RunSnapshot + dataset descriptor to manifest.
-    const now = Date.now();
     const runSnapshot = {
       id: dataset.id,
       label,
@@ -222,13 +220,6 @@ export default function IDELayout() {
     }
   }, [proj]);
 
-  /* ── Beginner guidance checkpoint save (localStorage only) ── */
-  const handleTipDismiss = useCallback((dismissedIds) => {
-    try {
-      localStorage.setItem("physide-dismissed-tips", JSON.stringify(dismissedIds));
-    } catch (_) {}
-  }, []);
-
   /* ── Derived presentation values ─────────────────────── */
   const statusClass =
     status.type === "error"   ? "console-bar console-bar--error"   :
@@ -236,7 +227,7 @@ export default function IDELayout() {
                                  "console-bar";
 
   const { mode, pythonCode, workspaceXml, projectType, running,
-          blocklyZoom, viewportHidden, beginnerMode } = sim;
+          blocklyZoom, viewportHidden } = sim;
 
   const isCustom       = projectType === "custom";
   const lockedMode     = projectType === "code_blank" ? "blocks" : null;
@@ -346,8 +337,6 @@ export default function IDELayout() {
         onZoomChange={sim.handleZoomChange}
         viewportHidden={viewportHidden}
         onToggleViewport={sim.handleToggleViewport}
-        beginnerMode={beginnerMode}
-        onToggleBeginnerMode={sim.handleToggleBeginnerMode}
         onDebugMode={dbg.handleEnterDebug}
       >
         <ModeToggle
@@ -357,15 +346,6 @@ export default function IDELayout() {
           codeLabel={isCustom ? "Code View Only" : "Code"}
         />
       </Toolbar>
-
-      {/* ── Beginner guide strip ── */}
-      {beginnerMode && (
-        <BeginnerGuide
-          goal={goal}
-          checkpointState={proj.activeManifest?.checkpointState}
-          onDismiss={handleTipDismiss}
-        />
-      )}
 
       <div className="main-layout">
         {/* ── Editor pane ── */}
@@ -395,7 +375,7 @@ export default function IDELayout() {
                   onWorkspaceReady={sim.handleWorkspaceReady}
                   onWorkspaceChange={handleWorkspaceChange}
                   isDark={isDark}
-                  beginnerMode={beginnerMode}
+                  goal={goal}
                 />
               )}
             </>

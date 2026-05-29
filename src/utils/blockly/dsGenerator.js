@@ -462,8 +462,19 @@ function walkChain(block, parts) {
 export function generateDsJsFromWorkspace(workspace) {
   if (!workspace) return "";
   const parts = [];
-  for (const top of workspace.getTopBlocks(true)) {
-    walkChain(top, parts);
+  const tops = workspace.getTopBlocks(true);
+  // Anchor to the ds_start hat(s) when present: only the analysis placed
+  // inside a hat runs. Falls back to all top blocks for legacy projects
+  // (and templates) that have no hat yet.
+  const hats = tops.filter((b) => b.type === "ds_start_block");
+  if (hats.length > 0) {
+    for (const hat of hats) {
+      walkChain(hat.getInputTargetBlock("BODY"), parts);
+    }
+  } else {
+    for (const top of tops) {
+      walkChain(top, parts);
+    }
   }
   return parts.join("");
 }

@@ -43,7 +43,6 @@ export function SimulationProvider({ children }) {
   const [blocklyZoom,     setBlocklyZoom]     = useState(ZOOM_DEFAULT);
   const [splitPct,        setSplitPct]        = useState(SPLIT_DEFAULT);
   const [viewportHidden,  setViewportHidden]  = useState(false);
-  const [beginnerMode,    setBeginnerMode]    = useState(false);
 
   /* ── Live Blockly workspace reference ────────────────── */
   const workspaceRef = useRef(null);
@@ -86,7 +85,6 @@ export function SimulationProvider({ children }) {
     blocklyZoom,    setBlocklyZoom,
     splitPct,       setSplitPct,
     viewportHidden, setViewportHidden,
-    beginnerMode,   setBeginnerMode,
     /* stable workspace ref */
     workspaceRef,
   };
