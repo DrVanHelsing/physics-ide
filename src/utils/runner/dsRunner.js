@@ -10,6 +10,8 @@ import {
   mode,
   rangeOfColumn,
   countOfColumn,
+  allStats,
+  cellAt,
   filterRows,
   transform,
 } from "../dataset/dataset.js";
@@ -17,7 +19,7 @@ import {
 const DS_API = {
   fromBuiltin,
   meanOfColumn, median, minOfColumn, maxOfColumn, sumOfColumn, stddevOfColumn,
-  uniqueCount, mode, rangeOfColumn, countOfColumn,
+  uniqueCount, mode, rangeOfColumn, countOfColumn, allStats, cellAt,
   filterRows, transform,
 };
 

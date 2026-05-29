@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { TableIcon } from "./Icons";
 import { renderDsChartToElement } from "../utils/charts/chartSpec";
 
@@ -45,7 +45,8 @@ function DsChart({ chartOutput }) {
   const ref = useRef(null);
   useEffect(() => {
     if (!ref.current) return;
-    const el = renderDsChartToElement(chartOutput);
+    const w = ref.current.clientWidth || 320;
+    const el = renderDsChartToElement(chartOutput, w);
     ref.current.innerHTML = "";
     if (el) ref.current.appendChild(el);
     return () => { if (ref.current) ref.current.innerHTML = ""; };
@@ -53,14 +54,77 @@ function DsChart({ chartOutput }) {
   return <div className="ds-chart-container" ref={ref} />;
 }
 
-export default function DataPanel({ goal, datasetCount = 0, dsOutputs = [] }) {
-  const tableOutputs  = dsOutputs.filter((o) => o.type === "table");
-  const valueOutputs  = dsOutputs.filter((o) => o.type === "value");
-  const chartOutputs  = dsOutputs.filter((o) => o.type === "chart");
-  const noteOutputs   = dsOutputs.filter((o) => o.type === "note");
+function DsPython({ code }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="ds-python-block">
+      <button className="ds-python-toggle" onClick={() => setOpen(o => !o)}>
+        {open ? "▾" : "▸"} Generated Python
+      </button>
+      {open && <pre className="ds-python-pre">{code}</pre>}
+    </div>
+  );
+}
+
+const STAT_LABELS = {
+  count: "count", mean: "mean", median: "median",
+  min: "min", max: "max", range: "range", sum: "sum", spread: "spread",
+};
+
+function fmtNum(v) {
+  if (v == null) return "—";
+  if (typeof v === "number") return Number.isInteger(v) ? String(v) : v.toFixed(4);
+  return String(v);
+}
+
+function AllStats({ output }) {
+  const { col, stats } = output;
+  return (
+    <div className="ds-all-stats">
+      <p className="ds-all-stats-title">{col}</p>
+      <div className="ds-all-stats-grid">
+        {Object.entries(STAT_LABELS).map(([key, label]) => (
+          <div key={key} className="ds-all-stats-cell">
+            <span className="ds-value-label">{label}</span>
+            <span className="ds-value-num">{fmtNum(stats?.[key])}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function CompareStats({ output }) {
+  const { colA, colB, statsA, statsB } = output;
+  return (
+    <div className="ds-compare-stats">
+      <div className="ds-compare-stats-header">
+        <span />
+        <span className="ds-compare-stats-col">{colA}</span>
+        <span className="ds-compare-stats-col">{colB}</span>
+      </div>
+      {Object.entries(STAT_LABELS).map(([key, label]) => (
+        <div key={key} className="ds-compare-stats-row">
+          <span className="ds-value-label">{label}</span>
+          <span className="ds-value-num">{fmtNum(statsA?.[key])}</span>
+          <span className="ds-value-num">{fmtNum(statsB?.[key])}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export default function DataPanel({ goal, datasetCount = 0, dsOutputs = [], dsError = null }) {
+  const tableOutputs   = dsOutputs.filter((o) => o.type === "table");
+  const valueOutputs   = dsOutputs.filter((o) => o.type === "value");
+  const chartOutputs   = dsOutputs.filter((o) => o.type === "chart");
+  const noteOutputs    = dsOutputs.filter((o) => o.type === "note");
   const compareOutputs = dsOutputs.filter((o) => o.type === "compare");
-  const conclusions   = dsOutputs.filter((o) => o.type === "conclusion");
-  const hasOutputs = dsOutputs.length > 0;
+  const allStatsOutputs    = dsOutputs.filter((o) => o.type === "all_stats");
+  const compareStatsOutputs = dsOutputs.filter((o) => o.type === "compare_stats");
+  const conclusions    = dsOutputs.filter((o) => o.type === "conclusion");
+  const pythonOutputs  = dsOutputs.filter((o) => o.type === "python");
+  const hasOutputs = dsOutputs.length > 0 || dsError;
   const primaryTable = tableOutputs[0];
 
   return (
@@ -78,7 +142,14 @@ export default function DataPanel({ goal, datasetCount = 0, dsOutputs = [] }) {
         </span>
       </div>
 
-      <div className="data-panel-body">
+      <div className={`data-panel-body${!hasOutputs ? " data-panel-body--empty" : ""}`}>
+        {dsError && (
+          <div className="ds-runner-error">
+            <span className="ds-runner-error-icon">⚠</span>
+            <span className="ds-runner-error-text">{dsError}</span>
+          </div>
+        )}
+
         {!hasOutputs && (
           <>
             <p className="data-panel-empty-title">No active dataset</p>
@@ -104,7 +175,9 @@ export default function DataPanel({ goal, datasetCount = 0, dsOutputs = [] }) {
                 <span className="ds-value-label">{o.label}</span>
                 <span className="ds-value-num">
                   {typeof o.value === "number"
-                    ? o.value.toFixed(4)
+                    ? Number.isInteger(o.value)
+                      ? String(o.value)
+                      : o.value.toFixed(4)
                     : o.value == null
                     ? "—"
                     : String(o.value)}
@@ -125,6 +198,7 @@ export default function DataPanel({ goal, datasetCount = 0, dsOutputs = [] }) {
 
         {chartOutputs.map((c, i) => (
           <div key={i} className="ds-chart-section">
+            {c.title && <p className="ds-chart-label">{c.title}</p>}
             <DsChart chartOutput={c} />
           </div>
         ))}
@@ -138,17 +212,29 @@ export default function DataPanel({ goal, datasetCount = 0, dsOutputs = [] }) {
             <div className="ds-compare-cell">
               <span className="ds-value-label">{o.a.label}</span>
               <span className="ds-value-num">
-                {typeof o.a.value === "number" ? o.a.value.toFixed(4) : String(o.a.value ?? "—")}
+                {typeof o.a.value === "number"
+                  ? Number.isInteger(o.a.value) ? String(o.a.value) : o.a.value.toFixed(4)
+                  : String(o.a.value ?? "—")}
               </span>
             </div>
             <span className="ds-compare-vs">vs</span>
             <div className="ds-compare-cell">
               <span className="ds-value-label">{o.b.label}</span>
               <span className="ds-value-num">
-                {typeof o.b.value === "number" ? o.b.value.toFixed(4) : String(o.b.value ?? "—")}
+                {typeof o.b.value === "number"
+                  ? Number.isInteger(o.b.value) ? String(o.b.value) : o.b.value.toFixed(4)
+                  : String(o.b.value ?? "—")}
               </span>
             </div>
           </div>
+        ))}
+
+        {allStatsOutputs.map((o, i) => (
+          <AllStats key={i} output={o} />
+        ))}
+
+        {compareStatsOutputs.map((o, i) => (
+          <CompareStats key={i} output={o} />
         ))}
 
         {conclusions.map((o, i) => (
@@ -156,6 +242,10 @@ export default function DataPanel({ goal, datasetCount = 0, dsOutputs = [] }) {
             <span className="ds-conclusion-icon">💡</span>
             <span className="ds-conclusion-text">{o.text}</span>
           </div>
+        ))}
+
+        {pythonOutputs.map((o, i) => (
+          <DsPython key={i} code={o.code} />
         ))}
       </div>
     </div>

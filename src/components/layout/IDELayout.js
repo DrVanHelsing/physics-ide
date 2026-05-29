@@ -37,6 +37,7 @@ import { fromTraceBuffer, toCsvText } from "../../utils/dataset/dataset";
 import { saveDataset } from "../../hooks/useDataset";
 import { generateDsJsFromWorkspace } from "../../utils/blockly/dsGenerator";
 import { runDsCode } from "../../utils/runner/dsRunner";
+import { renderDsChartToElement } from "../../utils/charts/chartSpec";
 
 import { useTheme }              from "../../contexts/ThemeContext";
 import { useSimulationContext }  from "../../contexts/SimulationContext";
@@ -78,6 +79,7 @@ export default function IDELayout() {
 
   /* ── DS panel outputs ────────────────────────────────────── */
   const [dsOutputs, setDsOutputs] = useState([]);
+  const [dsError,   setDsError]   = useState(null);
 
   const goal = proj.activeManifest?.goal || "physics";
   const isDataGoal = goal === "datascience";
@@ -87,7 +89,8 @@ export default function IDELayout() {
       sim.handleWorkspaceChange(xml, code);
       if (isDataGoal && workspaceRef.current) {
         const jsCode = generateDsJsFromWorkspace(workspaceRef.current);
-        runDsCode(jsCode).then(({ outputs }) => {
+        runDsCode(jsCode).then(({ outputs, error }) => {
+          setDsError(error || null);
           const displayOutputs = [];
           for (const o of outputs) {
             if (o.type === "download" && o.format === "csv" && o.dataset) {
@@ -99,6 +102,22 @@ export default function IDELayout() {
               a.download = `${o.dataset.id || "dataset"}.csv`;
               a.click();
               URL.revokeObjectURL(url);
+            } else if (o.type === "show_python") {
+              displayOutputs.push({ type: "python", code });
+            } else if (o.type === "save_chart" && o.dataset) {
+              const svgEl = renderDsChartToElement(o, 600);
+              if (svgEl && svgEl.tagName === "svg") {
+                const blob = new Blob(
+                  [new XMLSerializer().serializeToString(svgEl)],
+                  { type: "image/svg+xml" }
+                );
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `chart-${o.chartType || "chart"}.svg`;
+                a.click();
+                URL.revokeObjectURL(url);
+              }
             } else {
               displayOutputs.push(o);
             }
@@ -321,6 +340,7 @@ export default function IDELayout() {
               goal={goal}
               datasetCount={proj.activeManifest?.datasets?.length || 0}
               dsOutputs={dsOutputs}
+              dsError={dsError}
             />
           </section>
         ) : (
