@@ -1647,7 +1647,158 @@ const PENDULUM_BLOCKS = [
   { type: "sim_end_block", fields: { MSG: "Pendulum simulation complete." } },
 ];
 
+/* ── DS / Hybrid template XML helpers ───────────────── */
+
+const DS_PENGUINS_STATS_XML = `<xml xmlns="https://developers.google.com/blockly/xml">
+  <variables>
+    <variable id="ds-peng">df</variable>
+    <variable id="ds-peng2">mean_bill</variable>
+  </variables>
+  <block type="ds_load_builtin_block" x="40" y="40">
+    <field name="VAR" id="ds-peng">df</field>
+    <field name="ID">penguins</field>
+    <next>
+      <block type="ds_show_table_block">
+        <field name="VAR" id="ds-peng">df</field>
+        <next>
+          <block type="ds_calc_mean_block">
+            <field name="RESULT" id="ds-peng2">mean_bill</field>
+            <field name="VAR" id="ds-peng">df</field>
+            <field name="COL">bill_length_mm</field>
+            <next>
+              <block type="ds_chart_bar_block">
+                <field name="VAR" id="ds-peng">df</field>
+                <field name="X">species</field>
+                <field name="Y">bill_length_mm</field>
+                <field name="TITLE">Bill length by species</field>
+              </block>
+            </next>
+          </block>
+        </next>
+      </block>
+    </next>
+  </block>
+</xml>`;
+
+const DS_WEATHER_FILTER_XML = `<xml xmlns="https://developers.google.com/blockly/xml">
+  <variables>
+    <variable id="ds-wx">weather</variable>
+    <variable id="ds-ct">cape_town</variable>
+  </variables>
+  <block type="ds_load_builtin_block" x="40" y="40">
+    <field name="VAR" id="ds-wx">weather</field>
+    <field name="ID">weather</field>
+    <next>
+      <block type="ds_filter_eq_block">
+        <field name="RESULT" id="ds-ct">cape_town</field>
+        <field name="VAR" id="ds-wx">weather</field>
+        <field name="COL">city</field>
+        <field name="VAL">Cape Town</field>
+        <next>
+          <block type="ds_show_table_block">
+            <field name="VAR" id="ds-ct">cape_town</field>
+            <next>
+              <block type="ds_chart_bar_block">
+                <field name="VAR" id="ds-ct">cape_town</field>
+                <field name="X">date</field>
+                <field name="Y">temp_max</field>
+                <field name="TITLE">Cape Town max temperature</field>
+              </block>
+            </next>
+          </block>
+        </next>
+      </block>
+    </next>
+  </block>
+</xml>`;
+
+const DS_PLANETS_CHART_XML = `<xml xmlns="https://developers.google.com/blockly/xml">
+  <variables>
+    <variable id="ds-pl">planets</variable>
+  </variables>
+  <block type="ds_load_builtin_block" x="40" y="40">
+    <field name="VAR" id="ds-pl">planets</field>
+    <field name="ID">planets</field>
+    <next>
+      <block type="ds_show_table_block">
+        <field name="VAR" id="ds-pl">planets</field>
+        <next>
+          <block type="ds_chart_scatter_block">
+            <field name="VAR" id="ds-pl">planets</field>
+            <field name="X">distance_au</field>
+            <field name="Y">orbital_period_years</field>
+            <field name="TITLE">Distance vs Orbital Period</field>
+            <next>
+              <block type="ds_state_conclusion_block">
+                <field name="TEXT">Planets farther from the Sun take longer to orbit — this is Kepler's third law!</field>
+              </block>
+            </next>
+          </block>
+        </next>
+      </block>
+    </next>
+  </block>
+</xml>`;
+
+const DS_HYBRID_ANALYSIS_XML = `<xml xmlns="https://developers.google.com/blockly/xml">
+  <variables>
+    <variable id="ds-run1">run_data</variable>
+  </variables>
+  <block type="ds_load_trace_block" x="40" y="40">
+    <field name="VAR" id="ds-run1">run_data</field>
+    <field name="DATASET_NAME">Run @ (paste label from saved dataset)</field>
+    <next>
+      <block type="ds_show_table_block">
+        <field name="VAR" id="ds-run1">run_data</field>
+        <next>
+          <block type="ds_chart_line_block">
+            <field name="VAR" id="ds-run1">run_data</field>
+            <field name="X">t</field>
+            <field name="Y">y</field>
+            <field name="TITLE">Trajectory over time</field>
+          </block>
+        </next>
+      </block>
+    </next>
+  </block>
+</xml>`;
+
 /* ── Export ───────────────────────────────────────────── */
+
+export const DS_TEMPLATES = [
+  {
+    id: "ds_penguins_stats",
+    title: "Penguins: basic stats",
+    description: "Load the penguin dataset, show a table, compute mean bill length, and plot by species.",
+    kind: "blocks",
+    goal: "datascience",
+    xml: DS_PENGUINS_STATS_XML,
+  },
+  {
+    id: "ds_weather_filter",
+    title: "Weather: filter & chart",
+    description: "Filter weather data for Cape Town and chart max temperature over time.",
+    kind: "blocks",
+    goal: "datascience",
+    xml: DS_WEATHER_FILTER_XML,
+  },
+  {
+    id: "ds_planets_chart",
+    title: "Planets: scatter chart",
+    description: "Plot orbital period vs. distance for the planets and write a conclusion.",
+    kind: "blocks",
+    goal: "datascience",
+    xml: DS_PLANETS_CHART_XML,
+  },
+  {
+    id: "hybrid_trace_analysis",
+    title: "Trace → analysis",
+    description: "Loads a promoted simulation run as a dataset and plots the trajectory.",
+    kind: "blocks",
+    goal: "hybrid",
+    xml: DS_HYBRID_ANALYSIS_XML,
+  },
+];
 
 export const BLOCK_TEMPLATES = [
   {

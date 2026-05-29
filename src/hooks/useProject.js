@@ -112,6 +112,21 @@ export function useProject() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [proj.loaded]);
 
+  const addRunAndDataset = useCallback(
+    async (runSnapshot, datasetDescriptor) => {
+      if (!proj.activeManifest) return null;
+      const base = captureWorkingStateInto(proj.activeManifest);
+      const next = {
+        ...base,
+        runs: [...(base.runs || []), runSnapshot],
+        datasets: [...(base.datasets || []), datasetDescriptor],
+        updatedAt: Date.now(),
+      };
+      return proj.persistActive(next);
+    },
+    [captureWorkingStateInto, proj],
+  );
+
   return {
     /* state passthrough */
     activeProjectId: proj.activeProjectId,
@@ -127,5 +142,6 @@ export function useProject() {
     refreshList: proj.refreshList,
     applyManifestToWorkingState,
     captureWorkingStateInto,
+    addRunAndDataset,
   };
 }

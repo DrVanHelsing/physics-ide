@@ -3777,3 +3777,236 @@ mark.help-search-highlight {
   opacity: 0.65;
   font-size: 14px;
 }
+
+/* ── TracePromoteDialog ────────────────────────────────── */
+.trace-promote-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  background: rgba(0,0,0,0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.trace-promote-dialog {
+  background: var(--bg-panel, #1e1e2e);
+  border: 1px solid var(--border, #2a2a36);
+  border-radius: 10px;
+  width: 420px;
+  max-width: 95vw;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+}
+.trace-promote-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid var(--border, #2a2a36);
+}
+.trace-promote-title {
+  font-weight: 600;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.trace-promote-close {
+  background: none;
+  border: none;
+  color: var(--fg-muted, #888);
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+}
+.trace-promote-close:hover { color: var(--fg, #cdd6f4); }
+.trace-promote-body {
+  padding: 14px 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.trace-promote-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--fg-muted, #a6adc8);
+}
+.trace-promote-field > span:first-child {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--fg-muted, #888);
+}
+.trace-promote-hint {
+  font-weight: 400;
+  font-size: 10px;
+  text-transform: none;
+  letter-spacing: 0;
+  opacity: 0.75;
+}
+.trace-promote-input {
+  background: var(--bg-input, #181825);
+  border: 1px solid var(--border, #2a2a36);
+  border-radius: 5px;
+  color: var(--fg, #cdd6f4);
+  font-size: 13px;
+  padding: 6px 10px;
+  width: 100%;
+  box-sizing: border-box;
+}
+.trace-promote-input:focus {
+  outline: none;
+  border-color: var(--accent, #2da56f);
+}
+.trace-promote-time-row {
+  display: flex;
+  gap: 12px;
+}
+.trace-promote-time-row label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--fg-muted, #a6adc8);
+}
+.trace-promote-time-input {
+  width: 70px;
+  background: var(--bg-input, #181825);
+  border: 1px solid var(--border, #2a2a36);
+  border-radius: 4px;
+  color: var(--fg, #cdd6f4);
+  font-size: 12px;
+  padding: 4px 6px;
+  text-align: right;
+}
+.trace-promote-vars {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 160px;
+  overflow-y: auto;
+  background: var(--bg-input, #181825);
+  border: 1px solid var(--border, #2a2a36);
+  border-radius: 5px;
+  padding: 8px;
+}
+.trace-promote-var-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+.trace-promote-var-row input[type="checkbox"] { cursor: pointer; }
+.trace-promote-var-name {
+  font-size: 12px;
+  font-family: var(--font-mono, monospace);
+  color: var(--fg, #cdd6f4);
+}
+.trace-promote-rows-hint {
+  font-size: 10px;
+  color: var(--fg-muted, #888);
+  margin: 0;
+}
+.trace-promote-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 16px 14px;
+  border-top: 1px solid var(--border, #2a2a36);
+}
+.trace-promote-cancel {
+  background: none;
+  border: 1px solid var(--border, #2a2a36);
+  border-radius: 5px;
+  color: var(--fg-muted, #888);
+  font-size: 12px;
+  padding: 5px 14px;
+  cursor: pointer;
+}
+.trace-promote-cancel:hover { border-color: var(--fg-muted, #888); color: var(--fg, #cdd6f4); }
+.trace-promote-confirm {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--accent, #2da56f);
+  border: none;
+  border-radius: 5px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 16px;
+  cursor: pointer;
+}
+.trace-promote-confirm:disabled { opacity: 0.45; cursor: not-allowed; }
+.trace-promote-confirm:not(:disabled):hover { filter: brightness(1.12); }
+
+/* ── Saved traces section in DataPanel ────────────────── */
+.ds-saved-traces {
+  border-bottom: 1px solid var(--border, #2a2a36);
+  padding: 8px 12px;
+}
+.ds-saved-traces-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--fg-muted, #888);
+  margin: 0 0 6px;
+}
+.ds-saved-trace-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+  font-size: 12px;
+  color: var(--fg, #cdd6f4);
+}
+.ds-saved-trace-name {
+  flex: 1;
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: help;
+}
+.ds-saved-trace-meta {
+  font-size: 10px;
+  color: var(--fg-muted, #888);
+  white-space: nowrap;
+}
+
+/* ── BeginnerGuide strip ──────────────────────────────── */
+.beginner-guide {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  background: color-mix(in srgb, var(--accent, #2da56f) 10%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--accent, #2da56f) 30%, transparent);
+  font-size: 12px;
+  color: var(--fg, #cdd6f4);
+}
+.beginner-guide-text { flex: 1; }
+.beginner-guide-counter {
+  font-size: 10px;
+  color: var(--fg-muted, #888);
+  white-space: nowrap;
+}
+.beginner-guide-dismiss {
+  background: none;
+  border: none;
+  color: var(--fg-muted, #888);
+  cursor: pointer;
+  display: flex;
+  padding: 2px;
+  flex-shrink: 0;
+}
+.beginner-guide-dismiss:hover { color: var(--fg, #cdd6f4); }

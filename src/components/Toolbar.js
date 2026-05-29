@@ -114,6 +114,8 @@ function Toolbar({
   onExportScreenshot,
   onCopyCode,
   onImport,
+  onExportProject,
+  onImportProject,
   onReset,
   onClearWorkspace,
   onToggleTheme,
@@ -140,6 +142,7 @@ function Toolbar({
      not. Phase C will populate DS-specific actions in this same slot. */
   const showSimActions = goal === "physics" || goal === "hybrid";
   const importInputRef = useRef(null);
+  const importProjectRef = useRef(null);
 
   const handleImportClick = () => {
     if (importInputRef.current) {
@@ -151,6 +154,18 @@ function Toolbar({
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file && onImport) onImport(file);
+  };
+
+  const handleImportProjectClick = () => {
+    if (importProjectRef.current) {
+      importProjectRef.current.value = "";
+      importProjectRef.current.click();
+    }
+  };
+
+  const handleImportProjectChange = (e) => {
+    const file = e.target.files[0];
+    if (file && onImportProject) onImportProject(file);
   };
   return (
     <header className="toolbar">
@@ -304,6 +319,28 @@ function Toolbar({
         </>
       )}
 
+      {/* ── Import Project (.physide.json) ── */}
+      {onImportProject && (
+        <>
+          <input
+            ref={importProjectRef}
+            type="file"
+            accept=".json,.physide.json"
+            style={{ display: "none" }}
+            onChange={handleImportProjectChange}
+          />
+          <button
+            type="button"
+            className="tb-btn tb-btn--subtle"
+            onClick={handleImportProjectClick}
+            title="Import a .physide.json project bundle"
+          >
+            <UploadIcon size={13} />
+            <span className="tb-btn-label">Open…</span>
+          </button>
+        </>
+      )}
+
       {/* ── Export dropdown ── */}
       <DropdownMenu
         trigger={
@@ -348,6 +385,15 @@ function Toolbar({
               <CopyIcon size={14} />
               <span>Copy Code to Clipboard</span>
               <span className="tb-dropdown-shortcut">Ctrl+C</span>
+            </button>
+          </>
+        )}
+        {onExportProject && (
+          <>
+            <div className="tb-dropdown-divider" />
+            <button type="button" className="tb-dropdown-item" onClick={onExportProject}>
+              <DownloadIcon size={14} />
+              <span>Export Project Bundle (.physide.json)</span>
             </button>
           </>
         )}

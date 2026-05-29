@@ -398,6 +398,9 @@ const REGISTRY = [
   { id: "ds_load_csv_block", category: "Data Science", domain: "datascience",
     conceptLabel: "Load CSV file from computer", beginnerVisible: true,
     keywords: ["csv", "import", "upload", "file", "load", "open", "own data", "spreadsheet"] },
+  { id: "ds_load_trace_block", category: "Data Science", domain: "datascience",
+    conceptLabel: "Load promoted simulation run as dataset", beginnerVisible: false,
+    keywords: ["trace", "run", "simulation", "promoted", "hybrid", "load saved", "record"] },
 ];
 
 /* ── Public surface ──────────────────────────────────────── */

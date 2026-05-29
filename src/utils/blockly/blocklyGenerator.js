@@ -1037,6 +1037,19 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       tooltip: "Load a built-in dataset (planets, penguins, weather) into a variable.",
     },
     {
+      type: "ds_load_trace_block",
+      message0: "%1 = trace dataset %2",
+      args0: [
+        { type: "field_variable", name: "VAR", variable: "df" },
+        { type: "field_input", name: "DATASET_NAME", text: "Run @ ..." },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 160,
+      tooltip: "Load a promoted simulation run by its label (copy the label from the Saved Traces panel).",
+    },
+    {
       type: "ds_load_csv_block",
       message0: "%1 = load CSV file",
       args0: [
@@ -2182,6 +2195,12 @@ export function defineCustomBlocksAndGenerator(Blockly) {
     const name = varName(block, "VAR", "df");
     const id = block.getFieldValue("ID") || "planets";
     return `${name} = load_dataset("${id}")\n`;
+  };
+
+  gen["ds_load_trace_block"] = function (block) {
+    const name = varName(block, "VAR", "df");
+    const label = (block.getFieldValue("DATASET_NAME") || "").trim();
+    return `${name} = load_saved_dataset("${label}")\n`;
   };
 
   gen["ds_load_csv_block"] = function (block) {

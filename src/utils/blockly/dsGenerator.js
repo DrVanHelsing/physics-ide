@@ -19,6 +19,12 @@ const DS_GENERATORS = {
     return `var ${varName} = await __ds.fromBuiltin(${JSON.stringify(id)});\n`;
   },
 
+  ds_load_trace_block(block) {
+    const varName = resolveVar(block, "VAR", "df");
+    const label = (block.getFieldValue("DATASET_NAME") || "").trim();
+    return `var ${varName} = __ds.loadSavedDataset(${JSON.stringify(label)});\n`;
+  },
+
   ds_load_csv_block(block) {
     const varName = resolveVar(block, "VAR", "df");
     return `var ${varName} = await __ds.loadCsvFile(${JSON.stringify(varName)});\n`;

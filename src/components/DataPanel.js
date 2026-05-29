@@ -171,7 +171,7 @@ function renderOutput(o, i) {
   }
 }
 
-export default function DataPanel({ goal, datasetCount = 0, dsOutputs = [], dsError = null, onClearCsvCache = null }) {
+export default function DataPanel({ goal, datasetCount = 0, dsOutputs = [], dsError = null, onClearCsvCache = null, savedDatasets = [] }) {
   const tableOutputs = dsOutputs.filter((o) => o.type === "table");
   const hasOutputs = dsOutputs.length > 0 || dsError;
   const primaryTable = tableOutputs[0];
@@ -199,6 +199,20 @@ export default function DataPanel({ goal, datasetCount = 0, dsOutputs = [], dsEr
           >↺</button>
         )}
       </div>
+
+      {/* ── Saved trace datasets ── */}
+      {savedDatasets.length > 0 && (
+        <div className="ds-saved-traces">
+          <p className="ds-saved-traces-label">Saved traces</p>
+          {savedDatasets.map((ds) => (
+            <div key={ds.id} className="ds-saved-trace-row">
+              <TableIcon size={12} />
+              <span className="ds-saved-trace-name" title={`Use label in "Load trace dataset" block`}>{ds.name}</span>
+              <span className="ds-saved-trace-meta">{ds.rowCount} rows · {ds.columns.length} cols</span>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className={`data-panel-body${!hasOutputs ? " data-panel-body--empty" : ""}`}>
         {dsError && (

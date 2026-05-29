@@ -601,6 +601,7 @@ const TOOLBOX_BEGINNER_XML = `
     <label text="Load data" web-class="tb-label"></label>
     <block type="ds_load_builtin_block"></block>
     <block type="ds_load_csv_block"></block>
+    <block type="ds_load_trace_block"></block>
     <sep gap="8"></sep>
     <label text="Explore" web-class="tb-label"></label>
     <block type="ds_show_table_block"></block>
