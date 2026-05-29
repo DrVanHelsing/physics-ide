@@ -36,7 +36,7 @@ import { BlocksIcon, CodeIcon, GlobeIcon } from "../Icons";
 import { fromTraceBuffer, toCsvText } from "../../utils/dataset/dataset";
 import { saveDataset } from "../../hooks/useDataset";
 import { generateDsJsFromWorkspace } from "../../utils/blockly/dsGenerator";
-import { runDsCode } from "../../utils/runner/dsRunner";
+import { runDsCode, clearCsvCache } from "../../utils/runner/dsRunner";
 import { renderDsChartToElement } from "../../utils/charts/chartSpec";
 
 import { useTheme }              from "../../contexts/ThemeContext";
@@ -341,6 +341,7 @@ export default function IDELayout() {
               datasetCount={proj.activeManifest?.datasets?.length || 0}
               dsOutputs={dsOutputs}
               dsError={dsError}
+              onClearCsvCache={clearCsvCache}
             />
           </section>
         ) : (

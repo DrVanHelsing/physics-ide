@@ -267,6 +267,22 @@ export function transform(ds, op) {
       });
       return fromAq(aq.from(out), ds, { op: `findMissing(${op.column})` });
     }
+    case "filterAnd": {
+      const a = filterByComparison(ds.rows, op.colA, op.opA || "=", op.valA);
+      const b = filterByComparison(a, op.colB, op.opB || "=", op.valB);
+      return fromAq(aq.from(b), ds, { op: `filterAnd(${op.colA}${op.opA}${op.valA},${op.colB}${op.opB}${op.valB})` });
+    }
+    case "filterOr": {
+      const aRows = filterByComparison(ds.rows, op.colA, op.opA || "=", op.valA);
+      const bRows = filterByComparison(ds.rows, op.colB, op.opB || "=", op.valB);
+      const seen = new Set();
+      const out = [];
+      for (const r of [...aRows, ...bRows]) {
+        const key = JSON.stringify(r);
+        if (!seen.has(key)) { seen.add(key); out.push(r); }
+      }
+      return fromAq(aq.from(out), ds, { op: `filterOr(${op.colA}${op.opA}${op.valA},${op.colB}${op.opB}${op.valB})` });
+    }
     case "groupBy":
       return aggregateGroupBy(ds, op);
     default:

@@ -19,6 +19,11 @@ const DS_GENERATORS = {
     return `var ${varName} = await __ds.fromBuiltin(${JSON.stringify(id)});\n`;
   },
 
+  ds_load_csv_block(block) {
+    const varName = resolveVar(block, "VAR", "df");
+    return `var ${varName} = await __ds.loadCsvFile(${JSON.stringify(varName)});\n`;
+  },
+
   ds_show_table_block(block) {
     const varName = resolveVar(block, "VAR", "df");
     return (
@@ -399,6 +404,44 @@ const DS_GENERATORS = {
     const yCol     = (block.getFieldValue("Y_COL") || "y").trim();
     const chartType = (block.getFieldValue("CHART_TYPE") || "bar").trim();
     return `__outputs.push({ type: "save_chart", chartType: ${JSON.stringify(chartType)}, dataset: ${dsVar}, xCol: ${JSON.stringify(xCol)}, yCol: ${JSON.stringify(yCol)} });\n`;
+  },
+
+  /* ── Phase E: Compound filters + identify-type ── */
+
+  ds_filter_and_block(block) {
+    const resultVar = resolveVar(block, "RESULT", "filtered");
+    const dsVar     = resolveVar(block, "VAR", "df");
+    const colA  = (block.getFieldValue("COL_A")  || "col").trim();
+    const valA  = (block.getFieldValue("VAL_A")  || "").trim();
+    const colB  = (block.getFieldValue("COL_B")  || "col").trim();
+    const valB  = (block.getFieldValue("VAL_B")  || "").trim();
+    return (
+      `var ${resultVar} = __ds.transform(${dsVar}, { kind: "filterAnd", colA: ${JSON.stringify(colA)}, opA: "=", valA: ${JSON.stringify(valA)}, colB: ${JSON.stringify(colB)}, opB: "=", valB: ${JSON.stringify(valB)} });\n` +
+      `if (${resultVar}) __outputs.push({ type: "table", varName: ${JSON.stringify(`${dsVar}[${colA}="${valA}" AND ${colB}="${valB}"]`)}, dataset: ${resultVar} });\n`
+    );
+  },
+
+  ds_filter_or_block(block) {
+    const resultVar = resolveVar(block, "RESULT", "filtered");
+    const dsVar     = resolveVar(block, "VAR", "df");
+    const colA  = (block.getFieldValue("COL_A")  || "col").trim();
+    const valA  = (block.getFieldValue("VAL_A")  || "").trim();
+    const colB  = (block.getFieldValue("COL_B")  || "col").trim();
+    const valB  = (block.getFieldValue("VAL_B")  || "").trim();
+    return (
+      `var ${resultVar} = __ds.transform(${dsVar}, { kind: "filterOr", colA: ${JSON.stringify(colA)}, opA: "=", valA: ${JSON.stringify(valA)}, colB: ${JSON.stringify(colB)}, opB: "=", valB: ${JSON.stringify(valB)} });\n` +
+      `if (${resultVar}) __outputs.push({ type: "table", varName: ${JSON.stringify(`${dsVar}[${colA}="${valA}" OR ${colB}="${valB}"]`)}, dataset: ${resultVar} });\n`
+    );
+  },
+
+  ds_identify_type_block(block) {
+    const resultVar = resolveVar(block, "RESULT", "type");
+    const dsVar     = resolveVar(block, "VAR", "df");
+    const col       = (block.getFieldValue("COL") || "col").trim();
+    return (
+      `var ${resultVar} = ${dsVar} ? (${dsVar}.columns.find(function(c){ return c.name === ${JSON.stringify(col)}; }) || {}).inferredType || "unknown" : "unknown";\n` +
+      `__outputs.push({ type: "value", label: ${JSON.stringify(`type of ${dsVar}.${col}`)}, value: ${resultVar} });\n`
+    );
   },
 };
 

@@ -114,7 +114,7 @@ function CompareStats({ output }) {
   );
 }
 
-export default function DataPanel({ goal, datasetCount = 0, dsOutputs = [], dsError = null }) {
+export default function DataPanel({ goal, datasetCount = 0, dsOutputs = [], dsError = null, onClearCsvCache = null }) {
   const tableOutputs   = dsOutputs.filter((o) => o.type === "table");
   const valueOutputs   = dsOutputs.filter((o) => o.type === "value");
   const chartOutputs   = dsOutputs.filter((o) => o.type === "chart");
@@ -140,6 +140,13 @@ export default function DataPanel({ goal, datasetCount = 0, dsOutputs = [], dsEr
             ? "no datasets yet"
             : `${datasetCount} dataset${datasetCount === 1 ? "" : "s"}`}
         </span>
+        {onClearCsvCache && (
+          <button
+            className="data-panel-reload-csv"
+            title="Re-pick CSV files on next run"
+            onClick={onClearCsvCache}
+          >↺</button>
+        )}
       </div>
 
       <div className={`data-panel-body${!hasOutputs ? " data-panel-body--empty" : ""}`}>

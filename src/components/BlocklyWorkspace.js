@@ -600,6 +600,7 @@ const TOOLBOX_BEGINNER_XML = `
   <category name="Data Science" colour="#2da56f">
     <label text="Load data" web-class="tb-label"></label>
     <block type="ds_load_builtin_block"></block>
+    <block type="ds_load_csv_block"></block>
     <sep gap="8"></sep>
     <label text="Explore" web-class="tb-label"></label>
     <block type="ds_show_table_block"></block>
@@ -616,6 +617,9 @@ const TOOLBOX_BEGINNER_XML = `
     </block>
     <block type="ds_show_one_cell_block">
       <field name="ROW">0</field>
+      <field name="COL">species</field>
+    </block>
+    <block type="ds_identify_type_block">
       <field name="COL">species</field>
     </block>
     <sep gap="8"></sep>
@@ -679,6 +683,18 @@ const TOOLBOX_BEGINNER_XML = `
     </block>
     <block type="ds_find_missing_block">
       <field name="COL">mass</field>
+    </block>
+    <block type="ds_filter_and_block">
+      <field name="COL_A">species</field>
+      <field name="VAL_A">Adelie</field>
+      <field name="COL_B">island</field>
+      <field name="VAL_B">Biscoe</field>
+    </block>
+    <block type="ds_filter_or_block">
+      <field name="COL_A">species</field>
+      <field name="VAL_A">Adelie</field>
+      <field name="COL_B">species</field>
+      <field name="VAL_B">Chinstrap</field>
     </block>
     <sep gap="8"></sep>
     <label text="Group and Compare" web-class="tb-label"></label>
