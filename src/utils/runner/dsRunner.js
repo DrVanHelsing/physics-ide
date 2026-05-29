@@ -1,11 +1,22 @@
 import {
   fromBuiltin,
   meanOfColumn,
+  median,
+  minOfColumn,
+  maxOfColumn,
+  sumOfColumn,
+  stddevOfColumn,
+  uniqueCount,
   filterRows,
   transform,
 } from "../dataset/dataset.js";
 
-const DS_API = { fromBuiltin, meanOfColumn, filterRows, transform };
+const DS_API = {
+  fromBuiltin,
+  meanOfColumn, median, minOfColumn, maxOfColumn, sumOfColumn, stddevOfColumn,
+  uniqueCount,
+  filterRows, transform,
+};
 
 export async function runDsCode(jsCode) {
   if (!jsCode || !jsCode.trim()) return { outputs: [], error: null };

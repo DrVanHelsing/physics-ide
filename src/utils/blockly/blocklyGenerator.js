@@ -1062,6 +1062,117 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       colour: 160,
       tooltip: "Calculate the mean of a numeric column and store it in a variable.",
     },
+    {
+      type: "ds_calc_median_block",
+      message0: "%1 = median( %2 . %3 )",
+      args0: [
+        { type: "field_variable", name: "RESULT", variable: "result" },
+        { type: "field_variable", name: "VAR",    variable: "df" },
+        { type: "field_input",    name: "COL",    text: "value" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 160,
+      tooltip: "Calculate the median (middle value) of a numeric column.",
+    },
+    {
+      type: "ds_calc_min_block",
+      message0: "%1 = min( %2 . %3 )",
+      args0: [
+        { type: "field_variable", name: "RESULT", variable: "result" },
+        { type: "field_variable", name: "VAR",    variable: "df" },
+        { type: "field_input",    name: "COL",    text: "value" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 160,
+      tooltip: "Find the minimum value in a numeric column.",
+    },
+    {
+      type: "ds_calc_max_block",
+      message0: "%1 = max( %2 . %3 )",
+      args0: [
+        { type: "field_variable", name: "RESULT", variable: "result" },
+        { type: "field_variable", name: "VAR",    variable: "df" },
+        { type: "field_input",    name: "COL",    text: "value" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 160,
+      tooltip: "Find the maximum value in a numeric column.",
+    },
+    {
+      type: "ds_calc_sum_block",
+      message0: "%1 = sum( %2 . %3 )",
+      args0: [
+        { type: "field_variable", name: "RESULT", variable: "result" },
+        { type: "field_variable", name: "VAR",    variable: "df" },
+        { type: "field_input",    name: "COL",    text: "value" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 160,
+      tooltip: "Calculate the sum (total) of a numeric column.",
+    },
+    {
+      type: "ds_calc_stddev_block",
+      message0: "%1 = spread( %2 . %3 )",
+      args0: [
+        { type: "field_variable", name: "RESULT", variable: "result" },
+        { type: "field_variable", name: "VAR",    variable: "df" },
+        { type: "field_input",    name: "COL",    text: "value" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 160,
+      tooltip: "Calculate how spread out the values are in a column (standard deviation).",
+    },
+    {
+      type: "ds_show_first_n_block",
+      message0: "show first %1 rows of %2",
+      args0: [
+        { type: "field_dropdown", name: "N",
+          options: [["5","5"],["10","10"],["20","20"],["50","50"]] },
+        { type: "field_variable", name: "VAR", variable: "df" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 160,
+      tooltip: "Display the first N rows of a dataset as a table.",
+    },
+    {
+      type: "ds_count_rows_block",
+      message0: "%1 = count rows of %2",
+      args0: [
+        { type: "field_variable", name: "RESULT", variable: "result" },
+        { type: "field_variable", name: "VAR",    variable: "df" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 160,
+      tooltip: "Count the total number of rows in a dataset.",
+    },
+    {
+      type: "ds_count_unique_block",
+      message0: "%1 = unique values in %2 . %3",
+      args0: [
+        { type: "field_variable", name: "RESULT", variable: "result" },
+        { type: "field_variable", name: "VAR",    variable: "df" },
+        { type: "field_input",    name: "COL",    text: "species" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 160,
+      tooltip: "Count the number of distinct values in a column.",
+    },
   ]);
 
   /* ── physics_const_block — dynamic dropdown with custom constants ── */
@@ -1585,6 +1696,41 @@ export function defineCustomBlocksAndGenerator(Blockly) {
     const dsVar  = varName(block, "VAR", "df");
     const col    = (block.getFieldValue("COL") || "value").trim();
     return `${result} = mean(${dsVar}, "${col}")\n`;
+  };
+
+  gen["ds_calc_median_block"] = function (block) {
+    const result = varName(block, "RESULT", "result");
+    const dsVar  = varName(block, "VAR", "df");
+    const col    = (block.getFieldValue("COL") || "value").trim();
+    return `${result} = median(${dsVar}, "${col}")\n`;
+  };
+
+  gen["ds_calc_min_block"] = function (block) {
+    const result = varName(block, "RESULT", "result");
+    const dsVar  = varName(block, "VAR", "df");
+    const col    = (block.getFieldValue("COL") || "value").trim();
+    return `${result} = min(${dsVar}, "${col}")\n`;
+  };
+
+  gen["ds_calc_max_block"] = function (block) {
+    const result = varName(block, "RESULT", "result");
+    const dsVar  = varName(block, "VAR", "df");
+    const col    = (block.getFieldValue("COL") || "value").trim();
+    return `${result} = max(${dsVar}, "${col}")\n`;
+  };
+
+  gen["ds_calc_sum_block"] = function (block) {
+    const result = varName(block, "RESULT", "result");
+    const dsVar  = varName(block, "VAR", "df");
+    const col    = (block.getFieldValue("COL") || "value").trim();
+    return `${result} = sum(${dsVar}, "${col}")\n`;
+  };
+
+  gen["ds_calc_stddev_block"] = function (block) {
+    const result = varName(block, "RESULT", "result");
+    const dsVar  = varName(block, "VAR", "df");
+    const col    = (block.getFieldValue("COL") || "value").trim();
+    return `${result} = spread(${dsVar}, "${col}")\n`;
   };
 
   initialized = true;

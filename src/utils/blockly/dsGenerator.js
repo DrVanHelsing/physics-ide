@@ -36,6 +36,85 @@ const DS_GENERATORS = {
       `__outputs.push({ type: "value", label: ${JSON.stringify(`mean(${dsVar}.${col})`)}, value: ${resultVar} });\n`
     );
   },
+
+  ds_calc_median_block(block) {
+    const resultVar = resolveVar(block, "RESULT", "result");
+    const dsVar = resolveVar(block, "VAR", "df");
+    const col = (block.getFieldValue("COL") || "value").trim();
+    return (
+      `var ${resultVar} = __ds.median(${dsVar}, ${JSON.stringify(col)});\n` +
+      `__outputs.push({ type: "value", label: ${JSON.stringify(`median(${dsVar}.${col})`)}, value: ${resultVar} });\n`
+    );
+  },
+
+  ds_calc_min_block(block) {
+    const resultVar = resolveVar(block, "RESULT", "result");
+    const dsVar = resolveVar(block, "VAR", "df");
+    const col = (block.getFieldValue("COL") || "value").trim();
+    return (
+      `var ${resultVar} = __ds.minOfColumn(${dsVar}, ${JSON.stringify(col)});\n` +
+      `__outputs.push({ type: "value", label: ${JSON.stringify(`min(${dsVar}.${col})`)}, value: ${resultVar} });\n`
+    );
+  },
+
+  ds_calc_max_block(block) {
+    const resultVar = resolveVar(block, "RESULT", "result");
+    const dsVar = resolveVar(block, "VAR", "df");
+    const col = (block.getFieldValue("COL") || "value").trim();
+    return (
+      `var ${resultVar} = __ds.maxOfColumn(${dsVar}, ${JSON.stringify(col)});\n` +
+      `__outputs.push({ type: "value", label: ${JSON.stringify(`max(${dsVar}.${col})`)}, value: ${resultVar} });\n`
+    );
+  },
+
+  ds_calc_sum_block(block) {
+    const resultVar = resolveVar(block, "RESULT", "result");
+    const dsVar = resolveVar(block, "VAR", "df");
+    const col = (block.getFieldValue("COL") || "value").trim();
+    return (
+      `var ${resultVar} = __ds.sumOfColumn(${dsVar}, ${JSON.stringify(col)});\n` +
+      `__outputs.push({ type: "value", label: ${JSON.stringify(`sum(${dsVar}.${col})`)}, value: ${resultVar} });\n`
+    );
+  },
+
+  ds_calc_stddev_block(block) {
+    const resultVar = resolveVar(block, "RESULT", "result");
+    const dsVar = resolveVar(block, "VAR", "df");
+    const col = (block.getFieldValue("COL") || "value").trim();
+    return (
+      `var ${resultVar} = __ds.stddevOfColumn(${dsVar}, ${JSON.stringify(col)});\n` +
+      `__outputs.push({ type: "value", label: ${JSON.stringify(`spread(${dsVar}.${col})`)}, value: ${resultVar} });\n`
+    );
+  },
+
+  ds_show_first_n_block(block) {
+    const dsVar = resolveVar(block, "VAR", "df");
+    const n = parseInt(block.getFieldValue("N") || "5", 10);
+    const tmpVar = `__head_${dsVar}`;
+    return (
+      `var ${tmpVar} = __ds.transform(${dsVar}, { kind: "limit", n: ${n}, from: "head" });\n` +
+      `if (${tmpVar}) __outputs.push({ type: "table", varName: ${JSON.stringify(`${dsVar} (first ${n})`)}, dataset: ${tmpVar} });\n`
+    );
+  },
+
+  ds_count_rows_block(block) {
+    const resultVar = resolveVar(block, "RESULT", "result");
+    const dsVar = resolveVar(block, "VAR", "df");
+    return (
+      `var ${resultVar} = ${dsVar} ? ${dsVar}.rowCount : 0;\n` +
+      `__outputs.push({ type: "value", label: ${JSON.stringify(`rows(${dsVar})`)}, value: ${resultVar} });\n`
+    );
+  },
+
+  ds_count_unique_block(block) {
+    const resultVar = resolveVar(block, "RESULT", "result");
+    const dsVar = resolveVar(block, "VAR", "df");
+    const col = (block.getFieldValue("COL") || "value").trim();
+    return (
+      `var ${resultVar} = __ds.uniqueCount(${dsVar}, ${JSON.stringify(col)});\n` +
+      `__outputs.push({ type: "value", label: ${JSON.stringify(`unique(${dsVar}.${col})`)}, value: ${resultVar} });\n`
+    );
+  },
 };
 
 function walkChain(block, parts) {
