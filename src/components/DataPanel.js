@@ -185,6 +185,8 @@ export default function DataPanel({ goal, datasetCount = 0, dsOutputs = [], dsEr
         <span className="data-panel-meta">
           {primaryTable
             ? `${primaryTable.dataset?.rowCount ?? 0} rows · ${primaryTable.varName}`
+            : hasOutputs
+            ? `${dsOutputs.length} output${dsOutputs.length === 1 ? "" : "s"}`
             : datasetCount === 0
             ? "no datasets yet"
             : `${datasetCount} dataset${datasetCount === 1 ? "" : "s"}`}

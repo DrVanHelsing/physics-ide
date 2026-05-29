@@ -82,12 +82,13 @@ export default function IDELayout() {
   const [dsError,   setDsError]   = useState(null);
 
   const goal = proj.activeManifest?.goal || "physics";
-  const isDataGoal = goal === "datascience";
+  const isDataGoal   = goal === "datascience";
+  const isHybridGoal = goal === "hybrid";
 
   const handleWorkspaceChange = useCallback(
     (xml, code) => {
       sim.handleWorkspaceChange(xml, code);
-      if (isDataGoal && workspaceRef.current) {
+      if ((isDataGoal || isHybridGoal) && workspaceRef.current) {
         const jsCode = generateDsJsFromWorkspace(workspaceRef.current);
         runDsCode(jsCode).then(({ outputs, error }) => {
           setDsError(error || null);
@@ -330,7 +331,7 @@ export default function IDELayout() {
           <div className="pane-divider" onMouseDown={handleDividerMouseDown} />
         )}
 
-        {/* ── Right pane: 3D viewport (physics / hybrid) or data panel (DS) ── */}
+        {/* ── Right pane: DS panel | 3D viewport | hybrid (both stacked) ── */}
         {isDataGoal ? (
           <section
             className="canvas-pane"
@@ -343,6 +344,27 @@ export default function IDELayout() {
               dsError={dsError}
               onClearCsvCache={clearCsvCache}
             />
+          </section>
+        ) : isHybridGoal ? (
+          <section
+            className="canvas-pane canvas-pane--hybrid"
+            style={viewportHidden ? { display: "none" } : { flex: "1 1 0", minWidth: 0 }}
+          >
+            <div className="hybrid-viewport">
+              <div className="pane-header pane-header--viewport">
+                <GlobeIcon size={14} /> 3D Viewport
+              </div>
+              <GlowCanvas running={running} />
+            </div>
+            <div className="hybrid-datapanel">
+              <DataPanel
+                goal={goal}
+                datasetCount={proj.activeManifest?.datasets?.length || 0}
+                dsOutputs={dsOutputs}
+                dsError={dsError}
+                onClearCsvCache={clearCsvCache}
+              />
+            </div>
           </section>
         ) : (
           <section
