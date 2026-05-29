@@ -614,6 +614,10 @@ const TOOLBOX_BEGINNER_XML = `
     <block type="ds_count_unique_block">
       <field name="COL">species</field>
     </block>
+    <block type="ds_show_one_cell_block">
+      <field name="ROW">0</field>
+      <field name="COL">species</field>
+    </block>
     <sep gap="8"></sep>
     <label text="Statistics" web-class="tb-label"></label>
     <block type="ds_calc_mean_block">
@@ -643,6 +647,13 @@ const TOOLBOX_BEGINNER_XML = `
     <block type="ds_calc_stddev_block">
       <field name="COL">mass</field>
     </block>
+    <block type="ds_all_stats_block">
+      <field name="COL">mass</field>
+    </block>
+    <block type="ds_compare_columns_block">
+      <field name="COL_A">bill_length_mm</field>
+      <field name="COL_B">bill_depth_mm</field>
+    </block>
     <sep gap="8"></sep>
     <label text="Filter and Sort" web-class="tb-label"></label>
     <block type="ds_filter_eq_block">
@@ -664,6 +675,9 @@ const TOOLBOX_BEGINNER_XML = `
       <field name="COL">mass</field>
     </block>
     <block type="ds_remove_missing_block">
+      <field name="COL">mass</field>
+    </block>
+    <block type="ds_find_missing_block">
       <field name="COL">mass</field>
     </block>
     <sep gap="8"></sep>
@@ -696,6 +710,10 @@ const TOOLBOX_BEGINNER_XML = `
       <field name="VALUE_COL">body_mass_g</field>
       <field name="GROUP_COL">species</field>
     </block>
+    <block type="ds_save_chart_block">
+      <field name="X_COL">species</field>
+      <field name="Y_COL">count</field>
+    </block>
     <sep gap="8"></sep>
     <label text="Communicate" web-class="tb-label"></label>
     <block type="ds_write_note_block"></block>
@@ -703,6 +721,7 @@ const TOOLBOX_BEGINNER_XML = `
     <block type="ds_compare_results_block"></block>
     <block type="ds_state_conclusion_block"></block>
     <block type="ds_export_table_block"></block>
+    <block type="ds_show_python_block"></block>
   </category>
 </xml>`;
 

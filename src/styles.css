@@ -3066,11 +3066,17 @@ mark.help-search-highlight {
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  padding: 10px 14px 14px;
+  gap: 0;
+  overflow-y: auto;
+}
+.data-panel-body--empty {
   align-items: center;
   justify-content: center;
-  padding: 20px 24px;
   text-align: center;
-  gap: 8px;
+  padding: 20px 24px;
 }
 .data-panel-empty-title {
   margin: 0;
@@ -3229,6 +3235,132 @@ mark.help-search-highlight {
 }
 .ds-conclusion-text {
   flex: 1;
+}
+
+/* ── DS runner error ── */
+.ds-runner-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-bottom: 8px;
+  padding: 6px 10px;
+  background: color-mix(in srgb, #e74c3c 12%, transparent);
+  border: 1px solid color-mix(in srgb, #e74c3c 35%, transparent);
+  border-radius: 5px;
+  font-size: 11px;
+  font-family: monospace;
+  line-height: 1.45;
+  word-break: break-all;
+}
+.ds-runner-error-icon {
+  flex-shrink: 0;
+  color: #e74c3c;
+  font-size: 13px;
+}
+.ds-runner-error-text {
+  color: #f4a6a6;
+}
+
+/* ── DS show-python block ── */
+.ds-python-block {
+  margin-top: 10px;
+  border-top: 1px solid var(--border, #2d2d44);
+  padding-top: 6px;
+}
+.ds-python-toggle {
+  background: none;
+  border: none;
+  color: var(--accent, #2da56f);
+  font-size: 11px;
+  cursor: pointer;
+  padding: 2px 0;
+  font-family: inherit;
+  opacity: 0.85;
+}
+.ds-python-toggle:hover { opacity: 1; }
+.ds-python-pre {
+  margin: 6px 0 0;
+  padding: 8px 10px;
+  background: var(--bg-base, #0e0e14);
+  border: 1px solid var(--border, #2d2d44);
+  border-radius: 4px;
+  font-size: 11px;
+  font-family: monospace;
+  line-height: 1.55;
+  overflow-x: auto;
+  white-space: pre;
+  color: var(--text, #e6e6e6);
+}
+
+/* ── Chart label ── */
+.ds-chart-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted, #9090a8);
+  margin: 0 0 4px;
+  letter-spacing: 0.02em;
+}
+
+/* ── All stats grid ── */
+.ds-all-stats {
+  margin-top: 8px;
+  border-top: 1px solid var(--border, #2d2d44);
+  padding-top: 6px;
+}
+.ds-all-stats-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted, #9090a8);
+  margin: 0 0 6px;
+}
+.ds-all-stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+.ds-all-stats-cell {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 2px 6px;
+  background: var(--bg-base, #0e0e14);
+  border-radius: 3px;
+}
+
+/* ── Compare stats table ── */
+.ds-compare-stats {
+  margin-top: 8px;
+  border-top: 1px solid var(--border, #2d2d44);
+  padding-top: 6px;
+  font-size: 11px;
+}
+.ds-compare-stats-header {
+  display: grid;
+  grid-template-columns: 80px 1fr 1fr;
+  gap: 4px;
+  margin-bottom: 4px;
+  font-weight: 600;
+  color: var(--text-muted, #9090a8);
+}
+.ds-compare-stats-col {
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ds-compare-stats-row {
+  display: grid;
+  grid-template-columns: 80px 1fr 1fr;
+  gap: 4px;
+  padding: 2px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--border, #2d2d44) 50%, transparent);
+}
+.ds-compare-stats-row .ds-value-label {
+  font-size: 11px;
+}
+.ds-compare-stats-row .ds-value-num {
+  text-align: right;
+  font-size: 11px;
 }
 
 /* ── StartMenu B.5: project list + goal cards + wizard ───── */

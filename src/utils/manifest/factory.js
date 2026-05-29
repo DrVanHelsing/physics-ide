@@ -9,6 +9,21 @@
 
 import { SCHEMA_VERSION, GOALS, EDITOR_MODES, PROJECT_TYPES } from "./schema";
 
+const DS_STARTER_XML = `<xml xmlns="https://developers.google.com/blockly/xml">
+  <variables>
+    <variable id="ds-starter-df">df</variable>
+  </variables>
+  <block type="ds_load_builtin_block" x="40" y="40">
+    <field name="VAR" id="ds-starter-df">df</field>
+    <field name="ID">penguins</field>
+    <next>
+      <block type="ds_show_table_block">
+        <field name="VAR" id="ds-starter-df">df</field>
+      </block>
+    </next>
+  </block>
+</xml>`;
+
 function generateId(prefix = "p") {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
     return `${prefix}-${crypto.randomUUID()}`;
@@ -44,6 +59,9 @@ export function createManifest({
       ? title
       : defaultTitle(goal);
 
+  const defaultXml =
+    goal === "datascience" && !workspaceXml ? DS_STARTER_XML : (workspaceXml || "");
+
   return {
     schemaVersion: SCHEMA_VERSION,
     id: id || generateId(),
@@ -54,7 +72,7 @@ export function createManifest({
     beginnerEnabled: Boolean(beginnerEnabled),
     createdAt: now,
     updatedAt: now,
-    workspace: { xml: workspaceXml || "" },
+    workspace: { xml: defaultXml },
     source: { python: python || "" },
     datasets: [],
     runs: [],

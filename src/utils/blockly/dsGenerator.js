@@ -345,6 +345,61 @@ const DS_GENERATORS = {
     const dsVar = resolveVar(block, "VAR", "df");
     return `__outputs.push({ type: "download", format: "csv", dataset: ${dsVar} });\n`;
   },
+
+  ds_show_python_block(_block) {
+    return `__outputs.push({ type: "show_python" });\n`;
+  },
+
+  /* ── D.5: Missing spec blocks ── */
+
+  ds_find_missing_block(block) {
+    const resultVar = resolveVar(block, "RESULT", "missing");
+    const dsVar     = resolveVar(block, "VAR", "df");
+    const col       = (block.getFieldValue("COL") || "col").trim();
+    return (
+      `var ${resultVar} = __ds.transform(${dsVar}, { kind: "findMissing", column: ${JSON.stringify(col)} });\n` +
+      `if (${resultVar}) __outputs.push({ type: "table", varName: ${JSON.stringify(`${dsVar} missing in ${col}`)}, dataset: ${resultVar} });\n`
+    );
+  },
+
+  ds_show_one_cell_block(block) {
+    const resultVar = resolveVar(block, "RESULT", "cell");
+    const dsVar     = resolveVar(block, "VAR", "df");
+    const row       = parseInt(block.getFieldValue("ROW") || "0", 10);
+    const col       = (block.getFieldValue("COL") || "col").trim();
+    return (
+      `var ${resultVar} = __ds.cellAt(${dsVar}, ${row}, ${JSON.stringify(col)});\n` +
+      `__outputs.push({ type: "value", label: ${JSON.stringify(`${dsVar}[${row}]["${col}"]`)}, value: ${resultVar} });\n`
+    );
+  },
+
+  ds_all_stats_block(block) {
+    const dsVar = resolveVar(block, "VAR", "df");
+    const col   = (block.getFieldValue("COL") || "col").trim();
+    return (
+      `var __stats = __ds.allStats(${dsVar}, ${JSON.stringify(col)});\n` +
+      `if (__stats) __outputs.push({ type: "all_stats", col: ${JSON.stringify(col)}, stats: __stats });\n`
+    );
+  },
+
+  ds_compare_columns_block(block) {
+    const dsVar = resolveVar(block, "VAR", "df");
+    const colA  = (block.getFieldValue("COL_A") || "col1").trim();
+    const colB  = (block.getFieldValue("COL_B") || "col2").trim();
+    return (
+      `var __statsA = __ds.allStats(${dsVar}, ${JSON.stringify(colA)});\n` +
+      `var __statsB = __ds.allStats(${dsVar}, ${JSON.stringify(colB)});\n` +
+      `__outputs.push({ type: "compare_stats", colA: ${JSON.stringify(colA)}, colB: ${JSON.stringify(colB)}, statsA: __statsA, statsB: __statsB });\n`
+    );
+  },
+
+  ds_save_chart_block(block) {
+    const dsVar    = resolveVar(block, "VAR", "df");
+    const xCol     = (block.getFieldValue("X_COL") || "x").trim();
+    const yCol     = (block.getFieldValue("Y_COL") || "y").trim();
+    const chartType = (block.getFieldValue("CHART_TYPE") || "bar").trim();
+    return `__outputs.push({ type: "save_chart", chartType: ${JSON.stringify(chartType)}, dataset: ${dsVar}, xCol: ${JSON.stringify(xCol)}, yCol: ${JSON.stringify(yCol)} });\n`;
+  },
 };
 
 function walkChain(block, parts) {

@@ -260,6 +260,13 @@ export function transform(ds, op) {
       });
       return fromAq(aq.from(out), ds, { op: `dropMissing(${op.column})` });
     }
+    case "findMissing": {
+      const out = ds.rows.filter((r) => {
+        const v = r[op.column];
+        return v === null || v === undefined || v === "";
+      });
+      return fromAq(aq.from(out), ds, { op: `findMissing(${op.column})` });
+    }
     case "groupBy":
       return aggregateGroupBy(ds, op);
     default:
@@ -428,6 +435,24 @@ export function uniqueCount(ds, colName) {
     if (v !== null && v !== undefined && v !== "") seen.add(v);
   }
   return seen.size;
+}
+
+export function allStats(ds, colName) {
+  return {
+    count:  countOfColumn(ds, colName),
+    mean:   meanOfColumn(ds, colName),
+    median: median(ds, colName),
+    min:    minOfColumn(ds, colName),
+    max:    maxOfColumn(ds, colName),
+    range:  rangeOfColumn(ds, colName),
+    sum:    sumOfColumn(ds, colName),
+    spread: stddevOfColumn(ds, colName),
+  };
+}
+
+export function cellAt(ds, rowIndex, colName) {
+  if (!ds || rowIndex < 0 || rowIndex >= ds.rowCount) return null;
+  return ds.rows[rowIndex]?.[colName] ?? null;
 }
 
 /* ── CSV import ───────────────────────────────────────────────────────

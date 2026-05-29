@@ -18,10 +18,11 @@ function validRows(rows, ...cols) {
   );
 }
 
-function baseOpts(title) {
+function baseOpts(title, containerWidth) {
+  const w = Math.max(260, (containerWidth || 330) - 8);
   return {
-    width: 330,
-    height: 210,
+    width: w,
+    height: Math.round(w * 0.62),
     marginLeft: 50,
     marginBottom: 46,
     marginTop: title ? 26 : 8,
@@ -29,7 +30,7 @@ function baseOpts(title) {
   };
 }
 
-export function renderDsChartToElement(chartOutput) {
+export function renderDsChartToElement(chartOutput, containerWidth) {
   const { chartType, dataset, xCol, yCol, col, valueCol, groupCol, title } = chartOutput;
   if (!dataset || !dataset.rows || dataset.rows.length === 0)
     return errorEl("No data to chart.");
@@ -43,7 +44,7 @@ export function renderDsChartToElement(chartOutput) {
         const clean = validRows(rows, xCol);
         if (!clean.length) return errorEl("No valid rows for bar chart.");
         chart = Plot.plot({
-          ...baseOpts(title),
+          ...baseOpts(title, containerWidth),
           title: title || undefined,
           marks: [
             Plot.barY(clean, { x: xCol, y: yCol, fill: DS_COLOR }),
@@ -58,7 +59,7 @@ export function renderDsChartToElement(chartOutput) {
         const clean = validRows(rows, xCol, yCol);
         if (!clean.length) return errorEl("No valid rows for line chart.");
         chart = Plot.plot({
-          ...baseOpts(title),
+          ...baseOpts(title, containerWidth),
           title: title || undefined,
           marks: [
             Plot.line(clean, { x: xCol, y: yCol, stroke: DS_COLOR, strokeWidth: 1.5 }),
@@ -73,7 +74,7 @@ export function renderDsChartToElement(chartOutput) {
         const clean = validRows(rows, xCol, yCol);
         if (!clean.length) return errorEl("No valid rows for scatter plot.");
         chart = Plot.plot({
-          ...baseOpts(title),
+          ...baseOpts(title, containerWidth),
           title: title || undefined,
           marks: [
             Plot.dot(clean, { x: xCol, y: yCol, fill: DS_COLOR, opacity: 0.7, r: 3 }),
@@ -92,7 +93,7 @@ export function renderDsChartToElement(chartOutput) {
         });
         if (!clean.length) return errorEl("No valid numeric values for histogram.");
         chart = Plot.plot({
-          ...baseOpts(title),
+          ...baseOpts(title, containerWidth),
           title: title || undefined,
           marks: [
             Plot.rectY(clean, Plot.binX({ y: "count" }, { x: theCol, fill: DS_COLOR })),
@@ -112,7 +113,7 @@ export function renderDsChartToElement(chartOutput) {
         });
         if (!clean.length) return errorEl("No valid values for box plot.");
         chart = Plot.plot({
-          ...baseOpts(title),
+          ...baseOpts(title, containerWidth),
           title: title || undefined,
           marks: groupCol
             ? [Plot.boxY(clean, { x: groupCol, y: vCol, fill: DS_COLOR })]
