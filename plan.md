@@ -71,7 +71,28 @@ Branch: `phase-a-spike`. All work browser-only; no backend, no auth.
 - `src/setupTests.js` — polyfills TextDecoder / TextEncoder for jsdom (Arquero's flechette dep needs them).
 - `package.json` — `jest.transformIgnorePatterns` whitelists Arquero, @uwdata, apache-arrow, @observablehq, internmap, d3-*.
 
-#### 🟡 Phase C.3+ — DS block implementations (next active work)
+#### ✅ Phase C.3 — DS runtime + vertical slice (commit `373ef9b`)
+- `src/utils/runner/dsRunner.js` — JS sandbox via `new Function` with Arquero + dataset module in scope.
+- `src/utils/blockly/dsGenerator.js` — JS code generator for DS blocks (separate from Python reveal generator).
+- 3-block vertical slice: `ds_load_builtin_block`, `ds_show_table_block`, `ds_calc_mean_block`.
+- `DataPanel.js` — table renderer wired to DS output events.
+- Drag-end bug fixed: `generatePythonFromWorkspace` call moved out of the change listener critical path.
+
+#### ✅ Phase C.4 — Stat + utility blocks (commit `36f5733`)
+- 8 more DS blocks fully wired: median, min, max, sum, spread, show-first-N, count-rows, count-unique.
+- Registry: 78 entries. Toolbox: 70 IDs.
+
+#### ✅ Phase C.5 — Explore / Describe / Filter / Sort / Group blocks
+- **3 generator fixes:** Python generators added for `ds_show_first_n_block`, `ds_count_rows_block`, `ds_count_unique_block`.
+- **DataPanel:** now renders all table outputs (not just the first); stacked with labels when multiple tables are present.
+- **Cat 2 remaining (4 blocks):** `ds_show_last_n_block`, `ds_count_cols_block`, `ds_list_cols_block`, `ds_show_column_block`.
+- **Cat 3 remaining (3 blocks):** `ds_calc_mode_block`, `ds_calc_range_block`, `ds_calc_count_block`.
+- **Cat 4 — Filter/Sort/Group (8 blocks):** `ds_filter_eq_block`, `ds_filter_gt_block`, `ds_filter_lt_block`, `ds_sort_asc_block`, `ds_sort_desc_block`, `ds_remove_missing_block`, `ds_group_count_block`, `ds_group_mean_block`.
+- `dsRunner.js` extended: `mode`, `rangeOfColumn`, `countOfColumn` added to DS_API.
+- Toolbox reorganised into four labelled sections: Load data / Explore / Statistics / Filter and Sort / Group and Compare.
+- Registry: 93 entries. Toolbox: 85 IDs. Tests: 86 passing.
+
+#### 🟡 Phase C.6+ — DS block implementations (remaining)
 
 **Design decision pending:** DS block execution. The existing block flow (`generatePythonFromWorkspace` → `runPython` → GlowScript iframe) targets VPython — it does not work for DS blocks that operate on JS-side `Dataset` objects. Three options:
 
@@ -89,8 +110,8 @@ Recommended path: option 1.
 
 If the slice works, the remaining 56 blocks are pattern repetition over the same infrastructure.
 
-#### ⏳ Phase C.4+ — Remaining DS work (after C.3 slice)
-- Categories 1–6 full inventory (56 more blocks), each with registry entry + Blockly def + JS generator + Python reveal generator + unit test.
+#### ⏳ Phase C.6+ — Remaining DS work
+- **Remaining blocks:** Cat 5 charts (bar, line, scatter, histogram, box + axis/title/colour blocks), Cat 6 communication blocks (write-note, print-result, state-conclusion, export-table, save-chart), Cat 1 type blocks (identify-type, ask-type), Cat 4 missing-data find block, combined-filter (AND/OR) blocks, compare-two-columns, show-all-stats.
 - Chart system: `chartSpec.js` + Plot bindings for all five foundational chart types (bar / line / scatter / histogram / box). Phase A handles line + scatter.
 - Trace-to-dataset productionization: variable selection UI, time-window selector, `RunSnapshot` persistence, `RunComparisonView`.
 - Template packs for DS and Hybrid.

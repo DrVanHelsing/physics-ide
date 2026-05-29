@@ -3151,6 +3151,16 @@ mark.help-search-highlight {
   font-weight: 600;
   font-family: monospace;
 }
+.ds-table-section {
+  margin-top: 8px;
+}
+.ds-table-label {
+  font-size: 10px;
+  font-family: monospace;
+  opacity: 0.5;
+  margin: 0 0 4px 2px;
+  letter-spacing: 0.02em;
+}
 
 /* ── StartMenu B.5: project list + goal cards + wizard ───── */
 .start-card--goal {

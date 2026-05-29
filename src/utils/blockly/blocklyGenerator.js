@@ -1173,6 +1173,220 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       colour: 160,
       tooltip: "Count the number of distinct values in a column.",
     },
+    /* ── Category 2: Exploring Data (remaining) ── */
+    {
+      type: "ds_show_last_n_block",
+      message0: "show last %1 rows of %2",
+      args0: [
+        { type: "field_dropdown", name: "N",
+          options: [["5","5"],["10","10"],["20","20"],["50","50"]] },
+        { type: "field_variable", name: "VAR", variable: "df" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 160,
+      tooltip: "Display the last N rows of a dataset as a table.",
+    },
+    {
+      type: "ds_count_cols_block",
+      message0: "%1 = count columns of %2",
+      args0: [
+        { type: "field_variable", name: "RESULT", variable: "result" },
+        { type: "field_variable", name: "VAR",    variable: "df" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 160,
+      tooltip: "Count the number of columns (variables) in a dataset.",
+    },
+    {
+      type: "ds_list_cols_block",
+      message0: "%1 = column names of %2",
+      args0: [
+        { type: "field_variable", name: "RESULT", variable: "result" },
+        { type: "field_variable", name: "VAR",    variable: "df" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 160,
+      tooltip: "Get the names of all columns in a dataset as a list.",
+    },
+    {
+      type: "ds_show_column_block",
+      message0: "show column %2 . %3",
+      args0: [
+        { type: "field_variable", name: "VAR", variable: "df" },
+        { type: "field_input",    name: "COL", text: "species" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 160,
+      tooltip: "Display all values in a single column.",
+    },
+    /* ── Category 3: Describing Data (remaining) ── */
+    {
+      type: "ds_calc_mode_block",
+      message0: "%1 = most common( %2 . %3 )",
+      args0: [
+        { type: "field_variable", name: "RESULT", variable: "result" },
+        { type: "field_variable", name: "VAR",    variable: "df" },
+        { type: "field_input",    name: "COL",    text: "species" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 160,
+      tooltip: "Find the most frequently occurring value in a column.",
+    },
+    {
+      type: "ds_calc_range_block",
+      message0: "%1 = range( %2 . %3 )",
+      args0: [
+        { type: "field_variable", name: "RESULT", variable: "result" },
+        { type: "field_variable", name: "VAR",    variable: "df" },
+        { type: "field_input",    name: "COL",    text: "value" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 160,
+      tooltip: "Calculate the range (max minus min) of a numeric column.",
+    },
+    {
+      type: "ds_calc_count_block",
+      message0: "%1 = count non-missing( %2 . %3 )",
+      args0: [
+        { type: "field_variable", name: "RESULT", variable: "result" },
+        { type: "field_variable", name: "VAR",    variable: "df" },
+        { type: "field_input",    name: "COL",    text: "value" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 160,
+      tooltip: "Count the number of non-missing values in a column.",
+    },
+    /* ── Category 4: Asking Questions (Filter / Sort / Group) ── */
+    {
+      type: "ds_filter_eq_block",
+      message0: "%1 = %2 where %3 = %4",
+      args0: [
+        { type: "field_variable", name: "RESULT", variable: "filtered" },
+        { type: "field_variable", name: "VAR",    variable: "df" },
+        { type: "field_input",    name: "COL",    text: "species" },
+        { type: "field_input",    name: "VALUE",  text: "Adelie" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 65,
+      tooltip: "Keep only rows where a column equals a specific value.",
+    },
+    {
+      type: "ds_filter_gt_block",
+      message0: "%1 = %2 where %3 > %4",
+      args0: [
+        { type: "field_variable", name: "RESULT", variable: "filtered" },
+        { type: "field_variable", name: "VAR",    variable: "df" },
+        { type: "field_input",    name: "COL",    text: "mass" },
+        { type: "field_input",    name: "VALUE",  text: "3500" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 65,
+      tooltip: "Keep only rows where a column is greater than a value.",
+    },
+    {
+      type: "ds_filter_lt_block",
+      message0: "%1 = %2 where %3 < %4",
+      args0: [
+        { type: "field_variable", name: "RESULT", variable: "filtered" },
+        { type: "field_variable", name: "VAR",    variable: "df" },
+        { type: "field_input",    name: "COL",    text: "mass" },
+        { type: "field_input",    name: "VALUE",  text: "3500" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 65,
+      tooltip: "Keep only rows where a column is less than a value.",
+    },
+    {
+      type: "ds_sort_asc_block",
+      message0: "%1 = sort %2 by %3 (smallest first)",
+      args0: [
+        { type: "field_variable", name: "RESULT", variable: "sorted" },
+        { type: "field_variable", name: "VAR",    variable: "df" },
+        { type: "field_input",    name: "COL",    text: "mass" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 65,
+      tooltip: "Sort the dataset by a column from smallest to largest.",
+    },
+    {
+      type: "ds_sort_desc_block",
+      message0: "%1 = sort %2 by %3 (largest first)",
+      args0: [
+        { type: "field_variable", name: "RESULT", variable: "sorted" },
+        { type: "field_variable", name: "VAR",    variable: "df" },
+        { type: "field_input",    name: "COL",    text: "mass" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 65,
+      tooltip: "Sort the dataset by a column from largest to smallest.",
+    },
+    {
+      type: "ds_remove_missing_block",
+      message0: "%1 = %2 with missing %3 removed",
+      args0: [
+        { type: "field_variable", name: "RESULT", variable: "cleaned" },
+        { type: "field_variable", name: "VAR",    variable: "df" },
+        { type: "field_input",    name: "COL",    text: "mass" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 65,
+      tooltip: "Remove rows that have a missing value in a specific column.",
+    },
+    {
+      type: "ds_group_count_block",
+      message0: "%1 = count rows per %3 in %2",
+      args0: [
+        { type: "field_variable", name: "RESULT",  variable: "grouped" },
+        { type: "field_variable", name: "VAR",     variable: "df" },
+        { type: "field_input",    name: "COL",     text: "species" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 65,
+      tooltip: "Count how many rows belong to each group in a categorical column.",
+    },
+    {
+      type: "ds_group_mean_block",
+      message0: "%1 = mean of %3 per %4 in %2",
+      args0: [
+        { type: "field_variable", name: "RESULT",    variable: "grouped" },
+        { type: "field_variable", name: "VAR",       variable: "df" },
+        { type: "field_input",    name: "VALUE_COL", text: "mass" },
+        { type: "field_input",    name: "GROUP_COL", text: "species" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 65,
+      tooltip: "Calculate the mean of a numeric column for each group in a categorical column.",
+    },
   ]);
 
   /* ── physics_const_block — dynamic dropdown with custom constants ── */
@@ -1731,6 +1945,130 @@ export function defineCustomBlocksAndGenerator(Blockly) {
     const dsVar  = varName(block, "VAR", "df");
     const col    = (block.getFieldValue("COL") || "value").trim();
     return `${result} = spread(${dsVar}, "${col}")\n`;
+  };
+
+  gen["ds_show_first_n_block"] = function (block) {
+    const dsVar = varName(block, "VAR", "df");
+    const n = block.getFieldValue("N") || "5";
+    return `show_first(${dsVar}, ${n})\n`;
+  };
+
+  gen["ds_count_rows_block"] = function (block) {
+    const result = varName(block, "RESULT", "result");
+    const dsVar  = varName(block, "VAR", "df");
+    return `${result} = row_count(${dsVar})\n`;
+  };
+
+  gen["ds_count_unique_block"] = function (block) {
+    const result = varName(block, "RESULT", "result");
+    const dsVar  = varName(block, "VAR", "df");
+    const col    = (block.getFieldValue("COL") || "value").trim();
+    return `${result} = unique_count(${dsVar}, "${col}")\n`;
+  };
+
+  gen["ds_show_last_n_block"] = function (block) {
+    const dsVar = varName(block, "VAR", "df");
+    const n = block.getFieldValue("N") || "5";
+    return `show_last(${dsVar}, ${n})\n`;
+  };
+
+  gen["ds_count_cols_block"] = function (block) {
+    const result = varName(block, "RESULT", "result");
+    const dsVar  = varName(block, "VAR", "df");
+    return `${result} = column_count(${dsVar})\n`;
+  };
+
+  gen["ds_list_cols_block"] = function (block) {
+    const result = varName(block, "RESULT", "result");
+    const dsVar  = varName(block, "VAR", "df");
+    return `${result} = column_names(${dsVar})\n`;
+  };
+
+  gen["ds_show_column_block"] = function (block) {
+    const dsVar = varName(block, "VAR", "df");
+    const col   = (block.getFieldValue("COL") || "value").trim();
+    return `show_column(${dsVar}, "${col}")\n`;
+  };
+
+  gen["ds_calc_mode_block"] = function (block) {
+    const result = varName(block, "RESULT", "result");
+    const dsVar  = varName(block, "VAR", "df");
+    const col    = (block.getFieldValue("COL") || "value").trim();
+    return `${result} = most_common(${dsVar}, "${col}")\n`;
+  };
+
+  gen["ds_calc_range_block"] = function (block) {
+    const result = varName(block, "RESULT", "result");
+    const dsVar  = varName(block, "VAR", "df");
+    const col    = (block.getFieldValue("COL") || "value").trim();
+    return `${result} = range(${dsVar}, "${col}")\n`;
+  };
+
+  gen["ds_calc_count_block"] = function (block) {
+    const result = varName(block, "RESULT", "result");
+    const dsVar  = varName(block, "VAR", "df");
+    const col    = (block.getFieldValue("COL") || "value").trim();
+    return `${result} = count_non_missing(${dsVar}, "${col}")\n`;
+  };
+
+  gen["ds_filter_eq_block"] = function (block) {
+    const result = varName(block, "RESULT", "filtered");
+    const dsVar  = varName(block, "VAR", "df");
+    const col    = (block.getFieldValue("COL") || "col").trim();
+    const val    = (block.getFieldValue("VALUE") || "").trim();
+    return `${result} = filter(${dsVar}, ${col} == "${val}")\n`;
+  };
+
+  gen["ds_filter_gt_block"] = function (block) {
+    const result = varName(block, "RESULT", "filtered");
+    const dsVar  = varName(block, "VAR", "df");
+    const col    = (block.getFieldValue("COL") || "col").trim();
+    const val    = (block.getFieldValue("VALUE") || "0").trim();
+    return `${result} = filter(${dsVar}, ${col} > ${val})\n`;
+  };
+
+  gen["ds_filter_lt_block"] = function (block) {
+    const result = varName(block, "RESULT", "filtered");
+    const dsVar  = varName(block, "VAR", "df");
+    const col    = (block.getFieldValue("COL") || "col").trim();
+    const val    = (block.getFieldValue("VALUE") || "0").trim();
+    return `${result} = filter(${dsVar}, ${col} < ${val})\n`;
+  };
+
+  gen["ds_sort_asc_block"] = function (block) {
+    const result = varName(block, "RESULT", "sorted");
+    const dsVar  = varName(block, "VAR", "df");
+    const col    = (block.getFieldValue("COL") || "col").trim();
+    return `${result} = sort(${dsVar}, "${col}", ascending=True)\n`;
+  };
+
+  gen["ds_sort_desc_block"] = function (block) {
+    const result = varName(block, "RESULT", "sorted");
+    const dsVar  = varName(block, "VAR", "df");
+    const col    = (block.getFieldValue("COL") || "col").trim();
+    return `${result} = sort(${dsVar}, "${col}", ascending=False)\n`;
+  };
+
+  gen["ds_remove_missing_block"] = function (block) {
+    const result = varName(block, "RESULT", "cleaned");
+    const dsVar  = varName(block, "VAR", "df");
+    const col    = (block.getFieldValue("COL") || "col").trim();
+    return `${result} = drop_missing(${dsVar}, "${col}")\n`;
+  };
+
+  gen["ds_group_count_block"] = function (block) {
+    const result = varName(block, "RESULT", "grouped");
+    const dsVar  = varName(block, "VAR", "df");
+    const col    = (block.getFieldValue("COL") || "col").trim();
+    return `${result} = count_per_group(${dsVar}, "${col}")\n`;
+  };
+
+  gen["ds_group_mean_block"] = function (block) {
+    const result    = varName(block, "RESULT", "grouped");
+    const dsVar     = varName(block, "VAR", "df");
+    const valueCol  = (block.getFieldValue("VALUE_COL") || "value").trim();
+    const groupCol  = (block.getFieldValue("GROUP_COL") || "group").trim();
+    return `${result} = mean_per_group(${dsVar}, "${valueCol}", by="${groupCol}")\n`;
   };
 
   initialized = true;

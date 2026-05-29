@@ -41,9 +41,10 @@ function DataTable({ dataset }) {
 }
 
 export default function DataPanel({ goal, datasetCount = 0, dsOutputs = [] }) {
-  const tableOutput = dsOutputs.find((o) => o.type === "table");
+  const tableOutputs = dsOutputs.filter((o) => o.type === "table");
   const valueOutputs = dsOutputs.filter((o) => o.type === "value");
   const hasOutputs = dsOutputs.length > 0;
+  const primaryTable = tableOutputs[0];
 
   return (
     <div className="data-panel">
@@ -52,8 +53,8 @@ export default function DataPanel({ goal, datasetCount = 0, dsOutputs = [] }) {
           <TableIcon size={14} /> Data
         </span>
         <span className="data-panel-meta">
-          {tableOutput
-            ? `${tableOutput.dataset?.rowCount ?? 0} rows · ${tableOutput.varName}`
+          {primaryTable
+            ? `${primaryTable.dataset?.rowCount ?? 0} rows · ${primaryTable.varName}`
             : datasetCount === 0
             ? "no datasets yet"
             : `${datasetCount} dataset${datasetCount === 1 ? "" : "s"}`}
@@ -96,7 +97,14 @@ export default function DataPanel({ goal, datasetCount = 0, dsOutputs = [] }) {
           </div>
         )}
 
-        {tableOutput && <DataTable dataset={tableOutput.dataset} />}
+        {tableOutputs.map((t, i) => (
+          <div key={i} className="ds-table-section">
+            {tableOutputs.length > 1 && (
+              <p className="ds-table-label">{t.varName}</p>
+            )}
+            <DataTable dataset={t.dataset} />
+          </div>
+        ))}
       </div>
     </div>
   );
