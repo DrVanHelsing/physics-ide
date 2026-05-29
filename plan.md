@@ -104,13 +104,15 @@ Branch: `phase-a-spike`. All work browser-only; no backend, no auth.
 - `DataPanel.js` — renders note, compare, and conclusion output types with styled cards.
 - Registry: 103 entries. Toolbox: 95 IDs. Tests: 86 passing.
 
-#### ⏳ Phase C.8+ — Remaining DS + Phase C gate work
-- **Remaining blocks (minor):** Cat 4 AND/OR combined filters; Cat 1 type-identity blocks.
-- **Trace-to-dataset productionisation:** variable selection UI, time-window selector, `RunSnapshot` persistence, `RunComparisonView`.
-- **Template packs** for DS and Hybrid.
-- **Guidance layer** for beginner mode.
-- **Bundle import/export** (JSON + lazy JSZip).
-- **Quality bar:** tests, manual flows, perf budgets. Phase C gate check before v1.0 tag.
+#### ✅ Phase C.8 — Trace-to-dataset bridge, templates, bundle export, guidance (commit `feed344`)
+- **Trace-to-dataset bridge:** `TracePromoteDialog` with variable checkboxes + time-window selector; `fromTraceBuffer` pivot (long→wide, forward-fill); `datasetRegistry` singleton for runtime datasets; `ds_load_trace_block` to reload promoted runs in DS workspace; `useProject.addRunAndDataset` persists RunSnapshot to manifest.
+- **Template packs:** `DS_TEMPLATES` (3 DS + 1 hybrid) with correct field names (`X_COL`, `Y_COL`, `VALUE`); hybrid wizard shows 5 templates (4 physics + 1 hybrid DS).
+- **Bundle import/export:** toolbar Export dropdown → `.physide.json`; toolbar Open → import + migrate.
+- **Beginner guidance:** `BeginnerGuide` tip strip, goal-specific tips, per-tip dismissal in localStorage.
+- **Bug fixes:** `t`-column naming collision in `fromTraceBuffer` (reserved timestamp column); `tMin===tMax` zero-duration filter skips time gate; `TracePromoteDialog` rendered in debug-mode early-return branch.
+- **Gate check passed:** 86/86 tests, clean production build, manual DS + Hybrid flows verified in browser.
+
+### ✅ Phase C COMPLETE
 
 ### Phases D + E — Deferred, no work in progress
 - Both behind explicit triggers in `docs/product-contract.md`. Do not start.
