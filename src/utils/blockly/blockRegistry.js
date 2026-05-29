@@ -353,6 +353,21 @@ const REGISTRY = [
   { id: "ds_chart_box_block", category: "Data Science", domain: "datascience",
     conceptLabel: "Box plot", beginnerVisible: true,
     keywords: ["box", "plot", "spread", "median", "outliers", "quartile", "visualise"] },
+  { id: "ds_write_note_block", category: "Data Science", domain: "datascience",
+    conceptLabel: "Write a note", beginnerVisible: true,
+    keywords: ["note", "annotation", "text", "label", "observation", "caption"] },
+  { id: "ds_print_result_block", category: "Data Science", domain: "datascience",
+    conceptLabel: "Print a result", beginnerVisible: true,
+    keywords: ["print", "display", "show", "result", "output", "label"] },
+  { id: "ds_compare_results_block", category: "Data Science", domain: "datascience",
+    conceptLabel: "Compare two results", beginnerVisible: true,
+    keywords: ["compare", "two", "results", "side by side", "versus", "vs"] },
+  { id: "ds_state_conclusion_block", category: "Data Science", domain: "datascience",
+    conceptLabel: "State a conclusion", beginnerVisible: true,
+    keywords: ["conclusion", "finding", "claim", "evidence", "data shows", "summary"] },
+  { id: "ds_export_table_block", category: "Data Science", domain: "datascience",
+    conceptLabel: "Export table as CSV", beginnerVisible: true,
+    keywords: ["export", "csv", "download", "save", "file", "table"] },
 ];
 
 /* ── Public surface ──────────────────────────────────────── */

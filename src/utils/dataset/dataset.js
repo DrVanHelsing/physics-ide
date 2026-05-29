@@ -602,3 +602,18 @@ export function pickColumn(ds, colName) {
 export function columnNames(ds) {
   return ds.columns.map((c) => c.name);
 }
+
+export function toCsvText(ds) {
+  if (!ds || !ds.columns || !ds.rows) return "";
+  const headers = ds.columns.map((c) => c.name);
+  const esc = (v) => {
+    const s = v == null ? "" : String(v);
+    return s.includes(",") || s.includes('"') || s.includes("\n")
+      ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const lines = [
+    headers.map(esc).join(","),
+    ...ds.rows.map((r) => headers.map((h) => esc(r[h])).join(",")),
+  ];
+  return lines.join("\n");
+}

@@ -1462,6 +1462,71 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       colour: 200,
       tooltip: "Draw a box plot showing spread and median. Leave group empty for a single box.",
     },
+    /* ── Category 6: Communicating Findings ── */
+    {
+      type: "ds_write_note_block",
+      message0: "note: %1",
+      args0: [
+        { type: "field_input", name: "TEXT", text: "Add your observation here..." },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 30,
+      tooltip: "Add a plain-text annotation to the output.",
+    },
+    {
+      type: "ds_print_result_block",
+      message0: "print %1 as %2",
+      args0: [
+        { type: "field_variable", name: "VAR",   variable: "result" },
+        { type: "field_input",    name: "LABEL", text: "my result" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 30,
+      tooltip: "Display a computed value with a custom label.",
+    },
+    {
+      type: "ds_compare_results_block",
+      message0: "compare %1 as %2  vs  %3 as %4",
+      args0: [
+        { type: "field_variable", name: "VAR_A",   variable: "result1" },
+        { type: "field_input",    name: "LABEL_A", text: "Group A" },
+        { type: "field_variable", name: "VAR_B",   variable: "result2" },
+        { type: "field_input",    name: "LABEL_B", text: "Group B" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 30,
+      tooltip: "Display two computed values side-by-side for comparison.",
+    },
+    {
+      type: "ds_state_conclusion_block",
+      message0: "conclusion: %1",
+      args0: [
+        { type: "field_input", name: "TEXT", text: "The data shows that " },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 30,
+      tooltip: "State a conclusion based on your findings.",
+    },
+    {
+      type: "ds_export_table_block",
+      message0: "export %1 as CSV",
+      args0: [
+        { type: "field_variable", name: "VAR", variable: "df" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 30,
+      tooltip: "Download the dataset as a CSV file.",
+    },
   ]);
 
   /* ── physics_const_block — dynamic dropdown with custom constants ── */
@@ -2183,6 +2248,35 @@ export function defineCustomBlocksAndGenerator(Blockly) {
     const groupCol = (block.getFieldValue("GROUP_COL") || "").trim();
     const title    = (block.getFieldValue("TITLE") || "").trim();
     return `box_plot(${dsVar}, value="${valueCol}"${groupCol ? `, group="${groupCol}"` : ""}${title ? `, title="${title}"` : ""})\n`;
+  };
+
+  gen["ds_write_note_block"] = function (block) {
+    const text = (block.getFieldValue("TEXT") || "").trim();
+    return `# Note: ${text}\nprint(${JSON.stringify(text)})\n`;
+  };
+
+  gen["ds_print_result_block"] = function (block) {
+    const name  = varName(block, "VAR", "result");
+    const label = (block.getFieldValue("LABEL") || name).trim();
+    return `print(f"${label}: {${name}}")\n`;
+  };
+
+  gen["ds_compare_results_block"] = function (block) {
+    const nameA  = varName(block, "VAR_A", "result1");
+    const labelA = (block.getFieldValue("LABEL_A") || nameA).trim();
+    const nameB  = varName(block, "VAR_B", "result2");
+    const labelB = (block.getFieldValue("LABEL_B") || nameB).trim();
+    return `print(f"${labelA}: {${nameA}}  vs  ${labelB}: {${nameB}}")\n`;
+  };
+
+  gen["ds_state_conclusion_block"] = function (block) {
+    const text = (block.getFieldValue("TEXT") || "").trim();
+    return `# Conclusion\nprint(${JSON.stringify(text)})\n`;
+  };
+
+  gen["ds_export_table_block"] = function (block) {
+    const name = varName(block, "VAR", "df");
+    return `${name}.to_csv("export.csv", index=False)\n`;
   };
 
   initialized = true;

@@ -33,7 +33,7 @@ import ChartOverlay from "../ChartOverlay";
 import DataPanel    from "../DataPanel";
 import { BlocksIcon, CodeIcon, GlobeIcon } from "../Icons";
 
-import { fromTraceBuffer } from "../../utils/dataset/dataset";
+import { fromTraceBuffer, toCsvText } from "../../utils/dataset/dataset";
 import { saveDataset } from "../../hooks/useDataset";
 import { generateDsJsFromWorkspace } from "../../utils/blockly/dsGenerator";
 import { runDsCode } from "../../utils/runner/dsRunner";
@@ -87,7 +87,24 @@ export default function IDELayout() {
       sim.handleWorkspaceChange(xml, code);
       if (isDataGoal && workspaceRef.current) {
         const jsCode = generateDsJsFromWorkspace(workspaceRef.current);
-        runDsCode(jsCode).then(({ outputs }) => setDsOutputs(outputs));
+        runDsCode(jsCode).then(({ outputs }) => {
+          const displayOutputs = [];
+          for (const o of outputs) {
+            if (o.type === "download" && o.format === "csv" && o.dataset) {
+              const csv = toCsvText(o.dataset);
+              const blob = new Blob([csv], { type: "text/csv" });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = `${o.dataset.id || "dataset"}.csv`;
+              a.click();
+              URL.revokeObjectURL(url);
+            } else {
+              displayOutputs.push(o);
+            }
+          }
+          setDsOutputs(displayOutputs);
+        });
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
