@@ -98,13 +98,19 @@ Branch: `phase-a-spike`. All work browser-only; no backend, no auth.
 - `DataPanel.js` — `DsChart` React component renders chart outputs inline via `useEffect` + `useRef`; charts appear below value + table outputs.
 - Registry: 98 entries. Toolbox: 90 IDs. Tests: 86 passing.
 
-#### ⏳ Phase C.7+ — Remaining DS work
-- **Remaining blocks:** Cat 6 communication blocks (write-note, print-result, state-conclusion, export-table, save-chart), Cat 1 type-identity blocks, Cat 4 combined-filter (AND/OR) blocks.
-- Trace-to-dataset productionization: variable selection UI, time-window selector, `RunSnapshot` persistence, `RunComparisonView`.
-- Template packs for DS and Hybrid.
-- Guidance layer for beginner mode.
-- Bundle import/export (JSON + lazy JSZip).
-- Quality bar: tests, manual flows, perf budgets.
+#### ✅ Phase C.7 — Category 6 communication blocks
+- 5 blocks: `ds_write_note_block`, `ds_print_result_block`, `ds_compare_results_block`, `ds_state_conclusion_block`, `ds_export_table_block`.
+- `dataset.js` — `toCsvText(ds)` added; browser download triggered in `IDELayout` for download-type outputs.
+- `DataPanel.js` — renders note, compare, and conclusion output types with styled cards.
+- Registry: 103 entries. Toolbox: 95 IDs. Tests: 86 passing.
+
+#### ⏳ Phase C.8+ — Remaining DS + Phase C gate work
+- **Remaining blocks (minor):** Cat 4 AND/OR combined filters; Cat 1 type-identity blocks.
+- **Trace-to-dataset productionisation:** variable selection UI, time-window selector, `RunSnapshot` persistence, `RunComparisonView`.
+- **Template packs** for DS and Hybrid.
+- **Guidance layer** for beginner mode.
+- **Bundle import/export** (JSON + lazy JSZip).
+- **Quality bar:** tests, manual flows, perf budgets. Phase C gate check before v1.0 tag.
 
 ### Phases D + E — Deferred, no work in progress
 - Both behind explicit triggers in `docs/product-contract.md`. Do not start.

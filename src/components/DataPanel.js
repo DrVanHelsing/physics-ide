@@ -54,9 +54,12 @@ function DsChart({ chartOutput }) {
 }
 
 export default function DataPanel({ goal, datasetCount = 0, dsOutputs = [] }) {
-  const tableOutputs = dsOutputs.filter((o) => o.type === "table");
-  const valueOutputs = dsOutputs.filter((o) => o.type === "value");
-  const chartOutputs = dsOutputs.filter((o) => o.type === "chart");
+  const tableOutputs  = dsOutputs.filter((o) => o.type === "table");
+  const valueOutputs  = dsOutputs.filter((o) => o.type === "value");
+  const chartOutputs  = dsOutputs.filter((o) => o.type === "chart");
+  const noteOutputs   = dsOutputs.filter((o) => o.type === "note");
+  const compareOutputs = dsOutputs.filter((o) => o.type === "compare");
+  const conclusions   = dsOutputs.filter((o) => o.type === "conclusion");
   const hasOutputs = dsOutputs.length > 0;
   const primaryTable = tableOutputs[0];
 
@@ -123,6 +126,35 @@ export default function DataPanel({ goal, datasetCount = 0, dsOutputs = [] }) {
         {chartOutputs.map((c, i) => (
           <div key={i} className="ds-chart-section">
             <DsChart chartOutput={c} />
+          </div>
+        ))}
+
+        {noteOutputs.map((o, i) => (
+          <div key={i} className="ds-note">{o.text}</div>
+        ))}
+
+        {compareOutputs.map((o, i) => (
+          <div key={i} className="ds-compare">
+            <div className="ds-compare-cell">
+              <span className="ds-value-label">{o.a.label}</span>
+              <span className="ds-value-num">
+                {typeof o.a.value === "number" ? o.a.value.toFixed(4) : String(o.a.value ?? "—")}
+              </span>
+            </div>
+            <span className="ds-compare-vs">vs</span>
+            <div className="ds-compare-cell">
+              <span className="ds-value-label">{o.b.label}</span>
+              <span className="ds-value-num">
+                {typeof o.b.value === "number" ? o.b.value.toFixed(4) : String(o.b.value ?? "—")}
+              </span>
+            </div>
+          </div>
+        ))}
+
+        {conclusions.map((o, i) => (
+          <div key={i} className="ds-conclusion">
+            <span className="ds-conclusion-icon">💡</span>
+            <span className="ds-conclusion-text">{o.text}</span>
           </div>
         ))}
       </div>

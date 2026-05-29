@@ -314,6 +314,37 @@ const DS_GENERATORS = {
     const title    = (block.getFieldValue("TITLE") || "").trim();
     return `__outputs.push({ type: "chart", chartType: "box", dataset: ${dsVar}, valueCol: ${JSON.stringify(valueCol)}, groupCol: ${JSON.stringify(groupCol)}, title: ${JSON.stringify(title)} });\n`;
   },
+
+  /* ── Category 6: Communicating Findings ── */
+
+  ds_write_note_block(block) {
+    const text = (block.getFieldValue("TEXT") || "").trim();
+    return `__outputs.push({ type: "note", text: ${JSON.stringify(text)} });\n`;
+  },
+
+  ds_print_result_block(block) {
+    const varName = resolveVar(block, "VAR", "result");
+    const label = (block.getFieldValue("LABEL") || varName).trim();
+    return `__outputs.push({ type: "value", label: ${JSON.stringify(label)}, value: ${varName} });\n`;
+  },
+
+  ds_compare_results_block(block) {
+    const varA  = resolveVar(block, "VAR_A", "result1");
+    const labelA = (block.getFieldValue("LABEL_A") || varA).trim();
+    const varB  = resolveVar(block, "VAR_B", "result2");
+    const labelB = (block.getFieldValue("LABEL_B") || varB).trim();
+    return `__outputs.push({ type: "compare", a: { value: ${varA}, label: ${JSON.stringify(labelA)} }, b: { value: ${varB}, label: ${JSON.stringify(labelB)} } });\n`;
+  },
+
+  ds_state_conclusion_block(block) {
+    const text = (block.getFieldValue("TEXT") || "").trim();
+    return `__outputs.push({ type: "conclusion", text: ${JSON.stringify(text)} });\n`;
+  },
+
+  ds_export_table_block(block) {
+    const dsVar = resolveVar(block, "VAR", "df");
+    return `__outputs.push({ type: "download", format: "csv", dataset: ${dsVar} });\n`;
+  },
 };
 
 function walkChain(block, parts) {

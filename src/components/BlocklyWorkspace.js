@@ -696,6 +696,13 @@ const TOOLBOX_BEGINNER_XML = `
       <field name="VALUE_COL">body_mass_g</field>
       <field name="GROUP_COL">species</field>
     </block>
+    <sep gap="8"></sep>
+    <label text="Communicate" web-class="tb-label"></label>
+    <block type="ds_write_note_block"></block>
+    <block type="ds_print_result_block"></block>
+    <block type="ds_compare_results_block"></block>
+    <block type="ds_state_conclusion_block"></block>
+    <block type="ds_export_table_block"></block>
   </category>
 </xml>`;
 
