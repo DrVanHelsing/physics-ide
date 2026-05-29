@@ -114,16 +114,65 @@ function CompareStats({ output }) {
   );
 }
 
+function renderOutput(o, i) {
+  switch (o.type) {
+    case "value":
+      return (
+        <div key={i} className="ds-value-row">
+          <span className="ds-value-label">{o.label}</span>
+          <span className="ds-value-num">{fmtNum(o.value)}</span>
+        </div>
+      );
+    case "table":
+      return (
+        <div key={i} className="ds-table-section">
+          {o.varName && <p className="ds-table-label">{o.varName}</p>}
+          <DataTable dataset={o.dataset} />
+        </div>
+      );
+    case "chart":
+      return (
+        <div key={i} className="ds-chart-section">
+          {o.title && <p className="ds-chart-label">{o.title}</p>}
+          <DsChart chartOutput={o} />
+        </div>
+      );
+    case "note":
+      return <div key={i} className="ds-note">{o.text}</div>;
+    case "compare":
+      return (
+        <div key={i} className="ds-compare">
+          <div className="ds-compare-cell">
+            <span className="ds-value-label">{o.a.label}</span>
+            <span className="ds-value-num">{fmtNum(o.a.value)}</span>
+          </div>
+          <span className="ds-compare-vs">vs</span>
+          <div className="ds-compare-cell">
+            <span className="ds-value-label">{o.b.label}</span>
+            <span className="ds-value-num">{fmtNum(o.b.value)}</span>
+          </div>
+        </div>
+      );
+    case "all_stats":
+      return <AllStats key={i} output={o} />;
+    case "compare_stats":
+      return <CompareStats key={i} output={o} />;
+    case "conclusion":
+      return (
+        <div key={i} className="ds-conclusion">
+          <span className="ds-conclusion-icon">💡</span>
+          <span className="ds-conclusion-text">{o.text}</span>
+        </div>
+      );
+    case "python":
+      return <DsPython key={i} code={o.code} />;
+    default:
+      return null;
+  }
+}
+
 export default function DataPanel({ goal, datasetCount = 0, dsOutputs = [], dsError = null, onClearCsvCache = null }) {
-  const tableOutputs   = dsOutputs.filter((o) => o.type === "table");
-  const valueOutputs   = dsOutputs.filter((o) => o.type === "value");
-  const chartOutputs   = dsOutputs.filter((o) => o.type === "chart");
-  const noteOutputs    = dsOutputs.filter((o) => o.type === "note");
-  const compareOutputs = dsOutputs.filter((o) => o.type === "compare");
-  const allStatsOutputs    = dsOutputs.filter((o) => o.type === "all_stats");
-  const compareStatsOutputs = dsOutputs.filter((o) => o.type === "compare_stats");
-  const conclusions    = dsOutputs.filter((o) => o.type === "conclusion");
-  const pythonOutputs  = dsOutputs.filter((o) => o.type === "python");
+  const tableOutputs = dsOutputs.filter((o) => o.type === "table");
   const hasOutputs = dsOutputs.length > 0 || dsError;
   const primaryTable = tableOutputs[0];
 
@@ -175,85 +224,7 @@ export default function DataPanel({ goal, datasetCount = 0, dsOutputs = [], dsEr
           </>
         )}
 
-        {valueOutputs.length > 0 && (
-          <div className="ds-values">
-            {valueOutputs.map((o, i) => (
-              <div key={i} className="ds-value-row">
-                <span className="ds-value-label">{o.label}</span>
-                <span className="ds-value-num">
-                  {typeof o.value === "number"
-                    ? Number.isInteger(o.value)
-                      ? String(o.value)
-                      : o.value.toFixed(4)
-                    : o.value == null
-                    ? "—"
-                    : String(o.value)}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {tableOutputs.map((t, i) => (
-          <div key={i} className="ds-table-section">
-            {tableOutputs.length > 1 && (
-              <p className="ds-table-label">{t.varName}</p>
-            )}
-            <DataTable dataset={t.dataset} />
-          </div>
-        ))}
-
-        {chartOutputs.map((c, i) => (
-          <div key={i} className="ds-chart-section">
-            {c.title && <p className="ds-chart-label">{c.title}</p>}
-            <DsChart chartOutput={c} />
-          </div>
-        ))}
-
-        {noteOutputs.map((o, i) => (
-          <div key={i} className="ds-note">{o.text}</div>
-        ))}
-
-        {compareOutputs.map((o, i) => (
-          <div key={i} className="ds-compare">
-            <div className="ds-compare-cell">
-              <span className="ds-value-label">{o.a.label}</span>
-              <span className="ds-value-num">
-                {typeof o.a.value === "number"
-                  ? Number.isInteger(o.a.value) ? String(o.a.value) : o.a.value.toFixed(4)
-                  : String(o.a.value ?? "—")}
-              </span>
-            </div>
-            <span className="ds-compare-vs">vs</span>
-            <div className="ds-compare-cell">
-              <span className="ds-value-label">{o.b.label}</span>
-              <span className="ds-value-num">
-                {typeof o.b.value === "number"
-                  ? Number.isInteger(o.b.value) ? String(o.b.value) : o.b.value.toFixed(4)
-                  : String(o.b.value ?? "—")}
-              </span>
-            </div>
-          </div>
-        ))}
-
-        {allStatsOutputs.map((o, i) => (
-          <AllStats key={i} output={o} />
-        ))}
-
-        {compareStatsOutputs.map((o, i) => (
-          <CompareStats key={i} output={o} />
-        ))}
-
-        {conclusions.map((o, i) => (
-          <div key={i} className="ds-conclusion">
-            <span className="ds-conclusion-icon">💡</span>
-            <span className="ds-conclusion-text">{o.text}</span>
-          </div>
-        ))}
-
-        {pythonOutputs.map((o, i) => (
-          <DsPython key={i} code={o.code} />
-        ))}
+        {dsOutputs.map((o, i) => renderOutput(o, i))}
       </div>
     </div>
   );

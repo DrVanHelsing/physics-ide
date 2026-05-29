@@ -3148,7 +3148,9 @@ mark.help-search-highlight {
   background: var(--bg-base, #0e0e14);
   border-radius: 4px;
   border: 1px solid var(--border, #2d2d44);
+  margin-top: 4px;
 }
+.ds-value-row:first-child { margin-top: 0; }
 .ds-value-label {
   opacity: 0.7;
   font-family: monospace;

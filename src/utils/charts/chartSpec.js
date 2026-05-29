@@ -49,6 +49,7 @@ export function renderDsChartToElement(chartOutput, containerWidth) {
           marks: [
             Plot.barY(clean, { x: xCol, y: yCol, fill: DS_COLOR }),
             Plot.ruleY([0]),
+            Plot.tip(clean, Plot.pointerX({ x: xCol, y: yCol })),
           ],
           x: { label: xCol, tickRotate: -30 },
           y: { label: yCol, grid: true },
@@ -64,6 +65,7 @@ export function renderDsChartToElement(chartOutput, containerWidth) {
           marks: [
             Plot.line(clean, { x: xCol, y: yCol, stroke: DS_COLOR, strokeWidth: 1.5 }),
             Plot.dot(clean, { x: xCol, y: yCol, fill: DS_COLOR, r: 2 }),
+            Plot.tip(clean, Plot.pointerX({ x: xCol, y: yCol })),
           ],
           x: { label: xCol, grid: true },
           y: { label: yCol, grid: true },
@@ -78,6 +80,7 @@ export function renderDsChartToElement(chartOutput, containerWidth) {
           title: title || undefined,
           marks: [
             Plot.dot(clean, { x: xCol, y: yCol, fill: DS_COLOR, opacity: 0.7, r: 3 }),
+            Plot.tip(clean, Plot.pointer({ x: xCol, y: yCol })),
           ],
           x: { label: xCol, grid: true },
           y: { label: yCol, grid: true },
@@ -98,6 +101,7 @@ export function renderDsChartToElement(chartOutput, containerWidth) {
           marks: [
             Plot.rectY(clean, Plot.binX({ y: "count" }, { x: theCol, fill: DS_COLOR })),
             Plot.ruleY([0]),
+            Plot.tip(clean, Plot.binX({ y: "count" }, Plot.pointerX({ x: theCol }))),
           ],
           x: { label: theCol },
           y: { label: "count", grid: true },
@@ -116,8 +120,14 @@ export function renderDsChartToElement(chartOutput, containerWidth) {
           ...baseOpts(title, containerWidth),
           title: title || undefined,
           marks: groupCol
-            ? [Plot.boxY(clean, { x: groupCol, y: vCol, fill: DS_COLOR })]
-            : [Plot.boxY(clean, { y: vCol, fill: DS_COLOR })],
+            ? [
+                Plot.boxY(clean, { x: groupCol, y: vCol, fill: DS_COLOR }),
+                Plot.tip(clean, Plot.pointer({ x: groupCol, y: vCol })),
+              ]
+            : [
+                Plot.boxY(clean, { y: vCol, fill: DS_COLOR }),
+                Plot.tip(clean, Plot.pointerY({ y: vCol })),
+              ],
           ...(groupCol ? { x: { label: groupCol, tickRotate: -30 } } : {}),
           y: { label: vCol, grid: true },
         });
