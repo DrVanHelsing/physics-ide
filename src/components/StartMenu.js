@@ -21,7 +21,7 @@
 
 import React, { useMemo, useRef, useState } from "react";
 import { EXAMPLES } from "../utils/precodedExamples";
-import { BLOCK_TEMPLATES } from "../utils/blockTemplates";
+import { BLOCK_TEMPLATES, DS_TEMPLATES } from "../utils/blockTemplates";
 import { DEFAULT_PYTHON_CODE } from "../constants";
 import {
   RocketIcon,
@@ -94,7 +94,13 @@ function buildManifestSpec({ goal, title, startPath, templateId, editor, beginne
   } else if (startPath === "template" && templateId) {
     const codeTpl = EXAMPLES.find((e) => e.id === templateId);
     const blocksTpl = BLOCK_TEMPLATES.find((t) => t.id === templateId);
-    if (codeTpl) {
+    const dsTpl = DS_TEMPLATES.find((t) => t.id === templateId);
+    if (dsTpl) {
+      spec.projectType = "block_template";
+      spec.workspaceXml = dsTpl.xml || "";
+      spec.python = "";
+      spec.preferredEditor = "blocks";
+    } else if (codeTpl) {
       spec.projectType = "code_template";
       spec.python = codeTpl.code || DEFAULT_PYTHON_CODE;
       const paired = BLOCK_TEMPLATES.find((t) => t.id === `blocks_${codeTpl.id}`);
@@ -189,8 +195,23 @@ export default function StartMenu({
   );
 
   const templatesForGoal = useMemo(() => {
-    if (wizardGoal !== "physics") return [];
-    // Physics templates only in v1; DS / Hybrid template lists land in Phase C.
+    if (wizardGoal === "datascience") {
+      return DS_TEMPLATES.filter((t) => t.goal === "datascience").map((t) => ({
+        id: t.id,
+        title: t.title,
+        description: t.description,
+        kind: "blocks",
+      }));
+    }
+    if (wizardGoal === "hybrid") {
+      return DS_TEMPLATES.filter((t) => t.goal === "hybrid").map((t) => ({
+        id: t.id,
+        title: t.title,
+        description: t.description,
+        kind: "blocks",
+      }));
+    }
+    // Physics
     const codeTemplates = EXAMPLES.map((ex) => ({
       id: ex.id,
       title: ex.title,
@@ -422,7 +443,7 @@ function WizardPanel({
               hint={
                 templates.length > 0
                   ? `${templates.length} template${templates.length === 1 ? "" : "s"} available.`
-                  : "Templates land in Phase C for this goal."
+                  : "No templates available for this goal yet."
               }
               disabled={templates.length === 0}
             />

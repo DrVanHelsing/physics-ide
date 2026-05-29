@@ -18,7 +18,7 @@
  *               │    └─ .canvas-pane  (GlowCanvas)
  *               └─ .status-bar
  */
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 
 import BlocklyWorkspace, { ReadOnlyBlockly } from "../BlocklyWorkspace";
 import CodeEditor   from "../CodeEditor";
@@ -31,13 +31,17 @@ import VariableDialog from "../VariableDialog";
 import DebugMode    from "../DebugMode";
 import ChartOverlay from "../ChartOverlay";
 import DataPanel    from "../DataPanel";
+import TracePromoteDialog from "../TracePromoteDialog";
+import BeginnerGuide from "../BeginnerGuide";
 import { BlocksIcon, CodeIcon, GlobeIcon } from "../Icons";
 
-import { fromTraceBuffer, toCsvText } from "../../utils/dataset/dataset";
+import { fromTraceBuffer, toCsvText, serializeDescriptor } from "../../utils/dataset/dataset";
 import { saveDataset } from "../../hooks/useDataset";
+import { registerDataset } from "../../utils/dataset/datasetRegistry";
 import { generateDsJsFromWorkspace } from "../../utils/blockly/dsGenerator";
 import { runDsCode, clearCsvCache } from "../../utils/runner/dsRunner";
 import { renderDsChartToElement } from "../../utils/charts/chartSpec";
+import { migrate } from "../../utils/manifest/migrate";
 
 import { useTheme }              from "../../contexts/ThemeContext";
 import { useSimulationContext }  from "../../contexts/SimulationContext";
@@ -80,6 +84,9 @@ export default function IDELayout() {
   /* ── DS panel outputs ────────────────────────────────────── */
   const [dsOutputs, setDsOutputs] = useState([]);
   const [dsError,   setDsError]   = useState(null);
+
+  /* ── Saved trace datasets (for DataPanel sidebar) ─────────── */
+  const [savedDatasets, setSavedDatasets] = useState([]);
 
   const goal = proj.activeManifest?.goal || "physics";
   const isDataGoal   = goal === "datascience";
@@ -131,21 +138,95 @@ export default function IDELayout() {
     [sim, isDataGoal, workspaceRef]
   );
 
-  /* ── Chart overlay (Phase A: trace -> dataset -> chart spike) ── */
+  /* ── Chart overlay (Phase A spike) ── */
   const [chartDataset, setChartDataset] = useState(null);
-  const handleSaveAsDataset = useCallback(async (recordBuffer) => {
+  const handleCloseChart = useCallback(() => setChartDataset(null), []);
+
+  /* ── Trace promote dialog ─────────────────────────────────── */
+  const [showTraceDialog, setShowTraceDialog] = useState(false);
+  const pendingBufferRef = useRef(null);
+
+  const handleSaveAsDataset = useCallback((recordBuffer) => {
     if (!recordBuffer || recordBuffer.length === 0) return;
-    const dataset = fromTraceBuffer(recordBuffer, {
-      name: `Run @ ${new Date().toLocaleTimeString()}`,
-    });
+    pendingBufferRef.current = recordBuffer;
+    setShowTraceDialog(true);
+  }, []);
+
+  const handleTraceConfirm = useCallback(async ({ label, selectedVars, tMin, tMax }) => {
+    setShowTraceDialog(false);
+    const buf = pendingBufferRef.current;
+    if (!buf) return;
+    const filtered = buf.filter(
+      (r) => selectedVars.includes(r.name) && r.t >= tMin && r.t <= tMax
+    );
+    const dataset = fromTraceBuffer(filtered, { name: label });
+    registerDataset(dataset);
+    setSavedDatasets((prev) => [...prev, dataset]);
     try {
       await saveDataset(dataset);
     } catch (err) {
       console.warn("Could not persist dataset to localForage:", err);
     }
+    // Persist RunSnapshot + dataset descriptor to manifest.
+    const now = Date.now();
+    const runSnapshot = {
+      id: dataset.id,
+      label,
+      startedAt: tMin,
+      endedAt: tMax,
+      trace: filtered.slice(0, 500), // keep at most 500 rows inline
+    };
+    const descriptor = serializeDescriptor(dataset);
+    try {
+      await proj.addRunAndDataset(runSnapshot, descriptor);
+    } catch (err) {
+      console.warn("Could not persist run to manifest:", err);
+    }
     setChartDataset(dataset);
+  }, [proj]);
+
+  /* ── Bundle export / import ──────────────────────────────── */
+  const handleExportProject = useCallback(() => {
+    const manifest = proj.activeManifest;
+    if (!manifest) return;
+    const json = JSON.stringify(manifest, null, 2);
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    const safeName = (manifest.title || "project").replace(/[^a-z0-9_\-]/gi, "_");
+    a.download = `${safeName}.physide.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [proj]);
+
+  const handleImportProject = useCallback(async (file) => {
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const raw = JSON.parse(text);
+      const manifest = migrate(raw);
+      await proj.createNew({
+        goal: manifest.goal,
+        title: manifest.title,
+        workspaceXml: manifest.workspace?.xml || "",
+        python: manifest.source?.python || "",
+        preferredEditor: manifest.preferredEditor,
+        beginnerEnabled: manifest.beginnerEnabled,
+        projectType: manifest.projectType,
+      });
+    } catch (err) {
+      console.warn("Import failed:", err);
+      alert(`Could not import: ${err.message}`);
+    }
+  }, [proj]);
+
+  /* ── Beginner guidance checkpoint save (localStorage only) ── */
+  const handleTipDismiss = useCallback((dismissedIds) => {
+    try {
+      localStorage.setItem("physide-dismissed-tips", JSON.stringify(dismissedIds));
+    } catch (_) {}
   }, []);
-  const handleCloseChart = useCallback(() => setChartDataset(null), []);
 
   /* ── Derived presentation values ─────────────────────── */
   const statusClass =
@@ -243,6 +324,8 @@ export default function IDELayout() {
         onExportScreenshot={exp.handleExportScreenshot}
         onCopyCode={exp.handleCopyCode}
         onImport={sim.handleImport}
+        onExportProject={handleExportProject}
+        onImportProject={handleImportProject}
         onReset={sim.handleResetToBlocks}
         onClearWorkspace={sim.handleClearWorkspace}
         onToggleTheme={toggleTheme}
@@ -266,6 +349,15 @@ export default function IDELayout() {
           codeLabel={isCustom ? "Code View Only" : "Code"}
         />
       </Toolbar>
+
+      {/* ── Beginner guide strip ── */}
+      {beginnerMode && (
+        <BeginnerGuide
+          goal={goal}
+          checkpointState={proj.activeManifest?.checkpointState}
+          onDismiss={handleTipDismiss}
+        />
+      )}
 
       <div className="main-layout">
         {/* ── Editor pane ── */}
@@ -343,6 +435,7 @@ export default function IDELayout() {
               dsOutputs={dsOutputs}
               dsError={dsError}
               onClearCsvCache={clearCsvCache}
+              savedDatasets={savedDatasets}
             />
           </section>
         ) : isHybridGoal ? (
@@ -363,6 +456,7 @@ export default function IDELayout() {
                 dsOutputs={dsOutputs}
                 dsError={dsError}
                 onClearCsvCache={clearCsvCache}
+                savedDatasets={savedDatasets}
               />
             </div>
           </section>
@@ -391,6 +485,14 @@ export default function IDELayout() {
       </div>
 
       {chartDataset && <ChartOverlay dataset={chartDataset} onClose={handleCloseChart} />}
+
+      {showTraceDialog && pendingBufferRef.current && (
+        <TracePromoteDialog
+          recordBuffer={pendingBufferRef.current}
+          onConfirm={handleTraceConfirm}
+          onCancel={() => setShowTraceDialog(false)}
+        />
+      )}
     </div>
   );
 }

@@ -16,6 +16,7 @@ import {
   filterRows,
   transform,
 } from "../dataset/dataset.js";
+import { getDataset, listDatasets } from "../dataset/datasetRegistry.js";
 
 /* ── CSV file cache — persists across re-runs so the file dialog
    only opens once per cache key (variable name). Call clearCsvCache()
@@ -46,9 +47,15 @@ function loadCsvFile(cacheKey) {
   });
 }
 
+function loadSavedDataset(label) {
+  const all = listDatasets();
+  return all.find((ds) => ds.name === label) || getDataset(label) || null;
+}
+
 const DS_API = {
   fromBuiltin,
   loadCsvFile,
+  loadSavedDataset,
   meanOfColumn, median, minOfColumn, maxOfColumn, sumOfColumn, stddevOfColumn,
   uniqueCount, mode, rangeOfColumn, countOfColumn, allStats, cellAt,
   filterRows, transform,
