@@ -3237,6 +3237,20 @@ mark.help-search-highlight {
   flex: 1;
 }
 
+/* ── DataPanel reload-CSV button ── */
+.data-panel-reload-csv {
+  background: none;
+  border: none;
+  color: var(--text-muted, #9090a8);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0 2px;
+  line-height: 1;
+  opacity: 0.6;
+  margin-left: 4px;
+}
+.data-panel-reload-csv:hover { opacity: 1; color: var(--accent, #2da56f); }
+
 /* ── DS runner error ── */
 .ds-runner-error {
   display: flex;

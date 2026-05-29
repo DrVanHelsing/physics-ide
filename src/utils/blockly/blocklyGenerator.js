@@ -1037,6 +1037,18 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       tooltip: "Load a built-in dataset (planets, penguins, weather) into a variable.",
     },
     {
+      type: "ds_load_csv_block",
+      message0: "%1 = load CSV file",
+      args0: [
+        { type: "field_variable", name: "VAR", variable: "df" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 160,
+      tooltip: "Open a CSV file from your computer and load it as a dataset.",
+    },
+    {
       type: "ds_show_table_block",
       message0: "show table %1",
       args0: [
@@ -1610,6 +1622,55 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       colour: 20,
       tooltip: "Save the chart as a PNG image file.",
     },
+    /* ── Phase E: Compound filters + identify-type ── */
+    {
+      type: "ds_filter_and_block",
+      message0: "%1 = %2 where %3 = %4 AND %5 = %6",
+      args0: [
+        { type: "field_variable", name: "RESULT", variable: "filtered" },
+        { type: "field_variable", name: "VAR",    variable: "df" },
+        { type: "field_input",    name: "COL_A",  text: "species" },
+        { type: "field_input",    name: "VAL_A",  text: "Adelie" },
+        { type: "field_input",    name: "COL_B",  text: "island" },
+        { type: "field_input",    name: "VAL_B",  text: "Biscoe" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 230,
+      tooltip: "Filter rows where both conditions are true (AND logic).",
+    },
+    {
+      type: "ds_filter_or_block",
+      message0: "%1 = %2 where %3 = %4 OR %5 = %6",
+      args0: [
+        { type: "field_variable", name: "RESULT", variable: "filtered" },
+        { type: "field_variable", name: "VAR",    variable: "df" },
+        { type: "field_input",    name: "COL_A",  text: "species" },
+        { type: "field_input",    name: "VAL_A",  text: "Adelie" },
+        { type: "field_input",    name: "COL_B",  text: "species" },
+        { type: "field_input",    name: "VAL_B",  text: "Chinstrap" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 230,
+      tooltip: "Filter rows where at least one condition is true (OR logic).",
+    },
+    {
+      type: "ds_identify_type_block",
+      message0: "%1 = type of %2 . %3",
+      args0: [
+        { type: "field_variable", name: "RESULT", variable: "type" },
+        { type: "field_variable", name: "VAR",    variable: "df" },
+        { type: "field_input",    name: "COL",    text: "species" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 45,
+      tooltip: "Find out the data type of a column (number, text, boolean).",
+    },
   ]);
 
   /* ── physics_const_block — dynamic dropdown with custom constants ── */
@@ -2123,6 +2184,11 @@ export function defineCustomBlocksAndGenerator(Blockly) {
     return `${name} = load_dataset("${id}")\n`;
   };
 
+  gen["ds_load_csv_block"] = function (block) {
+    const name = varName(block, "VAR", "df");
+    return `${name} = load_csv("your_file.csv")\n`;
+  };
+
   gen["ds_show_table_block"] = function (block) {
     const name = varName(block, "VAR", "df");
     return `show_table(${name})\n`;
@@ -2400,6 +2466,33 @@ export function defineCustomBlocksAndGenerator(Blockly) {
     const xCol      = (block.getFieldValue("X_COL") || "x").trim();
     const yCol      = (block.getFieldValue("Y_COL") || "y").trim();
     return `${name}.plot(kind="${chartType}", x="${xCol}", y="${yCol}").get_figure().savefig("chart.png")\n`;
+  };
+
+  gen["ds_filter_and_block"] = function (block) {
+    const result = varName(block, "RESULT", "filtered");
+    const name   = varName(block, "VAR", "df");
+    const colA   = (block.getFieldValue("COL_A") || "col").trim();
+    const valA   = (block.getFieldValue("VAL_A") || "").trim();
+    const colB   = (block.getFieldValue("COL_B") || "col").trim();
+    const valB   = (block.getFieldValue("VAL_B") || "").trim();
+    return `${result} = ${name}[(${name}["${colA}"] == "${valA}") & (${name}["${colB}"] == "${valB}")]\n`;
+  };
+
+  gen["ds_filter_or_block"] = function (block) {
+    const result = varName(block, "RESULT", "filtered");
+    const name   = varName(block, "VAR", "df");
+    const colA   = (block.getFieldValue("COL_A") || "col").trim();
+    const valA   = (block.getFieldValue("VAL_A") || "").trim();
+    const colB   = (block.getFieldValue("COL_B") || "col").trim();
+    const valB   = (block.getFieldValue("VAL_B") || "").trim();
+    return `${result} = ${name}[(${name}["${colA}"] == "${valA}") | (${name}["${colB}"] == "${valB}")]\n`;
+  };
+
+  gen["ds_identify_type_block"] = function (block) {
+    const result = varName(block, "RESULT", "type");
+    const name   = varName(block, "VAR", "df");
+    const col    = (block.getFieldValue("COL") || "col").trim();
+    return `${result} = str(${name}["${col}"].dtype)\n`;
   };
 
   initialized = true;

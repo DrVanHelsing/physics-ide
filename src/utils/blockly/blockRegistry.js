@@ -386,6 +386,18 @@ const REGISTRY = [
   { id: "ds_save_chart_block", category: "Data Science", domain: "datascience",
     conceptLabel: "Save chart as image", beginnerVisible: true,
     keywords: ["save", "export", "chart", "image", "png", "download", "picture"] },
+  { id: "ds_filter_and_block", category: "Data Science", domain: "datascience",
+    conceptLabel: "Filter rows where BOTH conditions match (AND)", beginnerVisible: true,
+    keywords: ["filter", "and", "both", "compound", "multiple conditions", "intersect"] },
+  { id: "ds_filter_or_block", category: "Data Science", domain: "datascience",
+    conceptLabel: "Filter rows where EITHER condition matches (OR)", beginnerVisible: true,
+    keywords: ["filter", "or", "either", "compound", "multiple conditions", "union"] },
+  { id: "ds_identify_type_block", category: "Data Science", domain: "datascience",
+    conceptLabel: "Identify data type of a column", beginnerVisible: true,
+    keywords: ["type", "data type", "number", "text", "boolean", "string", "identify", "kind"] },
+  { id: "ds_load_csv_block", category: "Data Science", domain: "datascience",
+    conceptLabel: "Load CSV file from computer", beginnerVisible: true,
+    keywords: ["csv", "import", "upload", "file", "load", "open", "own data", "spreadsheet"] },
 ];
 
 /* ── Public surface ──────────────────────────────────────── */
