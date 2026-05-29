@@ -156,8 +156,9 @@ export default function IDELayout() {
     setShowTraceDialog(false);
     const buf = pendingBufferRef.current;
     if (!buf) return;
+    const sameTime = tMin === tMax;
     const filtered = buf.filter(
-      (r) => selectedVars.includes(r.name) && r.t >= tMin && r.t <= tMax
+      (r) => selectedVars.includes(r.name) && (sameTime || (r.t >= tMin && r.t <= tMax))
     );
     const dataset = fromTraceBuffer(filtered, { name: label });
     registerDataset(dataset);
@@ -295,6 +296,13 @@ export default function IDELayout() {
           onExitDebug={dbg.handleExitDebug}
         />
         {chartDataset && <ChartOverlay dataset={chartDataset} onClose={handleCloseChart} />}
+        {showTraceDialog && pendingBufferRef.current && (
+          <TracePromoteDialog
+            recordBuffer={pendingBufferRef.current}
+            onConfirm={handleTraceConfirm}
+            onCancel={() => setShowTraceDialog(false)}
+          />
+        )}
       </>
     );
   }
