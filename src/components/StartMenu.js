@@ -204,12 +204,20 @@ export default function StartMenu({
       }));
     }
     if (wizardGoal === "hybrid") {
-      return DS_TEMPLATES.filter((t) => t.goal === "hybrid").map((t) => ({
+      // Physics block templates + hybrid DS analysis template
+      const physicsBlockTemplates = BLOCK_TEMPLATES.map((t) => ({
         id: t.id,
         title: t.title,
         description: t.description,
         kind: "blocks",
       }));
+      const hybridDsTemplates = DS_TEMPLATES.filter((t) => t.goal === "hybrid").map((t) => ({
+        id: t.id,
+        title: t.title,
+        description: t.description,
+        kind: "blocks",
+      }));
+      return [...physicsBlockTemplates, ...hybridDsTemplates];
     }
     // Physics
     const codeTemplates = EXAMPLES.map((ex) => ({

@@ -105,9 +105,11 @@ export function fromTraceBuffer(buffer, opts = {}) {
   if (!buffer || buffer.length === 0) return emptyDataset("trace", opts);
 
   // Group rows by timestamp without an O(n^2) filter.
+  // 't' is reserved for the normalized timestamp column; skip any variable named 't'.
   const byT = new Map();
   const names = new Set();
   for (const r of buffer) {
+    if (r.name === "t") continue;
     names.add(r.name);
     let bucket = byT.get(r.t);
     if (!bucket) {

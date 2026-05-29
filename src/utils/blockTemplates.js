@@ -1668,8 +1668,8 @@ const DS_PENGUINS_STATS_XML = `<xml xmlns="https://developers.google.com/blockly
             <next>
               <block type="ds_chart_bar_block">
                 <field name="VAR" id="ds-peng">df</field>
-                <field name="X">species</field>
-                <field name="Y">bill_length_mm</field>
+                <field name="X_COL">species</field>
+                <field name="Y_COL">bill_length_mm</field>
                 <field name="TITLE">Bill length by species</field>
               </block>
             </next>
@@ -1693,15 +1693,15 @@ const DS_WEATHER_FILTER_XML = `<xml xmlns="https://developers.google.com/blockly
         <field name="RESULT" id="ds-ct">cape_town</field>
         <field name="VAR" id="ds-wx">weather</field>
         <field name="COL">city</field>
-        <field name="VAL">Cape Town</field>
+        <field name="VALUE">Cape Town</field>
         <next>
           <block type="ds_show_table_block">
             <field name="VAR" id="ds-ct">cape_town</field>
             <next>
-              <block type="ds_chart_bar_block">
+              <block type="ds_chart_line_block">
                 <field name="VAR" id="ds-ct">cape_town</field>
-                <field name="X">date</field>
-                <field name="Y">temp_max</field>
+                <field name="X_COL">date</field>
+                <field name="Y_COL">temp_max</field>
                 <field name="TITLE">Cape Town max temperature</field>
               </block>
             </next>
@@ -1725,8 +1725,8 @@ const DS_PLANETS_CHART_XML = `<xml xmlns="https://developers.google.com/blockly/
         <next>
           <block type="ds_chart_scatter_block">
             <field name="VAR" id="ds-pl">planets</field>
-            <field name="X">distance_au</field>
-            <field name="Y">orbital_period_years</field>
+            <field name="X_COL">distance_au</field>
+            <field name="Y_COL">orbital_period_years</field>
             <field name="TITLE">Distance vs Orbital Period</field>
             <next>
               <block type="ds_state_conclusion_block">
@@ -1753,8 +1753,8 @@ const DS_HYBRID_ANALYSIS_XML = `<xml xmlns="https://developers.google.com/blockl
         <next>
           <block type="ds_chart_line_block">
             <field name="VAR" id="ds-run1">run_data</field>
-            <field name="X">t</field>
-            <field name="Y">y</field>
+            <field name="X_COL">t</field>
+            <field name="Y_COL">y</field>
             <field name="TITLE">Trajectory over time</field>
           </block>
         </next>
