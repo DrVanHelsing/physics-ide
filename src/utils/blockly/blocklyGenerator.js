@@ -864,6 +864,26 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       tooltip: "Marks the end of a simulation. Prints a completion message.",
     },
 
+    /* ══════════════════════════════════════════════════════
+       DATA-SCIENCE ANALYSIS-START HAT
+       Anchors a data analysis. Blocks placed inside BODY are
+       "in use"; blocks left outside it are greyed/ignored.
+       ══════════════════════════════════════════════════════ */
+    {
+      type: "ds_start_block",
+      message0: "Start analysis  %1  %2",
+      args0: [
+        { type: "field_input", name: "TITLE", text: "My Analysis" },
+        { type: "input_dummy" },
+      ],
+      message1: "%1",
+      args1: [{ type: "input_statement", name: "BODY" }],
+      colour: 160,
+      tooltip:
+        "Marks the start of a data analysis. Put your load / explore / chart blocks inside. Blocks left outside are greyed out and ignored.",
+      hat: "cap",
+    },
+
     /* ══ 3D Math blocks ═══════════════════════════════════════════════ */
     {
       type: "cross_product_block",
@@ -2119,6 +2139,15 @@ export function defineCustomBlocksAndGenerator(Blockly) {
   gen["sim_end_block"] = function (block) {
     const msg = escPy(block.getFieldValue("MSG") || "Simulation complete");
     return `# === Simulation End ===\nprint("${msg}")\n`;
+  };
+
+  gen["ds_start_block"] = function (block) {
+    const title = escPy(block.getFieldValue("TITLE") || "My Analysis");
+    const raw = Python.statementToCode(block, "BODY") || "";
+    const indent = Python.INDENT || "  ";
+    const re = new RegExp("^" + indent.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gm");
+    const body = raw.replace(re, "");
+    return `# === Analysis: ${title} ===\n${body}`;
   };
 
   /* ── Physics constant: handle __NEW__ custom constant ── */

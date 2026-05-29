@@ -29,7 +29,6 @@ export function useProject() {
       sim.setProjectType(manifest.projectType || "custom");
       sim.setPythonCode(manifest.source?.python || "");
       sim.setWorkspaceXml(manifest.workspace?.xml || "");
-      sim.setBeginnerMode(Boolean(manifest.beginnerEnabled));
     },
     [sim],
   );
@@ -42,7 +41,6 @@ export function useProject() {
         ...base,
         preferredEditor: editorIsCode ? "code" : "blocks",
         projectType: sim.projectType || base.projectType || "custom",
-        beginnerEnabled: Boolean(sim.beginnerMode),
         workspace: { ...(base.workspace || {}), xml: sim.workspaceXml || "" },
         source: { ...(base.source || {}), python: sim.pythonCode || "" },
         updatedAt: Date.now(),

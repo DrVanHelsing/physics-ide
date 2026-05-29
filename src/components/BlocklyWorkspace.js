@@ -7,740 +7,7 @@ import {
 } from "../utils/blockly/blocklyGenerator";
 import { SearchIcon, XIcon } from "./Icons";
 import * as dialogService from "../utils/export/dialogService";
-
-/* ── Toolbox XML ─────────────────────────────────────────────
-   Custom VPython blocks are defined in blocklyGenerator.js.
-   Standard Blockly categories (Logic, Loops, Math, Text,
-   Variables, Functions) come from blocks_compressed.js.
-   ──────────────────────────────────────────────────────────── */
-const TOOLBOX_XML = `
-<xml>  <!-- ── STARTER ──────────────────────────────────────── -->
-  <category name="Starter" colour="#5cb85c">
-    <label text="Simulation structure" web-class="tb-label"></label>
-    <block type="sim_start_block"></block>
-    <block type="sim_end_block"></block>
-    <sep gap="12"></sep>
-    <label text="Quick create objects" web-class="tb-label"></label>
-    <block type="preset_sphere_block">
-      <field name="NAME">ball</field>
-      <field name="X">0</field><field name="Y">0</field><field name="Z">0</field>
-      <field name="R">1</field><field name="COL">#ff4444</field>
-    </block>
-    <block type="preset_box_block">
-      <field name="NAME">wall</field>
-      <field name="X">0</field><field name="Y">-1</field><field name="Z">0</field>
-      <field name="W">10</field><field name="H">0.5</field><field name="D">10</field>
-      <field name="COL">#336633</field>
-    </block>
-    <sep gap="12"></sep>    <label text="Define a named constant" web-class="tb-label"></label>
-    <block type="define_const_block">
-      <value name="VALUE"><shadow type="physics_const_block"><field name="CONST">g</field></shadow></value>
-    </block>
-    <block type="define_const_block">
-      <field name="NAME">MASS</field>
-      <value name="VALUE"><shadow type="math_number"><field name="NUM">1</field></shadow></value>
-    </block>
-    <sep gap="8"></sep>    <label text="Physics constants" web-class="tb-label"></label>
-    <block type="physics_const_block"></block>
-    <sep gap="12"></sep>
-    <label text="Initial velocity" web-class="tb-label"></label>
-    <block type="set_velocity_block">
-      <value name="VEL"><shadow type="vector_block"><field name="X">5</field><field name="Y">5</field><field name="Z">0</field></shadow></value>
-    </block>
-    <sep gap="12"></sep>
-    <label text="Simulation setup" web-class="tb-label"></label>
-    <block type="set_gravity_block"></block>
-    <block type="time_step_block"></block>
-    <sep gap="12"></sep>
-    <label text="Main loop" web-class="tb-label"></label>
-    <block type="forever_loop_block"></block>
-    <block type="rate_block"></block>
-    <block type="update_position_block">
-      <value name="DT"><shadow type="expr_block"><field name="EXPR">dt</field></shadow></value>
-    </block>
-    <block type="apply_force_block">
-      <value name="ACCEL"><shadow type="vector_block"><field name="X">0</field><field name="Y">-9.81</field><field name="Z">0</field></shadow></value>
-      <value name="DT"><shadow type="expr_block"><field name="EXPR">dt</field></shadow></value>
-    </block>
-    <sep gap="12"></sep>
-    <label text="Conditions" web-class="tb-label"></label>
-    <block type="if_block">
-      <value name="COND"><shadow type="logic_boolean"><field name="BOOL">TRUE</field></shadow></value>
-    </block>
-    <block type="if_else_block">
-      <value name="COND"><shadow type="logic_boolean"><field name="BOOL">TRUE</field></shadow></value>
-    </block>
-    <sep gap="8"></sep>
-    <label text="Comparisons" web-class="tb-label"></label>
-    <block type="compare_block">
-      <value name="A"><shadow type="var_read_block"><field name="VAR">x</field></shadow></value>
-      <value name="B"><shadow type="math_number"><field name="NUM">0</field></shadow></value>
-    </block>
-    <block type="logic_and_or_block">
-      <value name="A"><shadow type="logic_boolean"><field name="BOOL">TRUE</field></shadow></value>
-      <value name="B"><shadow type="logic_boolean"><field name="BOOL">TRUE</field></shadow></value>
-    </block>
-    <block type="logic_not_block">
-      <value name="VAL"><shadow type="logic_boolean"><field name="BOOL">TRUE</field></shadow></value>
-    </block>
-  </category>
-  <!-- ── VALUES ─────────────────────────────────────────── -->
-  <category name="Values" colour="#7c68c6">    <label text="Define constants" web-class="tb-label"></label>
-    <block type="define_const_block">
-      <value name="VALUE"><shadow type="math_number"><field name="NUM">1</field></shadow></value>
-    </block>
-    <sep gap="8"></sep>
-    <label text="Physics constants" web-class="tb-label"></label>    <block type="physics_const_block"></block>
-    <block type="vector_block"></block>
-    <block type="colour_block"></block>
-    <block type="var_read_block"></block>
-    <block type="expr_block"></block>
-    <sep gap="12"></sep>
-    <label text="Object properties &amp; vectors" web-class="tb-label"></label>
-    <block type="get_prop_block">
-      <field name="OBJ">ball</field>
-      <field name="PROP">velocity</field>
-    </block>
-    <block type="get_component_block">
-      <field name="COMP">y</field>
-      <value name="VEC">
-        <shadow type="get_prop_block">
-          <field name="OBJ">ball</field>
-          <field name="PROP">pos</field>
-        </shadow>
-      </value>
-    </block>
-    <block type="mag_block">
-      <value name="VEC">
-        <shadow type="get_prop_block">
-          <field name="OBJ">ball</field>
-          <field name="PROP">velocity</field>
-        </shadow>
-      </value>
-    </block>
-    <block type="norm_block">
-      <value name="VEC">
-        <shadow type="get_prop_block">
-          <field name="OBJ">ball</field>
-          <field name="PROP">pos</field>
-        </shadow>
-      </value>
-    </block>
-  </category>
-
-  <!-- ── OBJECTS ────────────────────────────────────────── -->
-  <category name="Objects" colour="#4a90d9">
-    <label text="Quick create" web-class="tb-label"></label>
-    <block type="preset_sphere_block">
-      <field name="NAME">ball</field>
-      <field name="X">0</field><field name="Y">0</field><field name="Z">0</field>
-      <field name="R">1</field><field name="COL">#ff4444</field>
-    </block>
-    <block type="preset_box_block">
-      <field name="NAME">wall</field>
-      <field name="X">0</field><field name="Y">-1</field><field name="Z">0</field>
-      <field name="W">10</field><field name="H">0.5</field><field name="D">10</field>
-      <field name="COL">#336633</field>
-    </block>
-    <sep gap="8"></sep>
-    <label text="Composable objects" web-class="tb-label"></label>
-    <block type="sphere_block">
-      <value name="POS"><shadow type="vector_block"><field name="X">0</field><field name="Y">0</field><field name="Z">0</field></shadow></value>
-      <value name="RADIUS"><shadow type="math_number"><field name="NUM">1</field></shadow></value>
-      <value name="COL"><shadow type="colour_block"><field name="MODE">CUSTOM</field><field name="CUSTOM">#ff4444</field></shadow></value>
-    </block>
-    <block type="sphere_trail_block">
-      <value name="POS"><shadow type="vector_block"><field name="X">0</field><field name="Y">0</field><field name="Z">0</field></shadow></value>
-      <value name="RADIUS"><shadow type="math_number"><field name="NUM">0.5</field></shadow></value>
-      <value name="COL"><shadow type="colour_block"><field name="MODE">CUSTOM</field><field name="CUSTOM">#ff4444</field></shadow></value>
-      <value name="TRAIL_R"><shadow type="math_number"><field name="NUM">0.03</field></shadow></value>
-      <value name="TRAIL_COL"><shadow type="colour_block"><field name="MODE">CUSTOM</field><field name="CUSTOM">#ffff00</field></shadow></value>
-      <value name="RETAIN"><shadow type="math_number"><field name="NUM">200</field></shadow></value>
-    </block>
-    <block type="box_block">
-      <value name="POS"><shadow type="vector_block"><field name="X">0</field><field name="Y">0</field><field name="Z">0</field></shadow></value>
-      <value name="SIZE"><shadow type="vector_block"><field name="X">1</field><field name="Y">1</field><field name="Z">1</field></shadow></value>
-      <value name="COL"><shadow type="colour_block"><field name="MODE">CUSTOM</field><field name="CUSTOM">#4444ff</field></shadow></value>
-    </block>
-    <block type="cylinder_block">
-      <value name="POS"><shadow type="vector_block"><field name="X">0</field><field name="Y">0</field><field name="Z">0</field></shadow></value>
-      <value name="AXIS"><shadow type="vector_block"><field name="X">1</field><field name="Y">0</field><field name="Z">0</field></shadow></value>
-      <value name="RADIUS"><shadow type="math_number"><field name="NUM">0.5</field></shadow></value>
-      <value name="COL"><shadow type="colour_block"><field name="MODE">CUSTOM</field><field name="CUSTOM">#44ff44</field></shadow></value>
-    </block>
-    <block type="arrow_block">
-      <value name="POS"><shadow type="vector_block"><field name="X">0</field><field name="Y">0</field><field name="Z">0</field></shadow></value>
-      <value name="AXIS"><shadow type="vector_block"><field name="X">1</field><field name="Y">0</field><field name="Z">0</field></shadow></value>
-      <value name="COL"><shadow type="colour_block"><field name="MODE">CUSTOM</field><field name="CUSTOM">#ffff00</field></shadow></value>
-    </block>
-    <block type="helix_block">
-      <value name="POS"><shadow type="vector_block"><field name="X">0</field><field name="Y">0</field><field name="Z">0</field></shadow></value>
-      <value name="AXIS"><shadow type="vector_block"><field name="X">1</field><field name="Y">0</field><field name="Z">0</field></shadow></value>
-      <value name="RADIUS"><shadow type="math_number"><field name="NUM">0.3</field></shadow></value>
-      <value name="COL"><shadow type="colour_block"><field name="MODE">CUSTOM</field><field name="CUSTOM">#cccccc</field></shadow></value>
-    </block>
-    <block type="label_block">
-      <value name="POS"><shadow type="vector_block"><field name="X">0</field><field name="Y">0</field><field name="Z">0</field></shadow></value>
-    </block>
-    <block type="label_full_block">
-      <value name="POS"><shadow type="vector_block"><field name="X">0</field><field name="Y">5</field><field name="Z">0</field></shadow></value>
-      <value name="HEIGHT"><shadow type="math_number"><field name="NUM">12</field></shadow></value>
-    </block>
-    <block type="local_light_block">
-      <value name="POS"><shadow type="vector_block"><field name="X">0</field><field name="Y">5</field><field name="Z">0</field></shadow></value>
-      <value name="COL"><shadow type="colour_block"><field name="MODE">WHITE</field><field name="CUSTOM">#ffffff</field></shadow></value>
-    </block>
-    <sep gap="8"></sep>
-    <label text="Scene &amp; camera" web-class="tb-label"></label>
-    <block type="scene_camera_block">
-      <value name="VALUE"><block type="vector_block"><field name="X">0</field><field name="Y">0</field><field name="Z">8</field></block></value>
-    </block>
-  </category>
-
-  <!-- ── MOTION ─────────────────────────────────────────── -->
-  <category name="Motion" colour="#d9a54a">
-    <block type="set_velocity_block">
-      <value name="VEL"><shadow type="vector_block"><field name="X">0</field><field name="Y">0</field><field name="Z">0</field></shadow></value>
-    </block>
-    <block type="update_position_block">
-      <value name="DT"><shadow type="expr_block"><field name="EXPR">dt</field></shadow></value>
-    </block>
-    <block type="apply_force_block">
-      <value name="ACCEL"><shadow type="vector_block"><field name="X">0</field><field name="Y">-9.81</field><field name="Z">0</field></shadow></value>
-      <value name="DT"><shadow type="expr_block"><field name="EXPR">dt</field></shadow></value>
-    </block>
-    <block type="set_gravity_block"></block>
-    <sep gap="8"></sep>
-    <label text="Rotate" web-class="tb-label"></label>
-    <block type="rotate_object_block">
-      <value name="ANGLE"><block type="math_number"><field name="NUM">45</field></block></value>
-      <value name="AXIS"><block type="vector_block"><field name="X">0</field><field name="Y">1</field><field name="Z">0</field></block></value>
-    </block>
-  </category>
-
-  <!-- ── STATE ──────────────────────────────────────────── -->
-  <category name="State" colour="#d06030">
-    <block type="define_const_block">
-      <value name="VALUE"><shadow type="math_number"><field name="NUM">1</field></shadow></value>
-    </block>
-    <block type="set_colour_var_block"></block>
-    <block type="set_scalar_block">
-      <value name="VALUE"><shadow type="math_number"><field name="NUM">0</field></shadow></value>
-    </block>
-    <block type="set_attr_expr_block">
-      <value name="VALUE"><shadow type="expr_block"><field name="EXPR">0</field></shadow></value>
-    </block>
-    <block type="add_attr_expr_block">
-      <value name="VALUE"><shadow type="expr_block"><field name="EXPR">a * dt</field></shadow></value>
-    </block>
-    <block type="telemetry_update_block">
-      <value name="V"><shadow type="get_prop_block"><field name="OBJ">ball</field><field name="PROP">pos</field></shadow></value>
-    </block>
-  </category>
-
-  <!-- ── CONTROL ────────────────────────────────────────── -->
-  <category name="Control" colour="#9b59b6">
-    <block type="time_step_block"></block>
-    <block type="rate_block"></block>
-    <block type="forever_loop_block"></block>
-    <block type="for_range_block"></block>
-    <block type="if_block">
-      <value name="COND">
-        <shadow type="logic_boolean"><field name="BOOL">TRUE</field></shadow>
-      </value>
-    </block>
-    <block type="if_else_block">
-      <value name="COND">
-        <shadow type="logic_boolean"><field name="BOOL">TRUE</field></shadow>
-      </value>
-    </block>
-    <block type="break_loop_block"></block>
-    <block type="comment_block"></block>
-  </category>
-
-  <!-- ── ADVANCED ───────────────────────────────────────── -->
-  <category name="Advanced" colour="#d35400">
-    <block type="python_raw_block"></block>
-    <block type="python_raw_expr_block"></block>
-  </category>
-
-  <sep gap="32"></sep>
-
-  <!-- ── LOGIC (standard Blockly) ──────────────────────── -->
-  <category name="Logic" colour="#5b80a5">    <block type="compare_block">
-      <value name="A"><shadow type="var_read_block"><field name="VAR">x</field></shadow></value>
-      <value name="B"><shadow type="math_number"><field name="NUM">0</field></shadow></value>
-    </block>
-    <block type="logic_and_or_block">
-      <value name="A"><shadow type="logic_boolean"><field name="BOOL">TRUE</field></shadow></value>
-      <value name="B"><shadow type="logic_boolean"><field name="BOOL">TRUE</field></shadow></value>
-    </block>
-    <block type="logic_not_block">
-      <value name="VAL"><shadow type="logic_boolean"><field name="BOOL">TRUE</field></shadow></value>
-    </block>
-    <sep gap="8"></sep>
-    <block type="logic_boolean"></block>
-    <block type="logic_null"></block>
-    <block type="logic_ternary"></block>
-  </category>
-
-  <!-- ── LOOPS (standard Blockly) ──────────────────────── -->
-  <category name="Loops" colour="#5ba55b">
-    <block type="controls_repeat_ext">
-      <value name="TIMES"><block type="math_number"><field name="NUM">10</field></block></value>
-    </block>
-    <block type="controls_for">
-      <field name="VAR">i</field>
-      <value name="FROM"><block type="math_number"><field name="NUM">0</field></block></value>
-      <value name="TO"><block type="math_number"><field name="NUM">10</field></block></value>
-      <value name="BY"><block type="math_number"><field name="NUM">1</field></block></value>
-    </block>
-    <block type="controls_forEach"></block>
-    <block type="controls_flow_statements"></block>
-  </category>
-
-  <!-- ── MATH ───────────────────────────────────────────── -->
-  <category name="Math" colour="#5b67a5">
-    <block type="math_number"></block>
-    <block type="math_arithmetic"></block>
-    <block type="math_constant"></block>
-    <block type="math_number_property"></block>
-    <block type="math_round"></block>
-    <block type="math_on_list"></block>
-    <block type="math_modulo"></block>
-    <block type="math_random_int">
-      <value name="FROM"><block type="math_number"><field name="NUM">1</field></block></value>
-      <value name="TO"><block type="math_number"><field name="NUM">100</field></block></value>
-    </block>
-    <block type="math_random_float"></block>
-  </category>
-
-  <!-- ── 3D MATH ───────────────────────────────────────── -->
-  <category name="3D Math" colour="#3a7bd5">
-    <label text="Vectors" web-class="tb-label"></label>
-    <block type="vector_compose_block">
-      <value name="X"><shadow type="math_number"><field name="NUM">0</field></shadow></value>
-      <value name="Y"><shadow type="math_number"><field name="NUM">0</field></shadow></value>
-      <value name="Z"><shadow type="math_number"><field name="NUM">0</field></shadow></value>
-    </block>
-    <block type="cross_product_block"></block>
-    <block type="dot_product_block"></block>
-    <block type="mag_block">
-      <value name="VEC">
-        <shadow type="get_prop_block">
-          <field name="OBJ">ball</field>
-          <field name="PROP">velocity</field>
-        </shadow>
-      </value>
-    </block>
-    <block type="norm_block">
-      <value name="VEC">
-        <shadow type="get_prop_block">
-          <field name="OBJ">ball</field>
-          <field name="PROP">pos</field>
-        </shadow>
-      </value>
-    </block>
-    <label text="Min / Max / Clamp / Power" web-class="tb-label"></label>
-    <block type="math_min_block">
-      <value name="A"><shadow type="math_number"><field name="NUM">0</field></shadow></value>
-      <value name="B"><shadow type="math_number"><field name="NUM">1</field></shadow></value>
-    </block>
-    <block type="math_max_block">
-      <value name="A"><shadow type="math_number"><field name="NUM">0</field></shadow></value>
-      <value name="B"><shadow type="math_number"><field name="NUM">1</field></shadow></value>
-    </block>
-    <block type="math_clamp_block">
-      <value name="VAL"><shadow type="math_number"><field name="NUM">0.5</field></shadow></value>
-      <value name="LO"><shadow type="math_number"><field name="NUM">0</field></shadow></value>
-      <value name="HI"><shadow type="math_number"><field name="NUM">1</field></shadow></value>
-    </block>
-    <block type="math_pow_block">
-      <value name="BASE"><shadow type="math_number"><field name="NUM">2</field></shadow></value>
-      <value name="EXP"><shadow type="math_number"><field name="NUM">2</field></shadow></value>
-    </block>
-    <label text="Trig &amp; Math" web-class="tb-label"></label>
-    <block type="math_trig_block"></block>
-  </category>
-
-  <!-- ── TEXT ───────────────────────────────────────────── -->
-  <category name="Text" colour="#5ba58c">
-    <block type="text"></block>
-    <block type="text_join"></block>
-    <block type="text_append">
-      <field name="VAR">item</field>
-      <value name="TEXT"><block type="text"></block></value>
-    </block>
-    <block type="text_length"></block>
-    <block type="text_isEmpty"></block>
-    <block type="text_indexOf"></block>
-    <block type="text_charAt"></block>
-    <block type="text_getSubstring"></block>
-    <block type="text_changeCase"></block>
-    <block type="text_trim"></block>
-    <block type="text_print"></block>
-  </category>
-
-  <!-- ── LISTS ──────────────────────────────────────────── -->
-  <category name="Lists" colour="#745ba5">
-    <block type="lists_create_empty"></block>
-    <block type="lists_create_with"></block>
-    <block type="lists_repeat">
-      <value name="NUM"><block type="math_number"><field name="NUM">5</field></block></value>
-    </block>
-    <block type="lists_length"></block>
-    <block type="lists_isEmpty"></block>
-    <block type="lists_indexOf"></block>
-    <block type="lists_getIndex"></block>
-    <block type="lists_setIndex"></block>
-  </category>
-
-  <category name="Variables" colour="#a55b80" custom="VARIABLE"></category>
-  <category name="Functions" colour="#995ba5" custom="PROCEDURE"></category>
-</xml>`;
-/* ── Beginner toolbox (simplified — essential blocks only) ── */
-const TOOLBOX_BEGINNER_XML = `
-<xml>
-  <!-- Beginner mode: Starter + simplified categories -->
-  <category name="Starter" colour="#5cb85c">
-    <label text="Simulation structure" web-class="tb-label"></label>
-    <block type="sim_start_block"></block>
-    <block type="sim_end_block"></block>
-    <sep gap="12"></sep>
-    <label text="Quick create objects" web-class="tb-label"></label>
-    <block type="preset_sphere_block">
-      <field name="NAME">ball</field>
-      <field name="X">0</field><field name="Y">0</field><field name="Z">0</field>
-      <field name="R">1</field><field name="COL">#ff4444</field>
-    </block>
-    <block type="preset_box_block">
-      <field name="NAME">wall</field>
-      <field name="X">0</field><field name="Y">-1</field><field name="Z">0</field>
-      <field name="W">10</field><field name="H">0.5</field><field name="D">10</field>
-      <field name="COL">#336633</field>
-    </block>
-    <sep gap="12"></sep>
-    <label text="Define a named constant" web-class="tb-label"></label>
-    <block type="define_const_block">
-      <value name="VALUE"><shadow type="physics_const_block"><field name="CONST">g</field></shadow></value>
-    </block>
-    <block type="define_const_block">
-      <field name="NAME">MASS</field>
-      <value name="VALUE"><shadow type="math_number"><field name="NUM">1</field></shadow></value>
-    </block>
-    <sep gap="8"></sep>
-    <label text="Physics constants" web-class="tb-label"></label>
-    <block type="physics_const_block"></block>
-    <sep gap="12"></sep>
-    <label text="Initial velocity" web-class="tb-label"></label>
-    <block type="set_velocity_block">
-      <value name="VEL"><shadow type="vector_block"><field name="X">5</field><field name="Y">5</field><field name="Z">0</field></shadow></value>
-    </block>
-    <sep gap="12"></sep>
-    <label text="Simulation setup" web-class="tb-label"></label>
-    <block type="set_gravity_block"></block>
-    <block type="time_step_block"></block>
-    <sep gap="12"></sep>
-    <label text="Main loop" web-class="tb-label"></label>
-    <block type="forever_loop_block"></block>
-    <block type="rate_block"></block>
-    <block type="update_position_block">
-      <value name="DT"><shadow type="expr_block"><field name="EXPR">dt</field></shadow></value>
-    </block>
-    <block type="apply_force_block">
-      <value name="ACCEL"><shadow type="vector_block"><field name="X">0</field><field name="Y">-9.81</field><field name="Z">0</field></shadow></value>
-      <value name="DT"><shadow type="expr_block"><field name="EXPR">dt</field></shadow></value>
-    </block>
-    <sep gap="12"></sep>
-    <label text="Conditions" web-class="tb-label"></label>
-    <block type="if_block">
-      <value name="COND"><shadow type="logic_boolean"><field name="BOOL">TRUE</field></shadow></value>
-    </block>
-    <block type="if_else_block">
-      <value name="COND"><shadow type="logic_boolean"><field name="BOOL">TRUE</field></shadow></value>
-    </block>
-    <sep gap="8"></sep>
-    <block type="compare_block">
-      <value name="A"><shadow type="var_read_block"><field name="VAR">x</field></shadow></value>
-      <value name="B"><shadow type="math_number"><field name="NUM">0</field></shadow></value>
-    </block>
-    <block type="logic_and_or_block">
-      <value name="A"><shadow type="logic_boolean"><field name="BOOL">TRUE</field></shadow></value>
-      <value name="B"><shadow type="logic_boolean"><field name="BOOL">TRUE</field></shadow></value>
-    </block>
-    <block type="logic_not_block">
-      <value name="VAL"><shadow type="logic_boolean"><field name="BOOL">TRUE</field></shadow></value>
-    </block>
-  </category>
-
-  <category name="Values" colour="#7c68c6">
-    <block type="define_const_block">
-      <value name="VALUE"><shadow type="math_number"><field name="NUM">1</field></shadow></value>
-    </block>
-    <block type="physics_const_block"></block>
-    <block type="vector_block"></block>
-    <block type="colour_block"></block>
-    <block type="var_read_block"></block>
-  </category>
-
-  <category name="Objects" colour="#4a90d9">
-    <block type="preset_sphere_block">
-      <field name="NAME">ball</field><field name="X">0</field><field name="Y">0</field><field name="Z">0</field><field name="R">1</field><field name="COL">#ff4444</field>
-    </block>
-    <block type="preset_box_block">
-      <field name="NAME">wall</field><field name="X">0</field><field name="Y">-1</field><field name="Z">0</field><field name="W">10</field><field name="H">0.5</field><field name="D">10</field><field name="COL">#336633</field>
-    </block>
-    <block type="arrow_block">
-      <value name="POS"><shadow type="vector_block"><field name="X">0</field><field name="Y">0</field><field name="Z">0</field></shadow></value>
-      <value name="AXIS"><shadow type="vector_block"><field name="X">1</field><field name="Y">0</field><field name="Z">0</field></shadow></value>
-      <value name="COL"><shadow type="colour_block"><field name="MODE">CUSTOM</field><field name="CUSTOM">#ffff00</field></shadow></value>
-    </block>
-    <sep gap="8"></sep>
-    <label text="Scene &amp; camera" web-class="tb-label"></label>
-    <block type="scene_camera_block">
-      <value name="VALUE"><block type="vector_block"><field name="X">0</field><field name="Y">0</field><field name="Z">8</field></block></value>
-    </block>
-  </category>
-
-  <category name="Motion" colour="#d9a54a">
-    <block type="set_velocity_block">
-      <value name="VEL"><shadow type="vector_block"><field name="X">0</field><field name="Y">0</field><field name="Z">0</field></shadow></value>
-    </block>
-    <block type="update_position_block">
-      <value name="DT"><shadow type="expr_block"><field name="EXPR">dt</field></shadow></value>
-    </block>
-    <block type="apply_force_block">
-      <value name="ACCEL"><shadow type="vector_block"><field name="X">0</field><field name="Y">-9.81</field><field name="Z">0</field></shadow></value>
-      <value name="DT"><shadow type="expr_block"><field name="EXPR">dt</field></shadow></value>
-    </block>
-    <block type="set_gravity_block"></block>
-    <sep gap="8"></sep>
-    <label text="Rotate" web-class="tb-label"></label>
-    <block type="rotate_object_block">
-      <value name="ANGLE"><block type="math_number"><field name="NUM">45</field></block></value>
-      <value name="AXIS"><block type="vector_block"><field name="X">0</field><field name="Y">1</field><field name="Z">0</field></block></value>
-    </block>
-  </category>
-
-  <category name="Control" colour="#9b59b6">
-    <block type="time_step_block"></block>
-    <block type="rate_block"></block>
-    <block type="forever_loop_block"></block>
-    <block type="if_block">
-      <value name="COND"><shadow type="logic_boolean"><field name="BOOL">TRUE</field></shadow></value>
-    </block>
-    <block type="if_else_block">
-      <value name="COND"><shadow type="logic_boolean"><field name="BOOL">TRUE</field></shadow></value>
-    </block>
-  </category>
-
-  <category name="Logic" colour="#5b80a5">
-    <block type="compare_block">
-      <value name="A"><shadow type="var_read_block"><field name="VAR">x</field></shadow></value>
-      <value name="B"><shadow type="math_number"><field name="NUM">0</field></shadow></value>
-    </block>
-    <block type="logic_and_or_block">
-      <value name="A"><shadow type="logic_boolean"><field name="BOOL">TRUE</field></shadow></value>
-      <value name="B"><shadow type="logic_boolean"><field name="BOOL">TRUE</field></shadow></value>
-    </block>
-    <block type="logic_not_block">
-      <value name="VAL"><shadow type="logic_boolean"><field name="BOOL">TRUE</field></shadow></value>
-    </block>
-    <sep gap="8"></sep>
-    <block type="logic_boolean"></block>
-  </category>
-
-  <category name="Math" colour="#5b67a5">
-    <block type="math_number"></block>
-    <block type="math_arithmetic"></block>
-  </category>
-
-  <category name="3D Math" colour="#3a7bd5">
-    <block type="vector_compose_block">
-      <value name="X"><shadow type="math_number"><field name="NUM">0</field></shadow></value>
-      <value name="Y"><shadow type="math_number"><field name="NUM">0</field></shadow></value>
-      <value name="Z"><shadow type="math_number"><field name="NUM">0</field></shadow></value>
-    </block>
-    <block type="cross_product_block"></block>
-    <block type="dot_product_block"></block>
-    <block type="mag_block">
-      <value name="VEC">
-        <shadow type="get_prop_block">
-          <field name="OBJ">ball</field>
-          <field name="PROP">velocity</field>
-        </shadow>
-      </value>
-    </block>
-    <block type="norm_block">
-      <value name="VEC">
-        <shadow type="get_prop_block">
-          <field name="OBJ">ball</field>
-          <field name="PROP">pos</field>
-        </shadow>
-      </value>
-    </block>
-    <block type="math_min_block">
-      <value name="A"><shadow type="math_number"><field name="NUM">0</field></shadow></value>
-      <value name="B"><shadow type="math_number"><field name="NUM">1</field></shadow></value>
-    </block>
-    <block type="math_max_block">
-      <value name="A"><shadow type="math_number"><field name="NUM">0</field></shadow></value>
-      <value name="B"><shadow type="math_number"><field name="NUM">1</field></shadow></value>
-    </block>
-    <block type="math_pow_block">
-      <value name="BASE"><shadow type="math_number"><field name="NUM">2</field></shadow></value>
-      <value name="EXP"><shadow type="math_number"><field name="NUM">2</field></shadow></value>
-    </block>
-    <block type="math_trig_block"></block>
-  </category>
-
-  <category name="Variables" colour="#a55b80" custom="VARIABLE"></category>
-
-  <!-- ── DATA SCIENCE ──────────────────────────────────────── -->
-  <category name="Data Science" colour="#2da56f">
-    <label text="Load data" web-class="tb-label"></label>
-    <block type="ds_load_builtin_block"></block>
-    <block type="ds_load_csv_block"></block>
-    <block type="ds_load_trace_block"></block>
-    <sep gap="8"></sep>
-    <label text="Explore" web-class="tb-label"></label>
-    <block type="ds_show_table_block"></block>
-    <block type="ds_show_first_n_block"></block>
-    <block type="ds_show_last_n_block"></block>
-    <block type="ds_show_column_block">
-      <field name="COL">species</field>
-    </block>
-    <block type="ds_count_rows_block"></block>
-    <block type="ds_count_cols_block"></block>
-    <block type="ds_list_cols_block"></block>
-    <block type="ds_count_unique_block">
-      <field name="COL">species</field>
-    </block>
-    <block type="ds_show_one_cell_block">
-      <field name="ROW">0</field>
-      <field name="COL">species</field>
-    </block>
-    <block type="ds_identify_type_block">
-      <field name="COL">species</field>
-    </block>
-    <sep gap="8"></sep>
-    <label text="Statistics" web-class="tb-label"></label>
-    <block type="ds_calc_mean_block">
-      <field name="COL">mass</field>
-    </block>
-    <block type="ds_calc_median_block">
-      <field name="COL">mass</field>
-    </block>
-    <block type="ds_calc_mode_block">
-      <field name="COL">species</field>
-    </block>
-    <block type="ds_calc_min_block">
-      <field name="COL">mass</field>
-    </block>
-    <block type="ds_calc_max_block">
-      <field name="COL">mass</field>
-    </block>
-    <block type="ds_calc_range_block">
-      <field name="COL">mass</field>
-    </block>
-    <block type="ds_calc_sum_block">
-      <field name="COL">mass</field>
-    </block>
-    <block type="ds_calc_count_block">
-      <field name="COL">mass</field>
-    </block>
-    <block type="ds_calc_stddev_block">
-      <field name="COL">mass</field>
-    </block>
-    <block type="ds_all_stats_block">
-      <field name="COL">mass</field>
-    </block>
-    <block type="ds_compare_columns_block">
-      <field name="COL_A">bill_length_mm</field>
-      <field name="COL_B">bill_depth_mm</field>
-    </block>
-    <sep gap="8"></sep>
-    <label text="Filter and Sort" web-class="tb-label"></label>
-    <block type="ds_filter_eq_block">
-      <field name="COL">species</field>
-      <field name="VALUE">Adelie</field>
-    </block>
-    <block type="ds_filter_gt_block">
-      <field name="COL">mass</field>
-      <field name="VALUE">3500</field>
-    </block>
-    <block type="ds_filter_lt_block">
-      <field name="COL">mass</field>
-      <field name="VALUE">3500</field>
-    </block>
-    <block type="ds_sort_asc_block">
-      <field name="COL">mass</field>
-    </block>
-    <block type="ds_sort_desc_block">
-      <field name="COL">mass</field>
-    </block>
-    <block type="ds_remove_missing_block">
-      <field name="COL">mass</field>
-    </block>
-    <block type="ds_find_missing_block">
-      <field name="COL">mass</field>
-    </block>
-    <block type="ds_filter_and_block">
-      <field name="COL_A">species</field>
-      <field name="VAL_A">Adelie</field>
-      <field name="COL_B">island</field>
-      <field name="VAL_B">Biscoe</field>
-    </block>
-    <block type="ds_filter_or_block">
-      <field name="COL_A">species</field>
-      <field name="VAL_A">Adelie</field>
-      <field name="COL_B">species</field>
-      <field name="VAL_B">Chinstrap</field>
-    </block>
-    <sep gap="8"></sep>
-    <label text="Group and Compare" web-class="tb-label"></label>
-    <block type="ds_group_count_block">
-      <field name="COL">species</field>
-    </block>
-    <block type="ds_group_mean_block">
-      <field name="VALUE_COL">mass</field>
-      <field name="GROUP_COL">species</field>
-    </block>
-    <sep gap="8"></sep>
-    <label text="Charts" web-class="tb-label"></label>
-    <block type="ds_chart_bar_block">
-      <field name="X_COL">species</field>
-      <field name="Y_COL">count</field>
-    </block>
-    <block type="ds_chart_line_block">
-      <field name="X_COL">date</field>
-      <field name="Y_COL">temperature</field>
-    </block>
-    <block type="ds_chart_scatter_block">
-      <field name="X_COL">bill_length_mm</field>
-      <field name="Y_COL">body_mass_g</field>
-    </block>
-    <block type="ds_chart_histogram_block">
-      <field name="COL">body_mass_g</field>
-    </block>
-    <block type="ds_chart_box_block">
-      <field name="VALUE_COL">body_mass_g</field>
-      <field name="GROUP_COL">species</field>
-    </block>
-    <block type="ds_save_chart_block">
-      <field name="X_COL">species</field>
-      <field name="Y_COL">count</field>
-    </block>
-    <sep gap="8"></sep>
-    <label text="Communicate" web-class="tb-label"></label>
-    <block type="ds_write_note_block"></block>
-    <block type="ds_print_result_block"></block>
-    <block type="ds_compare_results_block"></block>
-    <block type="ds_state_conclusion_block"></block>
-    <block type="ds_export_table_block"></block>
-    <block type="ds_show_python_block"></block>
-  </category>
-</xml>`;
+import { buildToolboxXml } from "../utils/blockly/toolbox";
 
 /* ── Block search bar component ────────────────────────── */
 function BlockSearch({ workspaceRef }) {
@@ -965,6 +232,34 @@ function normalizeSimulationStructure(workspace) {
   return changed;
 }
 
+/* ── Disable orphaned blocks (data-science goal) ───────────────
+   MakeCode pattern: a data analysis is anchored by a ds_start_block
+   "hat". Any top-level block NOT rooted in that hat is disabled
+   (rendered grey, generates no code) so "in use vs unused" is visible.
+   No-op until at least one hat exists, so legacy DS projects that have
+   no hat yet are left fully enabled. Idempotent (guards on isEnabled)
+   so it can run inside the change listener without an event storm. */
+function disableOrphanedBlocks(workspace, goal) {
+  if (!workspace || goal !== "datascience") return false;
+
+  const tops = workspace.getTopBlocks(false);
+  const hasHat = tops.some((b) => b.type === "ds_start_block");
+  if (!hasHat) return false;
+
+  let changed = false;
+  for (const top of tops) {
+    const enable = top.type === "ds_start_block";
+    for (const b of top.getDescendants(false)) {
+      if (b.isShadow()) continue;
+      if (b.isEnabled() !== enable) {
+        b.setEnabled(enable);
+        changed = true;
+      }
+    }
+  }
+  return changed;
+}
+
 function resizeBlocklyWorkspace(Blockly, workspace) {
   if (!workspace) return;
   if (typeof Blockly?.svgResize === "function") {
@@ -976,7 +271,7 @@ function resizeBlocklyWorkspace(Blockly, workspace) {
   }
 }
 
-function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, isDark, beginnerMode = false }) {
+function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, isDark, goal = "physics" }) {
   const hostRef = useRef(null);
   const workspaceRef = useRef(null);
   const [loadError, setLoadError] = useState("");
@@ -984,8 +279,10 @@ function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, isD
   const onReadyRef = useRef(onWorkspaceReady);
   const onChangeRef = useRef(onWorkspaceChange);
   const initialXmlRef = useRef(initialXml);
+  const goalRef = useRef(goal);
   onReadyRef.current = onWorkspaceReady;
   onChangeRef.current = onWorkspaceChange;
+  goalRef.current = goal;
 
   /* ── One-time workspace setup ──────────────────────────── */
   useEffect(() => {
@@ -1020,7 +317,7 @@ function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, isD
     }
 
     const workspace = Blockly.inject(hostRef.current, {
-      toolbox: TOOLBOX_XML,
+      toolbox: buildToolboxXml(goalRef.current),
       theme,
       comments: true,
       trashcan: true,
@@ -1068,6 +365,7 @@ function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, isD
           normalizing = true;
           try {
             normalizeSimulationStructure(workspace);
+            disableOrphanedBlocks(workspace, goalRef.current);
           } finally {
             normalizing = false;
           }
@@ -1084,6 +382,7 @@ function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, isD
     workspace.addChangeListener(listener);
 
     normalizeSimulationStructure(workspace);
+    disableOrphanedBlocks(workspace, goalRef.current);
 
     /* ── Custom constant popup: intercept __NEW__ on physics_const_block ── */
     const constListener = (event) => {
@@ -1148,16 +447,17 @@ function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, isD
     };
   }, []);
 
-  /* ── Switch toolbox when beginner mode toggles ─────────── */
+  /* ── Rebuild the toolbox when the project goal changes ─── */
   useEffect(() => {
     const ws = workspaceRef.current;
     if (!ws) return;
     try {
-      ws.updateToolbox(beginnerMode ? TOOLBOX_BEGINNER_XML : TOOLBOX_XML);
+      ws.updateToolbox(buildToolboxXml(goal));
+      disableOrphanedBlocks(ws, goal);
     } catch (e) {
-      console.warn("BlocklyWorkspace: could not switch toolbox", e);
+      console.warn("BlocklyWorkspace: could not rebuild toolbox for goal", goal, e);
     }
-  }, [beginnerMode]);
+  }, [goal]);
 
   /* ── React to theme changes ────────────────────────────── */
   useEffect(() => {

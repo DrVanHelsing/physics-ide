@@ -33,9 +33,7 @@ export function useSimulation() {
     setShowStart,
     blocklyZoom, setBlocklyZoom,
     setViewportHidden,
-    setBeginnerMode,
     viewportHidden,
-    beginnerMode,
   } = sim;
 
   const { debugMode, breakpointsRef } = useDebugContext();
@@ -258,7 +256,7 @@ export function useSimulation() {
   return {
     /* state (read) */
     mode, pythonCode, workspaceXml, projectType,
-    running, blocklyZoom, viewportHidden, beginnerMode,
+    running, blocklyZoom, viewportHidden,
     workspaceRef,
     /* handlers */
     handleRun,
@@ -275,6 +273,5 @@ export function useSimulation() {
     syncFromBlocks,
     /* toggling UI prefs */
     handleToggleViewport:      useCallback(() => setViewportHidden((h) => !h), [setViewportHidden]),
-    handleToggleBeginnerMode:  useCallback(() => setBeginnerMode((b) => !b), [setBeginnerMode]),
   };
 }

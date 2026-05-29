@@ -21,7 +21,6 @@ import {
   ZoomOutIcon,
   PanelRightCloseIcon,
   PanelRightOpenIcon,
-  GraduationCapIcon,
   TableIcon,
   BugIcon,
 } from "./Icons";
@@ -122,7 +121,6 @@ function Toolbar({
   onHome,
   onHelp,
   onToggleViewport,
-  onToggleBeginnerMode,
   traceVisible,
   onToggleTrace,
   onDebugMode,
@@ -132,7 +130,6 @@ function Toolbar({
   zoom,
   onZoomChange,
   viewportHidden,
-  beginnerMode,
   goal = "physics",
   children,
 }) {
@@ -279,19 +276,6 @@ function Toolbar({
         >
           <BugIcon size={13} />
           <span className="tb-btn-label">Debug</span>
-        </button>
-      )}
-
-      {/* ── Beginner mode toggle ── */}
-      {onToggleBeginnerMode && (
-        <button
-          type="button"
-          className={`tb-btn tb-btn--subtle${beginnerMode ? " tb-btn--active" : ""}`}
-          onClick={onToggleBeginnerMode}
-          title={beginnerMode ? "Switch to Advanced toolbox" : "Switch to Beginner toolbox"}
-        >
-          <GraduationCapIcon size={13} />
-          <span className="tb-btn-label">{beginnerMode ? "Beginner" : "Advanced"}</span>
         </button>
       )}
 

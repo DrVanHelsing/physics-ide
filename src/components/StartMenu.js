@@ -76,14 +76,13 @@ const CARD_ICONS = {
 
 /* ── Map a wizard spec to a manifest spec + content ──────── */
 
-function buildManifestSpec({ goal, title, startPath, templateId, editor, beginner, hybridEntry }) {
+function buildManifestSpec({ goal, title, startPath, templateId, editor, hybridEntry }) {
   const preferredEditor = editor === "code" ? "code" : "blocks";
   const trimmedTitle = (title || "").trim();
 
   const spec = {
     goal,
     preferredEditor,
-    beginnerEnabled: Boolean(beginner),
     title: trimmedTitle || undefined,
   };
 
@@ -154,7 +153,6 @@ export default function StartMenu({
   const [wizardStartPath, setWizardStartPath] = useState("blank"); // 'blank' | 'template'
   const [wizardTemplateId, setWizardTemplateId] = useState(null);
   const [wizardEditor, setWizardEditor] = useState("blocks");
-  const [wizardBeginner, setWizardBeginner] = useState(false);
   const [wizardHybridEntry, setWizardHybridEntry] = useState("model");
 
   const openWizard = (goalId) => {
@@ -163,7 +161,6 @@ export default function StartMenu({
     setWizardStartPath("blank");
     setWizardTemplateId(null);
     setWizardEditor(goalId === "datascience" ? "blocks" : "blocks");
-    setWizardBeginner(false);
     setWizardHybridEntry("model");
   };
   const closeWizard = () => setWizardGoal(null);
@@ -175,7 +172,6 @@ export default function StartMenu({
       startPath: wizardStartPath,
       templateId: wizardTemplateId,
       editor: wizardEditor,
-      beginner: wizardBeginner,
       hybridEntry: wizardHybridEntry,
     });
     onCreate?.(spec);
@@ -298,8 +294,6 @@ export default function StartMenu({
               setTemplateId={setWizardTemplateId}
               editor={wizardEditor}
               setEditor={setWizardEditor}
-              beginner={wizardBeginner}
-              setBeginner={setWizardBeginner}
               hybridEntry={wizardHybridEntry}
               setHybridEntry={setWizardHybridEntry}
               onCancel={closeWizard}
@@ -399,8 +393,6 @@ function WizardPanel({
   setTemplateId,
   editor,
   setEditor,
-  beginner,
-  setBeginner,
   hybridEntry,
   setHybridEntry,
   onCancel,
@@ -520,17 +512,6 @@ function WizardPanel({
           </div>
         </fieldset>
 
-        <label className="start-wizard-toggle">
-          <input
-            type="checkbox"
-            checked={beginner}
-            onChange={(e) => setBeginner(e.target.checked)}
-          />
-          <span>
-            <strong>Beginner mode</strong>
-            <span> — extra guidance prompts and, for physics, a simplified block palette.</span>
-          </span>
-        </label>
       </div>
 
       <div className="start-wizard-footer">
