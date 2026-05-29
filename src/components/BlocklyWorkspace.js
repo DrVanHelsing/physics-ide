@@ -675,6 +675,27 @@ const TOOLBOX_BEGINNER_XML = `
       <field name="VALUE_COL">mass</field>
       <field name="GROUP_COL">species</field>
     </block>
+    <sep gap="8"></sep>
+    <label text="Charts" web-class="tb-label"></label>
+    <block type="ds_chart_bar_block">
+      <field name="X_COL">species</field>
+      <field name="Y_COL">count</field>
+    </block>
+    <block type="ds_chart_line_block">
+      <field name="X_COL">date</field>
+      <field name="Y_COL">temperature</field>
+    </block>
+    <block type="ds_chart_scatter_block">
+      <field name="X_COL">bill_length_mm</field>
+      <field name="Y_COL">body_mass_g</field>
+    </block>
+    <block type="ds_chart_histogram_block">
+      <field name="COL">body_mass_g</field>
+    </block>
+    <block type="ds_chart_box_block">
+      <field name="VALUE_COL">body_mass_g</field>
+      <field name="GROUP_COL">species</field>
+    </block>
   </category>
 </xml>`;
 

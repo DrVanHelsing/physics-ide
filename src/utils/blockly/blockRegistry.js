@@ -338,6 +338,21 @@ const REGISTRY = [
   { id: "ds_group_mean_block", category: "Data Science", domain: "datascience",
     conceptLabel: "Mean per group", beginnerVisible: true,
     keywords: ["group", "mean", "average", "per group", "compare", "aggregate"] },
+  { id: "ds_chart_bar_block", category: "Data Science", domain: "datascience",
+    conceptLabel: "Bar chart", beginnerVisible: true,
+    keywords: ["bar", "chart", "compare", "categories", "visualise", "plot"] },
+  { id: "ds_chart_line_block", category: "Data Science", domain: "datascience",
+    conceptLabel: "Line chart", beginnerVisible: true,
+    keywords: ["line", "chart", "trend", "time", "change", "visualise", "plot"] },
+  { id: "ds_chart_scatter_block", category: "Data Science", domain: "datascience",
+    conceptLabel: "Scatter plot", beginnerVisible: true,
+    keywords: ["scatter", "plot", "relationship", "correlation", "x y", "visualise"] },
+  { id: "ds_chart_histogram_block", category: "Data Science", domain: "datascience",
+    conceptLabel: "Histogram", beginnerVisible: true,
+    keywords: ["histogram", "distribution", "frequency", "bins", "visualise"] },
+  { id: "ds_chart_box_block", category: "Data Science", domain: "datascience",
+    conceptLabel: "Box plot", beginnerVisible: true,
+    keywords: ["box", "plot", "spread", "median", "outliers", "quartile", "visualise"] },
 ];
 
 /* ── Public surface ──────────────────────────────────────── */

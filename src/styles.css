@@ -3161,6 +3161,25 @@ mark.help-search-highlight {
   margin: 0 0 4px 2px;
   letter-spacing: 0.02em;
 }
+.ds-chart-section {
+  margin-top: 10px;
+  border-top: 1px solid var(--border, #2d2d44);
+  padding-top: 8px;
+}
+.ds-chart-container {
+  overflow-x: auto;
+  line-height: 0;
+}
+.ds-chart-container svg {
+  display: block;
+  max-width: 100%;
+}
+.ds-chart-error {
+  font-size: 11px;
+  color: var(--accent-warn, #f5a623);
+  padding: 6px 4px;
+  font-family: monospace;
+}
 
 /* ── StartMenu B.5: project list + goal cards + wizard ───── */
 .start-card--goal {
