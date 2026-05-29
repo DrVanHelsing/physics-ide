@@ -601,10 +601,16 @@ const TOOLBOX_BEGINNER_XML = `
     <label text="Load data" web-class="tb-label"></label>
     <block type="ds_load_builtin_block"></block>
     <sep gap="8"></sep>
-    <label text="Inspect" web-class="tb-label"></label>
+    <label text="Explore" web-class="tb-label"></label>
     <block type="ds_show_table_block"></block>
     <block type="ds_show_first_n_block"></block>
+    <block type="ds_show_last_n_block"></block>
+    <block type="ds_show_column_block">
+      <field name="COL">species</field>
+    </block>
     <block type="ds_count_rows_block"></block>
+    <block type="ds_count_cols_block"></block>
+    <block type="ds_list_cols_block"></block>
     <block type="ds_count_unique_block">
       <field name="COL">species</field>
     </block>
@@ -616,17 +622,58 @@ const TOOLBOX_BEGINNER_XML = `
     <block type="ds_calc_median_block">
       <field name="COL">mass</field>
     </block>
+    <block type="ds_calc_mode_block">
+      <field name="COL">species</field>
+    </block>
     <block type="ds_calc_min_block">
       <field name="COL">mass</field>
     </block>
     <block type="ds_calc_max_block">
       <field name="COL">mass</field>
     </block>
+    <block type="ds_calc_range_block">
+      <field name="COL">mass</field>
+    </block>
     <block type="ds_calc_sum_block">
+      <field name="COL">mass</field>
+    </block>
+    <block type="ds_calc_count_block">
       <field name="COL">mass</field>
     </block>
     <block type="ds_calc_stddev_block">
       <field name="COL">mass</field>
+    </block>
+    <sep gap="8"></sep>
+    <label text="Filter and Sort" web-class="tb-label"></label>
+    <block type="ds_filter_eq_block">
+      <field name="COL">species</field>
+      <field name="VALUE">Adelie</field>
+    </block>
+    <block type="ds_filter_gt_block">
+      <field name="COL">mass</field>
+      <field name="VALUE">3500</field>
+    </block>
+    <block type="ds_filter_lt_block">
+      <field name="COL">mass</field>
+      <field name="VALUE">3500</field>
+    </block>
+    <block type="ds_sort_asc_block">
+      <field name="COL">mass</field>
+    </block>
+    <block type="ds_sort_desc_block">
+      <field name="COL">mass</field>
+    </block>
+    <block type="ds_remove_missing_block">
+      <field name="COL">mass</field>
+    </block>
+    <sep gap="8"></sep>
+    <label text="Group and Compare" web-class="tb-label"></label>
+    <block type="ds_group_count_block">
+      <field name="COL">species</field>
+    </block>
+    <block type="ds_group_mean_block">
+      <field name="VALUE_COL">mass</field>
+      <field name="GROUP_COL">species</field>
     </block>
   </category>
 </xml>`;

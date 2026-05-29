@@ -7,6 +7,9 @@ import {
   sumOfColumn,
   stddevOfColumn,
   uniqueCount,
+  mode,
+  rangeOfColumn,
+  countOfColumn,
   filterRows,
   transform,
 } from "../dataset/dataset.js";
@@ -14,7 +17,7 @@ import {
 const DS_API = {
   fromBuiltin,
   meanOfColumn, median, minOfColumn, maxOfColumn, sumOfColumn, stddevOfColumn,
-  uniqueCount,
+  uniqueCount, mode, rangeOfColumn, countOfColumn,
   filterRows, transform,
 };
 
