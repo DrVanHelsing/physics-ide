@@ -603,9 +603,29 @@ const TOOLBOX_BEGINNER_XML = `
     <sep gap="8"></sep>
     <label text="Inspect" web-class="tb-label"></label>
     <block type="ds_show_table_block"></block>
+    <block type="ds_show_first_n_block"></block>
+    <block type="ds_count_rows_block"></block>
+    <block type="ds_count_unique_block">
+      <field name="COL">species</field>
+    </block>
     <sep gap="8"></sep>
     <label text="Statistics" web-class="tb-label"></label>
     <block type="ds_calc_mean_block">
+      <field name="COL">mass</field>
+    </block>
+    <block type="ds_calc_median_block">
+      <field name="COL">mass</field>
+    </block>
+    <block type="ds_calc_min_block">
+      <field name="COL">mass</field>
+    </block>
+    <block type="ds_calc_max_block">
+      <field name="COL">mass</field>
+    </block>
+    <block type="ds_calc_sum_block">
+      <field name="COL">mass</field>
+    </block>
+    <block type="ds_calc_stddev_block">
       <field name="COL">mass</field>
     </block>
   </category>

@@ -79,6 +79,9 @@ export default function IDELayout() {
   /* ── DS panel outputs ────────────────────────────────────── */
   const [dsOutputs, setDsOutputs] = useState([]);
 
+  const goal = proj.activeManifest?.goal || "physics";
+  const isDataGoal = goal === "datascience";
+
   const handleWorkspaceChange = useCallback(
     (xml, code) => {
       sim.handleWorkspaceChange(xml, code);
@@ -115,12 +118,6 @@ export default function IDELayout() {
 
   const { mode, pythonCode, workspaceXml, projectType, running,
           blocklyZoom, viewportHidden, beginnerMode } = sim;
-
-  /* Goal of the active project (Phase B.8 + B.9). Defaults to 'physics'
-     so the toolbar and layout behave identically to v1 when there is no
-     active manifest yet. */
-  const goal = proj.activeManifest?.goal || "physics";
-  const isDataGoal = goal === "datascience";
 
   const isCustom       = projectType === "custom";
   const lockedMode     = projectType === "code_blank" ? "blocks" : null;
