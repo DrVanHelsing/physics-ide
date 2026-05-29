@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { TableIcon } from "./Icons";
+import { renderDsChartToElement } from "../utils/charts/chartSpec";
 
 const TABLE_ROW_LIMIT = 12;
 
@@ -40,9 +41,22 @@ function DataTable({ dataset }) {
   );
 }
 
+function DsChart({ chartOutput }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!ref.current) return;
+    const el = renderDsChartToElement(chartOutput);
+    ref.current.innerHTML = "";
+    if (el) ref.current.appendChild(el);
+    return () => { if (ref.current) ref.current.innerHTML = ""; };
+  }, [chartOutput]);
+  return <div className="ds-chart-container" ref={ref} />;
+}
+
 export default function DataPanel({ goal, datasetCount = 0, dsOutputs = [] }) {
   const tableOutputs = dsOutputs.filter((o) => o.type === "table");
   const valueOutputs = dsOutputs.filter((o) => o.type === "value");
+  const chartOutputs = dsOutputs.filter((o) => o.type === "chart");
   const hasOutputs = dsOutputs.length > 0;
   const primaryTable = tableOutputs[0];
 
@@ -103,6 +117,12 @@ export default function DataPanel({ goal, datasetCount = 0, dsOutputs = [] }) {
               <p className="ds-table-label">{t.varName}</p>
             )}
             <DataTable dataset={t.dataset} />
+          </div>
+        ))}
+
+        {chartOutputs.map((c, i) => (
+          <div key={i} className="ds-chart-section">
+            <DsChart chartOutput={c} />
           </div>
         ))}
       </div>

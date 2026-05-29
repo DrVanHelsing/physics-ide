@@ -1387,6 +1387,81 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       colour: 65,
       tooltip: "Calculate the mean of a numeric column for each group in a categorical column.",
     },
+    /* ── Category 5: Seeing Data (Charts) ── */
+    {
+      type: "ds_chart_bar_block",
+      message0: "bar chart  %1  x: %2  y: %3  title: %4",
+      args0: [
+        { type: "field_variable", name: "VAR",   variable: "df" },
+        { type: "field_input",    name: "X_COL", text: "species" },
+        { type: "field_input",    name: "Y_COL", text: "count" },
+        { type: "field_input",    name: "TITLE", text: "" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 200,
+      tooltip: "Draw a bar chart. Best for comparing values across categories.",
+    },
+    {
+      type: "ds_chart_line_block",
+      message0: "line chart  %1  x: %2  y: %3  title: %4",
+      args0: [
+        { type: "field_variable", name: "VAR",   variable: "df" },
+        { type: "field_input",    name: "X_COL", text: "date" },
+        { type: "field_input",    name: "Y_COL", text: "temperature" },
+        { type: "field_input",    name: "TITLE", text: "" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 200,
+      tooltip: "Draw a line chart. Best for showing change over an ordered variable (e.g. time).",
+    },
+    {
+      type: "ds_chart_scatter_block",
+      message0: "scatter plot  %1  x: %2  y: %3  title: %4",
+      args0: [
+        { type: "field_variable", name: "VAR",   variable: "df" },
+        { type: "field_input",    name: "X_COL", text: "bill_length_mm" },
+        { type: "field_input",    name: "Y_COL", text: "body_mass_g" },
+        { type: "field_input",    name: "TITLE", text: "" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 200,
+      tooltip: "Draw a scatter plot. Best for exploring the relationship between two numeric columns.",
+    },
+    {
+      type: "ds_chart_histogram_block",
+      message0: "histogram  %1  column: %2  title: %3",
+      args0: [
+        { type: "field_variable", name: "VAR",   variable: "df" },
+        { type: "field_input",    name: "COL",   text: "body_mass_g" },
+        { type: "field_input",    name: "TITLE", text: "" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 200,
+      tooltip: "Draw a histogram showing the distribution of values in a numeric column.",
+    },
+    {
+      type: "ds_chart_box_block",
+      message0: "box plot  %1  value: %2  group: %3  title: %4",
+      args0: [
+        { type: "field_variable", name: "VAR",       variable: "df" },
+        { type: "field_input",    name: "VALUE_COL", text: "body_mass_g" },
+        { type: "field_input",    name: "GROUP_COL", text: "species" },
+        { type: "field_input",    name: "TITLE",     text: "" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 200,
+      tooltip: "Draw a box plot showing spread and median. Leave group empty for a single box.",
+    },
   ]);
 
   /* ── physics_const_block — dynamic dropdown with custom constants ── */
@@ -2069,6 +2144,45 @@ export function defineCustomBlocksAndGenerator(Blockly) {
     const valueCol  = (block.getFieldValue("VALUE_COL") || "value").trim();
     const groupCol  = (block.getFieldValue("GROUP_COL") || "group").trim();
     return `${result} = mean_per_group(${dsVar}, "${valueCol}", by="${groupCol}")\n`;
+  };
+
+  gen["ds_chart_bar_block"] = function (block) {
+    const dsVar = varName(block, "VAR", "df");
+    const xCol  = (block.getFieldValue("X_COL") || "x").trim();
+    const yCol  = (block.getFieldValue("Y_COL") || "y").trim();
+    const title = (block.getFieldValue("TITLE") || "").trim();
+    return `bar_chart(${dsVar}, x="${xCol}", y="${yCol}"${title ? `, title="${title}"` : ""})\n`;
+  };
+
+  gen["ds_chart_line_block"] = function (block) {
+    const dsVar = varName(block, "VAR", "df");
+    const xCol  = (block.getFieldValue("X_COL") || "x").trim();
+    const yCol  = (block.getFieldValue("Y_COL") || "y").trim();
+    const title = (block.getFieldValue("TITLE") || "").trim();
+    return `line_chart(${dsVar}, x="${xCol}", y="${yCol}"${title ? `, title="${title}"` : ""})\n`;
+  };
+
+  gen["ds_chart_scatter_block"] = function (block) {
+    const dsVar = varName(block, "VAR", "df");
+    const xCol  = (block.getFieldValue("X_COL") || "x").trim();
+    const yCol  = (block.getFieldValue("Y_COL") || "y").trim();
+    const title = (block.getFieldValue("TITLE") || "").trim();
+    return `scatter_plot(${dsVar}, x="${xCol}", y="${yCol}"${title ? `, title="${title}"` : ""})\n`;
+  };
+
+  gen["ds_chart_histogram_block"] = function (block) {
+    const dsVar = varName(block, "VAR", "df");
+    const col   = (block.getFieldValue("COL") || "value").trim();
+    const title = (block.getFieldValue("TITLE") || "").trim();
+    return `histogram(${dsVar}, column="${col}"${title ? `, title="${title}"` : ""})\n`;
+  };
+
+  gen["ds_chart_box_block"] = function (block) {
+    const dsVar    = varName(block, "VAR", "df");
+    const valueCol = (block.getFieldValue("VALUE_COL") || "value").trim();
+    const groupCol = (block.getFieldValue("GROUP_COL") || "").trim();
+    const title    = (block.getFieldValue("TITLE") || "").trim();
+    return `box_plot(${dsVar}, value="${valueCol}"${groupCol ? `, group="${groupCol}"` : ""}${title ? `, title="${title}"` : ""})\n`;
   };
 
   initialized = true;

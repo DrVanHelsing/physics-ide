@@ -273,6 +273,47 @@ const DS_GENERATORS = {
       `if (${resultVar}) __outputs.push({ type: "table", varName: ${JSON.stringify(`mean ${valueCol} by ${groupCol}`)}, dataset: ${resultVar} });\n`
     );
   },
+
+  /* ── Category 5: Seeing Data (Charts) ── */
+
+  ds_chart_bar_block(block) {
+    const dsVar = resolveVar(block, "VAR", "df");
+    const xCol  = (block.getFieldValue("X_COL") || "x").trim();
+    const yCol  = (block.getFieldValue("Y_COL") || "y").trim();
+    const title = (block.getFieldValue("TITLE") || "").trim();
+    return `__outputs.push({ type: "chart", chartType: "bar", dataset: ${dsVar}, xCol: ${JSON.stringify(xCol)}, yCol: ${JSON.stringify(yCol)}, title: ${JSON.stringify(title)} });\n`;
+  },
+
+  ds_chart_line_block(block) {
+    const dsVar = resolveVar(block, "VAR", "df");
+    const xCol  = (block.getFieldValue("X_COL") || "x").trim();
+    const yCol  = (block.getFieldValue("Y_COL") || "y").trim();
+    const title = (block.getFieldValue("TITLE") || "").trim();
+    return `__outputs.push({ type: "chart", chartType: "line", dataset: ${dsVar}, xCol: ${JSON.stringify(xCol)}, yCol: ${JSON.stringify(yCol)}, title: ${JSON.stringify(title)} });\n`;
+  },
+
+  ds_chart_scatter_block(block) {
+    const dsVar = resolveVar(block, "VAR", "df");
+    const xCol  = (block.getFieldValue("X_COL") || "x").trim();
+    const yCol  = (block.getFieldValue("Y_COL") || "y").trim();
+    const title = (block.getFieldValue("TITLE") || "").trim();
+    return `__outputs.push({ type: "chart", chartType: "scatter", dataset: ${dsVar}, xCol: ${JSON.stringify(xCol)}, yCol: ${JSON.stringify(yCol)}, title: ${JSON.stringify(title)} });\n`;
+  },
+
+  ds_chart_histogram_block(block) {
+    const dsVar = resolveVar(block, "VAR", "df");
+    const col   = (block.getFieldValue("COL") || "value").trim();
+    const title = (block.getFieldValue("TITLE") || "").trim();
+    return `__outputs.push({ type: "chart", chartType: "histogram", dataset: ${dsVar}, col: ${JSON.stringify(col)}, title: ${JSON.stringify(title)} });\n`;
+  },
+
+  ds_chart_box_block(block) {
+    const dsVar    = resolveVar(block, "VAR", "df");
+    const valueCol = (block.getFieldValue("VALUE_COL") || "value").trim();
+    const groupCol = (block.getFieldValue("GROUP_COL") || "").trim();
+    const title    = (block.getFieldValue("TITLE") || "").trim();
+    return `__outputs.push({ type: "chart", chartType: "box", dataset: ${dsVar}, valueCol: ${JSON.stringify(valueCol)}, groupCol: ${JSON.stringify(groupCol)}, title: ${JSON.stringify(title)} });\n`;
+  },
 };
 
 function walkChain(block, parts) {

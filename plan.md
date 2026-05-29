@@ -92,27 +92,14 @@ Branch: `phase-a-spike`. All work browser-only; no backend, no auth.
 - Toolbox reorganised into four labelled sections: Load data / Explore / Statistics / Filter and Sort / Group and Compare.
 - Registry: 93 entries. Toolbox: 85 IDs. Tests: 86 passing.
 
-#### 🟡 Phase C.6+ — DS block implementations (remaining)
+#### ✅ Phase C.6 — Category 5 charts
+- `src/utils/charts/chartSpec.js` — `renderDsChartToElement(chartOutput)` via Observable Plot 0.6; bar, line, scatter, histogram, box.
+- 5 chart blocks: `ds_chart_bar_block`, `ds_chart_line_block`, `ds_chart_scatter_block`, `ds_chart_histogram_block`, `ds_chart_box_block`. Each carries a title field; all wired through registry, toolbox, blocklyGenerator (Python reveal), dsGenerator (JS).
+- `DataPanel.js` — `DsChart` React component renders chart outputs inline via `useEffect` + `useRef`; charts appear below value + table outputs.
+- Registry: 98 entries. Toolbox: 90 IDs. Tests: 86 passing.
 
-**Design decision pending:** DS block execution. The existing block flow (`generatePythonFromWorkspace` → `runPython` → GlowScript iframe) targets VPython — it does not work for DS blocks that operate on JS-side `Dataset` objects. Three options:
-
-  1. **Generate JS and eval client-side** (recommended). DS blocks emit JS via a new `Blockly.JavaScript` generator namespace; the runtime executes that JS via the `Function` constructor inside a sandbox that exposes Arquero, the dataset module, and the built-in loaders. Same blocks also emit Python for the "Show generated Python" reveal (visualisation only — never executed). Lowest implementation cost, fits free-hosting (no extra runtime).
-  2. **Pyodide in-browser.** Real Python execution for both physics and DS. ~10 MB runtime download. Heavy but unifies the model. Probably wrong for v1 given the bundle-size pressure.
-  3. **Custom block-tree walker.** Skip code generation; interpret the workspace directly against the dataset module. Simplest mental model but loses the "Show generated Python" reveal pattern that the foundational doc treats as load-bearing.
-
-Recommended path: option 1.
-
-**Vertical-slice C.3 (next step):** 3-block proof of runtime, not the full 59 at once.
-  - `load_builtin_dataset` (Cat 1) — picks penguins / weather / planets, outputs `dataset`.
-  - `show_table` (Cat 2) — takes `dataset`, renders it in `DataPanel`.
-  - `calc_mean` (Cat 3) — takes `dataset` + column name, outputs `number`.
-  Plus the runtime scaffolding: `src/utils/runner/dsRunner.js`, a JS generator alongside the existing Python one, and a `DataPanel` table renderer.
-
-If the slice works, the remaining 56 blocks are pattern repetition over the same infrastructure.
-
-#### ⏳ Phase C.6+ — Remaining DS work
-- **Remaining blocks:** Cat 5 charts (bar, line, scatter, histogram, box + axis/title/colour blocks), Cat 6 communication blocks (write-note, print-result, state-conclusion, export-table, save-chart), Cat 1 type blocks (identify-type, ask-type), Cat 4 missing-data find block, combined-filter (AND/OR) blocks, compare-two-columns, show-all-stats.
-- Chart system: `chartSpec.js` + Plot bindings for all five foundational chart types (bar / line / scatter / histogram / box). Phase A handles line + scatter.
+#### ⏳ Phase C.7+ — Remaining DS work
+- **Remaining blocks:** Cat 6 communication blocks (write-note, print-result, state-conclusion, export-table, save-chart), Cat 1 type-identity blocks, Cat 4 combined-filter (AND/OR) blocks.
 - Trace-to-dataset productionization: variable selection UI, time-window selector, `RunSnapshot` persistence, `RunComparisonView`.
 - Template packs for DS and Hybrid.
 - Guidance layer for beginner mode.
