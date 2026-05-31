@@ -19,3 +19,6 @@ build/static/js/main.60b8d68b.js
 # Browser verification artifacts
 scripts/ss*.png
 scripts/ss*.jpg
+
+# E2E test output
+e2e/
