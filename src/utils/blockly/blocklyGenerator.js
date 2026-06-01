@@ -1261,7 +1261,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
     },
     {
       type: "ds_show_column_block",
-      message0: "show column %2 . %3",
+      message0: "show column %1 . %2",
       args0: [
         { type: "field_variable", name: "VAR", variable: "df" },
         { type: "field_input",    name: "COL", text: "species" },
