@@ -1651,106 +1651,197 @@ const PENDULUM_BLOCKS = [
 
 const DS_PENGUINS_STATS_XML = `<xml xmlns="https://developers.google.com/blockly/xml">
   <variables>
-    <variable id="ds-peng">df</variable>
-    <variable id="ds-peng2">mean_bill</variable>
+    <variable id="ds-pg-df">df</variable>
+    <variable id="ds-pg-n">n_rows</variable>
+    <variable id="ds-pg-grp">by_species</variable>
   </variables>
   <block type="ds_start_block" x="40" y="40">
-    <field name="TITLE">Penguins: basic stats</field>
+    <field name="TITLE">Penguins: exploratory analysis</field>
     <statement name="BODY">
-  <block type="ds_load_builtin_block">
-    <field name="VAR" id="ds-peng">df</field>
-    <field name="ID">penguins</field>
-    <next>
-      <block type="ds_show_table_block">
-        <field name="VAR" id="ds-peng">df</field>
+      <block type="ds_load_builtin_block">
+        <field name="VAR" id="ds-pg-df">df</field>
+        <field name="ID">penguins</field>
         <next>
-          <block type="ds_calc_mean_block">
-            <field name="RESULT" id="ds-peng2">mean_bill</field>
-            <field name="VAR" id="ds-peng">df</field>
-            <field name="COL">bill_length_mm</field>
+          <block type="ds_show_table_block">
+            <field name="VAR" id="ds-pg-df">df</field>
             <next>
-              <block type="ds_chart_bar_block">
-                <field name="VAR" id="ds-peng">df</field>
-                <field name="X_COL">species</field>
-                <field name="Y_COL">bill_length_mm</field>
-                <field name="TITLE">Bill length by species</field>
+              <block type="ds_count_rows_block">
+                <field name="VAR" id="ds-pg-df">df</field>
+                <field name="RESULT" id="ds-pg-n">n_rows</field>
+                <next>
+                  <block type="ds_all_stats_block">
+                    <field name="VAR" id="ds-pg-df">df</field>
+                    <field name="COL">body_mass_g</field>
+                    <next>
+                      <block type="ds_group_mean_block">
+                        <field name="RESULT" id="ds-pg-grp">by_species</field>
+                        <field name="VAR" id="ds-pg-df">df</field>
+                        <field name="VALUE_COL">body_mass_g</field>
+                        <field name="GROUP_COL">species</field>
+                        <next>
+                          <block type="ds_chart_bar_block">
+                            <field name="VAR" id="ds-pg-grp">by_species</field>
+                            <field name="X_COL">species</field>
+                            <field name="Y_COL">mean_body_mass_g</field>
+                            <field name="TITLE">Average body mass by species (g)</field>
+                            <next>
+                              <block type="ds_chart_scatter_block">
+                                <field name="VAR" id="ds-pg-df">df</field>
+                                <field name="X_COL">flipper_length_mm</field>
+                                <field name="Y_COL">body_mass_g</field>
+                                <field name="TITLE">Flipper length vs body mass</field>
+                                <next>
+                                  <block type="ds_chart_histogram_block">
+                                    <field name="VAR" id="ds-pg-df">df</field>
+                                    <field name="COL">body_mass_g</field>
+                                    <field name="TITLE">Distribution of body mass</field>
+                                    <next>
+                                      <block type="ds_state_conclusion_block">
+                                        <field name="TEXT">Heavier penguins tend to have longer flippers, and Gentoo penguins are the largest of the three species.</field>
+                                      </block>
+                                    </next>
+                                  </block>
+                                </next>
+                              </block>
+                            </next>
+                          </block>
+                        </next>
+                      </block>
+                    </next>
+                  </block>
+                </next>
               </block>
             </next>
           </block>
         </next>
       </block>
-    </next>
-  </block>
     </statement>
   </block>
 </xml>`;
 
 const DS_WEATHER_FILTER_XML = `<xml xmlns="https://developers.google.com/blockly/xml">
   <variables>
-    <variable id="ds-wx">weather</variable>
-    <variable id="ds-ct">cape_town</variable>
+    <variable id="ds-wx-df">weather</variable>
+    <variable id="ds-wx-grp">city_avg</variable>
+    <variable id="ds-wx-ct">cape_town</variable>
   </variables>
   <block type="ds_start_block" x="40" y="40">
-    <field name="TITLE">Weather: filter a city</field>
+    <field name="TITLE">Weather: compare two cities</field>
     <statement name="BODY">
-  <block type="ds_load_builtin_block">
-    <field name="VAR" id="ds-wx">weather</field>
-    <field name="ID">weather</field>
-    <next>
-      <block type="ds_filter_eq_block">
-        <field name="RESULT" id="ds-ct">cape_town</field>
-        <field name="VAR" id="ds-wx">weather</field>
-        <field name="COL">city</field>
-        <field name="VALUE">Cape Town</field>
+      <block type="ds_load_builtin_block">
+        <field name="VAR" id="ds-wx-df">weather</field>
+        <field name="ID">weather</field>
         <next>
           <block type="ds_show_table_block">
-            <field name="VAR" id="ds-ct">cape_town</field>
+            <field name="VAR" id="ds-wx-df">weather</field>
             <next>
-              <block type="ds_chart_line_block">
-                <field name="VAR" id="ds-ct">cape_town</field>
-                <field name="X_COL">date</field>
-                <field name="Y_COL">temp_max</field>
-                <field name="TITLE">Cape Town max temperature</field>
+              <block type="ds_group_mean_block">
+                <field name="RESULT" id="ds-wx-grp">city_avg</field>
+                <field name="VAR" id="ds-wx-df">weather</field>
+                <field name="VALUE_COL">temp_high_c</field>
+                <field name="GROUP_COL">city</field>
+                <next>
+                  <block type="ds_chart_bar_block">
+                    <field name="VAR" id="ds-wx-grp">city_avg</field>
+                    <field name="X_COL">city</field>
+                    <field name="Y_COL">mean_temp_high_c</field>
+                    <field name="TITLE">Average high temperature by city (°C)</field>
+                    <next>
+                      <block type="ds_filter_eq_block">
+                        <field name="RESULT" id="ds-wx-ct">cape_town</field>
+                        <field name="VAR" id="ds-wx-df">weather</field>
+                        <field name="COL">city</field>
+                        <field name="VALUE">Cape Town</field>
+                        <next>
+                          <block type="ds_chart_line_block">
+                            <field name="VAR" id="ds-wx-ct">cape_town</field>
+                            <field name="X_COL">date</field>
+                            <field name="Y_COL">temp_high_c</field>
+                            <field name="TITLE">Cape Town daily high (°C)</field>
+                            <next>
+                              <block type="ds_chart_box_block">
+                                <field name="VAR" id="ds-wx-df">weather</field>
+                                <field name="VALUE_COL">temp_high_c</field>
+                                <field name="GROUP_COL">city</field>
+                                <field name="TITLE">High-temperature spread by city</field>
+                                <next>
+                                  <block type="ds_state_conclusion_block">
+                                    <field name="TEXT">Johannesburg and Cape Town have noticeably different temperature ranges over this period.</field>
+                                  </block>
+                                </next>
+                              </block>
+                            </next>
+                          </block>
+                        </next>
+                      </block>
+                    </next>
+                  </block>
+                </next>
               </block>
             </next>
           </block>
         </next>
       </block>
-    </next>
-  </block>
     </statement>
   </block>
 </xml>`;
 
 const DS_PLANETS_CHART_XML = `<xml xmlns="https://developers.google.com/blockly/xml">
   <variables>
-    <variable id="ds-pl">planets</variable>
+    <variable id="ds-pl-df">planets</variable>
+    <variable id="ds-pl-sort">sorted</variable>
+    <variable id="ds-pl-max">max_period</variable>
   </variables>
   <block type="ds_start_block" x="40" y="40">
-    <field name="TITLE">Planets: distance vs period</field>
+    <field name="TITLE">Planets: Kepler's third law</field>
     <statement name="BODY">
-  <block type="ds_load_builtin_block">
-    <field name="VAR" id="ds-pl">planets</field>
-    <field name="ID">planets</field>
-    <next>
-      <block type="ds_show_table_block">
-        <field name="VAR" id="ds-pl">planets</field>
+      <block type="ds_load_builtin_block">
+        <field name="VAR" id="ds-pl-df">planets</field>
+        <field name="ID">planets</field>
         <next>
-          <block type="ds_chart_scatter_block">
-            <field name="VAR" id="ds-pl">planets</field>
-            <field name="X_COL">distance_au</field>
-            <field name="Y_COL">orbital_period_years</field>
-            <field name="TITLE">Distance vs Orbital Period</field>
+          <block type="ds_show_table_block">
+            <field name="VAR" id="ds-pl-df">planets</field>
             <next>
-              <block type="ds_state_conclusion_block">
-                <field name="TEXT">Planets farther from the Sun take longer to orbit — this is Kepler's third law!</field>
+              <block type="ds_sort_asc_block">
+                <field name="RESULT" id="ds-pl-sort">sorted</field>
+                <field name="VAR" id="ds-pl-df">planets</field>
+                <field name="COL">distance_au</field>
+                <next>
+                  <block type="ds_show_table_block">
+                    <field name="VAR" id="ds-pl-sort">sorted</field>
+                    <next>
+                      <block type="ds_chart_scatter_block">
+                        <field name="VAR" id="ds-pl-df">planets</field>
+                        <field name="X_COL">distance_au</field>
+                        <field name="Y_COL">period_days</field>
+                        <field name="TITLE">Distance vs orbital period</field>
+                        <next>
+                          <block type="ds_calc_max_block">
+                            <field name="RESULT" id="ds-pl-max">max_period</field>
+                            <field name="VAR" id="ds-pl-df">planets</field>
+                            <field name="COL">period_days</field>
+                            <next>
+                              <block type="ds_print_result_block">
+                                <field name="VAR" id="ds-pl-max">max_period</field>
+                                <field name="LABEL">Longest orbital period (days)</field>
+                                <next>
+                                  <block type="ds_state_conclusion_block">
+                                    <field name="TEXT">Planets farther from the Sun take longer to orbit — this is Kepler's third law!</field>
+                                  </block>
+                                </next>
+                              </block>
+                            </next>
+                          </block>
+                        </next>
+                      </block>
+                    </next>
+                  </block>
+                </next>
               </block>
             </next>
           </block>
         </next>
       </block>
-    </next>
-  </block>
     </statement>
   </block>
 </xml>`;
@@ -1788,24 +1879,24 @@ const DS_HYBRID_ANALYSIS_XML = `<xml xmlns="https://developers.google.com/blockl
 export const DS_TEMPLATES = [
   {
     id: "ds_penguins_stats",
-    title: "Penguins: basic stats",
-    description: "Load the penguin dataset, show a table, compute mean bill length, and plot by species.",
+    title: "Penguins: exploratory analysis",
+    description: "Full workflow: table, summary stats, per-species averages, plus bar, scatter and histogram charts.",
     kind: "blocks",
     goal: "datascience",
     xml: DS_PENGUINS_STATS_XML,
   },
   {
     id: "ds_weather_filter",
-    title: "Weather: filter & chart",
-    description: "Filter weather data for Cape Town and chart max temperature over time.",
+    title: "Weather: compare two cities",
+    description: "Group by city, filter Cape Town, and compare with line, bar and box-plot charts.",
     kind: "blocks",
     goal: "datascience",
     xml: DS_WEATHER_FILTER_XML,
   },
   {
     id: "ds_planets_chart",
-    title: "Planets: scatter chart",
-    description: "Plot orbital period vs. distance for the planets and write a conclusion.",
+    title: "Planets: Kepler's third law",
+    description: "Sort by distance, scatter distance vs orbital period, find the longest period, and conclude.",
     kind: "blocks",
     goal: "datascience",
     xml: DS_PLANETS_CHART_XML,
