@@ -33,7 +33,7 @@ function baseOpts(title, containerWidth) {
 export function renderDsChartToElement(chartOutput, containerWidth) {
   const { chartType, dataset, xCol, yCol, col, valueCol, groupCol, title } = chartOutput;
   if (!dataset || !dataset.rows || dataset.rows.length === 0)
-    return errorEl("No data to chart.");
+    return stateEl("No data to chart yet.", "empty");
 
   const rows = dataset.rows;
 
@@ -42,7 +42,7 @@ export function renderDsChartToElement(chartOutput, containerWidth) {
     switch (chartType) {
       case "bar": {
         const clean = validRows(rows, xCol);
-        if (!clean.length) return errorEl("No valid rows for bar chart.");
+        if (!clean.length) return stateEl("No valid rows for bar chart.", "empty");
         chart = Plot.plot({
           ...baseOpts(title, containerWidth),
           title: title || undefined,
@@ -58,7 +58,7 @@ export function renderDsChartToElement(chartOutput, containerWidth) {
       }
       case "line": {
         const clean = validRows(rows, xCol, yCol);
-        if (!clean.length) return errorEl("No valid rows for line chart.");
+        if (!clean.length) return stateEl("No valid rows for line chart.", "empty");
         chart = Plot.plot({
           ...baseOpts(title, containerWidth),
           title: title || undefined,
@@ -74,7 +74,7 @@ export function renderDsChartToElement(chartOutput, containerWidth) {
       }
       case "scatter": {
         const clean = validRows(rows, xCol, yCol);
-        if (!clean.length) return errorEl("No valid rows for scatter plot.");
+        if (!clean.length) return stateEl("No valid rows for scatter plot.", "empty");
         chart = Plot.plot({
           ...baseOpts(title, containerWidth),
           title: title || undefined,
@@ -94,7 +94,7 @@ export function renderDsChartToElement(chartOutput, containerWidth) {
           const v = r[theCol];
           return v !== null && v !== undefined && v !== "" && !Number.isNaN(Number(v));
         });
-        if (!clean.length) return errorEl("No valid numeric values for histogram.");
+        if (!clean.length) return stateEl("No valid numeric values for histogram.", "empty");
         chart = Plot.plot({
           ...baseOpts(title, containerWidth),
           title: title || undefined,
@@ -115,7 +115,7 @@ export function renderDsChartToElement(chartOutput, containerWidth) {
           const v = r[vCol];
           return v !== null && v !== undefined && v !== "" && !Number.isNaN(Number(v));
         });
-        if (!clean.length) return errorEl("No valid values for box plot.");
+        if (!clean.length) return stateEl("No valid values for box plot.", "empty");
         chart = Plot.plot({
           ...baseOpts(title, containerWidth),
           title: title || undefined,
@@ -133,18 +133,84 @@ export function renderDsChartToElement(chartOutput, containerWidth) {
         });
         break;
       }
+      case "scatter_fit": {
+        const clean = validRows(rows, xCol, yCol);
+        if (!clean.length) return stateEl("No valid rows for scatter+fit chart.", "empty");
+        const fit = chartOutput.fit;
+        const marks = [
+          Plot.dot(clean, { x: xCol, y: yCol, fill: DS_COLOR, opacity: 0.7, r: 3 }),
+          Plot.tip(clean, Plot.pointer({ x: xCol, y: yCol })),
+        ];
+        if (fit && fit.slope != null) {
+          marks.push(
+            Plot.linearRegressionY(clean, { x: xCol, y: yCol, stroke: "#ff9f43", strokeWidth: 1.5, ci: 0 })
+          );
+        }
+        chart = Plot.plot({
+          ...baseOpts(title, containerWidth),
+          title: title || undefined,
+          marks,
+          x: { label: xCol, grid: true },
+          y: { label: yCol, grid: true },
+        });
+        break;
+      }
       default:
         return errorEl(`Unknown chart type: "${chartType}"`);
     }
-    return chart;
+    return annotateChart(chart, describeChart(chartOutput, rows.length));
   } catch (e) {
     return errorEl(`Chart error: ${e.message}`);
   }
 }
 
-function errorEl(msg) {
+/* ── Accessibility: a screen-reader summary of the chart ──────────
+   Observable Plot renders an <svg>/<figure> with no inherent label, so
+   assistive tech announces nothing useful. We mark the chart as an image
+   and give it a one-line description derived from its encodings. */
+function describeChart(chartOutput, rowCount) {
+  const { chartType, xCol, yCol, col, valueCol, groupCol, title } = chartOutput;
+  const kind =
+    {
+      bar: "Bar chart",
+      line: "Line chart",
+      scatter: "Scatter plot",
+      histogram: "Histogram",
+      box: "Box plot",
+      scatter_fit: "Scatter plot with linear fit",
+    }[chartType] || "Chart";
+  const x = xCol || col || valueCol || groupCol;
+  let body;
+  if (yCol && x) body = `${yCol} versus ${x}`;
+  else if (x) body = `distribution of ${x}`;
+  else body = "";
+  const parts = [title || kind];
+  if (body) parts.push(body);
+  if (rowCount != null) parts.push(`${rowCount} row${rowCount === 1 ? "" : "s"}`);
+  return parts.join(" — ");
+}
+
+function annotateChart(el, label) {
+  if (!el || !label) return el;
+  try {
+    el.setAttribute("role", "img");
+    el.setAttribute("aria-label", label);
+  } catch (_) {
+    /* non-element (shouldn't happen) — ignore */
+  }
+  return el;
+}
+
+/* Empty-data and load-failure placeholders. Both are announced to screen
+   readers; the empty state is informational, errors are assertive. */
+function stateEl(msg, variant = "empty") {
   const d = document.createElement("div");
-  d.className = "ds-chart-error";
+  d.className = variant === "error" ? "ds-chart-error" : "ds-chart-empty";
+  d.setAttribute("role", variant === "error" ? "alert" : "status");
   d.textContent = msg;
   return d;
+}
+
+function errorEl(msg) {
+  return stateEl(msg, "error");
 }

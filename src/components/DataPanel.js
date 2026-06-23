@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { TableIcon } from "./Icons";
+import { TableIcon, LightbulbIcon, AlertTriangleIcon } from "./Icons";
 import { renderDsChartToElement } from "../utils/charts/chartSpec";
 
 const TABLE_ROW_LIMIT = 12;
@@ -44,12 +44,14 @@ function DataTable({ dataset }) {
 function DsChart({ chartOutput }) {
   const ref = useRef(null);
   useEffect(() => {
-    if (!ref.current) return;
-    const w = ref.current.clientWidth || 320;
+    const host = ref.current;
+    if (!host) return;
+    const w = host.clientWidth || 320;
     const el = renderDsChartToElement(chartOutput, w);
-    ref.current.innerHTML = "";
-    if (el) ref.current.appendChild(el);
-    return () => { if (ref.current) ref.current.innerHTML = ""; };
+    host.innerHTML = "";
+    if (el) host.appendChild(el);
+    // Capture the node so cleanup doesn't read a possibly-changed ref.current.
+    return () => { host.innerHTML = ""; };
   }, [chartOutput]);
   return <div className="ds-chart-container" ref={ref} />;
 }
@@ -114,6 +116,55 @@ function CompareStats({ output }) {
   );
 }
 
+function fitQuality(r2) {
+  if (r2 == null) return "—";
+  if (r2 >= 0.99) return "Excellent";
+  if (r2 >= 0.90) return "Strong";
+  if (r2 >= 0.70) return "Moderate";
+  return "Weak";
+}
+
+function RegressionResult({ output }) {
+  const { xCol, yCol, fit } = output;
+  if (!fit) return <div className="ds-regression-result ds-regression-result--null">Regression failed — check column names.</div>;
+  const { slope, intercept, rSquared, n } = fit;
+  const slopeStr = fmtNum(slope);
+  const intStr = intercept < 0 ? `− ${fmtNum(Math.abs(intercept))}` : `+ ${fmtNum(intercept)}`;
+  const quality = fitQuality(rSquared);
+  return (
+    <div className="ds-regression-result">
+      <div className="ds-regression-equation">
+        {yCol} = {slopeStr} × {xCol} {intStr}
+      </div>
+      <div className="ds-regression-meta">
+        <span className="ds-regression-r2">R² = {fmtNum(rSquared)}</span>
+        <span className="ds-regression-dot">·</span>
+        <span className={`ds-regression-quality ds-regression-quality--${quality.toLowerCase()}`}>{quality} linear fit</span>
+        <span className="ds-regression-dot">·</span>
+        <span className="ds-regression-n">n = {n}</span>
+      </div>
+    </div>
+  );
+}
+
+function UncertaintyResult({ output }) {
+  const { label, mean, stdError } = output;
+  const rel = (mean != null && stdError != null && mean !== 0)
+    ? Math.abs(stdError / mean) * 100
+    : null;
+  return (
+    <div className="ds-uncertainty">
+      {label && <span className="ds-uncertainty-label">{label}</span>}
+      <span className="ds-uncertainty-value">
+        {fmtNum(mean)} ± {fmtNum(stdError)}
+      </span>
+      {rel != null && (
+        <span className="ds-uncertainty-rel">({rel.toFixed(1)}% relative)</span>
+      )}
+    </div>
+  );
+}
+
 function renderOutput(o, i) {
   switch (o.type) {
     case "value":
@@ -160,12 +211,16 @@ function renderOutput(o, i) {
     case "conclusion":
       return (
         <div key={i} className="ds-conclusion">
-          <span className="ds-conclusion-icon">💡</span>
+          <span className="ds-conclusion-icon" aria-hidden="true"><LightbulbIcon size={14} /></span>
           <span className="ds-conclusion-text">{o.text}</span>
         </div>
       );
     case "python":
       return <DsPython key={i} code={o.code} />;
+    case "regression_result":
+      return <RegressionResult key={i} output={o} />;
+    case "uncertainty":
+      return <UncertaintyResult key={i} output={o} />;
     default:
       return null;
   }
@@ -216,8 +271,8 @@ export default function DataPanel({ goal, datasetCount = 0, dsOutputs = [], dsEr
 
       <div className={`data-panel-body${!hasOutputs ? " data-panel-body--empty" : ""}`}>
         {dsError && (
-          <div className="ds-runner-error">
-            <span className="ds-runner-error-icon">⚠</span>
+          <div className="ds-runner-error" role="alert">
+            <span className="ds-runner-error-icon" aria-hidden="true"><AlertTriangleIcon size={14} /></span>
             <span className="ds-runner-error-text">{dsError}</span>
           </div>
         )}
