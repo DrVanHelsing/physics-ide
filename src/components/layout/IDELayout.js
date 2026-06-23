@@ -38,6 +38,7 @@ import { fromTraceBuffer, toCsvText, serializeDescriptor } from "../../utils/dat
 import { saveDataset } from "../../hooks/useDataset";
 import { registerDataset } from "../../utils/dataset/datasetRegistry";
 import { generateDsJsFromWorkspace } from "../../utils/blockly/dsGenerator";
+import { DS_TEMPLATES } from "../../utils/blockTemplates";
 import { runDsCode, clearCsvCache } from "../../utils/runner/dsRunner";
 import { renderDsChartToElement } from "../../utils/charts/chartSpec";
 import { migrate } from "../../utils/manifest/migrate";
@@ -141,6 +142,27 @@ export default function IDELayout() {
   const [chartDataset, setChartDataset] = useState(null);
   const handleCloseChart = useCallback(() => setChartDataset(null), []);
 
+  /* ── Hybrid loop closure: load the paired analysis template ───
+     Bumping this key remounts the Blockly workspace so the analysis XML
+     loads as `initialXml` (the workspace only reads initialXml on mount). */
+  const [workspaceReloadKey, setWorkspaceReloadKey] = useState(0);
+
+  const handleAnalyseRun = useCallback(
+    (label) => {
+      const pairing = proj.activeManifest?.hybridPairing;
+      if (!pairing?.analysisId) return;
+      const tpl = DS_TEMPLATES.find((t) => t.id === pairing.analysisId);
+      if (!tpl?.xml) return;
+      // Auto-fill the placeholder with the just-promoted run label.
+      const xml = tpl.xml.split("paste-trace-label-here").join(label || "");
+      if (dbg.debugMode) dbg.handleExitDebug();
+      sim.loadWorkspaceXml(xml);
+      setWorkspaceReloadKey((k) => k + 1);
+      setChartDataset(null);
+    },
+    [proj, sim, dbg]
+  );
+
   /* ── Trace promote dialog ─────────────────────────────────── */
   const [showTraceDialog, setShowTraceDialog] = useState(false);
   const pendingBufferRef = useRef(null);
@@ -193,7 +215,7 @@ export default function IDELayout() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    const safeName = (manifest.title || "project").replace(/[^a-z0-9_\-]/gi, "_");
+    const safeName = (manifest.title || "project").replace(/[^a-z0-9_-]/gi, "_");
     a.download = `${safeName}.physide.json`;
     a.click();
     URL.revokeObjectURL(url);
@@ -219,6 +241,13 @@ export default function IDELayout() {
       alert(`Could not import: ${err.message}`);
     }
   }, [proj]);
+
+  /* ── Hybrid: offer "Analyse this run →" on the post-promote chart ── */
+  const hybridPairing = proj.activeManifest?.hybridPairing;
+  const analyseProps =
+    hybridPairing?.analysisId && chartDataset
+      ? { onAnalyse: () => handleAnalyseRun(chartDataset.name) }
+      : {};
 
   /* ── Derived presentation values ─────────────────────── */
   const statusClass =
@@ -286,7 +315,7 @@ export default function IDELayout() {
           executingBlockId={dbg.executingBlockId}
           onExitDebug={dbg.handleExitDebug}
         />
-        {chartDataset && <ChartOverlay dataset={chartDataset} onClose={handleCloseChart} />}
+        {chartDataset && <ChartOverlay dataset={chartDataset} onClose={handleCloseChart} {...analyseProps} />}
         {showTraceDialog && pendingBufferRef.current && (
           <TracePromoteDialog
             recordBuffer={pendingBufferRef.current}
@@ -371,6 +400,7 @@ export default function IDELayout() {
                 <ReadOnlyBlockly xml={workspaceXml} isDark={isDark} />
               ) : (
                 <BlocklyWorkspace
+                  key={`ws-${workspaceReloadKey}`}
                   initialXml={workspaceXml}
                   onWorkspaceReady={sim.handleWorkspaceReady}
                   onWorkspaceChange={handleWorkspaceChange}
@@ -472,7 +502,7 @@ export default function IDELayout() {
         </span>
       </div>
 
-      {chartDataset && <ChartOverlay dataset={chartDataset} onClose={handleCloseChart} />}
+      {chartDataset && <ChartOverlay dataset={chartDataset} onClose={handleCloseChart} {...analyseProps} />}
 
       {showTraceDialog && pendingBufferRef.current && (
         <TracePromoteDialog

@@ -97,17 +97,17 @@ function buildBlocklyTheme(Blockly, isDark) {
       name: "physics-dark",
       base: Blockly.Themes.Classic,
       componentStyles: {
-        workspaceBackgroundColour: "#1a1b2e",
-        toolboxBackgroundColour: "#141521",
-        toolboxForegroundColour: "#c8cad8",
-        flyoutBackgroundColour: "#1a1b2e",
-        flyoutForegroundColour: "#c8cad8",
-        flyoutOpacity: 0.96,
-        scrollbarColour: "#3b3d56",
+        workspaceBackgroundColour: "#1e1e1e",  // --bg-base dark
+        toolboxBackgroundColour: "#252526",    // --bg-surface dark
+        toolboxForegroundColour: "#cccccc",    // --text dark
+        flyoutBackgroundColour: "#1e1e1e",     // --bg-base dark
+        flyoutForegroundColour: "#cccccc",     // --text dark
+        flyoutOpacity: 0.98,
+        scrollbarColour: "#505050",            // --border-hl dark
         scrollbarOpacity: 0.55,
-        insertionMarkerColour: "#7aa2f7",
-        insertionMarkerOpacity: 0.4,
-        cursorColour: "#f5e0dc",
+        insertionMarkerColour: "#569cd6",      // --accent-blue dark
+        insertionMarkerOpacity: 0.5,
+        cursorColour: "#007acc",               // --accent dark
       },
       fontStyle: {
         family: "'Inter', 'Segoe UI', system-ui, sans-serif",
@@ -121,17 +121,17 @@ function buildBlocklyTheme(Blockly, isDark) {
     name: "physics-light",
     base: Blockly.Themes.Classic,
     componentStyles: {
-      workspaceBackgroundColour: "#f5f5f8",
-      toolboxBackgroundColour: "#eaecf0",
-      toolboxForegroundColour: "#333",
-      flyoutBackgroundColour: "#f5f5f8",
-      flyoutForegroundColour: "#333",
-      flyoutOpacity: 0.96,
-      scrollbarColour: "#c0c2cc",
+      workspaceBackgroundColour: "#ffffff",   // --bg-base light
+      toolboxBackgroundColour: "#f3f3f3",     // --bg-surface light
+      toolboxForegroundColour: "#333333",     // --text light
+      flyoutBackgroundColour: "#f3f3f3",      // --bg-surface light
+      flyoutForegroundColour: "#333333",      // --text light
+      flyoutOpacity: 0.98,
+      scrollbarColour: "#c8c8c8",             // --border-hl light
       scrollbarOpacity: 0.55,
-      insertionMarkerColour: "#3b82f6",
-      insertionMarkerOpacity: 0.4,
-      cursorColour: "#333",
+      insertionMarkerColour: "#0451a5",       // --accent-blue light
+      insertionMarkerOpacity: 0.5,
+      cursorColour: "#007acc",                // --accent light
     },
     fontStyle: {
       family: "'Inter', 'Segoe UI', system-ui, sans-serif",
@@ -323,7 +323,7 @@ function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, isD
       trashcan: true,
       scrollbars: true,
       sounds: false,
-      grid: { spacing: 25, length: 3, colour: "#2a2c40", snap: true },
+      grid: { spacing: 25, length: 3, colour: "#3c3c3c", snap: true },
       zoom: {
         controls: false,
         wheel: true,
