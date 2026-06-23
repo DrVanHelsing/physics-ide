@@ -404,6 +404,44 @@ const REGISTRY = [
   { id: "ds_load_trace_block", category: "Data Science", domain: "datascience",
     conceptLabel: "Load promoted simulation run as dataset", beginnerVisible: false,
     keywords: ["trace", "run", "simulation", "promoted", "hybrid", "load saved", "record"] },
+
+  /* ── Transform columns ── */
+  { id: "ds_add_column_transform_block", category: "Transforming Data", domain: "datascience",
+    conceptLabel: "Add transformed column (ln, log10, √, x², 1/x)", beginnerVisible: true,
+    keywords: ["transform", "column", "log", "ln", "log10", "sqrt", "square", "reciprocal", "linearize", "add column"] },
+  { id: "ds_multiply_columns_block", category: "Transforming Data", domain: "datascience",
+    conceptLabel: "Multiply two columns into new column", beginnerVisible: true,
+    keywords: ["multiply", "product", "columns", "element-wise", "T squared", "combine", "square"] },
+
+  /* ── Uncertainty ── */
+  { id: "ds_calc_std_error_block", category: "Uncertainty", domain: "datascience",
+    conceptLabel: "Standard error of the mean (σ/√n)", beginnerVisible: true,
+    keywords: ["standard error", "std error", "SE", "uncertainty", "mean", "sigma", "sqrt n", "repeated"] },
+  { id: "ds_print_uncertainty_block", category: "Uncertainty", domain: "datascience",
+    conceptLabel: "Print measurement ± uncertainty", beginnerVisible: true,
+    keywords: ["print", "uncertainty", "plus minus", "mean", "error", "measurement", "display", "report"] },
+  { id: "ds_calc_relative_uncertainty_block", category: "Uncertainty", domain: "datascience",
+    conceptLabel: "Relative uncertainty (%)", beginnerVisible: true,
+    keywords: ["relative", "uncertainty", "percent", "percentage", "fractional", "error", "ratio"] },
+
+  /* ── Relationships ── */
+  { id: "ds_linear_regression_block", category: "Analyzing Relationships", domain: "datascience",
+    conceptLabel: "Linear regression — fit straight line (OLS)", beginnerVisible: true,
+    keywords: ["regression", "linear", "fit", "slope", "intercept", "R squared", "OLS", "line of best fit", "trend"] },
+  { id: "ds_chart_scatter_fit_block", category: "Analyzing Relationships", domain: "datascience",
+    conceptLabel: "Scatter plot with regression line overlay", beginnerVisible: true,
+    keywords: ["scatter", "fit", "regression", "line", "chart", "visualise", "trend", "best fit"] },
+  { id: "ds_correlation_block", category: "Analyzing Relationships", domain: "datascience",
+    conceptLabel: "Pearson correlation coefficient r", beginnerVisible: true,
+    keywords: ["correlation", "pearson", "r", "relationship", "linear", "association", "strength"] },
+
+  /* ── Additional stats ── */
+  { id: "ds_calc_percentile_block", category: "Data Science", domain: "datascience",
+    conceptLabel: "Calculate p-th percentile", beginnerVisible: true,
+    keywords: ["percentile", "quantile", "distribution", "quartile", "p25", "p75", "median"] },
+  { id: "ds_calc_iqr_block", category: "Data Science", domain: "datascience",
+    conceptLabel: "Interquartile range (IQR = Q3 − Q1)", beginnerVisible: true,
+    keywords: ["IQR", "interquartile", "quartile", "Q1", "Q3", "spread", "box plot", "range"] },
 ];
 
 /* ── Public surface ──────────────────────────────────────── */
