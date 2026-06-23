@@ -33,9 +33,7 @@ export function useSimulation() {
     setShowStart,
     blocklyZoom, setBlocklyZoom,
     setViewportHidden,
-    setBeginnerMode,
     viewportHidden,
-    beginnerMode,
   } = sim;
 
   const { debugMode, breakpointsRef } = useDebugContext();
@@ -191,6 +189,22 @@ export function useSimulation() {
     ]
   );
 
+  /* ── Load a template XML into the live workspace ──────────
+     Used by the hybrid "Analyse this run →" loop closure: swaps the
+     current blocks for the paired analysis template. Driven through
+     context state; IDELayout remounts the Blockly workspace so the new
+     XML loads as `initialXml`. */
+  const loadWorkspaceXml = useCallback(
+    (xml) => {
+      stopPython(GLOWSCRIPT_HOST_ID);
+      setRunning(false);
+      setProjectType("block_template");
+      setWorkspaceXml(xml || "");
+      setMode("blocks");
+    },
+    [setRunning, setProjectType, setWorkspaceXml, setMode]
+  );
+
   /* ── Home (back to start menu) ───────────────────────── */
   const handleHome = useCallback(() => {
     setShowStart(true);
@@ -258,7 +272,7 @@ export function useSimulation() {
   return {
     /* state (read) */
     mode, pythonCode, workspaceXml, projectType,
-    running, blocklyZoom, viewportHidden, beginnerMode,
+    running, blocklyZoom, viewportHidden,
     workspaceRef,
     /* handlers */
     handleRun,
@@ -272,9 +286,9 @@ export function useSimulation() {
     handleHome,
     handleImport,
     handleClearWorkspace,
+    loadWorkspaceXml,
     syncFromBlocks,
     /* toggling UI prefs */
     handleToggleViewport:      useCallback(() => setViewportHidden((h) => !h), [setViewportHidden]),
-    handleToggleBeginnerMode:  useCallback(() => setBeginnerMode((b) => !b), [setBeginnerMode]),
   };
 }

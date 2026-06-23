@@ -61,6 +61,7 @@ export default function DebugMode({
   onStartRecord,
   onStopRecord,
   recordBuffer,
+  onSaveAsDataset,
   /* breakpoints */
   breakpoints,        // Set<blockId>
   onToggleBreakpoint, // (blockId) => void
@@ -361,6 +362,7 @@ export default function DebugMode({
             onStartRecord={onStartRecord}
             onStopRecord={onStopRecord}
             recordBuffer={recordBuffer}
+            onSaveAsDataset={onSaveAsDataset}
           />
         </div>
       </div>

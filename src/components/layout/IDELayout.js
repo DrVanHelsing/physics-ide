@@ -18,7 +18,7 @@
  *               │    └─ .canvas-pane  (GlowCanvas)
  *               └─ .status-bar
  */
-import React, { useCallback } from "react";
+import React, { useCallback, useRef, useState } from "react";
 
 import BlocklyWorkspace, { ReadOnlyBlockly } from "../BlocklyWorkspace";
 import CodeEditor   from "../CodeEditor";
@@ -29,7 +29,19 @@ import StartMenu    from "../StartMenu";
 import HelpPage     from "../HelpPage";
 import VariableDialog from "../VariableDialog";
 import DebugMode    from "../DebugMode";
+import ChartOverlay from "../ChartOverlay";
+import DataPanel    from "../DataPanel";
+import TracePromoteDialog from "../TracePromoteDialog";
 import { BlocksIcon, CodeIcon, GlobeIcon } from "../Icons";
+
+import { fromTraceBuffer, toCsvText, serializeDescriptor } from "../../utils/dataset/dataset";
+import { saveDataset } from "../../hooks/useDataset";
+import { registerDataset } from "../../utils/dataset/datasetRegistry";
+import { generateDsJsFromWorkspace } from "../../utils/blockly/dsGenerator";
+import { DS_TEMPLATES } from "../../utils/blockTemplates";
+import { runDsCode, clearCsvCache } from "../../utils/runner/dsRunner";
+import { renderDsChartToElement } from "../../utils/charts/chartSpec";
+import { migrate } from "../../utils/manifest/migrate";
 
 import { useTheme }              from "../../contexts/ThemeContext";
 import { useSimulationContext }  from "../../contexts/SimulationContext";
@@ -40,6 +52,7 @@ import { useDebug }       from "../../hooks/useDebug";
 import { useTrace }       from "../../hooks/useTrace";
 import { useExport }      from "../../hooks/useExport";
 import { useSplitPane }   from "../../hooks/useSplitPane";
+import { useProject }     from "../../hooks/useProject";
 
 export default function IDELayout() {
   /* ── Theme ───────────────────────────────────────────── */
@@ -62,10 +75,179 @@ export default function IDELayout() {
   const dbg = useDebug();
   const trc = useTrace();
   const exp = useExport();
+  const proj = useProject();
   const { splitPct, handleDividerMouseDown } = useSplitPane();
 
   /* ── Simple UI handlers (defined here to avoid extra hook) */
   const handleHelp = useCallback(() => setShowHelp(true), [setShowHelp]);
+
+  /* ── DS panel outputs ────────────────────────────────────── */
+  const [dsOutputs, setDsOutputs] = useState([]);
+  const [dsError,   setDsError]   = useState(null);
+
+  /* ── Saved trace datasets (for DataPanel sidebar) ─────────── */
+  const [savedDatasets, setSavedDatasets] = useState([]);
+
+  const goal = proj.activeManifest?.goal || "physics";
+  const isDataGoal   = goal === "datascience";
+  const isHybridGoal = goal === "hybrid";
+
+  const handleWorkspaceChange = useCallback(
+    (xml, code) => {
+      sim.handleWorkspaceChange(xml, code);
+      if ((isDataGoal || isHybridGoal) && workspaceRef.current) {
+        const jsCode = generateDsJsFromWorkspace(workspaceRef.current);
+        runDsCode(jsCode).then(({ outputs, error }) => {
+          setDsError(error || null);
+          const displayOutputs = [];
+          for (const o of outputs) {
+            if (o.type === "download" && o.format === "csv" && o.dataset) {
+              const csv = toCsvText(o.dataset);
+              const blob = new Blob([csv], { type: "text/csv" });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = `${o.dataset.id || "dataset"}.csv`;
+              a.click();
+              URL.revokeObjectURL(url);
+            } else if (o.type === "show_python") {
+              displayOutputs.push({ type: "python", code });
+            } else if (o.type === "save_chart" && o.dataset) {
+              const svgEl = renderDsChartToElement(o, 600);
+              if (svgEl && svgEl.tagName === "svg") {
+                const blob = new Blob(
+                  [new XMLSerializer().serializeToString(svgEl)],
+                  { type: "image/svg+xml" }
+                );
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `chart-${o.chartType || "chart"}.svg`;
+                a.click();
+                URL.revokeObjectURL(url);
+              }
+            } else {
+              displayOutputs.push(o);
+            }
+          }
+          setDsOutputs(displayOutputs);
+        });
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [sim, isDataGoal, workspaceRef]
+  );
+
+  /* ── Chart overlay (Phase A spike) ── */
+  const [chartDataset, setChartDataset] = useState(null);
+  const handleCloseChart = useCallback(() => setChartDataset(null), []);
+
+  /* ── Hybrid loop closure: load the paired analysis template ───
+     Bumping this key remounts the Blockly workspace so the analysis XML
+     loads as `initialXml` (the workspace only reads initialXml on mount). */
+  const [workspaceReloadKey, setWorkspaceReloadKey] = useState(0);
+
+  const handleAnalyseRun = useCallback(
+    (label) => {
+      const pairing = proj.activeManifest?.hybridPairing;
+      if (!pairing?.analysisId) return;
+      const tpl = DS_TEMPLATES.find((t) => t.id === pairing.analysisId);
+      if (!tpl?.xml) return;
+      // Auto-fill the placeholder with the just-promoted run label.
+      const xml = tpl.xml.split("paste-trace-label-here").join(label || "");
+      if (dbg.debugMode) dbg.handleExitDebug();
+      sim.loadWorkspaceXml(xml);
+      setWorkspaceReloadKey((k) => k + 1);
+      setChartDataset(null);
+    },
+    [proj, sim, dbg]
+  );
+
+  /* ── Trace promote dialog ─────────────────────────────────── */
+  const [showTraceDialog, setShowTraceDialog] = useState(false);
+  const pendingBufferRef = useRef(null);
+
+  const handleSaveAsDataset = useCallback((recordBuffer) => {
+    if (!recordBuffer || recordBuffer.length === 0) return;
+    pendingBufferRef.current = recordBuffer;
+    setShowTraceDialog(true);
+  }, []);
+
+  const handleTraceConfirm = useCallback(async ({ label, selectedVars, tMin, tMax }) => {
+    setShowTraceDialog(false);
+    const buf = pendingBufferRef.current;
+    if (!buf) return;
+    const sameTime = tMin === tMax;
+    const filtered = buf.filter(
+      (r) => selectedVars.includes(r.name) && (sameTime || (r.t >= tMin && r.t <= tMax))
+    );
+    const dataset = fromTraceBuffer(filtered, { name: label });
+    registerDataset(dataset);
+    setSavedDatasets((prev) => [...prev, dataset]);
+    try {
+      await saveDataset(dataset);
+    } catch (err) {
+      console.warn("Could not persist dataset to localForage:", err);
+    }
+    // Persist RunSnapshot + dataset descriptor to manifest.
+    const runSnapshot = {
+      id: dataset.id,
+      label,
+      startedAt: tMin,
+      endedAt: tMax,
+      trace: filtered.slice(0, 500), // keep at most 500 rows inline
+    };
+    const descriptor = serializeDescriptor(dataset);
+    try {
+      await proj.addRunAndDataset(runSnapshot, descriptor);
+    } catch (err) {
+      console.warn("Could not persist run to manifest:", err);
+    }
+    setChartDataset(dataset);
+  }, [proj]);
+
+  /* ── Bundle export / import ──────────────────────────────── */
+  const handleExportProject = useCallback(() => {
+    const manifest = proj.activeManifest;
+    if (!manifest) return;
+    const json = JSON.stringify(manifest, null, 2);
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    const safeName = (manifest.title || "project").replace(/[^a-z0-9_-]/gi, "_");
+    a.download = `${safeName}.physide.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [proj]);
+
+  const handleImportProject = useCallback(async (file) => {
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const raw = JSON.parse(text);
+      const manifest = migrate(raw);
+      await proj.createNew({
+        goal: manifest.goal,
+        title: manifest.title,
+        workspaceXml: manifest.workspace?.xml || "",
+        python: manifest.source?.python || "",
+        preferredEditor: manifest.preferredEditor,
+        beginnerEnabled: manifest.beginnerEnabled,
+        projectType: manifest.projectType,
+      });
+    } catch (err) {
+      console.warn("Import failed:", err);
+      alert(`Could not import: ${err.message}`);
+    }
+  }, [proj]);
+
+  /* ── Hybrid: offer "Analyse this run →" on the post-promote chart ── */
+  const hybridPairing = proj.activeManifest?.hybridPairing;
+  const analyseProps =
+    hybridPairing?.analysisId && chartDataset
+      ? { onAnalyse: () => handleAnalyseRun(chartDataset.name) }
+      : {};
 
   /* ── Derived presentation values ─────────────────────── */
   const statusClass =
@@ -74,7 +256,7 @@ export default function IDELayout() {
                                  "console-bar";
 
   const { mode, pythonCode, workspaceXml, projectType, running,
-          blocklyZoom, viewportHidden, beginnerMode } = sim;
+          blocklyZoom, viewportHidden } = sim;
 
   const isCustom       = projectType === "custom";
   const lockedMode     = projectType === "code_blank" ? "blocks" : null;
@@ -87,11 +269,15 @@ export default function IDELayout() {
     return (
       <>
         <StartMenu
-          onSelect={sim.handleStartSelect}
-          onHelp={handleHelp}
+          projectList={proj.projectList}
+          onOpenProject={(id) => { proj.selectProject(id); }}
+          onDeleteProject={(id) => { proj.removeProject(id); }}
+          onCreate={(spec) => { proj.createNew(spec); }}
           onImport={(file) => { sim.handleImport(file); setShowStart(false); }}
+          onHelp={handleHelp}
         />
         {showHelp && <HelpPage onClose={() => setShowHelp(false)} />}
+        {chartDataset && <ChartOverlay dataset={chartDataset} onClose={handleCloseChart} />}
       </>
     );
   }
@@ -122,12 +308,21 @@ export default function IDELayout() {
           onStartRecord={trc.handleStartRecord}
           onStopRecord={trc.handleStopRecord}
           recordBuffer={recordBufferRef.current}
+          onSaveAsDataset={handleSaveAsDataset}
           projectType={projectType}
           breakpoints={dbg.breakpoints}
           onToggleBreakpoint={dbg.toggleBreakpoint}
           executingBlockId={dbg.executingBlockId}
           onExitDebug={dbg.handleExitDebug}
         />
+        {chartDataset && <ChartOverlay dataset={chartDataset} onClose={handleCloseChart} {...analyseProps} />}
+        {showTraceDialog && pendingBufferRef.current && (
+          <TracePromoteDialog
+            recordBuffer={pendingBufferRef.current}
+            onConfirm={handleTraceConfirm}
+            onCancel={() => setShowTraceDialog(false)}
+          />
+        )}
       </>
     );
   }
@@ -147,6 +342,7 @@ export default function IDELayout() {
       </div>
 
       <Toolbar
+        goal={goal}
         onRun={sim.handleRun}
         onStop={sim.handleStop}
         onExportPy={exp.handleExportPy}
@@ -156,6 +352,8 @@ export default function IDELayout() {
         onExportScreenshot={exp.handleExportScreenshot}
         onCopyCode={exp.handleCopyCode}
         onImport={sim.handleImport}
+        onExportProject={handleExportProject}
+        onImportProject={handleImportProject}
         onReset={sim.handleResetToBlocks}
         onClearWorkspace={sim.handleClearWorkspace}
         onToggleTheme={toggleTheme}
@@ -168,8 +366,6 @@ export default function IDELayout() {
         onZoomChange={sim.handleZoomChange}
         viewportHidden={viewportHidden}
         onToggleViewport={sim.handleToggleViewport}
-        beginnerMode={beginnerMode}
-        onToggleBeginnerMode={sim.handleToggleBeginnerMode}
         onDebugMode={dbg.handleEnterDebug}
       >
         <ModeToggle
@@ -204,11 +400,12 @@ export default function IDELayout() {
                 <ReadOnlyBlockly xml={workspaceXml} isDark={isDark} />
               ) : (
                 <BlocklyWorkspace
+                  key={`ws-${workspaceReloadKey}`}
                   initialXml={workspaceXml}
                   onWorkspaceReady={sim.handleWorkspaceReady}
-                  onWorkspaceChange={sim.handleWorkspaceChange}
+                  onWorkspaceChange={handleWorkspaceChange}
                   isDark={isDark}
-                  beginnerMode={beginnerMode}
+                  goal={goal}
                 />
               )}
             </>
@@ -244,16 +441,54 @@ export default function IDELayout() {
           <div className="pane-divider" onMouseDown={handleDividerMouseDown} />
         )}
 
-        {/* ── Canvas pane ── */}
-        <section
-          className="canvas-pane"
-          style={viewportHidden ? { display: "none" } : { flex: "1 1 0", minWidth: 0 }}
-        >
-          <div className="pane-header pane-header--viewport">
-            <GlobeIcon size={14} /> 3D Viewport
-          </div>
-          <GlowCanvas running={running} />
-        </section>
+        {/* ── Right pane: DS panel | 3D viewport | hybrid (both stacked) ── */}
+        {isDataGoal ? (
+          <section
+            className="canvas-pane"
+            style={viewportHidden ? { display: "none" } : { flex: "1 1 0", minWidth: 0 }}
+          >
+            <DataPanel
+              goal={goal}
+              datasetCount={proj.activeManifest?.datasets?.length || 0}
+              dsOutputs={dsOutputs}
+              dsError={dsError}
+              onClearCsvCache={clearCsvCache}
+              savedDatasets={savedDatasets}
+            />
+          </section>
+        ) : isHybridGoal ? (
+          <section
+            className="canvas-pane canvas-pane--hybrid"
+            style={viewportHidden ? { display: "none" } : { flex: "1 1 0", minWidth: 0 }}
+          >
+            <div className="hybrid-viewport">
+              <div className="pane-header pane-header--viewport">
+                <GlobeIcon size={14} /> 3D Viewport
+              </div>
+              <GlowCanvas running={running} />
+            </div>
+            <div className="hybrid-datapanel">
+              <DataPanel
+                goal={goal}
+                datasetCount={proj.activeManifest?.datasets?.length || 0}
+                dsOutputs={dsOutputs}
+                dsError={dsError}
+                onClearCsvCache={clearCsvCache}
+                savedDatasets={savedDatasets}
+              />
+            </div>
+          </section>
+        ) : (
+          <section
+            className="canvas-pane"
+            style={viewportHidden ? { display: "none" } : { flex: "1 1 0", minWidth: 0 }}
+          >
+            <div className="pane-header pane-header--viewport">
+              <GlobeIcon size={14} /> 3D Viewport
+            </div>
+            <GlowCanvas running={running} />
+          </section>
+        )}
       </div>
 
       {/* ── Status bar ── */}
@@ -266,6 +501,16 @@ export default function IDELayout() {
           Mode: {mode === "blocks" ? "Blocks" : isCustom ? "Code View Only" : "Code"} | VPython 3.2
         </span>
       </div>
+
+      {chartDataset && <ChartOverlay dataset={chartDataset} onClose={handleCloseChart} {...analyseProps} />}
+
+      {showTraceDialog && pendingBufferRef.current && (
+        <TracePromoteDialog
+          recordBuffer={pendingBufferRef.current}
+          onConfirm={handleTraceConfirm}
+          onCancel={() => setShowTraceDialog(false)}
+        />
+      )}
     </div>
   );
 }

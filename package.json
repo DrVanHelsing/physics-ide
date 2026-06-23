@@ -3,8 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@observablehq/plot": "^0.6.17",
+    "arquero": "^8.0.3",
     "html2canvas": "^1.4.1",
     "jspdf": "^4.1.0",
+    "localforage": "^1.10.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-scripts": "5.0.1",
@@ -14,7 +17,8 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "check:blocks": "node scripts/check-block-registry.mjs"
   },
   "browserslist": {
     "production": [
@@ -35,6 +39,12 @@
   "eslintConfig": {
     "extends": [
       "react-app"
+    ]
+  },
+  "jest": {
+    "transformIgnorePatterns": [
+      "[/\\\\]node_modules[/\\\\](?!(arquero|@uwdata|apache-arrow|@observablehq|internmap|d3-[a-z-]+)[/\\\\]).+\\.(js|jsx|mjs|cjs|ts|tsx)$",
+      "^.+\\.module\\.(css|sass|scss)$"
     ]
   }
 }
