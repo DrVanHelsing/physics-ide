@@ -47,6 +47,7 @@ export function createManifest({
   beginnerEnabled = false,
   workspaceXml = "",
   python = "",
+  hybridPairing = null,
 } = {}) {
   if (!GOALS.includes(goal)) {
     throw new Error(`createManifest: invalid goal '${goal}'`);
@@ -86,6 +87,9 @@ export function createManifest({
     chartSpecs: [],
     notes: [],
     checkpointState: {},
+    // Optional sim⇄analysis coupling for hybrid projects (see HYBRID_TOPICS).
+    // Absent/null on non-hybrid projects; the schema guard treats null as valid.
+    ...(hybridPairing ? { hybridPairing } : {}),
   };
 }
 

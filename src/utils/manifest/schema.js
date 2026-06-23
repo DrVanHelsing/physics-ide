@@ -64,6 +64,18 @@ export function isRunSnapshot(v) {
   return true;
 }
 
+/**
+ * Optional hybrid pairing: couples the simulation template with its matching
+ * DS analysis template (see HYBRID_TOPICS). Absent on non-hybrid projects.
+ */
+export function isHybridPairing(v) {
+  if (v == null) return true; // optional — absent is valid
+  if (typeof v !== "object") return false;
+  if (!isNonEmptyString(v.simId)) return false;
+  if (!isNonEmptyString(v.analysisId)) return false;
+  return true;
+}
+
 export function isChartSpec(v) {
   if (!v || typeof v !== "object") return false;
   if (!isNonEmptyString(v.id)) return false;
@@ -91,6 +103,7 @@ export function isManifest(v) {
   if (!Array.isArray(v.chartSpecs) || !v.chartSpecs.every(isChartSpec)) return false;
   if (!Array.isArray(v.notes)) return false;
   if (!v.checkpointState || typeof v.checkpointState !== "object") return false;
+  if (!isHybridPairing(v.hybridPairing)) return false;
   return true;
 }
 
@@ -120,5 +133,6 @@ export function explainManifest(v) {
   if (badChart >= 0) return `chartSpecs[${badChart}] is invalid`;
   if (!Array.isArray(v.notes)) return "notes must be an array";
   if (!v.checkpointState || typeof v.checkpointState !== "object") return "checkpointState must be an object";
+  if (!isHybridPairing(v.hybridPairing)) return "hybridPairing must be { simId, analysisId } or absent";
   return null;
 }

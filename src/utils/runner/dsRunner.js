@@ -15,6 +15,11 @@ import {
   cellAt,
   filterRows,
   transform,
+  stdErrorOfColumn,
+  percentile,
+  iqr,
+  pearsonCorrelation,
+  linearRegression,
 } from "../dataset/dataset.js";
 import { getDataset, listDatasets } from "../dataset/datasetRegistry.js";
 
@@ -59,6 +64,7 @@ const DS_API = {
   meanOfColumn, median, minOfColumn, maxOfColumn, sumOfColumn, stddevOfColumn,
   uniqueCount, mode, rangeOfColumn, countOfColumn, allStats, cellAt,
   filterRows, transform,
+  stdErrorOfColumn, percentile, iqr, pearsonCorrelation, linearRegression,
 };
 
 export async function runDsCode(jsCode) {
