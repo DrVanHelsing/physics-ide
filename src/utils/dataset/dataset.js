@@ -287,6 +287,55 @@ export function transform(ds, op) {
     }
     case "groupBy":
       return aggregateGroupBy(ds, op);
+    case "computedColumn": {
+      const { newName, sourceCol, transformType } = op;
+      const fns = {
+        ln:        (v) => (v > 0 ? Math.log(v) : null),
+        log10:     (v) => (v > 0 ? Math.log10(v) : null),
+        sqrt:      (v) => (v >= 0 ? Math.sqrt(v) : null),
+        square:    (v) => v * v,
+        reciprocal:(v) => (v !== 0 ? 1 / v : null),
+      };
+      const fn = fns[transformType];
+      if (!fn) return ds;
+      const newRows = ds.rows.map((r) => {
+        const raw = r[sourceCol];
+        const num = typeof raw === "number" ? raw : parseFloat(raw);
+        const val = Number.isFinite(num) ? fn(num) : null;
+        return { ...r, [newName]: val };
+      });
+      const newCol = { name: newName, inferredType: "number" };
+      const cols = [...ds.columns, newCol];
+      return {
+        ...ds,
+        id: `${ds.id}-cc${Date.now().toString(36).slice(-4)}`,
+        columns: cols,
+        rows: newRows,
+        provenance: "transformed",
+        source: { parentDatasetId: ds.id, ops: [...(ds.source?.ops || []), `computedColumn(${newName}=${transformType}(${sourceCol}))`] },
+        qualityNotes: profile(newRows, cols),
+      };
+    }
+    case "multiplyColumns": {
+      const { newName, colA, colB } = op;
+      const newRows = ds.rows.map((r) => {
+        const a = typeof r[colA] === "number" ? r[colA] : parseFloat(r[colA]);
+        const b = typeof r[colB] === "number" ? r[colB] : parseFloat(r[colB]);
+        const val = Number.isFinite(a) && Number.isFinite(b) ? a * b : null;
+        return { ...r, [newName]: val };
+      });
+      const newCol = { name: newName, inferredType: "number" };
+      const cols = [...ds.columns, newCol];
+      return {
+        ...ds,
+        id: `${ds.id}-mc${Date.now().toString(36).slice(-4)}`,
+        columns: cols,
+        rows: newRows,
+        provenance: "transformed",
+        source: { parentDatasetId: ds.id, ops: [...(ds.source?.ops || []), `multiplyColumns(${newName}=${colA}*${colB})`] },
+        qualityNotes: profile(newRows, cols),
+      };
+    }
     default:
       return ds;
   }
@@ -473,6 +522,81 @@ export function cellAt(ds, rowIndex, colName) {
   return ds.rows[rowIndex]?.[colName] ?? null;
 }
 
+/* ── Physics-stats helpers ─────────────────────────────────────────── */
+
+export function stdErrorOfColumn(ds, colName) {
+  const nums = numericValues(ds, colName);
+  if (nums.length < 2) return null;
+  const sd = stddevOfColumn(ds, colName);
+  return sd === null ? null : sd / Math.sqrt(nums.length);
+}
+
+export function percentile(ds, colName, p) {
+  const nums = numericValues(ds, colName).sort((a, b) => a - b);
+  if (nums.length === 0) return null;
+  const idx = (p / 100) * (nums.length - 1);
+  const lo = Math.floor(idx);
+  const hi = Math.ceil(idx);
+  if (lo === hi) return nums[lo];
+  return nums[lo] + (nums[hi] - nums[lo]) * (idx - lo);
+}
+
+export function iqr(ds, colName) {
+  const q1 = percentile(ds, colName, 25);
+  const q3 = percentile(ds, colName, 75);
+  return q1 === null || q3 === null ? null : q3 - q1;
+}
+
+export function pearsonCorrelation(ds, colA, colB) {
+  if (!ds || ds.rowCount === 0) return null;
+  const pairs = [];
+  for (const r of ds.rows) {
+    const a = typeof r[colA] === "number" ? r[colA] : parseFloat(r[colA]);
+    const b = typeof r[colB] === "number" ? r[colB] : parseFloat(r[colB]);
+    if (Number.isFinite(a) && Number.isFinite(b)) pairs.push([a, b]);
+  }
+  const n = pairs.length;
+  if (n < 2) return null;
+  const meanA = pairs.reduce((s, p) => s + p[0], 0) / n;
+  const meanB = pairs.reduce((s, p) => s + p[1], 0) / n;
+  let num = 0, ssA = 0, ssB = 0;
+  for (const [a, b] of pairs) {
+    const da = a - meanA;
+    const db = b - meanB;
+    num += da * db;
+    ssA += da * da;
+    ssB += db * db;
+  }
+  const denom = Math.sqrt(ssA * ssB);
+  return denom === 0 ? null : num / denom;
+}
+
+export function linearRegression(ds, xCol, yCol) {
+  if (!ds || ds.rowCount === 0) return null;
+  const pairs = [];
+  for (const r of ds.rows) {
+    const x = typeof r[xCol] === "number" ? r[xCol] : parseFloat(r[xCol]);
+    const y = typeof r[yCol] === "number" ? r[yCol] : parseFloat(r[yCol]);
+    if (Number.isFinite(x) && Number.isFinite(y)) pairs.push([x, y]);
+  }
+  const n = pairs.length;
+  if (n < 2) return null;
+  let sx = 0, sy = 0, sxy = 0, sxx = 0;
+  for (const [x, y] of pairs) { sx += x; sy += y; sxy += x * y; sxx += x * x; }
+  const denom = n * sxx - sx * sx;
+  if (denom === 0) return null;
+  const slope = (n * sxy - sx * sy) / denom;
+  const intercept = (sy - slope * sx) / n;
+  const meanY = sy / n;
+  let ssTot = 0, ssRes = 0;
+  for (const [x, y] of pairs) {
+    ssTot += (y - meanY) ** 2;
+    ssRes += (y - (slope * x + intercept)) ** 2;
+  }
+  const rSquared = ssTot === 0 ? 1 : 1 - ssRes / ssTot;
+  return { slope, intercept, rSquared, n };
+}
+
 /* ── CSV import ───────────────────────────────────────────────────────
  * Plain-JS CSV parser. Handles quoted fields with embedded commas and
  * escaped quotes. Recognises empty / "NA" / "null" as missing. Header
@@ -576,6 +700,9 @@ const BUILTIN_LOADERS = {
   planets:  () => import("./builtins/planets.json"),
   penguins: () => import("./builtins/penguins.json"),
   weather:  () => import("./builtins/weather.json"),
+  pendulum: () => import("./builtins/pendulum.json"),
+  spring:   () => import("./builtins/spring.json"),
+  freefall: () => import("./builtins/freefall.json"),
 };
 
 export const BUILTIN_IDS = Object.keys(BUILTIN_LOADERS);

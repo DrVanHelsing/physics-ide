@@ -449,6 +449,113 @@ const DS_GENERATORS = {
       `__outputs.push({ type: "value", label: ${JSON.stringify(`type of ${dsVar}.${col}`)}, value: ${resultVar} });\n`
     );
   },
+
+  /* ── Transform columns ── */
+  ds_add_column_transform_block(block) {
+    const resultVar = resolveVar(block, "RESULT", "df2");
+    const dsVar     = resolveVar(block, "VAR", "df");
+    const newCol    = (block.getFieldValue("NEW_COL") || "new_col").trim();
+    const transform = block.getFieldValue("TRANSFORM") || "ln";
+    const srcCol    = (block.getFieldValue("SOURCE_COL") || "col").trim();
+    return (
+      `var ${resultVar} = __ds.transform(${dsVar}, { kind: "computedColumn", newName: ${JSON.stringify(newCol)}, sourceCol: ${JSON.stringify(srcCol)}, transformType: ${JSON.stringify(transform)} });\n` +
+      `if (${resultVar}) __outputs.push({ type: "table", varName: ${JSON.stringify(`${dsVar}+${newCol}`)}, dataset: ${resultVar} });\n`
+    );
+  },
+
+  ds_multiply_columns_block(block) {
+    const resultVar = resolveVar(block, "RESULT", "df2");
+    const dsVar     = resolveVar(block, "VAR", "df");
+    const newCol    = (block.getFieldValue("NEW_COL") || "product").trim();
+    const colA      = (block.getFieldValue("COL_A") || "col1").trim();
+    const colB      = (block.getFieldValue("COL_B") || "col2").trim();
+    return (
+      `var ${resultVar} = __ds.transform(${dsVar}, { kind: "multiplyColumns", newName: ${JSON.stringify(newCol)}, colA: ${JSON.stringify(colA)}, colB: ${JSON.stringify(colB)} });\n` +
+      `if (${resultVar}) __outputs.push({ type: "table", varName: ${JSON.stringify(`${dsVar}+${newCol}`)}, dataset: ${resultVar} });\n`
+    );
+  },
+
+  /* ── Uncertainty ── */
+  ds_calc_std_error_block(block) {
+    const resultVar = resolveVar(block, "RESULT", "se");
+    const dsVar     = resolveVar(block, "VAR", "df");
+    const col       = (block.getFieldValue("COL") || "col").trim();
+    return (
+      `var ${resultVar} = __ds.stdErrorOfColumn(${dsVar}, ${JSON.stringify(col)});\n` +
+      `__outputs.push({ type: "value", label: ${JSON.stringify(`std_error(${col})`)}, value: ${resultVar} });\n`
+    );
+  },
+
+  ds_print_uncertainty_block(block) {
+    const meanVar = resolveVar(block, "MEAN_VAR", "mean_val");
+    const seVar   = resolveVar(block, "SE_VAR", "se");
+    const label   = (block.getFieldValue("LABEL") || "measurement").trim();
+    return `__outputs.push({ type: "uncertainty", label: ${JSON.stringify(label)}, mean: ${meanVar}, stdError: ${seVar} });\n`;
+  },
+
+  ds_calc_relative_uncertainty_block(block) {
+    const resultVar = resolveVar(block, "RESULT", "rel_unc");
+    const meanVar   = resolveVar(block, "MEAN_VAR", "mean_val");
+    const seVar     = resolveVar(block, "SE_VAR", "se");
+    return (
+      `var ${resultVar} = (${meanVar} !== null && ${meanVar} !== 0) ? (Math.abs(${seVar} / ${meanVar}) * 100) : null;\n` +
+      `__outputs.push({ type: "value", label: "relative uncertainty (%)", value: ${resultVar} });\n`
+    );
+  },
+
+  /* ── Relationships ── */
+  ds_linear_regression_block(block) {
+    const resultVar = resolveVar(block, "RESULT", "fit");
+    const dsVar     = resolveVar(block, "VAR", "df");
+    const xCol      = (block.getFieldValue("X_COL") || "x").trim();
+    const yCol      = (block.getFieldValue("Y_COL") || "y").trim();
+    return (
+      `var ${resultVar} = __ds.linearRegression(${dsVar}, ${JSON.stringify(xCol)}, ${JSON.stringify(yCol)});\n` +
+      `if (${resultVar}) __outputs.push({ type: "regression_result", xCol: ${JSON.stringify(xCol)}, yCol: ${JSON.stringify(yCol)}, fit: ${resultVar} });\n`
+    );
+  },
+
+  ds_chart_scatter_fit_block(block) {
+    const dsVar   = resolveVar(block, "VAR", "df");
+    const fitVar  = resolveVar(block, "FIT_VAR", "fit");
+    const xCol    = (block.getFieldValue("X_COL") || "x").trim();
+    const yCol    = (block.getFieldValue("Y_COL") || "y").trim();
+    const title   = (block.getFieldValue("TITLE") || "").trim();
+    return `__outputs.push({ type: "chart", chartType: "scatter_fit", dataset: ${dsVar}, xCol: ${JSON.stringify(xCol)}, yCol: ${JSON.stringify(yCol)}, fit: ${fitVar}, title: ${JSON.stringify(title)} });\n`;
+  },
+
+  ds_correlation_block(block) {
+    const resultVar = resolveVar(block, "RESULT", "r");
+    const dsVar     = resolveVar(block, "VAR", "df");
+    const colA      = (block.getFieldValue("COL_A") || "col1").trim();
+    const colB      = (block.getFieldValue("COL_B") || "col2").trim();
+    return (
+      `var ${resultVar} = __ds.pearsonCorrelation(${dsVar}, ${JSON.stringify(colA)}, ${JSON.stringify(colB)});\n` +
+      `__outputs.push({ type: "value", label: ${JSON.stringify(`r(${colA}, ${colB})`)}, value: ${resultVar} });\n`
+    );
+  },
+
+  /* ── Additional stats ── */
+  ds_calc_percentile_block(block) {
+    const resultVar = resolveVar(block, "RESULT", "p_val");
+    const dsVar     = resolveVar(block, "VAR", "df");
+    const col       = (block.getFieldValue("COL") || "col").trim();
+    const p         = parseFloat(block.getFieldValue("P") || "25");
+    return (
+      `var ${resultVar} = __ds.percentile(${dsVar}, ${JSON.stringify(col)}, ${p});\n` +
+      `__outputs.push({ type: "value", label: ${JSON.stringify(`p${p}(${col})`)}, value: ${resultVar} });\n`
+    );
+  },
+
+  ds_calc_iqr_block(block) {
+    const resultVar = resolveVar(block, "RESULT", "iqr_val");
+    const dsVar     = resolveVar(block, "VAR", "df");
+    const col       = (block.getFieldValue("COL") || "col").trim();
+    return (
+      `var ${resultVar} = __ds.iqr(${dsVar}, ${JSON.stringify(col)});\n` +
+      `__outputs.push({ type: "value", label: ${JSON.stringify(`IQR(${col})`)}, value: ${resultVar} });\n`
+    );
+  },
 };
 
 function walkChain(block, parts) {
