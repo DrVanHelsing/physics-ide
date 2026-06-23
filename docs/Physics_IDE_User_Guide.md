@@ -12,7 +12,7 @@ pdf_options:
 
 # Physics IDE — User Guide
 
-> **Version:** 1.0 · **Date:** March 2026  
+> **Version:** 1.0 · **Date:** June 2026  
 > **Audience:** Students, Educators, and Developers
 
 ---
@@ -24,18 +24,20 @@ pdf_options:
 3. [The Start Menu](#3-the-start-menu)
 4. [The Toolbar](#4-the-toolbar)
 5. [Block Editor](#5-block-editor)
-6. [Code Editor](#6-code-editor)
-7. [3D Simulation Viewport](#7-3d-simulation-viewport)
-8. [Debug Mode](#8-debug-mode)
-9. [Live Trace Table](#9-live-trace-table)
-10. [Exporting Work](#10-exporting-work)
-11. [Importing Work](#11-importing-work)
-12. [Themes & Display](#12-themes--display)
-13. [Keyboard Shortcuts](#13-keyboard-shortcuts)
-14. [Block Reference](#14-block-reference)
-15. [VPython Quick Reference](#15-vpython-quick-reference)
-16. [Building Your First Simulation (Tutorial)](#16-building-your-first-simulation-tutorial)
-17. [For Educators](#17-for-educators)
+6. [Data Science Analysis](#6-data-science-analysis)
+7. [Code Editor](#7-code-editor)
+8. [3D Simulation Viewport](#8-3d-simulation-viewport)
+9. [Data Panel](#9-data-panel)
+10. [Debug Mode](#10-debug-mode)
+11. [Live Trace Table](#11-live-trace-table)
+12. [Exporting and Importing Work](#12-exporting-and-importing-work)
+13. [Themes and Display](#13-themes-and-display)
+14. [Keyboard Shortcuts](#14-keyboard-shortcuts)
+15. [Physics Block Reference](#15-physics-block-reference)
+16. [Data Science Block Reference](#16-data-science-block-reference)
+17. [VPython Quick Reference](#17-vpython-quick-reference)
+18. [Building Your First Physics Simulation](#18-building-your-first-physics-simulation)
+19. [For Educators](#19-for-educators)
 
 ---
 
@@ -43,24 +45,26 @@ pdf_options:
 
 ## 1. What is Physics IDE?
 
-**Physics IDE** is a browser-based 3D physics simulation environment. It lets you create, run, and debug physically accurate 3D simulations without installing any software. Everything runs in the browser.
+**Physics IDE** is a browser-based environment for physics simulation and foundational data science. It lets you build, run, and debug physically accurate 3D simulations, analyse real datasets, and connect simulation results to data analysis — all in the browser with no installation, no accounts, and no server required.
 
-### Two ways to build
+### Three project goals
 
-| Mode | Best for | How it works |
+| Goal | What it does | Output panel |
 |---|---|---|
-| **Block Editor** | Visual learners, beginners, no-code | Drag colour-coded blocks together; code is generated automatically |
-| **Code Editor** | Python learners, advanced users | Write VPython directly with syntax highlighting and auto-complete |
+| **Physics Modelling** | Build 3D physics simulations with VPython/GlowScript | 3D Viewport |
+| **Data Science** | Analyse datasets with drag-and-drop blocks | Data panel (tables, charts, values) |
+| **Hybrid** | Simulate and analyse in the same project; promote runs to datasets | 3D Viewport + Data panel |
 
-Both modes drive the **same 3D simulation engine** (GlowScript/VPython 3.2). You can switch between them at any time — your work is preserved.
+### Two editing modes — every goal
 
-### Physics engine highlights
+Within any goal, use the **Blocks / Code** toggle to switch between:
 
-- **Real 3D WebGL rendering** — orbit, pan, and zoom with the mouse.
-- **VPython objects** — spheres, boxes, cylinders, arrows, helices, labels, trails, lights.
-- **Physics primitives** — gravity, velocity, acceleration, force, spring mechanics, momentum, energy.
-- **3D Math** — vectors, cross/dot products, magnitude, rotation, clamp.
-- **Simulation control** — time step, forever loop, rate limiter, conditional logic.
+| Mode | Best for |
+|---|---|
+| **Block Editor** | Visual learners; beginners; exploring concepts without writing code |
+| **Code Editor** | Python learners; parameter tweaking; advanced customisation |
+
+Both modes drive the same simulation and analysis engines. In Blocks mode the Code tab shows a live read-only mirror of the generated VPython code — ideal for students learning to connect visual programming to text.
 
 ---
 
@@ -68,663 +72,735 @@ Both modes drive the **same 3D simulation engine** (GlowScript/VPython 3.2). You
 
 ### Step 1 — Open the IDE
 
-Open Physics IDE in a modern browser (Chrome, Firefox, Edge, or Safari 15+). No login is required. You will see the **Start Menu**.
+Open Physics IDE in a modern browser (Chrome, Firefox, Edge, or Safari 16+). No login is required. You will see the **Start Menu**.
 
-### Step 2 — Choose a starting point
+### Step 2 — Choose a goal and create a project
 
-The Start Menu offers:
-- **Precoded examples** (Blocks or Code): Ready-to-run physics simulations.
-- **Blank project** (Blocks or Code): An empty workspace — start from scratch.
+Click one of the three goal cards. A wizard will open where you:
+1. Enter a project title (optional — a default is provided).
+2. Choose **Blank** for an empty workspace or **Template** to start from a pre-built example.
+3. Select your preferred editor (**Blocks** or **Code**).
+4. Click **Create project**.
 
-### Step 3 — Click Run
+### Step 3 — Run or analyse
 
-Once a template or blank project loads, press the green **Run** button in the toolbar. The 3D simulation viewport on the right will come to life.
+- **Physics project**: click **Run** (or press `Ctrl+Enter`). The 3D Viewport starts the simulation.
+- **Data Science project**: the analysis runs automatically. The Data panel populates as you build your analysis — no Run press needed.
 
-### Step 4 — Modify and experiment
+### Step 4 — Experiment
 
-Change a physics constant, add a block, or edit the code. Click **Run** again to see the effect. Physics IDE **auto-saves your workspace** every 2 seconds — you never need to manually save.
+Change values, add blocks, or edit code. Physics IDE **auto-saves** every change to the browser's local storage. Your projects are listed on the Start Menu and persist across sessions.
 
 ---
 
 ## 3. The Start Menu
 
-The Start Menu appears when Physics IDE first opens (or when you click the **Menu** button in the toolbar to return to it).
+The Start Menu appears when Physics IDE opens and when you click the **Menu** button in the toolbar.
 
-### Template cards
+### Project list
 
-Each card shows:
-- A title and short description of the simulation.
-- A badge indicating whether it opens in **Blocks** or **Code** mode.
-- A **difficulty level** (Beginner / Intermediate / Advanced).
+Previously saved projects appear at the top. Each row shows the project title, goal badge, and last-modified time. Click a row to open the project. Click the delete button on the right to remove it.
 
-### Filter bar
+### Create New
 
-Click **Blocks**, **Code**, or **All** to filter the available templates.
+Three goal cards are displayed:
 
-### Included templates
+| Card | Description |
+|---|---|
+| **Physics Modelling** | VPython 3D simulations. Start blank or choose from four templates: Projectile Motion, Spring-Mass Oscillator, Sun/Earth/Moon orbit, or Simple Pendulum. |
+| **Data Science** | Block-based data analysis. Start blank (with a pre-seeded analysis hat) or choose from seven templates: Penguins exploratory analysis, Weather city comparison, Planets Kepler's third law, Pendulum period investigation, Free fall measure-g, Repeated-measurement uncertainty, or Hooke's law regression. |
+| **Hybrid** | Physics and data science combined. The 3D Viewport and Data panel are both active. Choose a **Hybrid topic** (Pendulum, Projectile, or Spring) that couples a simulation with its matching analysis; simulation runs can be promoted to datasets and analysed in the same project. |
 
-| Template | Mode | Physics | Level |
-|---|---|---|---|
-| Projectile Motion | Code | Ballistics, air drag, bounce, ground collision | Intermediate |
-| Spring-Mass Oscillator | Code | Hooke's law, damping, kinetic/potential energy | Intermediate |
-| Electric Field (3 charges) | Code | Coulomb's law, field vectors, potential | Advanced |
-| Blank (Blocks) | Blocks | Start from scratch | Beginner |
-| Blank (Code) | Code | Start from scratch | Beginner |
+### Creation wizard
+
+After clicking a goal card, the wizard collects:
+- **Project title** — free text; defaults to "Untitled [goal] project".
+- **Start path** — Blank or Template. Template mode shows a list of pre-built examples for the selected goal. For **Hybrid** projects, this list is a set of **topic cards** (Pendulum, Projectile, Spring); selecting a topic loads the matching simulation and remembers its paired analysis.
+- **Hybrid entry** (Hybrid only) — Model-first or Data-first. Picking a topic auto-sets this: Model-first opens the simulation ready to run; Data-first opens straight into the analysis. After you save a run, the chart offers an **"Analyse this run →"** button that loads the paired analysis with the run label already filled in.
+- **Editor default** — Blocks or Code.
 
 ---
 
 ## 4. The Toolbar
 
-The toolbar runs across the top of the screen. It contains all primary actions.
+The toolbar runs across the top of the screen.
 
 ### Navigation
 
 | Button | Action |
 |---|---|
-| **Menu** | Return to the Start Menu (confirms if you have unsaved changes) |
-| **Help** | Open the in-app documentation page |
+| **Menu** | Return to the Start Menu |
+| **Help** | Open the in-app documentation (this guide) |
+
+### Editor mode (tabs)
+
+| Tab | Action |
+|---|---|
+| **Blocks** | Show the Blockly block editor |
+| **Code** | Show the Monaco code editor (read-only mirror in Blocks projects) |
 
 ### Simulation controls
 
 | Button | Shortcut | Action |
 |---|---|---|
-| **Run** | `Ctrl+Enter` | Compile and run the VPython simulation |
-| **Stop** | — | Stop the currently running simulation |
-| **Reset** | — | Stop the simulation and reset blocks/code to the last saved state |
+| **Run** | `Ctrl+Enter` | Compile and run the physics simulation |
+| **Stop** | — | Stop the running simulation |
+| **Reset** | — | Stop and reset the workspace to its last saved state |
+| **Clear** | — | Remove all blocks from the workspace (with confirmation) |
 
-### Workspace controls
-
-| Button | Action | Available in |
-|---|---|---|
-| **Clear** | Remove all blocks from the workspace | Blocks mode only |
-| **Mode Toggle** | Switch between Block Editor and Code Editor | Both |
-
-### Export
-
-| Button | Format | Content |
-|---|---|---|
-| **Export .py** | Python source file | The generated or written VPython code |
-| **Export .xml** | Blockly workspace XML | The full block workspace (can be re-imported) |
-| **Export Blocks PDF** | PDF | Screenshot of the block diagram |
-| **Export Code PDF** | PDF | Syntax-highlighted code as PDF |
-| **Screenshot** | PNG image | Current state of the 3D viewport |
-| **Copy Code** | Clipboard | The Python code, copied to clipboard |
-
-### View controls
+### Other controls
 
 | Button | Action |
 |---|---|
-| **Viewport** | Show/hide the 3D simulation panel |
-| **Trace** | Show/hide the live variable trace table |
-| **Debug** | Enter Debug Mode |
-| **Beginner Mode** | Toggle simplified block toolbox (Blocks mode only) |
-| **Zoom slider** | Adjusts viewport or editor zoom level |
-| **Theme** | Toggle dark ↔ light theme |
+| **Debug** | Enter Debug Mode (physics projects) |
+| **Import / Open...** | Import a `.physide.json` project bundle or `.xml` block workspace |
+| **Export** | Open the export dropdown (seven options) |
+| **Theme** | Toggle dark / light theme |
+| **Zoom slider** | Adjust the block canvas zoom level |
+| **Viewport** | Show or hide the 3D Viewport panel |
 
 ---
 
 ## 5. Block Editor
 
-The Block Editor uses **Google Blockly v11** — the same engine used in Scratch and MIT App Inventor.
-
-### Layout
-
-![Blockly workspace layout](diagrams/user-block-editor-layout.svg)
-
-*Figure 1. Block editor structure: toolbox categories on the left and a composable simulation program canvas on the right.*
+The Block Editor uses **Google Blockly v11**. Blocks are organised in a toolbox on the left; the canvas is on the right.
 
 ### Using the toolbox
 
-1. Click a category name to expand it.
-2. Drag any block onto the canvas.
-3. Connect blocks by snapping them together — compatible connectors glow when close.
-4. Fill in field values (numbers, text, colours) by clicking directly on them.
+1. Click a category name to open its flyout panel.
+2. Drag a block from the flyout onto the canvas.
+3. Snap blocks together — compatible connectors glow when close.
+4. Click field values (numbers, text, dropdowns, colours) inside a block to edit them.
+
+### Goal-filtered toolbox
+
+The toolbox categories shown depend on the project goal:
+
+| Goal | Toolbox categories |
+|---|---|
+| Physics Modelling | Values, Objects, Motion, State, Control, Logic, Math, Variables + Advanced drawer |
+| Data Science | Data Science, Control, Logic, Math, Variables + Advanced drawer |
+| Hybrid | All categories from both Physics and Data Science |
+
+The **Advanced drawer** at the bottom of the toolbox collapses the power-user categories — 3D Math, Raw Python, Loops, Text, Lists, and Functions. Click it to expand or collapse.
 
 ### Block search
 
-Use the **search bar** at the top of the toolbox to find blocks by name or keyword. Results show the block type, category, and matching keywords.
+A search bar sits above the block canvas. Type any block name, category, or keyword. Matching blocks appear in a dropdown — click a result to jump to that category in the toolbox.
 
-### Beginner Mode
+### Code mirror
 
-Click **Beginner Mode** in the toolbar to show only essential blocks:
-- **Starter** (simulation structure)
-- **Objects** (sphere, box)
-- **Motion** (velocity, position update, gravity)
-- **Control** (forever loop, rate, if)
-- **Values** (vectors, numbers)
-- **Variables**
+Switch to the **Code** tab to see the VPython code generated from your block stack. The code updates live as you build. In a Blocks project this view is read-only — it is intended for learning, not editing.
 
-### Context menu (right-click)
+### Key interactions
 
-Right-click any block to:
-- **Duplicate** the block and its children.
-- **Delete** the block.
-- **Add comment** (yellow comment bubble).
-- **Collapse block** to save canvas space.
-- **Help** — link to Blockly documentation.
-
-### Undo / Redo
-
-| Action | Shortcut |
+| Action | How |
 |---|---|
-| Undo | `Ctrl+Z` |
-| Redo | `Ctrl+Y` or `Ctrl+Shift+Z` |
-
-### Code mirror panel
-
-Switch to the **Code Editor** any time to see what Python code your blocks have generated. The code updates live as you add or change blocks.
+| Duplicate block | Right-click → Duplicate |
+| Delete block | Right-click → Delete, or select + Delete key |
+| Undo / Redo | `Ctrl+Z` / `Ctrl+Y` |
+| Select all | `Ctrl+A` |
+| Zoom canvas | Scroll wheel or zoom slider |
 
 ---
 
-## 6. Code Editor
+## 6. Data Science Analysis
+
+Data Science and Hybrid projects auto-execute the analysis every time the block workspace changes. The Data panel updates immediately — no Run press is needed.
+
+### Analysis structure
+
+Every analysis begins with a `ds_start_block` hat (pre-seeded in blank DS projects). All other DS blocks chain inside its body. Blocks outside the hat are greyed and ignored.
+
+### Workflow pattern
+
+A typical analysis follows five steps, each represented by a group of blocks:
+
+1. **Load** — bring in a dataset (`ds_load_builtin_block` for built-in datasets, or `ds_load_csv_block` for your own CSV).
+2. **Explore** — show tables, count rows, list columns (`ds_show_table_block`, `ds_count_rows_block`, `ds_all_stats_block`).
+3. **Analyse** — compute statistics, filter, sort, group, and run regressions or uncertainty (`ds_calc_mean_block`, `ds_filter_eq_block`, `ds_group_mean_block`, `ds_linear_regression_block`, `ds_multiply_columns_block`, `ds_print_uncertainty_block`).
+4. **Visualise** — chart your findings (`ds_chart_bar_block`, `ds_chart_scatter_block`, `ds_chart_scatter_fit_block`, `ds_chart_histogram_block`, `ds_chart_box_block`, `ds_chart_line_block`).
+5. **Communicate** — write notes, print results, state conclusions (`ds_write_note_block`, `ds_print_result_block`, `ds_state_conclusion_block`).
+
+### Built-in datasets
+
+| Dataset | Rows | Key columns |
+|---|---|---|
+| Penguins | 30 | species, island, bill_length_mm, flipper_length_mm, body_mass_g, sex |
+| Weather | 28 | date, city, temp_high_c, temp_low_c, precip_mm, condition |
+| Planets | 9 | name, type, period_days, distance_au, mass_earth, moons |
+| Pendulum | 56 | study, length_m, mass_kg, amplitude_deg, trial, time_10swings_s, period_s |
+| Spring | 8 | mass_g, force_N, extension_m |
+| Free fall | 12 | time_s, velocity_y_ms, distance_m |
+
+The Pendulum, Spring, and Free fall sets are realistic first-year lab measurements. The Pendulum set is a two-study lab (a *length* study and a *mass* study, each with repeated timed trials) and deliberately ships **no pre-computed T²** — students compute period² themselves to discover that T² ∝ length and that mass has no effect on the period.
+
+---
+
+## 7. Code Editor
 
 The Code Editor uses **Monaco Editor** — the same engine as Visual Studio Code.
 
 ### Features
 
-- **Syntax highlighting**: VPython keywords, built-ins, strings, numbers, and comments are colour-coded.
-- **Auto-indent**: Pressing Enter after a `:` (e.g., `while True:`) auto-indents the next line.
-- **Line numbers**: Visible on the left margin.
-- **Minimap**: Right-side overview of the whole file.
-- **Find & Replace**: `Ctrl+H`
+- Python syntax highlighting, bracket matching, and line numbers.
+- Find in file: `Ctrl+F`. Toggle comment: `Ctrl+/`. Move line: `Alt+Up/Down`.
+- In physics projects the editor is editable in Code and Blank projects; read-only in Blocks projects.
 
-### VPython auto-complete
+### VPython script structure
 
-The editor provides basic IntelliSense for VPython keywords (`sphere`, `box`, `vector`, `color`, `rate`, `mag`, `norm`, etc.).
-
-### Starting code structure
-
-Every VPython program must begin with the GlowScript header:
+Every physics script must begin with the GlowScript header:
 
 ```python
 GlowScript 3.2 VPython
-```
 
-Then set up your scene and objects:
-
-```python
 scene.title = "My Simulation"
-scene.background = vector(0.1, 0.1, 0.15)
+scene.background = vector(0.05, 0.07, 0.14)
+scene.range = 12
 
-# Create a sphere
-ball = sphere(pos=vector(0, 5, 0), radius=1, color=color.red)
+ball = sphere(pos=vector(0, 5, 0), radius=0.5, color=color.red, make_trail=True)
+ball.velocity = vector(3, 0, 0)
+g  = vector(0, -9.81, 0)
+dt = 0.005
 
-# Set physics parameters
-g = vector(0, -9.81, 0)
-dt = 0.01
-ball.velocity = vector(2, 0, 0)
-
-# Main loop
 while True:
-    rate(100)
-    ball.velocity = ball.velocity + g * dt
-    ball.pos = ball.pos + ball.velocity * dt
+    rate(200)
+    ball.velocity += g * dt
+    ball.pos      += ball.velocity * dt
     if ball.pos.y < ball.radius:
-        ball.pos.y = ball.radius
-        ball.velocity.y = -ball.velocity.y * 0.8
+        ball.pos.y       = ball.radius
+        ball.velocity.y *= -0.7
 ```
-
-### Switching from Blocks to Code
-
-When you switch from Block mode to Code mode, the generated Python code is loaded into the editor. Changes made in Code mode **do not sync back to blocks** (code → blocks conversion is not supported in this release).
 
 ---
 
-## 7. 3D Simulation Viewport
+## 8. 3D Simulation Viewport
 
-The right panel is the **3D Simulation Viewport** — a sandboxed window running GlowScript/VPython.
+The right panel is the **3D Simulation Viewport** — a sandboxed iframe running GlowScript/VPython 3.2 via WebGL.
 
 ### Camera controls
 
 | Action | Result |
 |---|---|
-| **Left-click + drag** | Rotate the camera around the scene |
-| **Right-click + drag** | Pan the camera |
-| **Scroll wheel** | Zoom in / zoom out |
-| **Middle-click + drag** | Pan (alternative) |
-
-### During a simulation
-
-- Objects in the scene move and animate in real time.
-- `print()` statements and `label()` objects appear overlaid on the 3D scene.
-- The `scene.caption` text area below the viewport shows formatted messages.
+| Left-click + drag | Orbit the camera around the scene |
+| Right-click + drag | Pan the camera |
+| Scroll wheel | Zoom in / out |
 
 ### Viewport visibility
 
-Click **Viewport** in the toolbar to hide the 3D panel and give the editor more space. The simulation continues running in the background.
+Click **Viewport** in the toolbar to hide the 3D panel and give the editor more space. Click again to restore it.
 
 ---
 
-## 8. Debug Mode
+## 9. Data Panel
 
-Debug Mode is a **full-screen overlay** that lets you step through your simulation line by line, set breakpoints, and watch variable values change in real time.
+The Data panel appears on the right side in Data Science and Hybrid projects. It renders the output of the DS analysis automatically after every workspace change.
+
+### Output types
+
+| Output | Rendered by |
+|---|---|
+| Data table (scrollable, max 12 visible rows) | `ds_show_table_block`, `ds_show_first_n_block`, filter/sort blocks |
+| Numeric value card | `ds_calc_mean_block`, `ds_count_rows_block`, `ds_print_result_block`, etc. |
+| Bar / line / scatter / histogram / box chart | `ds_chart_*_block` |
+| All-stats grid | `ds_all_stats_block` |
+| Text note | `ds_write_note_block` |
+| Conclusion callout | `ds_state_conclusion_block` |
+| Python code block | `ds_show_python_block` |
+
+### Runner errors
+
+If a DS block throws a runtime error (for example, referencing a column that does not exist), the status bar at the bottom shows the error message and the Data panel shows an error callout.
+
+---
+
+## 10. Debug Mode
+
+Debug Mode is a full-screen overlay for step-through inspection of a running physics simulation.
 
 ### Entering Debug Mode
 
-Click **Debug** in the toolbar. The IDE will:
-1. Show the Python code alongside the Blockly block diagram (read-only).
-2. Provide playback controls at the top.
+Click **Debug** in the toolbar. The simulation pauses and the overlay opens.
 
-### Debug controls
+### Three-panel layout
 
-| Control | Action |
+| Panel | Contents |
 |---|---|
-| **Pause** (or `Space`) | Pause execution at the next instrumented line |
-| **Resume** | Continue running after pause |
-| **Step** (or `F10`) | Execute one line and pause again |
-| **Exit Debug** | Return to normal editing mode |
+| Left — Blocks / Code | Read-only view of the block workspace (or code editor for Code projects). Click any block to set a breakpoint. |
+| Centre — 3D Viewport | Live GlowScript viewport; camera remains interactive while paused. |
+| Right — Trace Table | Live variable trace with sparklines, delta, min, max, search, and pin support. |
+
+### Controls
+
+| Control | Shortcut | Action |
+|---|---|---|
+| Pause | `Space` | Pause at the current frame |
+| Resume | `Space` | Continue running |
+| Step | `F10` | Advance one simulation step |
+| Exit Debug | `Esc` | Close Debug Mode and return to the editor |
 
 ### Breakpoints
 
-- **In code view**: Click any line number to toggle a red breakpoint dot.
-- **In block view**: Click any block to toggle a red dot on that block.
+Click any block in the left panel to toggle a breakpoint (red dot indicator). When execution reaches that block, the simulation pauses synchronously and the block is highlighted in yellow.
 
-When the simulation hits a breakpoint, execution pauses and that line/block is highlighted in **yellow**.
+### Trace recording and CSV export
 
-### Recording
-
-While in Debug Mode, click **Record** to capture variable snapshots at each step. Recordings can be exported as CSV for analysis.
-
-### Execution highlight
-
-The currently executing block is highlighted with a **yellow glow** in the block diagram. The corresponding code line is highlighted in the code panel simultaneously.
+1. Click **Record** to begin capturing trace data.
+2. Run or step through the simulation.
+3. Click **Stop Rec** to end recording.
+4. Click **CSV** to download the recorded data (variable, value, delta, min, max, timestamp columns).
 
 ---
 
-## 9. Live Trace Table
+## 11. Live Trace Table
 
-The Trace Table monitors the values of tracked variables **in real time** as a simulation runs.
-
-### Opening the Trace Table
-
-Click **Trace** in the toolbar to show the trace panel below the viewport.
-
-### What gets traced
-
-Any variable tagged with `__trace__` in the Python code is automatically monitored. When you build with blocks, tracing is configured via the **Telemetry** blocks in the State category.
+The Trace Table monitors tracked variables in real time during a running simulation. Open it via the **Trace** toggle in the toolbar.
 
 ### Trace table columns
 
 | Column | Description |
 |---|---|
-| **Variable** | Name of the tracked variable |
-| **Value** | Current value (updates live) |
-| **Δ (Delta)** | Change since last update |
-| **Min** | Minimum value seen this session |
-| **Max** | Maximum value seen this session |
-| **Sparkline** | Mini graph of the last 60 data points |
+| Variable | Name of the tracked variable |
+| Value | Current value (updates every simulation step) |
+| Delta | Change since the last update |
+| Min | Minimum value captured this run |
+| Max | Maximum value captured this run |
+| Sparkline | Mini graph of the last 60 data points |
 
-### Controls
+### Tracing variables
 
-| Button | Action |
-|---|---|
-| **Pin** | Keep a row at the top regardless of sort order |
-| **Search** | Filter variables by name |
-| **Export CSV** | Download all recorded trace data as a CSV file |
-| **Clear** | Reset all trace history |
+In block projects, add a `telemetry_update_block` from the State category to emit trace data each loop iteration. Tracked variables appear in the trace table automatically.
 
 ---
 
-## 10. Exporting Work
+## 12. Exporting and Importing Work
 
-Physics IDE supports multiple export formats to let you share, submit, or archive your simulations.
+### Export dropdown
 
-### Python source (`.py`)
+Click **Export** in the toolbar to access seven export options:
 
-Click **Export .py** to download the current VPython code as a `.py` file. This file can be:
-- Run locally using a full Python + VPython installation.
-- Submitted to an instructor as coursework.
-- Shared with other students.
+| Option | Output | Best for |
+|---|---|---|
+| Export as Python (.py) | `.py` file — current VPython code | Running locally; submitting code |
+| Export Blocks (.xml) | `.xml` file — Blockly workspace | Sharing block programs; backup |
+| Code as PDF | PDF — syntax-highlighted code | Assessment submission |
+| Blocks as PDF | PDF — block canvas screenshot | Showing block structure |
+| Screenshot Viewport (.png) | PNG — current 3D viewport frame | Reports; presentations |
+| Copy Code to Clipboard | Clipboard — VPython source | Pasting into an LMS or external editor |
+| Export Project Bundle (.physide.json) | JSON — complete project manifest | Portable save; moving between browsers or machines |
 
-### Blockly workspace (`.xml`)
-
-Click **Export .xml** to download the full Blockly workspace as an XML file. This preserves every block, connection, and field value. Can be re-imported exactly.
-
-### Block diagram PDF
-
-Click **Export Blocks PDF** to generate a PDF containing a screenshot of the current block canvas. Useful for:
-- Homework submission showing block structure.
-- Printing for class discussion.
-
-### Code PDF
-
-Click **Export Code PDF** to generate a PDF of the Python code with full syntax highlighting. The code is rendered with colour-coded tokens (keywords, strings, comments, numbers).
-
-### Screenshot
-
-Click **Screenshot** to capture the current 3D viewport as a PNG image. The image downloads immediately.
-
-### Copy to clipboard
-
-Click **Copy Code** to copy the entire Python source to the clipboard. Useful for pasting into an online submission form or another editor.
-
----
-
-## 11. Importing Work
-
-### Import `.xml` (Blockly workspace)
-
-Click **Import** in the toolbar and select a `.xml` file. The block workspace is restored exactly as it was when exported.
-
-### Import `.py` (Python code)
-
-Select a `.py` file to load its contents into the Code Editor. The mode automatically switches to Code mode.
-
-> **Note:** Importing a `.py` file does not recreate blocks — it loads the raw Python source into the Code Editor.
-
----
-
-## 12. Themes & Display
-
-### Dark / Light theme
-
-Click the **theme icon** (sun/moon) in the toolbar to toggle between dark and light themes. The preference is saved to `localStorage` and persists across sessions.
-
-### Dark theme (default)
-
-VS Code-inspired dark theme with deep navy backgrounds, blue accents, and high-contrast code highlighting.
-
-### Light theme
-
-Clean light background with muted blue accents — suitable for printed documentation and bright environments.
-
-### Blockly theme
-
-The block editor automatically adapts its colour palette when you toggle the theme — dark mode uses darker backgrounds for the canvas and panels, light mode uses white/grey.
-
----
-
-## 13. Keyboard Shortcuts
+### Keyboard shortcuts
 
 | Shortcut | Action |
 |---|---|
-| `Ctrl+Enter` | Run simulation |
-| `Ctrl+Z` | Undo (in Blockly or Monaco) |
-| `Ctrl+Y` | Redo |
-| `Ctrl+H` | Find & Replace (Monaco only) |
-| `Ctrl+/` | Toggle comment (Monaco only) |
-| `Space` | Pause / resume (in Debug Mode) |
-| `F10` | Step (in Debug Mode) |
-| `Escape` | Close Help / Exit Debug Mode |
+| `Ctrl+S` | Export as Python (.py) |
+| `Ctrl+C` | Copy code to clipboard |
+
+### Importing
+
+Click **Open...** in the toolbar to import:
+- A `.physide.json` project bundle — restores the complete project including goal, title, block workspace, and code.
+- A `.xml` Blockly workspace file — replaces the current block workspace.
 
 ---
 
-## 14. Block Reference
+## 13. Themes and Display
 
-### Starter Category
+Click the **theme icon** (sun / moon) in the toolbar to switch between dark and light themes. The preference persists in the browser across sessions.
 
-| Block | Description |
-|---|---|
-| **Simulation Start** | Marks the beginning of a simulation; contains setup blocks |
-| **Simulation End** | Marks the end; prints a completion message |
-| **Quick Sphere (preset)** | Creates a sphere with position, radius, and colour in one block |
-| **Quick Box (preset)** | Creates a box/floor/wall with size, position, and colour |
-| **Set Gravity** | Sets the global gravity vector |
-| **Time Step** | Defines `dt` — the simulation time increment per loop iteration |
-| **Forever Loop** | Main simulation loop (wraps VPython's `while True: rate(...)` pattern) |
-| **Update Position** | Applies `pos += velocity * dt` to a named object |
+- **Dark theme** (default) — VS Code-inspired deep navy with blue accents.
+- **Light theme** — clean white background suitable for printed materials and bright environments.
 
-### Objects Category
+The block canvas and the GlowScript viewport both adapt to the active theme.
 
-| Block | Object type | Notes |
+---
+
+## 14. Keyboard Shortcuts
+
+| Context | Shortcut | Action |
 |---|---|---|
-| Sphere | `sphere()` | Position, radius, colour, opacity, emissive |
-| Sphere + trail | `sphere()` with `make_trail=True` | Trail radius, trail colour, retain count |
-| Glowing sphere | `sphere()` with emissive | Star / light glow effect |
-| Box | `box()` | Size (`width × height × depth`), colour |
-| Box (transparent) | `box()` with opacity | Opacity 0–1 |
-| Cylinder | `cylinder()` | Start position, axis vector, radius, colour |
-| Arrow | `arrow()` | Position, axis (direction + magnitude), shaft width, colour |
-| Helix | `helix()` | Position, axis, radius, coils, colour (spring-like) |
-| Label | `label()` | Position, text, size, colour — displays text in 3D |
-| Local Light | `local_light()` | Adds a point light source at a given position |
-| Ground plane (preset) | `box()` flat | Pre-configured floor geometry |
-
-### Motion Category
-
-| Block | Description |
-|---|---|
-| **Set Velocity** | Sets `object.velocity` to a vector value |
-| **Apply Force** | Computes acceleration from force and mass; updates velocity |
-| **Update Velocity** | `velocity += acceleration * dt` |
-| **Update Position** | `pos += velocity * dt` |
-| **Bounce (ground)** | Reflects the y-component of velocity with a restitution coefficient |
-| **Set Property** | Sets any named property on an object (e.g., `ball.color = color.blue`) |
-| **Increment Property** | Adds a value to an object property |
-
-### State Category
-
-| Block | Description |
-|---|---|
-| **Define Constant** | Creates a named constant (`NAME = VALUE`) at the top level |
-| **Set Variable** | `variable = expression` |
-| **Telemetry Display** | Shows a live text label with multiple variable values |
-
-### Control Category
-
-| Block | Description |
-|---|---|
-| **Forever Loop** | `while True:` with `rate(fps)` |
-| **For Range Loop** | `for i in range(start, stop, step):` |
-| **Rate** | `rate(fps)` — limits loop speed |
-| **Time Step (`dt`)** | Sets the `dt` time increment variable |
-| **If** | Conditional: runs blocks if condition is true |
-| **If-Else** | Two-branch conditional |
-| **Break** | Exits the current loop |
-| **Comment** | Non-executing text annotation |
-
-### Values Category
-
-| Block | Description |
-|---|---|
-| **Vector** | Creates `vector(x, y, z)` |
-| **Colour** | Colour picker — named colour or custom hex; outputs `color.xxx` or `vector(r,g,b)` |
-| **Physics Constant** | Dropdown of common constants: `g`, `G`, `c`, `h`, `e`, `me`, `mp`, `k_e`, `ε₀`, `μ₀`, `σ`, `R`, `NA` |
-| **Variable Read** | Reads a named variable |
-| **Expression** | Raw Python expression — use for any value not covered by other blocks |
-
-### 3D Math Category
-
-| Block | Description |
-|---|---|
-| **Magnitude** | `mag(vector)` |
-| **Norm** | `norm(vector)` — unit vector |
-| **Cross product** | `cross(a, b)` |
-| **Dot product** | `dot(a, b)` |
-| **Scale vector** | `scalar * vector` |
-| **Add vectors** | `vector_a + vector_b` |
-| **Get component** | `.x`, `.y`, `.z` of a vector |
-| **Power** | `a ** b` |
-| **Clamp** | `clamp(val, lo, hi)` |
-| **Rotate object** | Rotates an object by angle around an axis vector |
-| **Scene / Camera** | Sets `scene.center`, `scene.range`, `scene.forward`, `scene.up` |
+| Global | `Ctrl+Enter` | Run simulation |
+| Global | `Ctrl+S` | Export as Python (.py) |
+| Global | `Ctrl+C` | Copy code to clipboard |
+| Block canvas | `Ctrl+Z` | Undo |
+| Block canvas | `Ctrl+Y` | Redo |
+| Block canvas | `Delete` | Delete selected block |
+| Block canvas | `Ctrl+A` | Select all blocks |
+| Code editor | `Ctrl+/` | Toggle comment |
+| Code editor | `Alt+Up/Down` | Move line up / down |
+| Code editor | `Ctrl+F` | Find in file |
+| 3D Viewport | Left drag | Orbit camera |
+| 3D Viewport | Right drag | Pan camera |
+| 3D Viewport | Scroll wheel | Zoom in / out |
+| Debug Mode | `Space` | Pause / Resume |
+| Debug Mode | `F10` | Step one simulation event |
+| Debug Mode | `Esc` | Exit Debug Mode |
+| Help | `Esc` | Close help |
 
 ---
 
-## 15. VPython Quick Reference
+## 15. Physics Block Reference
 
-### Creating Objects
+### Simulation Structure
+
+| Block | Description |
+|---|---|
+| `sim_start_block` | Hat block — marks the start of a simulation; set the scene title; place all setup blocks inside its body |
+| `sim_end_block` | Placed after the main loop; emits a completion message |
+| `time_step_block` | Defines `dt` (seconds per step); typical: 0.001–0.01 |
+| `forever_loop_block` | Main animation loop (`while True:`); always starts with `rate_block` |
+| `rate_block` | Throttles to N iterations per second; prevents browser freeze |
+| `for_range_block` | Loop over a numeric range (`for i in range(start, stop, step):`) |
+| `if_block` / `if_else_block` | Conditional execution |
+| `break_loop_block` | Exit the current loop |
+| `comment_block` | Non-executing annotation |
+
+### Objects
+
+| Block | Object | Notes |
+|---|---|---|
+| `preset_sphere_block` | `sphere()` | All parameters inline; for beginners |
+| `preset_box_block` | `box()` | All parameters inline; use for floors, walls |
+| `sphere_block` | `sphere()` | Composable value slots for pos, radius, colour |
+| `sphere_trail_block` | `sphere()` with `make_trail=True` | Trail radius, trail colour, retain point count |
+| `box_block` | `box()` | Composable pos, size, colour |
+| `cylinder_block` | `cylinder()` | pos, axis (direction + length), radius |
+| `arrow_block` | `arrow()` | pos, axis; update axis each frame for animated vectors |
+| `helix_block` | `helix()` | pos, axis, radius; update axis to animate spring |
+| `label_block` | `label()` | pos, text; update `.text` each frame for HUD |
+| `local_light_block` | `local_light()` | Point light source |
+| `scene_camera_block` | `scene.*` | Set scene.range, scene.center, scene.background, etc. |
+
+### Values (snap into any slot)
+
+| Block | Output |
+|---|---|
+| `vector_block` | `vector(x, y, z)` with inline number fields |
+| `vector_compose_block` | `vector(X, Y, Z)` with composable value slots |
+| `colour_block` | Visual colour picker → `vector(r, g, b)` |
+| `expr_block` | Any Python expression (free-text field) |
+| `physics_const_block` | Named constant: g, G, c, h, pi, e, ke, me, mp |
+| `var_read_block` | Read a Blockly variable by name |
+| `get_prop_block` | Read an object property: `obj.attr` |
+| `get_component_block` | Get x, y, or z component of a vector |
+| `mag_block` | `mag(vec)` — magnitude (scalar) |
+| `norm_block` | `norm(vec)` — unit vector |
+
+### Motion
+
+| Block | Code generated |
+|---|---|
+| `set_velocity_block` | `obj.velocity = vector(...)` |
+| `update_position_block` | `obj.pos = obj.pos + obj.velocity * dt` |
+| `apply_force_block` | `obj.velocity = obj.velocity + force_vec * dt` |
+| `set_gravity_block` | `g = vector(0, -9.81, 0)` |
+| `rotate_object_block` | `obj.rotate(angle=radians(a), axis=vec)` |
+
+### State
+
+| Block | Code generated |
+|---|---|
+| `define_const_block` | `NAME = value` |
+| `set_scalar_block` | `variable = expression` |
+| `set_attr_expr_block` | `obj.attr = expression` |
+| `add_attr_expr_block` | `obj.attr += expression` |
+| `telemetry_update_block` | `label.text = "name: " + str(round(val, dp)) + " unit"` |
+
+### Logic
+
+| Block | Output |
+|---|---|
+| `compare_block` | `A op B` — operators: `<`, `>`, `<=`, `>=`, `==`, `!=` |
+| `logic_and_or_block` | `A and/or B` |
+| `logic_not_block` | `not V` |
+
+> Use these custom logic blocks rather than the standard Blockly logic blocks. The standard blocks generate Python 2 comparisons that produce incorrect results in GlowScript.
+
+### 3D Math
+
+| Block | Output |
+|---|---|
+| `cross_product_block` | `cross(A, B)` — vector perpendicular to both inputs |
+| `dot_product_block` | `dot(A, B)` — scalar |
+| `math_trig_block` | sin, cos, tan, asin, acos, atan, radians, degrees, sqrt, abs |
+| `math_pow_block` | `base ** exp` |
+| `math_min_block` / `math_max_block` | `min(a, b)` / `max(a, b)` |
+| `math_clamp_block` | `max(lo, min(hi, val))` |
+
+---
+
+## 16. Data Science Block Reference
+
+### Load
+
+| Block | Action |
+|---|---|
+| `ds_load_builtin_block` | Load a built-in dataset (planets, penguins, weather, pendulum, spring, freefall) into a variable |
+| `ds_load_csv_block` | Open a file picker; load and type-infer a CSV file |
+| `ds_load_trace_block` | Load a promoted simulation trace as a dataset (Hybrid only) |
+
+### Explore
+
+| Block | Output |
+|---|---|
+| `ds_show_table_block` | Scrollable table (up to 12 rows visible) |
+| `ds_show_first_n_block` | Table of the first N rows |
+| `ds_show_last_n_block` | Table of the last N rows |
+| `ds_show_column_block` | Table of a single column |
+| `ds_count_rows_block` | Numeric value: total row count |
+| `ds_count_cols_block` | Numeric value: column count |
+| `ds_list_cols_block` | List of column names |
+| `ds_count_unique_block` | Numeric: unique value count in a column |
+| `ds_all_stats_block` | Grid: count, mean, median, min, max, range, sum, spread |
+
+### Statistics
+
+| Block | Computes |
+|---|---|
+| `ds_calc_mean_block` | Arithmetic mean |
+| `ds_calc_median_block` | Median |
+| `ds_calc_mode_block` | Most frequent value |
+| `ds_calc_min_block` / `ds_calc_max_block` | Minimum / maximum |
+| `ds_calc_range_block` | max − min |
+| `ds_calc_sum_block` | Sum of all non-missing values |
+| `ds_calc_count_block` | Count of non-missing values |
+| `ds_calc_stddev_block` | Sample standard deviation (n − 1) |
+
+### Filter and Sort
+
+| Block | Action |
+|---|---|
+| `ds_filter_eq_block` | Keep rows where column equals a value |
+| `ds_filter_gt_block` | Keep rows where column exceeds a threshold |
+| `ds_filter_lt_block` | Keep rows where column is below a threshold |
+| `ds_filter_and_block` | Two-condition AND filter |
+| `ds_filter_or_block` | Two-condition OR filter |
+| `ds_sort_asc_block` | Sort ascending by a column |
+| `ds_sort_desc_block` | Sort descending by a column |
+| `ds_remove_missing_block` | Drop rows where a column is null or empty |
+| `ds_find_missing_block` | Keep only rows where a column is null or empty |
+
+### Group and Compare
+
+| Block | Output |
+|---|---|
+| `ds_group_count_block` | Table: row count per unique group value |
+| `ds_group_mean_block` | Table: mean of value column per group; result column is named `mean_<valueCol>` |
+
+### Analyse (regression and uncertainty)
+
+| Block | Output |
+|---|---|
+| `ds_linear_regression_block` | Fit `y = m·x + c`; regression card with slope, intercept, and R² (the slope is usually the physical quantity: g, k, −γ) |
+| `ds_multiply_columns_block` | New column = product of two columns (e.g. `T² = period × period`) |
+| `ds_add_column_transform_block` | New column from a transform of another (square, sqrt, ln, t², …) |
+| `ds_print_uncertainty_block` | Column mean ± standard error card |
+| `ds_calc_relative_uncertainty_block` | Relative uncertainty (standard error ÷ mean) as a % |
+
+### Charts
+
+| Block | Chart type |
+|---|---|
+| `ds_chart_bar_block` | Bar chart — x: categorical, y: numeric |
+| `ds_chart_line_block` | Line chart — x col, y col |
+| `ds_chart_scatter_block` | Scatter plot — x col, y col |
+| `ds_chart_scatter_fit_block` | Scatter plot with regression line — x col, y col, fit variable |
+| `ds_chart_histogram_block` | Histogram — single numeric column |
+| `ds_chart_box_block` | Box plot — value col, optional group col |
+
+### Communicate
+
+| Block | Output |
+|---|---|
+| `ds_write_note_block` | Free-text note card |
+| `ds_print_result_block` | Named value display card |
+| `ds_compare_results_block` | Side-by-side named value comparison |
+| `ds_state_conclusion_block` | Styled conclusion callout |
+| `ds_export_table_block` | Download dataset as CSV |
+| `ds_show_python_block` | Reveal generated Python/pandas code |
+
+---
+
+## 17. VPython Quick Reference
+
+### Creating objects
 
 ```python
-# Sphere
-ball = sphere(pos=vector(0,5,0), radius=1, color=color.red)
+# Sphere with motion trail
+ball = sphere(pos=vector(0, 5, 0), radius=0.5, color=color.red,
+              make_trail=True, trail_radius=0.05, retain=300)
 
-# Box
-floor = box(pos=vector(0,-1,0), size=vector(20,0.2,20), color=color.green)
+# Box / floor
+floor = box(pos=vector(0, -0.5, 0), size=vector(20, 1, 8), color=color.green)
 
-# Cylinder
-rod = cylinder(pos=vector(0,0,0), axis=vector(0,5,0), radius=0.2, color=color.white)
+# Cylinder (used as a rod)
+rod = cylinder(pos=vector(0, 0, 0), axis=vector(0, 5, 0), radius=0.15, color=color.white)
 
-# Arrow (shows direction/magnitude)
-v_arrow = arrow(pos=ball.pos, axis=ball.velocity*0.1, shaftwidth=0.1, color=color.yellow)
+# Arrow (update axis each frame to show velocity)
+v_arrow = arrow(pos=ball.pos, axis=ball.velocity * 0.2, shaftwidth=0.12)
 
-# Helix (spring)
-spring = helix(pos=vector(-5,0,0), axis=vector(10,0,0), radius=0.5, coils=12)
+# Helix (spring — update axis to animate stretch)
+spring = helix(pos=vector(-4, 0, 0), axis=vector(8, 0, 0), radius=0.4, coils=14)
 
-# Label
-info = label(pos=vector(0,8,0), text="Hello!", height=14, box=False)
+# On-screen label
+hud = label(pos=vector(0, 9, 0), text="", height=13, box=False, opacity=0, color=color.white)
 ```
 
-### Physics Pattern (Newton's 2nd Law)
+> `make_trail=True` and `emissive=True` must be set in the constructor call. Setting them after creation causes a runtime error in GlowScript 3.2.
+
+### Euler integration (Newton's second law)
 
 ```python
-GlowScript 3.2 VPython
-
-# Setup
-ball = sphere(pos=vector(0,10,0), radius=0.5, color=color.cyan, make_trail=True)
-ball.mass = 2.0
-ball.velocity = vector(3, 0, 0)
-
-g    = vector(0, -9.81, 0)
-drag = 0.1
-dt   = 0.005
-
-while True:
-    rate(200)
-    F_net = ball.mass * g - drag * ball.velocity
-    ball.velocity += (F_net / ball.mass) * dt
-    ball.pos      += ball.velocity * dt
+# Pattern: update velocity, then position, each time step
+F_net = mass * g - drag_coeff * ball.velocity
+ball.velocity += (F_net / mass) * dt
+ball.pos      += ball.velocity * dt
 ```
 
-### Vectors
+### Vectors and maths
 
 ```python
-v = vector(1, 2, 3)     # create
-m = mag(v)              # magnitude = sqrt(14)
-u = norm(v)             # unit vector
-d = dot(v, v)           # dot product = 14
-c = cross(v, vector(1,0,0))  # cross product
-```
+v = vector(1, 2, 3)     # create vector
+mag(v)                  # magnitude (scalar)
+norm(v)                 # unit vector
+dot(v1, v2)             # dot product (scalar)
+cross(v1, v2)           # cross product (vector)
 
-### Colors
-
-```python
-color.red; color.green; color.blue; color.white; color.black
-color.yellow; color.cyan; color.magenta; color.orange
-vector(0.8, 0.2, 0.5)  # custom: (R, G, B) in [0,1]
-color.gray(0.5)         # mid-grey
+sin(x); cos(x); tan(x)        # trig (radians)
+asin(x); acos(x); atan(x)     # inverse trig
+radians(deg)                  # convert degrees → radians
+sqrt(x); abs(x); pi; e        # common maths
 ```
 
 ### Scene configuration
 
 ```python
-scene.title    = "My Simulation"
-scene.range    = 10          # half-width of view
-scene.center   = vector(0,0,0)
-scene.forward  = vector(0,-0.3,-1)
-scene.up       = vector(0,1,0)
-scene.background = vector(0.05, 0.08, 0.15)
-scene.ambient  = color.gray(0.3)
+scene.title      = "Title string"
+scene.background = vector(r, g, b)   # 0–1 range
+scene.range      = 10                # camera half-width
+scene.center     = vector(x, y, z)   # look-at point
+scene.ambient    = color.gray(0.3)   # ambient light level
 ```
 
 ---
 
-## 16. Building Your First Simulation (Tutorial)
+## 18. Building Your First Physics Simulation
 
-### Goal: Falling ball bounces on a floor
+### Goal: a ball dropped from height that bounces on a floor
 
-This tutorial walks through building a simple elastic bounce simulation using blocks.
+#### Step 1 — Create a Physics Modelling project
 
-#### Step 1 — Start a blank blocks project
+From the Start Menu, click **Physics Modelling** and then **Create project** (leave the start path as Blank and editor as Blocks).
 
-From the Start Menu, click **Blank (Blocks)**. You will see an empty block canvas.
+#### Step 2 — Add a Simulation Start block
 
-#### Step 2 — Add Simulation Start
+From the **Control** toolbox category, drag a `sim_start_block` onto the canvas. Enter `"Bouncing Ball"` as the title.
 
-From the **Starter** toolbox category, drag a **Simulation Start** block onto the canvas.
-- Set the title to `"Bouncing Ball"`.
+#### Step 3 — Create the floor
 
-#### Step 3 — Create a sphere
+From **Objects**, drag a `preset_box_block` inside the sim_start body. Set:
+- NAME: `floor`
+- Position Y: `-1`
+- Width: `20`, Height: `1`, Depth: `8`
+- Colour: green.
 
-From **Objects**, add a **Quick Sphere** block inside the Simulation Start.
-- Set `NAME = ball`, position `Y = 5`, radius `1`, colour: red.
+#### Step 4 — Create the ball
 
-#### Step 4 — Create a floor
+From **Objects**, drag a `preset_sphere_block`. Set:
+- NAME: `ball`
+- Position Y: `8`
+- Radius: `0.5`
+- Colour: red.
 
-From **Objects**, add a **Quick Box** block.
-- Set `NAME = floor`, position `Y = -0.5`, size `W = 20, H = 1, D = 10`, colour: green.
+#### Step 5 — Set time step and gravity
 
-#### Step 5 — Set gravity
+From **Control**, drag a `time_step_block`. Leave `dt = 0.01`.  
+From **Motion**, drag a `set_gravity_block`. It defaults to `vector(0, -9.81, 0)`.
 
-From **Starter**, drag a **Set Gravity** block. It defaults to `g = vector(0, -9.81, 0)`.
+#### Step 6 — Add the main loop
 
-#### Step 6 — Set time step
+From **Control**, drag a `forever_loop_block`. Inside it:
 
-Drag a **Time Step** block. Leave `dt = 0.01`.
+1. `rate_block` — set to `200`.
+2. `update_position_block` — set object to `ball`, time step `dt`.
 
-#### Step 7 — Set initial velocity
+#### Step 7 — Add bounce logic
 
-From **Motion**, drag a **Set Velocity** block. Set it to `ball`, velocity `vector(2, 0, 0)`.
+From **Control**, drag an `if_block` inside the loop (after the position update). For the condition, drag a `compare_block` from **Logic**: set left side to `ball.pos.y` (use `get_component_block` inside `get_prop_block`), operator `<`, right side to the radius value `0.5`.
 
-#### Step 8 — Add the main loop
+Inside the if-body:
+1. `set_attr_expr_block` — `ball.pos.y = 0.5`
+2. `add_attr_expr_block` — `ball.velocity.y *= -0.7`
 
-From **Control**, drag a **Forever Loop**. Inside it:
-1. **Rate** block: `60` fps.
-2. **Update Position** block: `ball`, `dt`.
+#### Step 8 — Run
 
-#### Step 9 — Add bounce logic
+Click **Run**. The ball falls, bounces, and comes to rest. Switch to the **Code** tab to see the VPython generated from your block stack.
 
-Still inside the Forever Loop, add an **If** block from Control.
-- Condition: set a **Compare** from Logic: `ball.pos.y < ball.radius`
-- Inside the If: add **Bounce (ground)** from Motion, set `ball`, restitution `0.8`.
-
-#### Step 10 — Run!
-
-Click **Run**. The red ball should fall, bounce, and drift to the right.
-
-**Experiment:**
-- Change the restitution value to `1.0` (perfectly elastic) or `0.3` (damped).
-- Add drag: modify velocity by `velocity * 0.998` each loop iteration.
-- Add a second ball at a different starting position.
+**Experiments:**
+- Change the bounce coefficient from `0.7` to `1.0` (elastic) or `0.3` (heavy damping).
+- Add an initial horizontal velocity with `set_velocity_block`.
+- Use `set_gravity_block` with a weaker gravity (e.g. `vector(0, -1.62, 0)` for lunar gravity).
 
 ---
 
-## 17. For Educators
+## 19. For Educators
 
 ### Classroom use
 
-Physics IDE is designed to be used in:
-- **Introductory physics labs** — students verify equations with simulations.
-- **Computational physics courses** — scaffold from blocks to full Python coding.
-- **Engineering design exercises** — students iterate on parameters to meet a physical objective.
+Physics IDE is designed for use in:
+- **Introductory physics labs** — students verify equations by running and modifying simulations.
+- **Data literacy courses** — students explore real datasets using DS blocks without writing any code.
+- **Computational physics courses** — scaffold from visual blocks to writing VPython.
+- **Hybrid assignments** — students run a simulation, save the trace, and analyse the data.
+
+### Suggested lesson progression — Physics
+
+| Week | Activity | Goal |
+|---|---|---|
+| 1–2 | Open Projectile Motion template; run it; identify each block; change angle and speed | Explore blocks |
+| 3–4 | Build the bouncing ball simulation from scratch in Blocks mode | Build from blocks |
+| 5–6 | Switch to Code view; modify drag coefficient; compare ranges analytically | Blocks → code transition |
+| 7–8 | Blank Code project; write a spring or pendulum from scratch | Full code authoring |
+
+### Suggested lesson progression — Data Science
+
+| Week | Activity | Goal |
+|---|---|---|
+| 1 | Open Penguins template; identify each block; ask: which species is heaviest? | Explore DS blocks |
+| 2 | Open Weather template; modify the filter; chart temperature trends | Filter and chart |
+| 3 | Blank DS project; load Planets; sort by distance; scatter chart; state conclusion | Full DS workflow |
+| 4 | Open "Pendulum: what controls the period?"; compute T², regress T² vs length; check mass independence | Linearisation and regression |
+| 5 | Open "Uncertainty: repeated measurements"; report period mean ± standard error; discuss precision | Measurement uncertainty |
+| 6 | Create a Hybrid project; pick the **Projectile: measure g** topic; run, save a run cropped before the bounce; click "Analyse this run →"; regress vy vs t and compare the slope to g | Simulation → coupled analysis |
 
 ### Setting up a template assignment
 
-1. Build (or open) a simulation with some parameters left intentionally wrong or incomplete.
-2. Click **Export .xml** to download the block workspace.
-3. Distribute the `.xml` file to students.
-4. Students click **Import** to load the workspace and complete the assignment.
+1. Build or open a simulation with specific parameters intentionally left incomplete.
+2. Click **Export Project Bundle (.physide.json)** to download the bundle.
+3. Distribute the `.physide.json` to students.
+4. Students click **Open...** in the toolbar to load the workspace.
 
 ### Assessing student work
 
-Students can:
-- Export their finished simulation as `.py` and submit it.
-- Export a **blocks PDF** showing their block structure.
-- Export a **code PDF** with syntax highlighting.
-- Download a **CSV from the Trace Table** showing recorded variable data over time.
+Students can submit:
+- **Export as Python (.py)** — VPython source code.
+- **Blocks as PDF** — block structure screenshot.
+- **Code as PDF** — syntax-highlighted source.
+- **CSV** (from Debug Mode → Record → CSV) — recorded variable data over time.
+- **Export Project Bundle (.physide.json)** — the complete project, reloadable for inspection.
+
+### Deploying to students
+
+Physics IDE is a static React application with no backend, no accounts, and no data uploaded. The production build can be served from Vercel, Cloudflare Pages, Netlify, GitHub Pages, or any school web server. Students access it via URL — no installation or sign-in required.
+
+Students can continue working offline after the first load. The GlowScript runtime is cached by the browser.
+
+See `DEPLOY.md` in the project root for full deployment instructions and CI smoke-test steps.
 
 ### iKamva (Sakai) integration
 
-Physics IDE can be embedded directly into an iKamva course site using the **Web Content** tool. Ask your ICT/e-learning support team to:
-1. Enable the Web Content tool in your course.
-2. Add a new Web Content item with the Physics IDE URL.
-
-Students will see the IDE inside iKamva without leaving the LMS. See the companion **Technical Architecture document** for full configuration details.
-
-### Beginner Mode tips
-
-Toggle **Beginner Mode** from the toolbar to reduce the block palette to only essential categories. This is highly recommended for:
-- First-year students and school-level learners.
-- Early lab sessions where cognitive load should be minimal.
-
-### Block → Code progression
-
-A natural classroom progression:
-1. **Week 1–2**: Use precoded examples; press Run; observe what changes when values change.
-2. **Week 3–4**: Build from starter blocks in Beginner Mode.
-3. **Week 5–6**: Unlock full Advanced toolbox; add custom `python_raw_block` snippets.
-4. **Week 7+**: Switch to Code mode; write VPython directly.
+Physics IDE can be embedded in an iKamva course site using the **Web Content** tool. Add the Physics IDE URL as a new Web Content item — students see the IDE inside iKamva without leaving the LMS. See the **Technical Architecture** document for full configuration details including POPIA compliance notes.
 
 ---
 
-*Physics IDE User Guide — Version 1.0 — March 2026*
+*Physics IDE User Guide — Version 1.0 — June 2026*
