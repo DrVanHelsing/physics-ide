@@ -1,662 +1,423 @@
-﻿# Physics IDE
+# Physics IDE
 
-Physics IDE is a dual-editor VPython environment with:
-
-- **Blockly-based physics modeling** (visual blocks)
-- **Code-based VPython editing** (GlowScript 3.2 VPython)
-- **Live 3D viewport** in an isolated runtime iframe
-- **Template workflows** for fast starts
-
-It is designed for teaching and experimentation: beginners can build simulations with blocks, and advanced users can inspect/edit VPython directly.
+Physics IDE is a browser-based, zero-install environment for physics simulation and foundational data science. It combines a visual block editor, a Monaco code editor, a live 3D WebGL viewport, and a data analysis panel — all in a single React application with no backend, no accounts, and no installation required.
 
 ---
 
 ## Table of Contents
 
-1. [What’s New](#whats-new)
-2. [Install &amp; Run](#install--run)
-3. [How the IDE Works](#how-the-ide-works)
-4. [Project Types and Modes](#project-types-and-modes)
-5. [Templates](#templates)
-6. [Custom Blocks Reference](#custom-blocks-reference)
-7. [Using the Raw Python Block Safely](#using-the-raw-python-block-safely)
-8. [Animation Logic Patterns](#animation-logic-patterns)
-9. [Viewport Text Readability (Dark/Light)](#viewport-text-readability-darklight)
-10. [3D Viewport Camera Controls](#3d-viewport-camera-controls)
-11. [Export Features](#export-features)
-12. [Keyboard Shortcuts](#keyboard-shortcuts)
-13. [Troubleshooting](#troubleshooting)
-14. [Code Structure](#code-structure)
-15. [Screenshots](#screenshots)
+1. [Architecture Overview](#1-architecture-overview)
+2. [Install and Run](#2-install-and-run)
+3. [Project Goals](#3-project-goals)
+4. [Templates](#4-templates)
+5. [Block System](#5-block-system)
+6. [Data Science Blocks](#6-data-science-blocks)
+7. [Export and Import](#7-export-and-import)
+8. [Keyboard Shortcuts](#8-keyboard-shortcuts)
+9. [Troubleshooting](#9-troubleshooting)
+10. [Code Structure](#10-code-structure)
 
 ---
 
-## What's New
-
-### Debug Mode
-
-A full-screen debug overlay for step-through simulation inspection:
-
-- **Three-panel layout** — read-only Blocks panel (or read-only Code editor for Blank Projects / Code Examples) | 3D Viewport | Trace Table
-- **Pause / Resume / Step** — pause the running simulation at any point; step one trace event at a time (`F10`); resume (`Space`)
-- **Breakpoints** — click any block in the Blocks panel to toggle a breakpoint (red dot indicator appears); execution stops synchronously when that block executes
-- **Execution highlight** — yellow glow on the block that is currently executing, updated in real time
-- **Recording + CSV export** — press Record to capture all trace data; export as CSV with variable, value, delta, min, max, and timestamp columns
-- **Code-only support** — Blank Projects and Code Examples show a read-only code editor in the left panel instead of the Blockly workspace
-
-Access via the **🐛 Debug** button in the toolbar.
-
----
-
-### Composable logic & variable blocks
-
-Four new fully composable blocks eliminate the need for `expr_block` in boolean conditions:
-
-- `var_read_block` — reads a Blockly variable by name; snaps into any value slot
-- `compare_block` — `A < B`, `A > B`, `A == B`, etc.; outputs a **Boolean** value
-- `logic_and_or_block` — `A and/or B`; outputs a **Boolean** value
-- `logic_not_block` — `not V`; outputs a **Boolean** value
-
-These replace the standard Blockly `logic_compare`, `logic_operation`, `logic_negate` blocks which generate wrong Python for VPython (they use Python correctly, but these custom versions are category-consistent and composable).
-
-### VPython-correct math block (`math_trig_block`)
-
-A single block covers all scalar math functions that VPython/GlowScript exposes at the global scope:
-
-`sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `radians`, `degrees`, `sqrt`, `abs`
-
-**Important:** `abs` is absolute value `|x|`. Standard Blockly `math_single` (`abs`) generates `math.fabs()` which is **wrong for VPython** — `math_trig_block` generates `abs(x)` correctly.
-
-### New math utility blocks
-
-- `math_min_block` — `min(a, b)` — in: **3D Math**
-- `math_max_block` — `max(a, b)` — in: **3D Math**
-- `math_pow_block` — `a ** b` — in: **3D Math**
-- `math_clamp_block` — `max(lo, min(hi, val))` — in: **3D Math**
-
-### Vector compose block (`vector_compose_block`)
-
-Composable `vector(X, Y, Z)` with three value slots (replaces the inline `vector_block` where sub-expressions are needed).
-
-Located in: **3D Math** (removed from Values to avoid duplication with `vector_block`).
-
-### Toolbox reorganisation
-
-- **`rotate_object_block`** moved from 3D Math → **Motion** (it mutates an object, not a pure math op)
-- **`scene_camera_block`** moved from 3D Math → **Objects** (it configures the scene/camera)
-- **`mag_block`** and **`norm_block`** now also appear in **3D Math** (alongside Values)
-- Removed duplicate standard Blockly blocks that generate wrong VPython code:
-  - `logic_compare`, `logic_operation`, `logic_negate` (replaced by custom logic blocks)
-  - `math_single`, `math_trig`, `math_constrain` (replaced by `math_trig_block` / `math_clamp_block`)
-
-### Mode toggle for templates
-
-Template projects let you **toggle** between both representations using the Blocks / Code buttons:
-
-- **Blocks templates** — Blocks = editable; Code = read-only generated code
-- **Code templates** — Code = editable; Blocks = read-only block reference
-
-### Composable Scratch-style blocks
-
-All object, motion, and variable blocks use **input_value slots** (puzzle-piece connectors) instead of inline text fields. Shadow blocks provide sensible defaults in every slot.
-
-### Native Blockly variable workflow
-
-Custom Physics blocks use native Blockly variable fields (`field_variable`) for object names, loop variables, and state labels — rename once, all references update automatically.
-
-### Block templates fully rebuilt
-
-- `blocks_projectile` — animated projectile with drag model and telemetry
-- `blocks_spring` — damped spring-mass oscillator with KE/PE telemetry
-- `blocks_orbits` — animated orbital system with softened gravity and telemetry
-- `blocks_pendulum` — nonlinear pendulum, symplectic Euler, full energy telemetry
-
-All four use `python_raw_block` only where needed; all physics logic uses semantic custom blocks. The pendulum Blocks template uses zero raw blocks.
-
-### Beginner Mode & Viewport Toggle
-
-Two toolbar controls help manage screen complexity for learners:
-
-**Beginner Mode** (toolbar: **Advanced** → **Beginner** toggle):
-
-- Simplifies the block toolbox to essential categories only: **Starter, Values, Objects, Motion, Control, Logic, Math, 3D Math, Variables**
-- Hides the Advanced, State, Loops, Text, Lists, and Functions categories
-- The toolbar label shows **Beginner** (highlighted) when active; click to return to **Advanced** mode
-- Ideal for introductory lessons where students should not be overwhelmed by the full block library
-
-**Viewport Toggle** (toolbar: **Viewport** button):
-
-- Hides or shows the 3D Viewport panel on the right side of the IDE
-- When hidden, the block editor or code editor expands to fill the full width
-- Useful in Beginner mode or when building a simulation before running it
-
-**Starter category** (visible at the top of the toolbox):
-
-- Contains pre-assembled "starter" blocks to scaffold common simulation patterns
-- Always visible in both Beginner and Advanced toolbox modes
-- Acts as a quick-start palette; the most commonly used physics blocks are surfaced here
-
----
-
-## Install & Run
-
-### Requirements
-
-- Node.js 18+ recommended
-- npm 9+
-
-### Commands
-
-```bash
-npm install
-npm start
-```
-
-Production build:
-
-```bash
-npm run build
-```
-
----
-
-## How the IDE Works
-
-YouTube Demo: https://youtu.be/4M9JiaAnt50
+## 1. Architecture Overview
 
 ### Runtime model
 
-Each simulation run is executed inside a **fresh iframe** (`src/utils/glowRunner.js`).
+Each physics simulation runs inside a **fresh iframe** (`src/utils/runner/glowRunner.js`). The iframe loads and compiles the GlowScript 3.2 VPython runtime on every Run press; Stop destroys it. This makes start/stop deterministic and prevents globals from leaking between runs.
 
-Why this matters:
+Data Science analyses execute via the **DS runner** (`src/utils/runner/dsRunner.js`), an async `AsyncFunction`-based sandbox that evaluates generated JavaScript against the `__ds` API (Arquero + Observable Plot). No iframe required — output is collected in an `__outputs` array and rendered in the Data panel.
 
-- Prevents old globals from contaminating new runs
-- Makes stop/reset deterministic
-- Isolates compiler/runtime state per execution
+### State and persistence
 
-### Compile pipeline
+- React functional components with custom hooks; no Redux or external state library.
+- All project data persisted to **localForage** (IndexedDB-backed) via `src/utils/storage/projectStore.js`.
+- Projects are stored as a manifest object (`src/utils/manifest/schema.js`) carrying `goal`, `projectType`, block XML, and code.
+- Multiple projects are listed on the Start Menu and persist across sessions.
 
-- Input code is normalized and prefixed with `GlowScript 3.2 VPython` if missing
-- GlowScript compiler (`RScompiler`) is loaded in the iframe
-- Compiled JS is executed and `__main__()` is invoked
+### Toolbox generation
 
----
+The block toolbox is generated at runtime by `buildToolboxXml(goal)` in `src/utils/blockly/toolbox.js`. It reads the master toolbox XML, filters every block's domain tag (physics / datascience / shared) against the current goal, and prunes empty categories. There is one source-of-truth toolbox; there are no hand-maintained per-goal copies.
 
-## Project Types and Modes
+### Compile pipeline (physics)
 
-## 1) New Block Project (`blocks_blank`)
-
-- Opens in Blocks mode
-- Code panel shows the generated code (read-only)
-- Default starting point for drag-and-drop simulation building
-
-## 2) New Code File (`code_blank`)
-
-- Opens in Code mode
-- Blocks panel is locked (read-only block reference)
-- Default starting point for hand-written VPython scripting
-
-## 3) Code Template (`code_template`)
-
-- Pre-built code example; opens in code mode
-- Blocks panel shows a read-only block reference mirroring the code
-
-## 4) Block Template (`block_template`)
-
-- Pre-built blocks example; opens in blocks mode
-- Code panel shows the read-only generated code
+1. Code normalised and prefixed with `GlowScript 3.2 VPython` if missing.
+2. GlowScript compiler (`RScompiler`) loaded into the sandbox iframe.
+3. Compiled JS executed; `__main__()` invoked.
+4. Stop: iframe removed.
 
 ---
 
-## Templates
+## 2. Install and Run
 
-## Code Templates (`src/utils/precodedExamples.js`)
+**Requirements:** Node.js 18 or later, npm 9 or later.
 
-- `projectile` — drag + telemetry + lighting
-- `spring` — damped oscillator + energy telemetry
-- `orbits` — star/planet/moon gravity + telemetry
-- `pendulum` — nonlinear damped pendulum with KE/PE/E_total telemetry
-
-## Block Templates (`src/utils/blockTemplates.js`)
-
-- `blocks_projectile` — animated projectile with drag model and telemetry
-- `blocks_spring` — damped spring-mass oscillator with KE/PE telemetry
-- `blocks_orbits` — animated orbital system with softened gravity and telemetry
-- `blocks_pendulum` — nonlinear pendulum with symplectic Euler integration and energy telemetry
-
-### Template design rules
-
-- Prefer custom blocks where possible
-- Use raw Python blocks only for logic not yet represented by custom blocks
-- Add comment blocks before raw sections to explain intent
-
----
-
-### 4 · Simple Pendulum (new)
-
-**Physics:** Full nonlinear ODE — no small-angle approximation.
-
-| Parameter | Value           | Description                                   |
-| --------- | --------------- | --------------------------------------------- |
-| `L`     | 2.0 m           | Pendulum length (pivot to bob centre)         |
-| `m`     | 1.0 kg          | Bob mass                                      |
-| `b`     | 0.10 Ns/rad     | Linear damping coefficient                    |
-| `θ₀`  | 30° = π/6 rad | Initial angle from vertical                   |
-| `ω₀`  | 0 rad/s         | Initial angular velocity (released from rest) |
-| `dt`    | 0.005 s         | Integration time step                         |
-
-**Governing equations:**
-
-```
-α = −(g/L)·sin(θ) − b·ω       # angular acceleration (nonlinear damped ODE)
-
-# Symplectic (semi-implicit) Euler integration:
-ω(t+dt) = ω(t) + α·dt          # update angular velocity first
-θ(t+dt) = θ(t) + ω(t+dt)·dt    # then angle (uses updated ω)
-
-# Bob Cartesian coordinates:
-bob_x = L·sin(θ)
-bob_y = −L·cos(θ)
-
-# Mechanical energy:
-KE      = ½ m L² ω²
-PE      = m g L (1 − cos θ)     # zero at bottom of swing
-E_total = KE + PE               # slowly decays with damping
+```bash
+npm install
+npm start          # development server on :3000
 ```
 
-**Period (small-angle, undamped):** T = 2π√(L/g) ≈ 2.84 s for L = 2.0 m
+```bash
+npm run build      # production build → build/
+```
 
-**Why symplectic Euler?**
-Standard Euler (update θ before ω) introduces energy gain — the bob drifts outward over time even with b=0. Symplectic Euler (ω updated first) preserves the Hamiltonian structure, keeping E_total stable across thousands of oscillations.
-
-**Key features of the simulation:**
-
-- Rod cylinder `axis` and bob sphere `pos` are recomputed from θ every frame
-- 200-point golden trail traces the arc of oscillation
-- Live telemetry: t, θ (rad), ω (rad/s), KE, PE, E_total
-
-**Blocks template note:** `blocks_pendulum` uses zero `python_raw_block` blocks. The angular acceleration formula is built entirely from `math_trig_block` (sin, cos, radians), `math_pow_block`, `vector_compose_block`, and nested `math_arithmetic` blocks.
+```bash
+npm run check:blocks   # verify block registry has no duplicates
+CI=true npm test       # full Jest suite
+```
 
 ---
 
-## Custom Blocks Reference
+## 3. Project Goals
 
-Defined in `src/utils/blocklyGenerator.js`, exposed via toolbox in `src/components/BlocklyWorkspace.js`.
+The Start Menu presents three **project goals**. Selecting a goal opens a creation wizard where the user sets a title, chooses a start path (Blank or Template), and selects an editor default (Blocks or Code).
 
-### Toolbox categories
+### Physics Modelling
 
-| Category                                       | Contents                                                                                                                                                                                                       |
-| ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Starter**                              | Pre-assembled scaffolding blocks — quick-start palette for the most common simulation patterns; always visible in both Beginner and Advanced modes                                                           |
-| **Values**                               | `vector_block`, `colour_block`, `var_read_block`, `expr_block`, `physics_const_block`, `define_const_block`, `get_prop_block`, `get_component_block`, `mag_block`, `norm_block`            |
-| **Objects**                              | Sphere, box, cylinder, arrow, helix, label, local light constructors;`scene_camera_block`                                                                                                                    |
-| **Motion**                               | Velocity / position / acceleration / gravity updates;`rotate_object_block`                                                                                                                                   |
-| **State**                                | Assignment, attribute update, telemetry display blocks _(Advanced mode only)_                                                                                                                                 |
-| **Control**                              | Loops, conditionals,`rate`, `time_step`, `break_loop_block`, `comment_block`                                                                                                                           |
-| **Advanced**                             | Raw Python code / expression blocks _(Advanced mode only)_                                                                                                                                                    |
-| **Logic**                                | `compare_block`, `logic_and_or_block`, `logic_not_block`, `logic_boolean`, `logic_null`, `logic_ternary`                                                                                           |
-| **Loops**                                | Standard Blockly `controls_repeat_ext`, `controls_for`, etc. _(Advanced mode only)_                                                                                                                        |
-| **Math**                                 | `math_number`, `math_arithmetic`, `math_constant`, `math_number_property`, `math_round`, `math_on_list`, `math_modulo`, `math_random_int`, `math_random_float`                               |
-| **3D Math**                              | `vector_compose_block`, `cross_product_block`, `dot_product_block`, `mag_block`, `norm_block`, `math_min_block`, `math_max_block`, `math_clamp_block`, `math_pow_block`, `math_trig_block` |
-| **Text / Lists / Variables / Functions** | Standard Blockly categories _(Advanced mode only, except Variables)_                                                                                                                                          |
+Block toolbox contains: Values, Objects, Motion, State, Control, Logic, Math, Variables, and an Advanced drawer (3D Math, Raw Python, Loops, Text, Lists, Functions). DS categories are excluded. Physics templates are available.
+
+### Data Science
+
+Block toolbox contains: Control, Logic, Math, Variables, Data Science, and the Advanced drawer. Physics categories (Values, Objects, Motion, State) are excluded. A `ds_start_block` hat is pre-seeded in the workspace. The **Data panel** on the right side renders tables, charts, value outputs, and conclusion blocks automatically after every workspace change. DS templates are available.
+
+### Hybrid
+
+Block toolbox contains every category from both Physics Modelling and Data Science. Both the 3D Viewport and the Data panel are visible. Trace data from a physics run can be promoted to a dataset and loaded into a DS analysis. **Hybrid topics** (Pendulum, Projectile, Spring) couple a simulation with its matching analysis and auto-set the model/data-first entry; after a run is saved, an **"Analyse this run →"** action loads the paired analysis with the run label filled in.
 
 ---
 
-### Value blocks (snap into any □ slot)
+## 4. Templates
 
-| Block                    | Output                    | Notes                                               |
-| ------------------------ | ------------------------- | --------------------------------------------------- |
-| `vector_block`         | `vector(x,y,z)`         | Inline x/y/z fields                                 |
-| `vector_compose_block` | `vector(X,Y,Z)`         | Three composable value slots — snap in math blocks |
-| `colour_block`         | `vector(r,g,b)`         | Visual colour picker                                |
-| `expr_block`           | _any Python expression_ | Freeform fallback                                   |
-| `physics_const_block`  | constant value            | `g`, `G`, `c`, `h`, `pi`                  |
-| `var_read_block`       | variable value            | Reads a Blockly variable by name                    |
-| `get_prop_block`       | `obj.attr`              | e.g.`ball.pos`                                    |
-| `get_component_block`  | `vec.x / .y / .z`       | Scalar component                                    |
-| `mag_block`            | `mag(vec)`              | Magnitude                                           |
-| `norm_block`           | `norm(vec)`             | Unit vector                                         |
+### Physics templates (`src/utils/precodedExamples.js` and `src/utils/blockTemplates.js`)
+
+Each physics template ships in two flavours: a Code template (editable VPython) and a Blocks template (editable block workspace with a read-only code mirror).
+
+| Template | Physics | Key parameters |
+|---|---|---|
+| Projectile Motion | Euler integration, quadratic drag (Cd=0.47), multi-bounce (e=0.55) | v0=17.5 m/s, angle=52 deg |
+| Spring-Mass Oscillator | Hooke's law, linear damping (b=0.22 Ns/m) | k=14 N/m, m=1.2 kg, x0=1.8 m |
+| Sun, Earth and Moon | Newtonian three-body gravity, softened distances | G=10, M_star=10.33 |
+| Simple Pendulum | Full nonlinear ODE, symplectic Euler, linear damping | L=2.0 m, m=1.0 kg, b=0.10 Ns/rad |
+
+All four Blocks templates are built entirely from semantic custom blocks. The pendulum template uses zero `python_raw_block` blocks.
+
+### Data Science templates (`src/utils/blockTemplates.js`)
+
+| Template | Dataset | Workflow |
+|---|---|---|
+| Penguins: exploratory analysis | Penguins (30 rows, 7 cols) | Load, table, count, all-stats, group-mean by species, bar + scatter + histogram charts, conclusion |
+| Weather: compare two cities | Weather (28 rows, 6 cols) | Load, table, group-mean, bar + line + box charts, Cape Town filter, conclusion |
+| Planets: Kepler's third law | Planets (9 rows, 7 cols) | Load, table, sort by distance, scatter distance vs period, max-period print, conclusion |
+| Pendulum: what controls the period? | Pendulum (56 rows, 7 cols) | Filter length study, compute T² = period², regress T² vs length (slope 4π²/g → g); filter mass study, mean period per mass; conclusion (T² ∝ L, mass-independent) |
+| Free fall: measure g | Free fall (12 rows, 3 cols) | Regress velocity vs time → slope = g ≈ 9.8 m/s²; conclusion |
+| Uncertainty: repeated measurements | Pendulum (56 rows, 7 cols) | Filter one length's trials, period mean ± standard error, relative uncertainty %, conclusion |
+| Linear regression: Hooke's law | Spring (8 rows, 3 cols) | Regress force vs extension → spring constant k ≈ 19.6 N/m, scatter+fit chart, conclusion |
+
+### Hybrid topics (`HYBRID_TOPICS` in `src/utils/blockTemplates.js`)
+
+A hybrid topic couples a simulation template with its matching analysis template, and auto-sets the model/data-first entry. Pick a topic in the wizard, run the simulation, save a run, then use **"Analyse this run →"** on the chart to load the paired analysis with the run label pre-filled. (Data-first opens straight into the analysis instead.)
+
+| Topic | Simulation telemetry | Analysis (regression slope) |
+|---|---|---|
+| Pendulum: measure damping | `t`, `E_total` | ln(E) vs t → slope −γ (damping coefficient) |
+| Projectile: measure g | `t`, `vy` | vy vs t → slope −g (crop to before the first bounce) |
+| Spring-mass: find k | `stretch`, `Fspring` | Fspring vs stretch → slope −k (spring constant) |
 
 ---
 
-### Logic / comparison blocks (output: Boolean)
+## 5. Block System
 
-| Block                  | Output               | Notes                                                  |
-| ---------------------- | -------------------- | ------------------------------------------------------ |
-| `compare_block`      | `A op B`           | Operators:`<`, `>`, `<=`, `>=`, `==`, `!=` |
-| `logic_and_or_block` | `A and/or B`       | Dropdown:`and` / `or`                              |
-| `logic_not_block`    | `not V`            | Flips boolean                                          |
-| `logic_boolean`      | `True` / `False` | Standard Blockly                                       |
+### Toolbox categories (goal-filtered)
 
-> Standard `logic_compare`, `logic_operation`, `logic_negate` are **hidden** — they generate Python correctly but are duplicated by the custom blocks above, which are composable and category-consistent. Use the custom blocks.
+| Category | Goal | Contents |
+|---|---|---|
+| Values | Physics, Hybrid | `vector_block`, `colour_block`, `expr_block`, `var_read_block`, `physics_const_block`, `define_const_block`, `get_prop_block`, `get_component_block`, `mag_block`, `norm_block` |
+| Objects | Physics, Hybrid | Sphere, box, cylinder, arrow, helix, label constructors; `scene_camera_block` |
+| Motion | Physics, Hybrid | `set_velocity_block`, `update_position_block`, `apply_force_block`, `set_gravity_block`, `rotate_object_block` |
+| State | Physics, Hybrid | `set_scalar_block`, `set_attr_expr_block`, `add_attr_expr_block`, `telemetry_update_block`, `define_const_block` |
+| Control | All | `sim_start_block`, `sim_end_block`, `forever_loop_block`, `for_range_block`, `rate_block`, `time_step_block`, `if_block`, `if_else_block`, `break_loop_block`, `comment_block` |
+| Logic | All | `compare_block`, `logic_and_or_block`, `logic_not_block`, `logic_boolean`, `logic_null`, `logic_ternary` |
+| Math | All | `math_number`, `math_arithmetic`, `math_constant`, `math_number_property`, `math_round`, `math_modulo`, `math_random_int`, `math_random_float` |
+| Variables | All | Native Blockly variable category (VARIABLE custom) |
+| Data Science | DS, Hybrid | See Section 6 |
+| Advanced > 3D Math | All | `vector_compose_block`, `cross_product_block`, `dot_product_block`, `mag_block`, `norm_block`, `math_min_block`, `math_max_block`, `math_clamp_block`, `math_pow_block`, `math_trig_block` |
+| Advanced > Raw Python | All | `python_raw_block`, `python_raw_expr_block` |
+| Advanced > Loops | All | Standard Blockly `controls_repeat_ext`, `controls_for`, `controls_forEach`, `controls_flow_statements` |
+| Advanced > Text | All | Standard Blockly text blocks |
+| Advanced > Lists | All | Standard Blockly list blocks |
+| Advanced > Functions | All | Standard Blockly PROCEDURE custom category |
 
----
+### Value blocks
+
+| Block | Output |
+|---|---|
+| `vector_block` | `vector(x, y, z)` — inline fields |
+| `vector_compose_block` | `vector(X, Y, Z)` — three value slots |
+| `colour_block` | `vector(r, g, b)` — visual colour picker |
+| `expr_block` | Any Python expression — free-text field |
+| `physics_const_block` | Named constant (g, G, c, h, pi, e, ke, me, mp) |
+| `var_read_block` | Blockly variable by name |
+| `get_prop_block` | `obj.attr` |
+| `get_component_block` | `vec.x / .y / .z` scalar |
+| `mag_block` | `mag(vec)` |
+| `norm_block` | `norm(vec)` |
+
+### Logic blocks (output: Boolean)
+
+| Block | Output |
+|---|---|
+| `compare_block` | `A op B` — operators: `<`, `>`, `<=`, `>=`, `==`, `!=` |
+| `logic_and_or_block` | `A and/or B` |
+| `logic_not_block` | `not V` |
+| `logic_boolean` | `True` / `False` |
+
+The standard Blockly `logic_compare`, `logic_operation`, and `logic_negate` blocks are excluded — they generate Python 2-style comparisons that produce wrong results inside GlowScript. Use the custom blocks above.
 
 ### 3D Math blocks
 
-| Block                   | Output                                                  |
-| ----------------------- | ------------------------------------------------------- |
-| `cross_product_block` | `cross(A, B)`                                         |
-| `dot_product_block`   | `dot(A, B)`                                           |
-| `math_min_block`      | `min(a, b)`                                           |
-| `math_max_block`      | `max(a, b)`                                           |
-| `math_pow_block`      | `base ** exp`                                         |
-| `math_clamp_block`    | `max(lo, min(hi, val))`                               |
-| `math_trig_block`     | `sin/cos/tan/asin/acos/atan/radians/degrees/sqrt/abs` |
-
-**`math_trig_block` function list:**
-
-| Function                     | Description            | Angle convention  |
-| ---------------------------- | ---------------------- | ----------------- |
-| `sin`, `cos`, `tan`    | Trig                   | **radians** |
-| `asin`, `acos`, `atan` | Inverse trig           | returns radians   |
-| `radians(deg)`             | Degrees → radians     | —                |
-| `degrees(rad)`             | Radians → degrees     | —                |
-| `sqrt(x)`                  | Square root            | —                |
-| `abs(x)`                   | Absolute value `\|x\|` | —                |
-
-> All these functions are **VPython global scope** — do **not** use `math.sin()`, `math.fabs()`, etc. Those don't exist inside GlowScript. The standard Blockly `math_trig` and `math_single` blocks are hidden from the toolbox because they generate `math.sin()` / `math.fabs()` which will fail.
-
----
-
-### Object blocks
-
-All constructors are single-line (`inputsInline: true`) with value slots:
-
-| Block                  | Statement                                                 |
-| ---------------------- | --------------------------------------------------------- |
-| `sphere_block`       | `name = sphere(pos=□, radius=□, color=□)`            |
-| `sphere_trail_block` | sphere with `make_trail`, `trail_radius`, `retain`  |
-| `box_block`          | `name = box(pos=□, size=□, color=□)`                 |
-| `cylinder_block`     | `name = cylinder(pos=□, axis=□, radius=□, color=□)` |
-| `arrow_block`        | `name = arrow(pos=□, axis=□, color=□)`               |
-| `helix_block`        | `name = helix(pos=□, axis=□, radius=□, color=□)`    |
-| `label_block`        | `name = label(pos=□, text=…)`                         |
-| `label_full_block`   | label with `height`, `font`                           |
-| `local_light_block`  | `local_light(pos=□, color=□)`                         |
-| `scene_camera_block` | `scene.ATTR = □` — camera/scene setup                 |
-
-> Preset variants (`preset_sphere_block`, `preset_box_block`) use inline fields for quick creation. Additional variants (`sphere_emissive_block`, `box_opacity_block`, `helix_full_block`) are available for template use.
-
----
-
-### Motion blocks
-
-| Block                     | Statement                         |
-| ------------------------- | --------------------------------- |
-| `set_velocity_block`    | `obj.velocity = □`             |
-| `update_position_block` | `obj.pos += obj.velocity * □`  |
-| `apply_force_block`     | `obj.velocity += □ * □`       |
-| `set_gravity_block`     | `g = vector(0, −9.81, 0)`      |
-| `rotate_object_block`   | `obj.rotate(angle=□, axis=□)` |
-
----
-
-### Control blocks
-
-| Block                  | Statement                  |
-| ---------------------- | -------------------------- |
-| `time_step_block`    | `dt = 0.01`              |
-| `rate_block`         | `rate(N)`                |
-| `forever_loop_block` | `while True:`            |
-| `for_range_block`    | `for i in range(…):`    |
-| `if_block`           | `if □:` — boolean slot |
-| `if_else_block`      | `if □: … else:`        |
-| `break_loop_block`   | `break`                  |
-| `comment_block`      | `# comment`              |
-
----
-
-### State blocks
-
-| Block                      | Statement                         |
-| -------------------------- | --------------------------------- |
-| `define_const_block`     | `NAME = □`                     |
-| `set_colour_var_block`   | `obj.color = □`                |
-| `set_scalar_block`       | `obj.attr = □`                 |
-| `set_attr_expr_block`    | `obj.attr = □` — expr slot    |
-| `add_attr_expr_block`    | `obj.attr += □`                |
-| `telemetry_update_block` | `label.text = "…: " + str(□)` |
-
----
-
-### Advanced / utility blocks
-
-| Block                     | Output                       |
-| ------------------------- | ---------------------------- |
-| `python_raw_block`      | Single raw Python statement  |
-| `python_raw_expr_block` | Inline raw Python expression |
-| `comment_block`         | `# text`                   |
-
----
-
-> **Scene setup tip:** Use `python_raw_block` for scene/camera config not yet in the custom blocks:
->
-> ```python
-> scene.title = "My Simulation"
-> scene.background = vector(0.05, 0.05, 0.1)
-> scene.range = 10
-> ```
-
----
-
-## Using the Raw Python Block Safely
-
-`python_raw_block` inserts exactly one Python statement line (or compact one-liner).
-
-Use it for:
-
-- Compact formulas difficult to represent as blocks
-- Conditionals or inline expressions where block equivalents are missing
-- Temporary advanced logic while prototyping
-
-Avoid using it for:
-
-- Large multi-line programs in one raw block
-- Entire simulation loop bodies (unless absolutely necessary)
-
-### Good raw-block examples
-
-```python
-speed = mag(ball.velocity)
-```
-
-```python
-a_planet = -G * M_star / d_ps**2 * norm(r_ps)
-```
-
-### Better block-first replacement example
-
-Instead of raw:
-
-```python
-ball.velocity = ball.velocity + acceleration * dt
-```
-
-Use:
-
-- `add_attr_expr_block`
-  - expr = `acceleration * dt`
-  - obj = `ball`
-  - attr = `velocity`
-
----
-
-## Animation Logic Patterns
-
-Use this pattern for stable, visible animation:
-
-1. Define `dt`
-2. Use `forever_loop_block`
-3. Start each loop with `rate(...)`
-4. Compute forces/accelerations
-5. Update velocity
-6. Update positions
-7. Update visuals/telemetry
-8. Increment time variable
-
-### Minimal loop snippet (concept)
-
-```python
-while True:
-  rate(240)
-  acceleration = g
-  ball.velocity = ball.velocity + acceleration * dt
-  ball.pos = ball.pos + ball.velocity * dt
-  t = t + dt
-```
-
----
-
-## Viewport Text Readability (Dark/Light)
-
-The runtime iframe now applies theme-aware text color:
-
-- Dark theme: light viewport text
-- Light theme: dark viewport text
-
-This affects scene title/caption text generated by GlowScript HTML in the iframe.
-
-Implementation is in `src/utils/glowRunner.js`.
-
-## 3D Viewport Camera Controls
-
-The 3D viewport always has interactive camera controls:
-
-- Left drag: orbit/rotate camera
-- Right drag: pan camera
-- Scroll wheel: zoom in/out
-
-GlowScript enables orbit, zoom, and pan by default. To configure scene title, background, or range, use `python_raw_block` at the top of your program:
-
-```python
-scene.title = "My Simulation"
-scene.background = vector(0.05, 0.05, 0.1)
-scene.range = 10
-```
-
----
-
-## Export Features
-
-The **Export ▾** dropdown in the toolbar provides six options:
-
-| Option | Shortcut | Description |
-|---|---|---|
-| Export as Python (`.py`) | `Ctrl+S` | Saves the current code (generated or written) as a `.py` file |
-| Export Blocks (`.xml`) | — | Saves the Blockly workspace as an XML file |
-| Code as PDF | — | Syntax-highlighted code rendered as a PDF document |
-| Blocks as PDF | — | Rendered block workspace snapshot as a PDF |
-| Screenshot Viewport (`.png`) | — | Captures the current 3D viewport frame as a PNG image |
-| Copy Code to Clipboard | `Ctrl+C` | Copies the current code to the clipboard |
-
-Export recorded trace data as **CSV** is available from the **Debug Mode** panel (Record → Stop Rec → ↓ CSV).
-
-## Keyboard Shortcuts
-
-| Shortcut | Action |
+| Block | Output |
 |---|---|
-| `Ctrl+Enter` | Run simulation |
-| `Ctrl+S` | Export as Python (`.py`) |
-| `Ctrl+C` | Copy code to clipboard |
+| `cross_product_block` | `cross(A, B)` |
+| `dot_product_block` | `dot(A, B)` |
+| `math_pow_block` | `base ** exp` |
+| `math_min_block` / `math_max_block` | `min(a, b)` / `max(a, b)` |
+| `math_clamp_block` | `max(lo, min(hi, val))` |
+| `math_trig_block` | `sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `radians`, `degrees`, `sqrt`, `abs` |
+
+`math_trig_block` generates VPython global-scope calls (`sin(x)` not `math.sin(x)`). The standard Blockly `math_trig` and `math_single` blocks are excluded because they generate `math.sin()` / `math.fabs()` which do not exist inside GlowScript.
+
+### Program structure
+
+Every physics simulation must include a `sim_start_block` hat block at the top of the block stack. All setup code (object creation, constants, initial conditions) goes inside its body. The `forever_loop_block` follows, with `rate_block` as its first child and physics updates inside. `sim_end_block` follows the loop for completion messages.
+
+Every data science analysis must start with a `ds_start_block` hat. Load blocks, transform blocks, display blocks, and communication blocks chain inside it.
 
 ---
 
-## Troubleshooting
+## 6. Data Science Blocks
 
-## 1) Block template looks static
+All DS blocks are defined in `src/utils/blockly/blocklyGenerator.js` and their JS generators in `src/utils/blockly/dsGenerator.js`. Execution is via `src/utils/runner/dsRunner.js`. The data layer is in `src/utils/dataset/dataset.js` (Arquero-backed transforms).
 
-- Ensure loop contains `rate(...)`
-- Ensure velocity and position update blocks are connected inside loop body
-- Check any raw gravity/drag statements are still connected in sequence
+### Load
 
-## 2) Orbit freezes/stalls
+| Block | Action |
+|---|---|
+| `ds_load_builtin_block` | Load a built-in dataset: planets, penguins, weather, pendulum, spring, or freefall |
+| `ds_load_csv_block` | Trigger file picker; load CSV with type inference |
+| `ds_load_trace_block` | Load a saved simulation trace as a dataset |
 
-- Use softened distances (`max(mag(r), minRadius)`) to avoid singularities
-- Avoid immediate collision breaks unless intended
+### Explore
 
-## 3) Caption/title text unreadable
+| Block | Output |
+|---|---|
+| `ds_show_table_block` | Render a scrollable table (first 12 rows visible) |
+| `ds_show_first_n_block` | Table of first N rows |
+| `ds_show_last_n_block` | Table of last N rows |
+| `ds_show_column_block` | Table of a single column |
+| `ds_count_rows_block` | Numeric value: row count |
+| `ds_count_cols_block` | Numeric value: column count |
+| `ds_list_cols_block` | Labelled output listing column names |
+| `ds_count_unique_block` | Numeric value: unique value count in column |
+| `ds_show_one_cell_block` | Scalar value at a given row and column |
+| `ds_identify_type_block` | Text output: inferred type of column |
 
-- Confirm app theme is set correctly
-- Re-run simulation (iframe theme styles are re-applied at run time)
-- Ensure `scene.title` is set via `python_raw_block` at the top of the program
+### Statistics
 
-## 4) Stop button does nothing
+| Block | Output |
+|---|---|
+| `ds_calc_mean_block` | `mean(col)` |
+| `ds_calc_median_block` | `median(col)` |
+| `ds_calc_mode_block` | `mode(col)` — most frequent value |
+| `ds_calc_min_block` | `min(col)` |
+| `ds_calc_max_block` | `max(col)` |
+| `ds_calc_range_block` | `max(col) - min(col)` |
+| `ds_calc_sum_block` | `sum(col)` |
+| `ds_calc_count_block` | Non-missing value count |
+| `ds_calc_stddev_block` | Sample standard deviation (n-1) |
+| `ds_all_stats_block` | Count, mean, median, min, max, range, sum, spread in a grid |
+| `ds_compare_columns_block` | Side-by-side stats for two columns |
 
-- Stop clears runtime iframe; if a simulation appears persistent, press Run once then Stop again to force re-init and teardown
+### Filter and Sort
+
+| Block | Action |
+|---|---|
+| `ds_filter_eq_block` | Keep rows where `col == value` |
+| `ds_filter_gt_block` | Keep rows where `col > value` |
+| `ds_filter_lt_block` | Keep rows where `col < value` |
+| `ds_sort_asc_block` | Sort ascending by column |
+| `ds_sort_desc_block` | Sort descending by column |
+| `ds_remove_missing_block` | Drop rows where column is null or empty |
+| `ds_find_missing_block` | Keep only rows where column is null or empty |
+| `ds_filter_and_block` | Two-condition AND filter |
+| `ds_filter_or_block` | Two-condition OR filter |
+
+### Group and Compare
+
+| Block | Output |
+|---|---|
+| `ds_group_count_block` | Table: count of rows per group |
+| `ds_group_mean_block` | Table: mean of a value column per group |
+
+### Analyse (regression and uncertainty)
+
+| Block | Output |
+|---|---|
+| `ds_linear_regression_block` | Fit `y = m·x + c`; regression card with slope, intercept, R² (the slope is the physical quantity: g, k, −γ) |
+| `ds_multiply_columns_block` | New column = product of two columns (e.g. `T² = period × period`) |
+| `ds_add_column_transform_block` | New column from a transform of another (square, sqrt, ln, t², …) |
+| `ds_print_uncertainty_block` | Column mean ± standard error card |
+| `ds_calc_relative_uncertainty_block` | Relative uncertainty (standard error ÷ mean) as a % |
+
+### Charts (Observable Plot)
+
+| Block | Chart type |
+|---|---|
+| `ds_chart_bar_block` | Bar chart — x col (categorical), y col (numeric) |
+| `ds_chart_line_block` | Line chart — x col, y col |
+| `ds_chart_scatter_block` | Scatter plot — x col, y col |
+| `ds_chart_scatter_fit_block` | Scatter plot with regression line — x col, y col, fit variable |
+| `ds_chart_histogram_block` | Histogram — numeric column |
+| `ds_chart_box_block` | Box plot — value column, optional group column |
+| `ds_save_chart_block` | Save chart as PNG to local project storage |
+
+### Communicate
+
+| Block | Output |
+|---|---|
+| `ds_write_note_block` | Markdown text note |
+| `ds_print_result_block` | Named value display card |
+| `ds_compare_results_block` | Side-by-side named value comparison |
+| `ds_state_conclusion_block` | Styled conclusion callout |
+| `ds_export_table_block` | Download current dataset as CSV |
+| `ds_show_python_block` | Reveal generated Python code |
 
 ---
 
-## Code Structure
+## 7. Export and Import
 
-- `src/App.js` — app orchestration, mode + run state, template selection
-- `src/components/StartMenu.js` — template cards/filtering
-- `src/components/ModeToggle.js` — mode switching and lock states
-- `src/components/Toolbar.js` — run/stop/export/reset/theme/beginner-mode/viewport controls
-- `src/components/BlocklyWorkspace.js` — Blockly inject/toolbox/workspace events; beginner and advanced toolbox XMLs
-- `src/components/GlowCanvas.js` — viewport host element
-- `src/components/DebugMode.js` — full-screen debug overlay (pause/step/breakpoints/execution highlight/recording)
-- `src/components/TraceTable.js` — live variable trace table with sparklines, pin, delta/min/max, search, CSV export
-- `src/components/HelpPage.js` — full-screen contextual help with search, section navigation, Beginner/Advanced mode docs, keyboard shortcuts, block reference
-- `src/components/VariableDialog.js` — variable creation/management dialog; rendered in both main IDE and Debug mode overlays
-- `src/components/layout/IDELayout.js` — top-level layout component orchestrating all hooks and rendering the full IDE shell
-- `src/utils/blocklyGenerator.js` — block definitions + Python generators
-- `src/utils/blockTemplates.js` — block template XML
-- `src/utils/precodedExamples.js` — code template strings
-- `src/utils/glowRunner.js` — iframe runtime load/compile/execute/stop/pause/step/breakpoints
+### Export dropdown (toolbar)
 
----
+| Item | Shortcut | Output |
+|---|---|---|
+| Export as Python (.py) | Ctrl+S | Current VPython code as a .py file |
+| Export Blocks (.xml) | — | Blockly workspace serialised as XML |
+| Code as PDF | — | Formatted code as a PDF document |
+| Blocks as PDF | — | Block canvas screenshot as a PDF |
+| Screenshot Viewport (.png) | — | Current 3D viewport frame as PNG |
+| Copy Code to Clipboard | Ctrl+C | Code copied to system clipboard |
+| Export Project Bundle (.physide.json) | — | Complete project manifest as a single JSON file |
 
-## Screenshots
+### Import
 
-### Start Menu
+The **Open...** button in the toolbar accepts `.physide.json` project bundles. The loaded project replaces the current workspace contents after a confirmation prompt.
 
-![Start Menu (Light Theme)](docs/screenshots/01_start_menu.png)
+### Debug Mode trace export
 
-![Start Menu (Dark Theme)](docs/screenshots/10_start_menu_dark.png)
-
-### Code Editor
-
-![Code Editor (Light Theme)](docs/screenshots/02_code_editor_light.png)
-
-![Code Editor (Dark Theme)](docs/screenshots/03_code_editor_dark.png)
-
-### Block Editor
-
-![Block Editor — Spring-Mass Oscillator (Advanced Mode)](docs/screenshots/11_blocks_editor_springmass.png)
-
-![Beginner Mode with Viewport Hidden](docs/screenshots/14_beginner_mode_viewport_hidden.png)
-
-### Running Simulations
-
-![Code Simulation Running](docs/screenshots/04_code_running.png)
-
-![Blocks Simulation Running](docs/screenshots/12_blocks_running.png)
-
-### Template Views
-
-![Block Template — Read-Only Code Preview](docs/screenshots/05_blocks_code_template_readonly.png)
-
-![Blocks Project — Generated Code Preview](docs/screenshots/13_code_preview_blocks_project.png)
-
-### Debug Mode
-
-![Debug Mode (Paused)](docs/screenshots/06_debug_mode.png)
-
-![Debug Mode (Running)](docs/screenshots/07_debug_running.png)
-
-### Export & Help
-
-![Export Dropdown Menu](docs/screenshots/08_export_dropdown.png)
-
-![Built-in Help Page](docs/screenshots/09_help_page.png)
+In Debug Mode, press **Record**, run or step through the simulation, press **Stop Rec**, then click **CSV** to download a CSV file containing variable, value, delta, min, max, and timestamp columns for every captured trace event.
 
 ---
 
+## 8. Keyboard Shortcuts
+
+| Context | Shortcut | Action |
+|---|---|---|
+| Global | Ctrl+Enter | Run simulation |
+| Global | Ctrl+S | Export as Python (.py) |
+| Global | Ctrl+C | Copy code to clipboard |
+| Block canvas | Ctrl+Z / Ctrl+Y | Undo / Redo |
+| Block canvas | Delete / Backspace | Delete selected block |
+| Block canvas | Ctrl+A | Select all blocks |
+| Code editor | Ctrl+/ | Toggle comment |
+| Code editor | Alt+Up / Alt+Down | Move line up / down |
+| Code editor | Ctrl+F | Find in file |
+| 3D Viewport | Left drag | Orbit camera |
+| 3D Viewport | Right drag | Pan camera |
+| 3D Viewport | Scroll wheel | Zoom in / out |
+| Debug Mode | Space | Pause / Resume |
+| Debug Mode | F10 | Step one trace event |
+| Debug Mode | Esc | Exit Debug Mode |
+
 ---
 
-## Future ideas
+## 9. Troubleshooting
 
-- Custom block for gravitational acceleration between two named bodies
-- Validation warnings when raw blocks contain multiple semicolon statements
-- Template self-check command that validates generated code for loop/update presence
+### Physics simulation does not animate
+
+- Confirm the `forever_loop_block` is connected inside the `sim_start_block` body.
+- Confirm `rate_block` is the first block inside the loop.
+- Confirm position update and velocity update blocks are inside the loop body.
+
+### Orbit freezes or produces singularities
+
+- Add a minimum-distance guard: `max(mag(r), minRadius)` before computing the gravity vector.
+- Check that the planet's initial velocity is close to the circular orbit speed: `sqrt(G * M / r)`.
+
+### Scene title or text is unreadable
+
+- The iframe re-applies theme-aware colours on every Run. Press Stop then Run again.
+- For custom `scene.title` values, set them with a `python_raw_block` at the top of the `sim_start_block` body.
+
+### Stop button does nothing
+
+- If the iframe appears stuck, press Run once to re-initialise the runtime, then press Stop.
+
+### Data Science panel shows no output
+
+- Confirm the `ds_start_block` hat is present in the workspace.
+- Confirm display blocks (`ds_show_table_block`, `ds_chart_bar_block`, etc.) are inside the hat's body.
+- Check the status bar at the bottom for a runner error message.
+
+---
+
+## 10. Code Structure
+
+```
+src/
+  App.js                          Root component and context providers
+  components/
+    StartMenu.js                  Goal cards, project wizard, project list
+    layout/IDELayout.js           Top-level IDE orchestrator (hooks, render branches)
+    BlocklyWorkspace.js           Blockly inject, toolbox events, workspace serialisation
+    CodeEditor.js                 Monaco editor wrapper
+    GlowCanvas.js                 3D viewport iframe host
+    DataPanel.js                  DS output renderer (tables, charts, values, conclusions)
+    DebugMode.js                  Full-screen debug overlay
+    TraceTable.js                 Live variable trace with sparklines, CSV export
+    HelpPage.js                   In-app help with search and section navigation
+    BeginnerGuide.js              Contextual walkthrough guide
+    Icons.js                      SVG icon components
+  hooks/
+    useProject.js                 Project load, save, create
+    useSimulation.js              Run, stop, pause, step, breakpoints
+    useDebug.js                   Debug mode state
+    useTrace.js                   Trace capture and aggregation
+    useExport.js                  Export handlers
+  utils/
+    blockly/
+      blocklyGenerator.js         All block definitions and VPython generators
+      dsGenerator.js              DS block JS generators
+      blockRegistry.js            Block metadata registry (keywords, domain, category)
+      toolbox.js                  Master toolbox XML and goal-filtering logic
+    runner/
+      glowRunner.js               Physics iframe runtime (load, compile, run, stop, pause, step)
+      dsRunner.js                 DS async function sandbox
+    dataset/
+      dataset.js                  Dataset shape, Arquero transforms, stat helpers, CSV parser
+      datasetRegistry.js          In-memory dataset registry (saved traces)
+      builtins/                   planets.json, penguins.json, weather.json, pendulum.json, spring.json, freefall.json
+    charts/
+      chartSpec.js                DS chart renderers (Observable Plot)
+      plotRender.js               Physics chart renderer (phase-A legacy)
+    manifest/
+      schema.js                   Project manifest shape and defaults
+      factory.js                  Manifest creation from wizard spec
+    storage/
+      projectStore.js             localForage project read/write/delete/list
+    precodedExamples.js           Physics code template strings
+    blockTemplates.js             Physics and DS block template XML
+```
+
+---
+
+## Deployment
+
+See [DEPLOY.md](DEPLOY.md) for Vercel and Cloudflare Pages instructions.

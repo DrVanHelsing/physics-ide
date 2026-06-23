@@ -1,6 +1,6 @@
 # Deploying the Physics IDE
 
-This is a static single-page React app (Create React App). There is no backend, no database, no auth — see [docs/product-contract.md](docs/product-contract.md). Anywhere that can serve a `build/` directory with SPA fallback will host it. Two zero-cost paths are documented below.
+This is a static single-page React app (Create React App). There is no backend, no database, no auth. Anywhere that can serve a `build/` directory with SPA fallback will host it. Two zero-cost paths are documented below.
 
 > **Constraint locked in v1:** the app must run fully offline after first load. No HTTP request to a non-CDN origin during normal use. CI smoke-tests this. If you add a remote dependency, update the product contract first.
 
@@ -84,9 +84,9 @@ Open `http://localhost:3000`, complete the project-creation wizard, run a templa
 ## What lives where on disk after a deploy
 
 - `build/index.html` — the SPA shell. The Vercel rewrite (or `_redirects` on Pages) sends every unknown path here so the client router (or React state) handles it.
-- `build/static/js/main.*.js` — the application bundle. Hashed filename so the long-cache header is safe.
-- `build/static/css/main.*.css` — same caching story.
-- `build/static/js/*.chunk.js` — code-split chunks (currently produced by CRA for vendor splitting; Phase C will add deliberate `import()` splits for the DS modules).
+- `build/static/js/main.*.js` — the application bundle (~455 kB gzip). Hashed filename so the long-cache header is safe.
+- `build/static/css/main.*.css` — same caching story (~13 kB gzip).
+- `build/static/js/*.chunk.js` — code-split chunks produced by CRA for vendor splitting.
 
 ## What does NOT belong here
 
