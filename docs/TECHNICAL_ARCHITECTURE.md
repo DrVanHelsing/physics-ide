@@ -1,7 +1,7 @@
 # Physics IDE — Technical Architecture & Institutional Integration Guide
 
-> **Version:** 1.0 · **Date:** March 2026  
-> **Project:** Physics IDE — Browser-Based 3D Physics Simulation Environment  
+> **Version:** 1.1 · **Date:** June 2026
+> **Project:** Physics IDE — Browser-Based 3D Physics & Data Science Environment
 > **Institution target:** University of the Western Cape (UWC) — iKamva (Sakai LMS)
 
 ---
@@ -25,27 +25,40 @@
 
 ## 1. Project Overview
 
-Physics IDE is a **browser-based, zero-install 3D physics simulation environment** designed for undergraduate physics and engineering education. It allows students to construct, run, and debug physically accurate 3D simulations entirely in the browser — no local Python or VPython installation required.
+Physics IDE is a **browser-based, zero-install simulation and data science environment** designed for undergraduate physics and engineering education. Students construct, run, and debug physically accurate 3D simulations and exploratory data analyses entirely in the browser — no local Python installation required.
 
 ### 1.1 Core Capabilities
 
 | Capability | Description |
 |---|---|
-| **Block-based editor** | Drag-and-drop visual programming via Google Blockly v11. Generates VPython code automatically. |
+| **Goal-filtered toolbox** | Each project declares a goal (Physics, Data Science, or Hybrid). The Blockly toolbox displays only the blocks relevant to that goal — 48 DS blocks for data science, 60+ physics blocks for simulation. |
+| **Block-based editor** | Drag-and-drop visual programming via Google Blockly v11. Generates VPython or Python data science code automatically. |
 | **Code editor** | Monaco Editor (VS Code engine) for direct VPython/Python authoring with syntax highlighting. |
 | **3D simulation engine** | GlowScript/VPython 3.2 running inside a sandboxed iframe — full WebGL 3D rendering. |
+| **Data Science pipeline** | Arquero-powered dataset engine with six built-in datasets (Planets, Penguins, Weather, Pendulum, Spring, Free fall), CSV import, statistical operations, linear regression and uncertainty blocks, and accessible Observable Plot charts. |
+| **DataPanel** | Goal-aware output panel: shows tables, statistics, charts, and conclusions for DS goals; shares the canvas pane in Hybrid mode. |
 | **Debug mode** | Step-through execution, breakpoints, execution highlight, pause/resume, variable trace recording. |
-| **Live trace table** | Real-time variable monitoring with sparklines, delta, min/max, rolling 60-point history, CSV export. |
-| **Export suite** | Export to `.py`, `.xml` (Blockly workspace), PDF (blocks + code), screenshot, clipboard copy. |
-| **Precoded examples** | Three complete physics simulations: Projectile Motion, Spring-Mass Oscillator, Electric Field. |
-| **Auto-save** | Workspace persistently auto-saved to `localStorage` every 2 seconds. |
+| **Live trace table** | Real-time variable monitoring with sparklines, delta, min/max, rolling 60-point history, pin, alert thresholds, CSV export. |
+| **Export suite** | Export to `.py`, `.xml` (Blockly workspace), `.physide.json` (full project bundle), PDF (blocks + code), screenshot, clipboard copy. |
+| **Multi-project management** | Named projects stored in `localForage`; project list on Start Menu; wizard for creating new projects with goal selection and template choice. |
+| **Auto-save** | Workspace auto-saved to `localForage` on every change. |
 | **Theme** | VS Code-inspired dark/light theme toggle with `localStorage` persistence. |
 
-### 1.2 Intended Users
+### 1.2 Goals (Project Types)
 
-- **Students**: Build simulations from blocks without writing code; transition to code mode as confidence grows.
-- **Educators**: Assign template simulations; students modify parameters and observe physical outcomes.
-- **Junior developers**: Extend the block library (VPython blocks defined in `blocklyGenerator.js`).
+Each project has a goal that controls the toolbox, the right-pane content, and which runner is invoked:
+
+| Goal | Toolbox | Right pane | Runner |
+|---|---|---|---|
+| **Physics** | 60+ VPython simulation blocks | 3D GlowScript viewport | `glowRunner.js` |
+| **Data Science** | 48 DS analysis blocks | DataPanel (table, stats, chart) | `dsRunner.js` |
+| **Hybrid** | All blocks | Split: GlowScript (55%) + DataPanel (45%) | Both runners |
+
+### 1.3 Intended Users
+
+- **Students**: Build simulations and data analyses from blocks without writing code; transition to code mode as confidence grows.
+- **Educators**: Assign template projects; students modify parameters and observe physical or statistical outcomes.
+- **Junior developers**: Extend the block library (`blocklyGenerator.js`, `dsGenerator.js`).
 
 ---
 
@@ -56,25 +69,25 @@ Physics IDE is a **browser-based, zero-install 3D physics simulation environment
 Physics IDE uses a **React Context + Custom Hooks** layered architecture. State is owned exclusively by context providers; UI components and hooks consume it. There is no Redux, no external state library, and no backend.
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                        App.js                           │
-│  ThemeProvider > SimulationProvider > DebugProvider >   │
-│  TraceProvider > ErrorBoundary > IDELayout              │
-└─────────────────────────────────────────────────────────┘
-                           │
-                    IDELayout.js
-                    (orchestrator)
-          ┌────────────────┼────────────────┐
-     useSimulation    useDebug          useExport
-     useTrace         useSplitPane      useLocalStorage
-          │
-  ┌───────┼───────────────────────┐
-  │       │                       │
-Toolbar  BlocklyWorkspace      GlowCanvas
-          │                    (iframe host)
-       CodeEditor             TraceTable
-          │
-       DebugMode
+┌──────────────────────────────────────────────────────────────────┐
+│                          App.js                                  │
+│  ThemeProvider > SimulationProvider > ProjectProvider >          │
+│  DebugProvider > TraceProvider > ErrorBoundary > IDELayout       │
+└──────────────────────────────────────────────────────────────────┘
+                             │
+                      IDELayout.js
+                      (orchestrator)
+          ┌──────────────────┼─────────────────────┐
+     useSimulation       useDebug              useExport
+     useProject          useTrace              useSplitPane
+     useDataset              │
+          │           ┌──────┴───────────────────────┐
+          │           │                              │
+       Toolbar   BlocklyWorkspace               GlowCanvas
+                      │                        TraceTable
+                  CodeEditor                   DataPanel
+                      │                        ChartOverlay
+                  DebugMode
 ```
 
 ### 2.2 Context Layer (State Management)
@@ -82,7 +95,8 @@ Toolbar  BlocklyWorkspace      GlowCanvas
 | Context | File | Purpose |
 |---|---|---|
 | `ThemeContext` | `src/contexts/ThemeContext.js` | VS Code theme toggle, `localStorage` persistence, `data-theme` on `<html>` |
-| `SimulationContext` | `src/contexts/SimulationContext.js` | Core IDE state: mode, running status, editor content, auto-save, zoom, viewport, beginnerMode |
+| `SimulationContext` | `src/contexts/SimulationContext.js` | Core IDE state: mode, running status, editor content, auto-save, zoom, viewport |
+| `ProjectContext` | `src/contexts/ProjectContext.js` | Multi-project list, active project, goal, create/open/delete/rename operations |
 | `DebugContext` | `src/contexts/DebugContext.js` | Debug mode flag, breakpoints (Set + ref), `executingBlockId` |
 | `TraceContext` | `src/contexts/TraceContext.js` | traceData Map, recording state, rolling 60-point history, delta/min/max per variable |
 
@@ -90,10 +104,12 @@ Toolbar  BlocklyWorkspace      GlowCanvas
 
 | Hook | File | Responsibility |
 |---|---|---|
-| `useSimulation` | `src/hooks/useSimulation.js` | Run/stop/reset, mode change, zoom, workspace callbacks, start-menu selection, import, clear |
+| `useSimulation` | `src/hooks/useSimulation.js` | Run/stop/reset, mode change, zoom, workspace callbacks, import, clear |
+| `useProject` | `src/hooks/useProject.js` | Project CRUD, goal switching, localForage persistence, project manifest migration |
+| `useDataset` | `src/hooks/useDataset.js` | DS pipeline: dataset slot management, block execution via `dsRunner`, chart output |
 | `useDebug` | `src/hooks/useDebug.js` | Enter/exit debug mode, pause/resume/step, breakpoint management |
 | `useTrace` | `src/hooks/useTrace.js` | Wires `window.__physide_trace_cb`, debounced postMessage listener, recording controls |
-| `useExport` | `src/hooks/useExport.js` | Export handlers: `.py`, `.xml`, PDF (blocks + code), screenshot, clipboard copy |
+| `useExport` | `src/hooks/useExport.js` | Export handlers: `.py`, `.xml`, `.physide.json`, PDF (blocks + code), screenshot, clipboard |
 | `useSplitPane` | `src/hooks/useSplitPane.js` | Drag-to-resize divider (15–85% clamp), Blockly resize on layout change |
 | `useLocalStorage` | `src/hooks/useLocalStorage.js` | Generic `localStorage`-backed `useState` |
 
@@ -103,14 +119,18 @@ Toolbar  BlocklyWorkspace      GlowCanvas
 |---|---|---|
 | `IDELayout` | `src/components/layout/IDELayout.js` | Main render orchestrator — calls all hooks, renders start menu / debug / IDE shell |
 | `Toolbar` | `src/components/Toolbar.js` | Top navigation bar with run/stop/export/debug/theme controls |
-| `BlocklyWorkspace` | `src/components/BlocklyWorkspace.js` | Blockly editor host, toolbox XML, block search bar, dark/light theme injection |
+| `BlocklyWorkspace` | `src/components/BlocklyWorkspace.js` | Blockly editor host, goal-filtered toolbox XML, block search bar, dark/light theme injection |
 | `CodeEditor` | `src/components/CodeEditor.js` | Monaco Editor integration with VPython syntax |
 | `GlowCanvas` | `src/components/GlowCanvas.js` | Sandboxed `<iframe>` viewport for GlowScript/VPython runtime |
+| `DataPanel` | `src/components/DataPanel.js` | DS output panel: tables, statistics, charts, conclusions, saved traces, Python code view |
+| `ChartOverlay` | `src/components/ChartOverlay.js` | Full-screen chart modal with axis controls and SVG/PNG export |
 | `DebugMode` | `src/components/DebugMode.js` | Full-screen debug overlay: pause/step/breakpoints/execute-highlight/recording |
-| `TraceTable` | `src/components/TraceTable.js` | Live variable trace table — sparklines, pin, delta, CSV export, search |
-| `StartMenu` | `src/components/StartMenu.js` | Template card grid with filtering (blocks / code / all) |
-| `ModeToggle` | `src/components/ModeToggle.js` | Blocks ↔ Code mode switch with confirmation when workspace has content |
-| `HelpPage` | `src/components/HelpPage.js` | Full-screen searchable documentation page |
+| `TraceTable` | `src/components/TraceTable.js` | Live variable trace table — sparklines, pin, alert thresholds, delta, CSV export, search |
+| `TracePromoteDialog` | `src/components/TracePromoteDialog.js` | Dialog to promote a recorded trace into a named dataset for DS analysis |
+| `StartMenu` | `src/components/StartMenu.js` | Project list, goal-card grid, new-project wizard, template selection |
+| `ModeToggle` | `src/components/ModeToggle.js` | Blocks ↔ Code mode switch |
+| `HelpPage` | `src/components/HelpPage.js` | Full-screen searchable documentation (19 sections) |
+| `BeginnerGuide` | `src/components/BeginnerGuide.js` | Contextual step-by-step guide strip shown below the toolbar |
 | `ErrorBoundary` | `src/components/common/ErrorBoundary.js` | React error boundary to gracefully catch render errors |
 | `VariableDialog` | `src/components/VariableDialog.js` | Custom modal replacing browser `prompt`/`alert`/`confirm` |
 
@@ -118,26 +138,48 @@ Toolbar  BlocklyWorkspace      GlowCanvas
 
 | Module | File | Purpose |
 |---|---|---|
-| Block definitions | `src/utils/blockly/blocklyGenerator.js` | All custom VPython block definitions + Python code generators (~1,600 LOC) |
+| Block definitions (physics) | `src/utils/blockly/blocklyGenerator.js` | All VPython block definitions + Python code generators |
+| Block definitions (DS) | `src/utils/blockly/dsGenerator.js` | 48 data science block definitions + Python generators |
+| Block registry | `src/utils/blockly/blockRegistry.js` | Flat catalogue used by block search and toolbox validation |
+| Toolbox builder | `src/utils/blockly/toolbox.js` | `buildToolboxXml(goal)` — returns goal-filtered Blockly toolbox XML |
 | Trace registry | `src/utils/blockly/traceRegistry.js` | Mutable array populated during code generation; consumed by glowRunner |
 | GlowScript runner | `src/utils/runner/glowRunner.js` | iframe runtime: run/stop/pause/resume/step/setBreakpoints |
+| DS runner | `src/utils/runner/dsRunner.js` | Executes data science blocks via Arquero + Observable Plot in a sandboxed context |
 | Code instrumentor | `src/utils/runner/instrumentor.js` | Transforms raw Python → debug-instrumented Python (entry points for each line) |
+| Dataset engine | `src/utils/dataset/dataset.js` | Arquero-based dataset operations: load, filter, group, summarise, join |
+| Dataset registry | `src/utils/dataset/datasetRegistry.js` | Maps dataset names to built-in JSON files or user-uploaded CSVs |
+| Built-in datasets | `src/utils/dataset/builtins/` | Planets, Penguins, Weather, Pendulum, Spring, Free fall JSON datasets (the last three are realistic first-year lab measurements) |
+| Chart spec | `src/utils/charts/chartSpec.js` | Translates DS block chart outputs into Observable Plot specs |
+| Chart renderer | `src/utils/charts/plotRender.js` | Renders Observable Plot specs to SVG elements |
+| Project manifest | `src/utils/manifest/schema.js` | Hand-written shape guards for the `.physide.json` project bundle (v2). Includes the optional `hybridPairing: { simId, analysisId }` field that couples a hybrid project's simulation with its analysis |
+| Manifest factory | `src/utils/manifest/factory.js` | Creates and validates project manifest objects |
+| Manifest migration | `src/utils/manifest/migrate.js` | Migrates older project formats to current schema version |
+| Project store | `src/utils/storage/projectStore.js` | `localForage`-backed CRUD for multi-project persistence |
 | PDF export | `src/utils/export/pdfExport.js` | Block diagram and code PDF generation via jsPDF + html2canvas |
-| File export | `src/utils/export/exportUtils.js` | Save `.py` and `.xml` files via browser download |
+| File export | `src/utils/export/exportUtils.js` | Save `.py`, `.xml`, `.physide.json` files via browser download |
 | Dialog service | `src/utils/export/dialogService.js` | `registerDialogService`, `prompt`, `alert`, `confirm`, `promptFileName` |
 | Syntax highlighter | `src/utils/export/syntaxHighlighter.js` | Token-based Python syntax highlighter for PDF export |
-| Storage | `src/utils/storage.js` | Wrapper around `localStorage` with JSON serialization |
-| Block templates | `src/utils/blockTemplates.js` | Pre-built Blockly workspace XML for starter templates |
-| Precoded examples | `src/utils/precodedExamples.js` | Three complete VPython simulation code strings |
+| Storage wrapper | `src/utils/storage.js` | Thin wrapper around `localStorage` with JSON serialization |
+| Block templates | `src/utils/blockTemplates.js` | Pre-built Blockly workspace XML for all starter templates |
+| Precoded examples | `src/utils/precodedExamples.js` | Complete VPython simulation code strings for code-mode templates |
 | Constants | `src/constants/index.js` | App-wide configuration constants |
 
-### 2.6 How the Simulation Executes
+### 2.6 How the Simulation Executes (Physics Goal)
 
 1. User presses **Run**. `useSimulation` calls `runPython(code, traceRegistry)`.
 2. `glowRunner.js` injects the VPython code into a sandboxed `<iframe>` pointing to `glowscript.org`.
 3. GlowScript compiles and executes the VPython in the iframe using WebGL.
 4. If debug mode is active, `instrumentor.js` transforms the code first — each line gets a `__physide_trace_cb(lineNo, {vars})` call injected, and the runner intercepts these via `window.__physide_trace_cb`.
 5. The trace callback either records variable data into `TraceContext` or pauses execution at a breakpoint.
+
+### 2.7 How the Data Science Pipeline Executes
+
+1. User places DS blocks on the canvas. `dsGenerator.js` generates a Python-like script describing the pipeline.
+2. On run, `dsRunner.js` executes the script using Arquero for data transformations and Observable Plot for visualisation.
+3. Results (tables, statistics, chart SVG elements, conclusion text) are returned to `useDataset`.
+4. `DataPanel` renders the result objects into the right pane.
+5. A recorded trace can be promoted to a dataset via `TracePromoteDialog`, bridging the physics simulation and data science goals.
+6. In a Hybrid project with a `hybridPairing` (set from a `HYBRID_TOPICS` entry in `blockTemplates.js`), the post-promote chart surfaces an **"Analyse this run →"** action. It loads the paired analysis template into the workspace — remounting the Blockly workspace via a reload key — with the `paste-trace-label-here` placeholder replaced by the promoted run label, closing the simulate → analyse loop.
 
 ---
 
@@ -149,6 +191,9 @@ Toolbar  BlocklyWorkspace      GlowCanvas
 |---|---|---|---|
 | React | 18.3.1 | npm | UI framework |
 | React DOM | 18.3.1 | npm | DOM renderer |
+| Arquero | ~5.x | npm | Columnar data transformation engine (DS pipeline) |
+| Observable Plot | ~0.6.x | npm | Grammar-of-graphics chart library (DS charts) |
+| localForage | ~1.10.x | npm | Async `localStorage` with IndexedDB fallback (project storage) |
 | jsPDF | 4.1.0 | npm | PDF generation |
 | html2canvas | 1.4.1 | npm | Screenshot / canvas capture for PDF |
 | Google Blockly | v11 | CDN (unpkg) | Visual block programming editor |
@@ -178,7 +223,7 @@ The three CDN-loaded libraries (Blockly, Monaco, GlowScript) are fetched at **br
 | Browser | Chrome 90+, Firefox 88+, Edge 90+, Safari 15+ |
 | WebGL | Required (for VPython 3D rendering) |
 | JavaScript | ES2020+ |
-| `localStorage` | Required (auto-save + theme preference) |
+| `localStorage` / IndexedDB | Required (auto-save + theme preference + project storage) |
 | Internet | Required at runtime (CDN dependencies) |
 
 ---
@@ -187,26 +232,29 @@ The three CDN-loaded libraries (Blockly, Monaco, GlowScript) are fetched at **br
 
 ```
 src/
-├── App.js                              Slim Context provider shell (~30 LOC)
+├── App.js                              Context provider shell (~36 LOC)
 ├── index.js                            React root entry point
-├── styles.css                          Global CSS (~800 LOC)
+├── styles.css                          Global CSS (~4,100 LOC — single stylesheet)
 │
 ├── constants/
-│   └── index.js                        App-wide constants (zoom, split, trace, autosave)
+│   └── index.js                        App-wide constants (zoom, split, trace, autosave, storage keys)
 │
 ├── contexts/
 │   ├── index.js                        Barrel re-export
 │   ├── ThemeContext.js                 VS Code dark/light theme
 │   ├── SimulationContext.js            Core IDE state (mode, run, editor, auto-save)
+│   ├── ProjectContext.js               Multi-project list, active project, goal
 │   ├── DebugContext.js                 Debug mode, breakpoints, executing block ID
 │   └── TraceContext.js                 Variable trace data, recording, rolling history
 │
 ├── hooks/
 │   ├── useLocalStorage.js              Generic localStorage-backed useState
-│   ├── useTrace.js                      postMessage/trace callback wiring
+│   ├── useProject.js                   Project CRUD, goal switching, localForage persistence
+│   ├── useDataset.js                   DS pipeline: dataset management, dsRunner, chart output
+│   ├── useTrace.js                     postMessage / trace callback wiring
 │   ├── useDebug.js                     Debug enter/exit/step/breakpoints
 │   ├── useSimulation.js                Run/stop/reset/mode/import/zoom
-│   ├── useExport.js                    Export to py/xml/PDF/screenshot
+│   ├── useExport.js                    Export to py/xml/physide.json/PDF/screenshot
 │   └── useSplitPane.js                 Drag-to-resize split panel
 │
 ├── components/
@@ -214,34 +262,74 @@ src/
 │   │   └── IDELayout.js                Main render orchestrator
 │   ├── common/
 │   │   └── ErrorBoundary.js            React error boundary
-│   ├── Toolbar.js                       Top toolbar (run/stop/export/debug/help)
-│   ├── BlocklyWorkspace.js             Blockly editor + search bar + toolbox
+│   ├── Toolbar.js                      Top toolbar (run/stop/export/debug/help)
+│   ├── BlocklyWorkspace.js             Blockly editor + goal-filtered toolbox + search bar
 │   ├── CodeEditor.js                   Monaco code editor
 │   ├── GlowCanvas.js                   Sandboxed VPython iframe viewport
+│   ├── DataPanel.js                    DS output panel (table, stats, chart, conclusions)
+│   ├── ChartOverlay.js                 Full-screen chart modal with export
 │   ├── DebugMode.js                    Full-screen debug overlay
 │   ├── TraceTable.js                   Live variable trace table
-│   ├── StartMenu.js                    Template/example selection screen
+│   ├── TracePromoteDialog.js           Promote trace recording to a named dataset
+│   ├── StartMenu.js                    Project list, goal cards, new-project wizard
 │   ├── ModeToggle.js                   Blocks ↔ Code mode switch
-│   ├── HelpPage.js                     Full-screen searchable documentation
+│   ├── HelpPage.js                     Full-screen searchable documentation (19 sections)
+│   ├── BeginnerGuide.js                Contextual guide strip shown below toolbar
 │   ├── Icons.js                        SVG icon components
 │   └── VariableDialog.js               Custom modal (prompt/alert/confirm)
 │
 └── utils/
     ├── storage.js                      localStorage JSON wrapper
-    ├── blockTemplates.js               Blockly workspace XML templates
-    ├── precodedExamples.js             Three complete VPython examples
+    ├── blockTemplates.js               Pre-built Blockly workspace XML templates
+    ├── precodedExamples.js             Complete VPython example code strings
+    ├── glowRunner.js                   (legacy shim — see runner/)
+    ├── pdfExport.js                    (legacy shim — see export/)
+    ├── exportUtils.js                  (legacy shim — see export/)
     ├── blockly/
     │   ├── index.js                    Barrel
-    │   ├── blocklyGenerator.js         Block definitions + Python generators (~1,600 LOC)
-    │   └── traceRegistry.js            Mutable trace registry
+    │   ├── blocklyGenerator.js         Physics block definitions + Python generators
+    │   ├── dsGenerator.js              Data science block definitions + Python generators
+    │   ├── blockRegistry.js            Flat block catalogue for search and validation
+    │   ├── toolbox.js                  buildToolboxXml(goal) — goal-filtered toolbox XML
+    │   ├── traceRegistry.js            Mutable trace registry
+    │   └── __tests__/
+    │       └── blockRegistry.test.js   Block registry unit tests
     ├── runner/
     │   ├── index.js                    Barrel
-    │   ├── glowRunner.js               iframe runtime management
+    │   ├── glowRunner.js               iframe runtime (physics simulation)
+    │   ├── dsRunner.js                 DS pipeline runner (Arquero + Observable Plot)
     │   └── instrumentor.js             Python debug instrumentation
+    ├── dataset/
+    │   ├── dataset.js                  Arquero-based dataset operations
+    │   ├── datasetRegistry.js          Maps dataset names to sources
+    │   ├── builtins/
+    │   │   ├── penguins.json           Palmer Penguins dataset
+    │   │   ├── planets.json            Solar system dataset
+    │   │   ├── weather.json            Weather comparison dataset
+    │   │   ├── pendulum.json           Pendulum lab: length + mass studies, timed trials
+    │   │   ├── spring.json             Hooke's law: mass vs extension/force
+    │   │   └── freefall.json           Free fall: velocity & distance vs time
+    │   └── __tests__/
+    │       └── dataset.test.js         Dataset unit tests
+    ├── charts/
+    │   ├── chartSpec.js                DS block output → Observable Plot spec
+    │   └── plotRender.js               Observable Plot spec → SVG element
+    ├── manifest/
+    │   ├── schema.js                   Shape guards for .physide.json (incl. hybridPairing)
+    │   ├── factory.js                  Create and validate project manifests
+    │   ├── migrate.js                  Migrate older project formats
+    │   └── __tests__/
+    │       ├── schema.test.js          Schema validation tests
+    │       ├── factory.test.js         Factory unit tests
+    │       └── migrate.test.js         Migration unit tests
+    ├── storage/
+    │   ├── projectStore.js             localForage-backed multi-project CRUD
+    │   └── __tests__/
+    │       └── projectStore.test.js    Project store unit tests
     └── export/
         ├── index.js                    Barrel
         ├── dialogService.js            Custom dialog registration
-        ├── exportUtils.js              .py / .xml file save
+        ├── exportUtils.js              .py / .xml / .physide.json file save
         ├── pdfExport.js                jsPDF + html2canvas PDF generation
         └── syntaxHighlighter.js        Token-based Python syntax highlighter
 ```
@@ -253,7 +341,7 @@ src/
 ### 5.1 Local Development
 
 ```bash
-# Clone / navigate to project directory
+# Navigate to project directory
 cd "Physics IDE"
 
 # Install npm dependencies
@@ -278,11 +366,13 @@ npx vercel --prod
 Vercel auto-detects Create React App projects. The build output (`build/`) is served as a static site. A custom domain can be assigned from the Vercel dashboard.
 
 #### Current Build Stats (production)
+
 | Metric | Value |
 |---|---|
-| Main JS bundle (gzip) | ~249 kB |
-| CSS bundle (gzip) | ~9 kB |
-| Build time | ~60 seconds |
+| Main JS bundle (gzip) | ~455 kB |
+| CSS bundle (gzip) | ~13 kB |
+| Largest chunk (gzip) | ~46 kB |
+| Build time | ~90 seconds |
 | CDN-loaded libraries | Blockly v11, Monaco 0.45, GlowScript 3.2 |
 
 ### 5.3 vercel.json — Required Configuration
@@ -317,7 +407,7 @@ For Sakai/iframe embedding and correct security headers, create a `vercel.json` 
 }
 ```
 
-> **Note:** `X-Frame-Options: ALLOWALL` is required for Sakai to embed the IDE in an iframe. If a more restrictive policy is needed, replace with `ALLOW-FROM https://ikamva.uwc.ac.za` (though `ALLOW-FROM` is deprecated; use a `frame-ancestors` CSP directive instead for modern browser support).
+> **Note:** `X-Frame-Options: ALLOWALL` is required for Sakai to embed the IDE in an iframe. For a more restrictive policy, replace with a `Content-Security-Policy: frame-ancestors https://ikamva.uwc.ac.za` directive (preferred over the deprecated `ALLOW-FROM` syntax).
 
 ---
 
@@ -330,7 +420,8 @@ Physics IDE is a **student-facing educational tool** with no user accounts, no s
 | Surface | Risk | Mitigation |
 |---|---|---|
 | VPython code execution | Students run arbitrary Python in the iframe | Sandboxed iframe (`sandbox` attribute); GlowScript runs in its own origin |
-| localStorage | Simulation workspace saved locally | No sensitive data stored; data is purely educational content |
+| DS runner execution | DS block pipeline runs Arquero/Plot operations | Isolated to browser JavaScript; no eval of user strings; all operations are functional transformations |
+| localForage | Simulation workspace and project data saved locally | No sensitive data stored; data is purely educational content |
 | CDN dependencies | Supply-chain risk (CDN compromise) | Version-pinned CDN URLs; Subresource Integrity (SRI) hashes can be added |
 | Iframe embedding in Sakai | Clickjacking potential | `frame-ancestors` CSP header restricts who can embed |
 | Cross-origin postMessage | Trace data from iframe | Origin validation in trace message listener |
@@ -359,14 +450,14 @@ SRI hashes can be generated at [srihash.org](https://www.srihash.org/).
 ### 6.4 HTTPS
 
 Vercel enforces HTTPS automatically on all deployments. HTTPS is **mandatory** for:
-- Secure `localStorage` in some browser configurations
+- Secure `localStorage` / IndexedDB in some browser configurations
 - GlowScript CDN (served over HTTPS)
 - Sakai LTI 1.3 launch requests (must be HTTPS)
 
 ### 6.5 No Authentication & No Server
 
 Physics IDE has **no login system**. This is intentional:
-- Student work is saved only to their own browser `localStorage`, not a server.
+- Student work is saved only to their own browser storage (`localForage`), not a server.
 - No student data leaves the browser (except the GlowScript iframe, which only receives VPython code).
 - If student work persistence across sessions/devices is needed, a backend or Sakai-integrated save mechanism must be added (see §9).
 
@@ -381,17 +472,20 @@ Physics IDE has **no login system**. This is intentional:
 | React 18 | High | Meta-backed; major releases have long support windows. React 19 is backwards compatible. |
 | Google Blockly v11 | High | Google-maintained, active development, used in Scratch-style tools worldwide. |
 | Monaco Editor | High | Microsoft-backed (VS Code engine), actively maintained. |
+| Arquero | High | Actively maintained columnar data library; used in Observable HQ tools. |
+| Observable Plot | High | Actively maintained by Observable; semantic versioning, stable API. |
+| localForage | High | Widely adopted, stable API, no significant churn. |
 | GlowScript / VPython 3.2 | Medium | Maintained by the VPython open-source community; not a commercial entity. Pinned at 3.2. |
 | jsPDF | Medium–High | Active open-source project, widely used. |
 | Create React App | Low–Medium | CRA is in maintenance mode (no new features). Migration to Vite is recommended long-term. |
-| Vercel (hosting) | High | Commercial hosting platform with a generous free tier; alternative: Netlify, GitHub Pages. |
+| Vercel (hosting) | High | Commercial hosting platform with a generous free tier; alternative: Netlify, GitHub Pages, Cloudflare Pages. |
 
 ### 7.2 Maintenance Burden
 
 - **No backend** = no server maintenance, no database to manage, no runtime infrastructure costs.
 - **CDN-hosted libraries** = no need to bundle Blockly or Monaco into the npm build (keeps bundle size down), but introduces a runtime CDN dependency.
-- **CSS architecture** = all styles in a single `styles.css` (~800 LOC). This works for the current scale but should be migrated to CSS Modules or Tailwind as the component count grows.
-- **Block library extensibility** = adding new VPython blocks requires editing `blocklyGenerator.js`, which is self-contained and well-commented.
+- **CSS architecture** = all styles in a single `styles.css` (~4,100 LOC). This works for the current scale but should be migrated to CSS Modules or Tailwind as the component count grows.
+- **Block library extensibility** = adding new VPython blocks requires editing `blocklyGenerator.js`; new DS blocks require editing `dsGenerator.js` and `blockRegistry.js`. Both are self-contained.
 
 ### 7.3 Recommended Migration Path (Future)
 
@@ -399,7 +493,7 @@ Physics IDE has **no login system**. This is intentional:
 |---|---|---|
 | Create React App | Vite + React | When CRA falls further behind; Vite is ~10× faster for development |
 | CDN script tags | Self-hosted or npm bundles | If CDN reliability is a concern for institutional deployment |
-| Single `styles.css` | CSS Modules per component | When number of components > ~25 |
+| Single `styles.css` | CSS Modules per component | When number of components exceeds ~30 |
 | No auth / localStorage only | Backend (e.g., Supabase or Sakai REST API) for persistent save | If cross-device student work persistence is required |
 
 ### 7.4 Cost Model
@@ -459,7 +553,7 @@ For richer integration (grade passback, user identification, institutional SSO),
 
 Since Physics IDE currently has **no backend**, LTI 1.3 would require a lightweight server (e.g., a Vercel serverless function or Node.js service) to handle the OIDC launch flow.
 
-> **Recommended approach for 2025/2026:** Start with Web Content Tool embedding (zero development effort). Plan LTI 1.3 for a subsequent semester if grade integration or user tracking is needed.
+> **Recommended approach for 2026:** Start with Web Content Tool embedding (zero development effort). Plan LTI 1.3 for a subsequent semester if grade integration or user tracking is needed.
 
 ### 8.4 Firewall & Network Considerations
 
@@ -475,7 +569,7 @@ Institutional networks sometimes block external CDN domains. The following domai
 
 ### 8.5 Sakai / iKamva Version Alignment
 
-Sakai's active community releases major versions annually. Sakai 25 (2025) introduced LTI 1.3 Advantage improvements. iKamva's current version is not publicly documented, but UWC typically runs a version supported by the Sakai Foundation. LTI 1.1 is supported in all Sakai versions from 2.9 onwards; LTI 1.3 from Sakai 20 onwards.
+Sakai's active community releases major versions annually. iKamva's current version is not publicly documented, but UWC typically runs a version supported by the Sakai Foundation. LTI 1.1 is supported in all Sakai versions from 2.9 onwards; LTI 1.3 from Sakai 20 onwards.
 
 ---
 
@@ -497,7 +591,7 @@ These changes are **already implemented or trivial** to implement:
 | Custom domain (e.g., `physics.uwc.ac.za`) | Low (Vercel dashboard) | Branded, stable URL for Sakai link |
 | SRI hashes on CDN scripts | Low (1–2 hours) | Hardens supply-chain security |
 | Offline-first / self-hosted CDN assets | Medium (1–3 days) | Eliminates CDN dependency, works on restricted networks |
-| `localStorage` → exportable session files | Low | Students can download/upload their workspace manually |
+| `.physide.json` export → import for submission | Low (already implemented) | Students can download and submit project files for assessment |
 
 ### 9.3 Medium-Term (LTI 1.3 Integration)
 
@@ -516,18 +610,18 @@ UWC's institutional policies and Sakai's own commitment require WCAG 2.1 AA acce
 |---|---|---|
 | Keyboard navigation | Partial | Toolbar buttons are keyboard-accessible; Blockly drag interactions are mouse-only |
 | Screen reader support | Minimal | ARIA labels added to toolbar; DebugMode and TraceTable need `aria-live` regions |
-| Color contrast | Pass (dark mode); needs audit (light mode) | Run WCAG contrast checker on light theme |
+| Color contrast | Pass (dark mode); audited and improved (light mode) | Light mode now uses proper design tokens; further WCAG contrast testing recommended |
 | Mobile / touch | Not optimised | Blockly and split-pane work best on desktop; mobile layout needs a dedicated view |
 
 ---
 
 ## 10. Data Privacy & POPIA Compliance
 
-Physics IDE stores **no personal data** on any server. All user-generated content (simulation code, workspace XML) is stored exclusively in the student's own browser `localStorage`. As such:
+Physics IDE stores **no personal data** on any server. All user-generated content (simulation code, workspace XML, project data) is stored exclusively in the student's own browser storage (`localForage`/IndexedDB). As such:
 
 - **POPIA (South Africa's Protection of Personal Information Act)** compliance is inherently met for the current version — no personal information is collected, processed, or stored by the application.
 - If LTI integration is added and user IDs are handled, a **POPIA impact assessment** and **data processing agreement** with the LTI backend provider would be required.
-- UWC's existing Sakai data processing agreements cover student interaction data within iKamva; Physics IDE data (the student's simulation code) does not flow into Sakai unless grade passback is implemented.
+- UWC's existing Sakai data processing agreements cover student interaction data within iKamva; Physics IDE data (the student's simulation code and analysis) does not flow into Sakai unless grade passback is implemented.
 
 ---
 
@@ -537,13 +631,18 @@ Physics IDE stores **no personal data** on any server. All user-generated conten
 
 The block editor (Blockly) is specifically designed for learners who are not comfortable with syntax — it eliminates syntax errors entirely. The code editor (Monaco) provides a direct Python authoring path for more advanced students. This dual-mode design aligns with **Universal Design for Learning (UDL)** principles:
 
-- **Multiple means of representation**: 3D visual simulation + code + block diagram.
+- **Multiple means of representation**: 3D visual simulation + data charts + code + block diagram.
 - **Multiple means of action and expression**: drag blocks OR type code OR use a precoded example.
-- **Multiple means of engagement**: difficulty levels (beginner mode reduces block count), debug mode for deep exploration.
+- **Multiple means of engagement**: goal-filtered toolbox reduces cognitive load for each use case.
 
-### 11.2 Beginner Mode
+### 11.2 Goal-Filtered Toolbox
 
-Blockly **Beginner Mode** reduces the toolbox to essential physics blocks only (Starter, Objects, Motion, Control). This is toggled via the toolbar and is specifically designed for first-year students or those new to programming.
+The toolbox adapts to the project goal:
+- **Physics goal**: shows 60+ simulation blocks (objects, motion, forces, constants, control).
+- **Data Science goal**: shows 48 DS analysis blocks (load, filter, group, statistics, visualise, conclude).
+- **Hybrid goal**: shows all blocks.
+
+This reduces the decision space for students working within a specific domain, improving focus and reducing accidental mis-categorisation of blocks.
 
 ### 11.3 South African Context
 
@@ -560,14 +659,14 @@ UWC has a diverse, multilingual student body. Physics IDE is currently English-o
 1. **Create `vercel.json`** with iframe-allow and CSP headers (1–2 hours).
 2. **Test in iKamva sandbox** — contact UWC ICT for a test Sakai instance or test with a local Sakai Docker image.
 3. **Confirm CDN domains are whitelisted** on UWC campus networks.
-4. **Add `vercel.json` custom domain** (e.g., `physics.uwc.ac.za`) for a stable, branded URL.
+4. **Add custom domain** (e.g., `physics.uwc.ac.za`) for a stable, branded URL.
 
 ### Before Formal Classroom Use
 
-5. **Run WCAG contrast audit** on light theme.
+5. **Run WCAG contrast audit** — light mode tokens have been normalised; a formal tool-based check is recommended.
 6. **Add ARIA labels** to trace table and debug mode controls.
-7. **Write an educator guide** (see companion PDF documentation).
-8. **Test on low-end hardware** (Chromebooks, older laptops) — the 249 kB JS bundle should perform well, but WebGL on old GPUs can be slow.
+7. **Write an educator guide** (see companion PDF documentation and the in-app Educators section of Help).
+8. **Test on low-end hardware** (Chromebooks, older laptops) — the 455 kB JS bundle should perform well, but WebGL on old GPUs can be slow.
 
 ### Future Semester (Enhancement)
 
@@ -578,4 +677,4 @@ UWC has a diverse, multilingual student body. Physics IDE is currently English-o
 
 ---
 
-*This document was generated for the Physics IDE project. Last updated: March 2026.*
+*Last updated: June 2026.*

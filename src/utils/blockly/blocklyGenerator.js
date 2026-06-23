@@ -14,6 +14,12 @@
  */
 
 import { traceRegistry, clearTraceRegistry } from './traceRegistry';
+import { BLOCK_CATALOGUE as REGISTRY_BLOCK_CATALOGUE } from './blockRegistry';
+
+// Re-export the canonical search index built from the block registry
+// (Phase B.6). Consumers (BlocklyWorkspace search bar, etc.) keep their
+// import sites unchanged.
+export const BLOCK_CATALOGUE = REGISTRY_BLOCK_CATALOGUE;
 
 let initialized = false;
 
@@ -858,6 +864,26 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       tooltip: "Marks the end of a simulation. Prints a completion message.",
     },
 
+    /* ══════════════════════════════════════════════════════
+       DATA-SCIENCE ANALYSIS-START HAT
+       Anchors a data analysis. Blocks placed inside BODY are
+       "in use"; blocks left outside it are greyed/ignored.
+       ══════════════════════════════════════════════════════ */
+    {
+      type: "ds_start_block",
+      message0: "Start analysis  %1  %2",
+      args0: [
+        { type: "field_input", name: "TITLE", text: "My Analysis" },
+        { type: "input_dummy" },
+      ],
+      message1: "%1",
+      args1: [{ type: "input_statement", name: "BODY" }],
+      colour: 160,
+      tooltip:
+        "Marks the start of a data analysis. Put your load / explore / chart blocks inside. Blocks left outside are greyed out and ignored.",
+      hat: "cap",
+    },
+
     /* ══ 3D Math blocks ═══════════════════════════════════════════════ */
     {
       type: "cross_product_block",
@@ -1004,6 +1030,840 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       nextStatement: null,
       colour: 45,
       tooltip: "Set a scene / camera property: center/forward/up control the camera, range controls zoom.",
+    },
+
+    /* ══════════════════════════════════════════════════════
+       DATA SCIENCE BLOCKS
+       ══════════════════════════════════════════════════════ */
+    {
+      type: "ds_load_builtin_block",
+      message0: "%1 = load dataset %2",
+      args0: [
+        { type: "field_variable", name: "VAR", variable: "df" },
+        {
+          type: "field_dropdown",
+          name: "ID",
+          options: [
+            ["Planets",  "planets"],
+            ["Penguins", "penguins"],
+            ["Weather",  "weather"],
+            ["Pendulum", "pendulum"],
+            ["Spring",   "spring"],
+            ["Free fall", "freefall"],
+          ],
+        },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 160,
+      tooltip: "Load a built-in dataset (planets, penguins, weather, pendulum, spring, free fall) into a variable.",
+    },
+    {
+      type: "ds_load_trace_block",
+      message0: "%1 = trace dataset %2",
+      args0: [
+        { type: "field_variable", name: "VAR", variable: "df" },
+        { type: "field_input", name: "DATASET_NAME", text: "Run @ ..." },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 160,
+      tooltip: "Load a promoted simulation run by its label (copy the label from the Saved Traces panel).",
+    },
+    {
+      type: "ds_load_csv_block",
+      message0: "%1 = load CSV file",
+      args0: [
+        { type: "field_variable", name: "VAR", variable: "df" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 160,
+      tooltip: "Open a CSV file from your computer and load it as a dataset.",
+    },
+    {
+      type: "ds_show_table_block",
+      message0: "show table %1",
+      args0: [
+        { type: "field_variable", name: "VAR", variable: "df" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 160,
+      tooltip: "Display the dataset as a scrollable table in the Data panel.",
+    },
+    {
+      type: "ds_calc_mean_block",
+      message0: "%1 = mean( %2 . %3 )",
+      args0: [
+        { type: "field_variable", name: "RESULT", variable: "result" },
+        { type: "field_variable", name: "VAR",    variable: "df" },
+        { type: "field_input",    name: "COL",    text: "value" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 160,
+      tooltip: "Calculate the mean of a numeric column and store it in a variable.",
+    },
+    {
+      type: "ds_calc_median_block",
+      message0: "%1 = median( %2 . %3 )",
+      args0: [
+        { type: "field_variable", name: "RESULT", variable: "result" },
+        { type: "field_variable", name: "VAR",    variable: "df" },
+        { type: "field_input",    name: "COL",    text: "value" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 160,
+      tooltip: "Calculate the median (middle value) of a numeric column.",
+    },
+    {
+      type: "ds_calc_min_block",
+      message0: "%1 = min( %2 . %3 )",
+      args0: [
+        { type: "field_variable", name: "RESULT", variable: "result" },
+        { type: "field_variable", name: "VAR",    variable: "df" },
+        { type: "field_input",    name: "COL",    text: "value" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 160,
+      tooltip: "Find the minimum value in a numeric column.",
+    },
+    {
+      type: "ds_calc_max_block",
+      message0: "%1 = max( %2 . %3 )",
+      args0: [
+        { type: "field_variable", name: "RESULT", variable: "result" },
+        { type: "field_variable", name: "VAR",    variable: "df" },
+        { type: "field_input",    name: "COL",    text: "value" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 160,
+      tooltip: "Find the maximum value in a numeric column.",
+    },
+    {
+      type: "ds_calc_sum_block",
+      message0: "%1 = sum( %2 . %3 )",
+      args0: [
+        { type: "field_variable", name: "RESULT", variable: "result" },
+        { type: "field_variable", name: "VAR",    variable: "df" },
+        { type: "field_input",    name: "COL",    text: "value" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 160,
+      tooltip: "Calculate the sum (total) of a numeric column.",
+    },
+    {
+      type: "ds_calc_stddev_block",
+      message0: "%1 = spread( %2 . %3 )",
+      args0: [
+        { type: "field_variable", name: "RESULT", variable: "result" },
+        { type: "field_variable", name: "VAR",    variable: "df" },
+        { type: "field_input",    name: "COL",    text: "value" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 160,
+      tooltip: "Calculate how spread out the values are in a column (standard deviation).",
+    },
+    {
+      type: "ds_show_first_n_block",
+      message0: "show first %1 rows of %2",
+      args0: [
+        { type: "field_dropdown", name: "N",
+          options: [["5","5"],["10","10"],["20","20"],["50","50"]] },
+        { type: "field_variable", name: "VAR", variable: "df" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 160,
+      tooltip: "Display the first N rows of a dataset as a table.",
+    },
+    {
+      type: "ds_count_rows_block",
+      message0: "%1 = count rows of %2",
+      args0: [
+        { type: "field_variable", name: "RESULT", variable: "result" },
+        { type: "field_variable", name: "VAR",    variable: "df" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 160,
+      tooltip: "Count the total number of rows in a dataset.",
+    },
+    {
+      type: "ds_count_unique_block",
+      message0: "%1 = unique values in %2 . %3",
+      args0: [
+        { type: "field_variable", name: "RESULT", variable: "result" },
+        { type: "field_variable", name: "VAR",    variable: "df" },
+        { type: "field_input",    name: "COL",    text: "species" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 160,
+      tooltip: "Count the number of distinct values in a column.",
+    },
+    /* ── Category 2: Exploring Data (remaining) ── */
+    {
+      type: "ds_show_last_n_block",
+      message0: "show last %1 rows of %2",
+      args0: [
+        { type: "field_dropdown", name: "N",
+          options: [["5","5"],["10","10"],["20","20"],["50","50"]] },
+        { type: "field_variable", name: "VAR", variable: "df" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 160,
+      tooltip: "Display the last N rows of a dataset as a table.",
+    },
+    {
+      type: "ds_count_cols_block",
+      message0: "%1 = count columns of %2",
+      args0: [
+        { type: "field_variable", name: "RESULT", variable: "result" },
+        { type: "field_variable", name: "VAR",    variable: "df" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 160,
+      tooltip: "Count the number of columns (variables) in a dataset.",
+    },
+    {
+      type: "ds_list_cols_block",
+      message0: "%1 = column names of %2",
+      args0: [
+        { type: "field_variable", name: "RESULT", variable: "result" },
+        { type: "field_variable", name: "VAR",    variable: "df" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 160,
+      tooltip: "Get the names of all columns in a dataset as a list.",
+    },
+    {
+      type: "ds_show_column_block",
+      message0: "show column %1 . %2",
+      args0: [
+        { type: "field_variable", name: "VAR", variable: "df" },
+        { type: "field_input",    name: "COL", text: "species" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 160,
+      tooltip: "Display all values in a single column.",
+    },
+    /* ── Category 3: Describing Data (remaining) ── */
+    {
+      type: "ds_calc_mode_block",
+      message0: "%1 = most common( %2 . %3 )",
+      args0: [
+        { type: "field_variable", name: "RESULT", variable: "result" },
+        { type: "field_variable", name: "VAR",    variable: "df" },
+        { type: "field_input",    name: "COL",    text: "species" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 160,
+      tooltip: "Find the most frequently occurring value in a column.",
+    },
+    {
+      type: "ds_calc_range_block",
+      message0: "%1 = range( %2 . %3 )",
+      args0: [
+        { type: "field_variable", name: "RESULT", variable: "result" },
+        { type: "field_variable", name: "VAR",    variable: "df" },
+        { type: "field_input",    name: "COL",    text: "value" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 160,
+      tooltip: "Calculate the range (max minus min) of a numeric column.",
+    },
+    {
+      type: "ds_calc_count_block",
+      message0: "%1 = count non-missing( %2 . %3 )",
+      args0: [
+        { type: "field_variable", name: "RESULT", variable: "result" },
+        { type: "field_variable", name: "VAR",    variable: "df" },
+        { type: "field_input",    name: "COL",    text: "value" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 160,
+      tooltip: "Count the number of non-missing values in a column.",
+    },
+    /* ── Category 4: Asking Questions (Filter / Sort / Group) ── */
+    {
+      type: "ds_filter_eq_block",
+      message0: "%1 = %2 where %3 = %4",
+      args0: [
+        { type: "field_variable", name: "RESULT", variable: "filtered" },
+        { type: "field_variable", name: "VAR",    variable: "df" },
+        { type: "field_input",    name: "COL",    text: "species" },
+        { type: "field_input",    name: "VALUE",  text: "Adelie" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 65,
+      tooltip: "Keep only rows where a column equals a specific value.",
+    },
+    {
+      type: "ds_filter_gt_block",
+      message0: "%1 = %2 where %3 > %4",
+      args0: [
+        { type: "field_variable", name: "RESULT", variable: "filtered" },
+        { type: "field_variable", name: "VAR",    variable: "df" },
+        { type: "field_input",    name: "COL",    text: "mass" },
+        { type: "field_input",    name: "VALUE",  text: "3500" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 65,
+      tooltip: "Keep only rows where a column is greater than a value.",
+    },
+    {
+      type: "ds_filter_lt_block",
+      message0: "%1 = %2 where %3 < %4",
+      args0: [
+        { type: "field_variable", name: "RESULT", variable: "filtered" },
+        { type: "field_variable", name: "VAR",    variable: "df" },
+        { type: "field_input",    name: "COL",    text: "mass" },
+        { type: "field_input",    name: "VALUE",  text: "3500" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 65,
+      tooltip: "Keep only rows where a column is less than a value.",
+    },
+    {
+      type: "ds_sort_asc_block",
+      message0: "%1 = sort %2 by %3 (smallest first)",
+      args0: [
+        { type: "field_variable", name: "RESULT", variable: "sorted" },
+        { type: "field_variable", name: "VAR",    variable: "df" },
+        { type: "field_input",    name: "COL",    text: "mass" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 65,
+      tooltip: "Sort the dataset by a column from smallest to largest.",
+    },
+    {
+      type: "ds_sort_desc_block",
+      message0: "%1 = sort %2 by %3 (largest first)",
+      args0: [
+        { type: "field_variable", name: "RESULT", variable: "sorted" },
+        { type: "field_variable", name: "VAR",    variable: "df" },
+        { type: "field_input",    name: "COL",    text: "mass" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 65,
+      tooltip: "Sort the dataset by a column from largest to smallest.",
+    },
+    {
+      type: "ds_remove_missing_block",
+      message0: "%1 = %2 with missing %3 removed",
+      args0: [
+        { type: "field_variable", name: "RESULT", variable: "cleaned" },
+        { type: "field_variable", name: "VAR",    variable: "df" },
+        { type: "field_input",    name: "COL",    text: "mass" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 65,
+      tooltip: "Remove rows that have a missing value in a specific column.",
+    },
+    {
+      type: "ds_group_count_block",
+      message0: "%1 = count rows per %3 in %2",
+      args0: [
+        { type: "field_variable", name: "RESULT",  variable: "grouped" },
+        { type: "field_variable", name: "VAR",     variable: "df" },
+        { type: "field_input",    name: "COL",     text: "species" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 65,
+      tooltip: "Count how many rows belong to each group in a categorical column.",
+    },
+    {
+      type: "ds_group_mean_block",
+      message0: "%1 = mean of %3 per %4 in %2",
+      args0: [
+        { type: "field_variable", name: "RESULT",    variable: "grouped" },
+        { type: "field_variable", name: "VAR",       variable: "df" },
+        { type: "field_input",    name: "VALUE_COL", text: "mass" },
+        { type: "field_input",    name: "GROUP_COL", text: "species" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 65,
+      tooltip: "Calculate the mean of a numeric column for each group in a categorical column.",
+    },
+    /* ── Category 5: Seeing Data (Charts) ── */
+    {
+      type: "ds_chart_bar_block",
+      message0: "bar chart  %1  x: %2  y: %3  title: %4",
+      args0: [
+        { type: "field_variable", name: "VAR",   variable: "df" },
+        { type: "field_input",    name: "X_COL", text: "species" },
+        { type: "field_input",    name: "Y_COL", text: "count" },
+        { type: "field_input",    name: "TITLE", text: "" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 200,
+      tooltip: "Draw a bar chart. Best for comparing values across categories.",
+    },
+    {
+      type: "ds_chart_line_block",
+      message0: "line chart  %1  x: %2  y: %3  title: %4",
+      args0: [
+        { type: "field_variable", name: "VAR",   variable: "df" },
+        { type: "field_input",    name: "X_COL", text: "date" },
+        { type: "field_input",    name: "Y_COL", text: "temperature" },
+        { type: "field_input",    name: "TITLE", text: "" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 200,
+      tooltip: "Draw a line chart. Best for showing change over an ordered variable (e.g. time).",
+    },
+    {
+      type: "ds_chart_scatter_block",
+      message0: "scatter plot  %1  x: %2  y: %3  title: %4",
+      args0: [
+        { type: "field_variable", name: "VAR",   variable: "df" },
+        { type: "field_input",    name: "X_COL", text: "bill_length_mm" },
+        { type: "field_input",    name: "Y_COL", text: "body_mass_g" },
+        { type: "field_input",    name: "TITLE", text: "" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 200,
+      tooltip: "Draw a scatter plot. Best for exploring the relationship between two numeric columns.",
+    },
+    {
+      type: "ds_chart_histogram_block",
+      message0: "histogram  %1  column: %2  title: %3",
+      args0: [
+        { type: "field_variable", name: "VAR",   variable: "df" },
+        { type: "field_input",    name: "COL",   text: "body_mass_g" },
+        { type: "field_input",    name: "TITLE", text: "" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 200,
+      tooltip: "Draw a histogram showing the distribution of values in a numeric column.",
+    },
+    {
+      type: "ds_chart_box_block",
+      message0: "box plot  %1  value: %2  group: %3  title: %4",
+      args0: [
+        { type: "field_variable", name: "VAR",       variable: "df" },
+        { type: "field_input",    name: "VALUE_COL", text: "body_mass_g" },
+        { type: "field_input",    name: "GROUP_COL", text: "species" },
+        { type: "field_input",    name: "TITLE",     text: "" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 200,
+      tooltip: "Draw a box plot showing spread and median. Leave group empty for a single box.",
+    },
+    /* ── Category 6: Communicating Findings ── */
+    {
+      type: "ds_write_note_block",
+      message0: "note: %1",
+      args0: [
+        { type: "field_input", name: "TEXT", text: "Add your observation here..." },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 30,
+      tooltip: "Add a plain-text annotation to the output.",
+    },
+    {
+      type: "ds_print_result_block",
+      message0: "print %1 as %2",
+      args0: [
+        { type: "field_variable", name: "VAR",   variable: "result" },
+        { type: "field_input",    name: "LABEL", text: "my result" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 30,
+      tooltip: "Display a computed value with a custom label.",
+    },
+    {
+      type: "ds_compare_results_block",
+      message0: "compare %1 as %2  vs  %3 as %4",
+      args0: [
+        { type: "field_variable", name: "VAR_A",   variable: "result1" },
+        { type: "field_input",    name: "LABEL_A", text: "Group A" },
+        { type: "field_variable", name: "VAR_B",   variable: "result2" },
+        { type: "field_input",    name: "LABEL_B", text: "Group B" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 30,
+      tooltip: "Display two computed values side-by-side for comparison.",
+    },
+    {
+      type: "ds_state_conclusion_block",
+      message0: "conclusion: %1",
+      args0: [
+        { type: "field_input", name: "TEXT", text: "The data shows that " },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 30,
+      tooltip: "State a conclusion based on your findings.",
+    },
+    {
+      type: "ds_export_table_block",
+      message0: "export %1 as CSV",
+      args0: [
+        { type: "field_variable", name: "VAR", variable: "df" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 30,
+      tooltip: "Download the dataset as a CSV file.",
+    },
+    {
+      type: "ds_show_python_block",
+      message0: "show generated Python",
+      args0: [],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 30,
+      tooltip: "Reveal the Python code generated by the blocks above.",
+    },
+    /* ── D.5: Missing spec blocks ── */
+    {
+      type: "ds_find_missing_block",
+      message0: "%1 = rows where %2 . %3 is missing",
+      args0: [
+        { type: "field_variable", name: "RESULT", variable: "missing" },
+        { type: "field_variable", name: "VAR",    variable: "df" },
+        { type: "field_input",    name: "COL",    text: "col" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 230,
+      tooltip: "Find rows where a column has missing (empty) values.",
+    },
+    {
+      type: "ds_show_one_cell_block",
+      message0: "%1 = %2 row %3 column %4",
+      args0: [
+        { type: "field_variable", name: "RESULT", variable: "cell" },
+        { type: "field_variable", name: "VAR",    variable: "df" },
+        { type: "field_number",   name: "ROW",    value: 0, min: 0 },
+        { type: "field_input",    name: "COL",    text: "col" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 160,
+      tooltip: "Read one value from a specific row and column.",
+    },
+    {
+      type: "ds_all_stats_block",
+      message0: "all stats for %1 . %2",
+      args0: [
+        { type: "field_variable", name: "VAR", variable: "df" },
+        { type: "field_input",    name: "COL", text: "col" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 160,
+      tooltip: "Show mean, median, min, max, range, sum and spread for a column.",
+    },
+    {
+      type: "ds_compare_columns_block",
+      message0: "compare %1 . %2 vs %3",
+      args0: [
+        { type: "field_variable", name: "VAR",   variable: "df" },
+        { type: "field_input",    name: "COL_A", text: "col1" },
+        { type: "field_input",    name: "COL_B", text: "col2" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 160,
+      tooltip: "Compare all descriptive statistics for two columns side by side.",
+    },
+    {
+      type: "ds_save_chart_block",
+      message0: "save %1 chart of %2 x %3 y %4",
+      args0: [
+        { type: "field_dropdown", name: "CHART_TYPE",
+          options: [["bar","bar"],["line","line"],["scatter","scatter"],["histogram","histogram"]] },
+        { type: "field_variable", name: "VAR",   variable: "df" },
+        { type: "field_input",    name: "X_COL", text: "x" },
+        { type: "field_input",    name: "Y_COL", text: "y" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 20,
+      tooltip: "Save the chart as a PNG image file.",
+    },
+    /* ── Phase E: Compound filters + identify-type ── */
+    {
+      type: "ds_filter_and_block",
+      message0: "%1 = %2 where %3 = %4 AND %5 = %6",
+      args0: [
+        { type: "field_variable", name: "RESULT", variable: "filtered" },
+        { type: "field_variable", name: "VAR",    variable: "df" },
+        { type: "field_input",    name: "COL_A",  text: "species" },
+        { type: "field_input",    name: "VAL_A",  text: "Adelie" },
+        { type: "field_input",    name: "COL_B",  text: "island" },
+        { type: "field_input",    name: "VAL_B",  text: "Biscoe" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 230,
+      tooltip: "Filter rows where both conditions are true (AND logic).",
+    },
+    {
+      type: "ds_filter_or_block",
+      message0: "%1 = %2 where %3 = %4 OR %5 = %6",
+      args0: [
+        { type: "field_variable", name: "RESULT", variable: "filtered" },
+        { type: "field_variable", name: "VAR",    variable: "df" },
+        { type: "field_input",    name: "COL_A",  text: "species" },
+        { type: "field_input",    name: "VAL_A",  text: "Adelie" },
+        { type: "field_input",    name: "COL_B",  text: "species" },
+        { type: "field_input",    name: "VAL_B",  text: "Chinstrap" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 230,
+      tooltip: "Filter rows where at least one condition is true (OR logic).",
+    },
+    {
+      type: "ds_identify_type_block",
+      message0: "%1 = type of %2 . %3",
+      args0: [
+        { type: "field_variable", name: "RESULT", variable: "type" },
+        { type: "field_variable", name: "VAR",    variable: "df" },
+        { type: "field_input",    name: "COL",    text: "species" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 45,
+      tooltip: "Find out the data type of a column (number, text, boolean).",
+    },
+
+    /* ── Transform columns ── */
+    {
+      type: "ds_add_column_transform_block",
+      message0: "%1 = %2 with new column %3 = %4( %5 )",
+      args0: [
+        { type: "field_variable", name: "RESULT",    variable: "df2" },
+        { type: "field_variable", name: "VAR",       variable: "df" },
+        { type: "field_input",    name: "NEW_COL",   text: "log_L" },
+        { type: "field_dropdown", name: "TRANSFORM",
+          options: [["ln","ln"],["log10","log10"],["√","sqrt"],["x²","square"],["1/x","reciprocal"]] },
+        { type: "field_input",    name: "SOURCE_COL", text: "col" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 160,
+      tooltip: "Add a new column by applying a maths transform (ln, log10, √, x², 1/x) to an existing column.",
+    },
+    {
+      type: "ds_multiply_columns_block",
+      message0: "%1 = %2 with new column %3 = %4 × %5",
+      args0: [
+        { type: "field_variable", name: "RESULT",  variable: "df2" },
+        { type: "field_variable", name: "VAR",     variable: "df" },
+        { type: "field_input",    name: "NEW_COL", text: "product" },
+        { type: "field_input",    name: "COL_A",   text: "col1" },
+        { type: "field_input",    name: "COL_B",   text: "col2" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 160,
+      tooltip: "Add a new column containing the element-wise product of two existing columns (e.g. T² = period_s × period_s).",
+    },
+
+    /* ── Uncertainty ── */
+    {
+      type: "ds_calc_std_error_block",
+      message0: "%1 = std error of %2 . %3",
+      args0: [
+        { type: "field_variable", name: "RESULT", variable: "se" },
+        { type: "field_variable", name: "VAR",    variable: "df" },
+        { type: "field_input",    name: "COL",    text: "col" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 160,
+      tooltip: "Standard error of the mean: σ / √n. Represents uncertainty in the mean from repeated measurements.",
+    },
+    {
+      type: "ds_print_uncertainty_block",
+      message0: "print %1 ± %2  label %3",
+      args0: [
+        { type: "field_variable", name: "MEAN_VAR", variable: "mean_val" },
+        { type: "field_variable", name: "SE_VAR",   variable: "se" },
+        { type: "field_input",    name: "LABEL",    text: "measurement" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 30,
+      tooltip: "Display a measurement result as X.XXX ± Y.YY with relative uncertainty %.",
+    },
+    {
+      type: "ds_calc_relative_uncertainty_block",
+      message0: "%1 = relative uncertainty of %2 ± %3  (%)",
+      args0: [
+        { type: "field_variable", name: "RESULT",   variable: "rel_unc" },
+        { type: "field_variable", name: "MEAN_VAR", variable: "mean_val" },
+        { type: "field_variable", name: "SE_VAR",   variable: "se" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 160,
+      tooltip: "Calculate relative uncertainty: (uncertainty / value) × 100 %.",
+    },
+
+    /* ── Relationships ── */
+    {
+      type: "ds_linear_regression_block",
+      message0: "%1 = linear fit of %2  x= %3  y= %4",
+      args0: [
+        { type: "field_variable", name: "RESULT", variable: "fit" },
+        { type: "field_variable", name: "VAR",    variable: "df" },
+        { type: "field_input",    name: "X_COL",  text: "x" },
+        { type: "field_input",    name: "Y_COL",  text: "y" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 160,
+      tooltip: "Fit a straight line y = mx + b (OLS). Stores slope, intercept, R², and n.",
+    },
+    {
+      type: "ds_chart_scatter_fit_block",
+      message0: "scatter+fit chart  %1  x= %2  y= %3  fit= %4  title %5",
+      args0: [
+        { type: "field_variable", name: "VAR",     variable: "df" },
+        { type: "field_input",    name: "X_COL",   text: "x" },
+        { type: "field_input",    name: "Y_COL",   text: "y" },
+        { type: "field_variable", name: "FIT_VAR", variable: "fit" },
+        { type: "field_input",    name: "TITLE",   text: "" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 20,
+      tooltip: "Scatter plot with linear regression line overlay. Use the linear fit block first to compute the fit.",
+    },
+    {
+      type: "ds_correlation_block",
+      message0: "%1 = correlation of %2  %3  vs  %4",
+      args0: [
+        { type: "field_variable", name: "RESULT", variable: "r" },
+        { type: "field_variable", name: "VAR",    variable: "df" },
+        { type: "field_input",    name: "COL_A",  text: "col1" },
+        { type: "field_input",    name: "COL_B",  text: "col2" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 160,
+      tooltip: "Pearson correlation coefficient r (range −1 to +1). Close to ±1 = strong linear relationship.",
+    },
+
+    /* ── Additional stats ── */
+    {
+      type: "ds_calc_percentile_block",
+      message0: "%1 = %2 . %3  percentile %4",
+      args0: [
+        { type: "field_variable", name: "RESULT", variable: "p_val" },
+        { type: "field_variable", name: "VAR",    variable: "df" },
+        { type: "field_input",    name: "COL",    text: "col" },
+        { type: "field_number",   name: "P",      value: 25, min: 0, max: 100 },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 160,
+      tooltip: "Calculate the p-th percentile of a column using linear interpolation.",
+    },
+    {
+      type: "ds_calc_iqr_block",
+      message0: "%1 = IQR of %2 . %3",
+      args0: [
+        { type: "field_variable", name: "RESULT", variable: "iqr_val" },
+        { type: "field_variable", name: "VAR",    variable: "df" },
+        { type: "field_input",    name: "COL",    text: "col" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 160,
+      tooltip: "Interquartile range: Q3 − Q1 (75th percentile minus 25th percentile).",
     },
   ]);
 
@@ -1442,6 +2302,15 @@ export function defineCustomBlocksAndGenerator(Blockly) {
     return `# === Simulation End ===\nprint("${msg}")\n`;
   };
 
+  gen["ds_start_block"] = function (block) {
+    const title = escPy(block.getFieldValue("TITLE") || "My Analysis");
+    const raw = Python.statementToCode(block, "BODY") || "";
+    const indent = Python.INDENT || "  ";
+    const re = new RegExp("^" + indent.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gm");
+    const body = raw.replace(re, "");
+    return `# === Analysis: ${title} ===\n${body}`;
+  };
+
   /* ── Physics constant: handle __NEW__ custom constant ── */
   // Intercept the dropdown change to create custom constants via popup
   // This is done by registering a validator on the field after workspace init
@@ -1511,100 +2380,414 @@ export function defineCustomBlocksAndGenerator(Blockly) {
     return `scene.${prop} = ${v}\n`;
   };
 
+  /* ── Data Science blocks (Python is reveal-only — execution is JS) ── */
+  gen["ds_load_builtin_block"] = function (block) {
+    const name = varName(block, "VAR", "df");
+    const id = block.getFieldValue("ID") || "planets";
+    return `${name} = load_dataset("${id}")\n`;
+  };
+
+  gen["ds_load_trace_block"] = function (block) {
+    const name = varName(block, "VAR", "df");
+    const label = (block.getFieldValue("DATASET_NAME") || "").trim();
+    return `${name} = load_saved_dataset("${label}")\n`;
+  };
+
+  gen["ds_load_csv_block"] = function (block) {
+    const name = varName(block, "VAR", "df");
+    return `${name} = load_csv("your_file.csv")\n`;
+  };
+
+  gen["ds_show_table_block"] = function (block) {
+    const name = varName(block, "VAR", "df");
+    return `show_table(${name})\n`;
+  };
+
+  gen["ds_calc_mean_block"] = function (block) {
+    const result = varName(block, "RESULT", "result");
+    const dsVar  = varName(block, "VAR", "df");
+    const col    = (block.getFieldValue("COL") || "value").trim();
+    return `${result} = mean(${dsVar}, "${col}")\n`;
+  };
+
+  gen["ds_calc_median_block"] = function (block) {
+    const result = varName(block, "RESULT", "result");
+    const dsVar  = varName(block, "VAR", "df");
+    const col    = (block.getFieldValue("COL") || "value").trim();
+    return `${result} = median(${dsVar}, "${col}")\n`;
+  };
+
+  gen["ds_calc_min_block"] = function (block) {
+    const result = varName(block, "RESULT", "result");
+    const dsVar  = varName(block, "VAR", "df");
+    const col    = (block.getFieldValue("COL") || "value").trim();
+    return `${result} = min(${dsVar}, "${col}")\n`;
+  };
+
+  gen["ds_calc_max_block"] = function (block) {
+    const result = varName(block, "RESULT", "result");
+    const dsVar  = varName(block, "VAR", "df");
+    const col    = (block.getFieldValue("COL") || "value").trim();
+    return `${result} = max(${dsVar}, "${col}")\n`;
+  };
+
+  gen["ds_calc_sum_block"] = function (block) {
+    const result = varName(block, "RESULT", "result");
+    const dsVar  = varName(block, "VAR", "df");
+    const col    = (block.getFieldValue("COL") || "value").trim();
+    return `${result} = sum(${dsVar}, "${col}")\n`;
+  };
+
+  gen["ds_calc_stddev_block"] = function (block) {
+    const result = varName(block, "RESULT", "result");
+    const dsVar  = varName(block, "VAR", "df");
+    const col    = (block.getFieldValue("COL") || "value").trim();
+    return `${result} = spread(${dsVar}, "${col}")\n`;
+  };
+
+  gen["ds_show_first_n_block"] = function (block) {
+    const dsVar = varName(block, "VAR", "df");
+    const n = block.getFieldValue("N") || "5";
+    return `show_first(${dsVar}, ${n})\n`;
+  };
+
+  gen["ds_count_rows_block"] = function (block) {
+    const result = varName(block, "RESULT", "result");
+    const dsVar  = varName(block, "VAR", "df");
+    return `${result} = row_count(${dsVar})\n`;
+  };
+
+  gen["ds_count_unique_block"] = function (block) {
+    const result = varName(block, "RESULT", "result");
+    const dsVar  = varName(block, "VAR", "df");
+    const col    = (block.getFieldValue("COL") || "value").trim();
+    return `${result} = unique_count(${dsVar}, "${col}")\n`;
+  };
+
+  gen["ds_show_last_n_block"] = function (block) {
+    const dsVar = varName(block, "VAR", "df");
+    const n = block.getFieldValue("N") || "5";
+    return `show_last(${dsVar}, ${n})\n`;
+  };
+
+  gen["ds_count_cols_block"] = function (block) {
+    const result = varName(block, "RESULT", "result");
+    const dsVar  = varName(block, "VAR", "df");
+    return `${result} = column_count(${dsVar})\n`;
+  };
+
+  gen["ds_list_cols_block"] = function (block) {
+    const result = varName(block, "RESULT", "result");
+    const dsVar  = varName(block, "VAR", "df");
+    return `${result} = column_names(${dsVar})\n`;
+  };
+
+  gen["ds_show_column_block"] = function (block) {
+    const dsVar = varName(block, "VAR", "df");
+    const col   = (block.getFieldValue("COL") || "value").trim();
+    return `show_column(${dsVar}, "${col}")\n`;
+  };
+
+  gen["ds_calc_mode_block"] = function (block) {
+    const result = varName(block, "RESULT", "result");
+    const dsVar  = varName(block, "VAR", "df");
+    const col    = (block.getFieldValue("COL") || "value").trim();
+    return `${result} = most_common(${dsVar}, "${col}")\n`;
+  };
+
+  gen["ds_calc_range_block"] = function (block) {
+    const result = varName(block, "RESULT", "result");
+    const dsVar  = varName(block, "VAR", "df");
+    const col    = (block.getFieldValue("COL") || "value").trim();
+    return `${result} = range(${dsVar}, "${col}")\n`;
+  };
+
+  gen["ds_calc_count_block"] = function (block) {
+    const result = varName(block, "RESULT", "result");
+    const dsVar  = varName(block, "VAR", "df");
+    const col    = (block.getFieldValue("COL") || "value").trim();
+    return `${result} = count_non_missing(${dsVar}, "${col}")\n`;
+  };
+
+  gen["ds_filter_eq_block"] = function (block) {
+    const result = varName(block, "RESULT", "filtered");
+    const dsVar  = varName(block, "VAR", "df");
+    const col    = (block.getFieldValue("COL") || "col").trim();
+    const val    = (block.getFieldValue("VALUE") || "").trim();
+    return `${result} = filter(${dsVar}, ${col} == "${val}")\n`;
+  };
+
+  gen["ds_filter_gt_block"] = function (block) {
+    const result = varName(block, "RESULT", "filtered");
+    const dsVar  = varName(block, "VAR", "df");
+    const col    = (block.getFieldValue("COL") || "col").trim();
+    const val    = (block.getFieldValue("VALUE") || "0").trim();
+    return `${result} = filter(${dsVar}, ${col} > ${val})\n`;
+  };
+
+  gen["ds_filter_lt_block"] = function (block) {
+    const result = varName(block, "RESULT", "filtered");
+    const dsVar  = varName(block, "VAR", "df");
+    const col    = (block.getFieldValue("COL") || "col").trim();
+    const val    = (block.getFieldValue("VALUE") || "0").trim();
+    return `${result} = filter(${dsVar}, ${col} < ${val})\n`;
+  };
+
+  gen["ds_sort_asc_block"] = function (block) {
+    const result = varName(block, "RESULT", "sorted");
+    const dsVar  = varName(block, "VAR", "df");
+    const col    = (block.getFieldValue("COL") || "col").trim();
+    return `${result} = sort(${dsVar}, "${col}", ascending=True)\n`;
+  };
+
+  gen["ds_sort_desc_block"] = function (block) {
+    const result = varName(block, "RESULT", "sorted");
+    const dsVar  = varName(block, "VAR", "df");
+    const col    = (block.getFieldValue("COL") || "col").trim();
+    return `${result} = sort(${dsVar}, "${col}", ascending=False)\n`;
+  };
+
+  gen["ds_remove_missing_block"] = function (block) {
+    const result = varName(block, "RESULT", "cleaned");
+    const dsVar  = varName(block, "VAR", "df");
+    const col    = (block.getFieldValue("COL") || "col").trim();
+    return `${result} = drop_missing(${dsVar}, "${col}")\n`;
+  };
+
+  gen["ds_group_count_block"] = function (block) {
+    const result = varName(block, "RESULT", "grouped");
+    const dsVar  = varName(block, "VAR", "df");
+    const col    = (block.getFieldValue("COL") || "col").trim();
+    return `${result} = count_per_group(${dsVar}, "${col}")\n`;
+  };
+
+  gen["ds_group_mean_block"] = function (block) {
+    const result    = varName(block, "RESULT", "grouped");
+    const dsVar     = varName(block, "VAR", "df");
+    const valueCol  = (block.getFieldValue("VALUE_COL") || "value").trim();
+    const groupCol  = (block.getFieldValue("GROUP_COL") || "group").trim();
+    return `${result} = mean_per_group(${dsVar}, "${valueCol}", by="${groupCol}")\n`;
+  };
+
+  gen["ds_chart_bar_block"] = function (block) {
+    const dsVar = varName(block, "VAR", "df");
+    const xCol  = (block.getFieldValue("X_COL") || "x").trim();
+    const yCol  = (block.getFieldValue("Y_COL") || "y").trim();
+    const title = (block.getFieldValue("TITLE") || "").trim();
+    return `bar_chart(${dsVar}, x="${xCol}", y="${yCol}"${title ? `, title="${title}"` : ""})\n`;
+  };
+
+  gen["ds_chart_line_block"] = function (block) {
+    const dsVar = varName(block, "VAR", "df");
+    const xCol  = (block.getFieldValue("X_COL") || "x").trim();
+    const yCol  = (block.getFieldValue("Y_COL") || "y").trim();
+    const title = (block.getFieldValue("TITLE") || "").trim();
+    return `line_chart(${dsVar}, x="${xCol}", y="${yCol}"${title ? `, title="${title}"` : ""})\n`;
+  };
+
+  gen["ds_chart_scatter_block"] = function (block) {
+    const dsVar = varName(block, "VAR", "df");
+    const xCol  = (block.getFieldValue("X_COL") || "x").trim();
+    const yCol  = (block.getFieldValue("Y_COL") || "y").trim();
+    const title = (block.getFieldValue("TITLE") || "").trim();
+    return `scatter_plot(${dsVar}, x="${xCol}", y="${yCol}"${title ? `, title="${title}"` : ""})\n`;
+  };
+
+  gen["ds_chart_histogram_block"] = function (block) {
+    const dsVar = varName(block, "VAR", "df");
+    const col   = (block.getFieldValue("COL") || "value").trim();
+    const title = (block.getFieldValue("TITLE") || "").trim();
+    return `histogram(${dsVar}, column="${col}"${title ? `, title="${title}"` : ""})\n`;
+  };
+
+  gen["ds_chart_box_block"] = function (block) {
+    const dsVar    = varName(block, "VAR", "df");
+    const valueCol = (block.getFieldValue("VALUE_COL") || "value").trim();
+    const groupCol = (block.getFieldValue("GROUP_COL") || "").trim();
+    const title    = (block.getFieldValue("TITLE") || "").trim();
+    return `box_plot(${dsVar}, value="${valueCol}"${groupCol ? `, group="${groupCol}"` : ""}${title ? `, title="${title}"` : ""})\n`;
+  };
+
+  gen["ds_write_note_block"] = function (block) {
+    const text = (block.getFieldValue("TEXT") || "").trim();
+    return `# Note: ${text}\nprint(${JSON.stringify(text)})\n`;
+  };
+
+  gen["ds_print_result_block"] = function (block) {
+    const name  = varName(block, "VAR", "result");
+    const label = (block.getFieldValue("LABEL") || name).trim();
+    return `print(f"${label}: {${name}}")\n`;
+  };
+
+  gen["ds_compare_results_block"] = function (block) {
+    const nameA  = varName(block, "VAR_A", "result1");
+    const labelA = (block.getFieldValue("LABEL_A") || nameA).trim();
+    const nameB  = varName(block, "VAR_B", "result2");
+    const labelB = (block.getFieldValue("LABEL_B") || nameB).trim();
+    return `print(f"${labelA}: {${nameA}}  vs  ${labelB}: {${nameB}}")\n`;
+  };
+
+  gen["ds_state_conclusion_block"] = function (block) {
+    const text = (block.getFieldValue("TEXT") || "").trim();
+    return `# Conclusion\nprint(${JSON.stringify(text)})\n`;
+  };
+
+  gen["ds_export_table_block"] = function (block) {
+    const name = varName(block, "VAR", "df");
+    return `${name}.to_csv("export.csv", index=False)\n`;
+  };
+
+  gen["ds_show_python_block"] = function (_block) {
+    return `# (Python shown in output panel)\n`;
+  };
+
+  gen["ds_find_missing_block"] = function (block) {
+    const result = varName(block, "RESULT", "missing");
+    const name   = varName(block, "VAR", "df");
+    const col    = (block.getFieldValue("COL") || "col").trim();
+    return `${result} = ${name}[${name}["${col}"].isnull()]\n`;
+  };
+
+  gen["ds_show_one_cell_block"] = function (block) {
+    const result = varName(block, "RESULT", "cell");
+    const name   = varName(block, "VAR", "df");
+    const row    = block.getFieldValue("ROW") || "0";
+    const col    = (block.getFieldValue("COL") || "col").trim();
+    return `${result} = ${name}.iloc[${row}]["${col}"]\n`;
+  };
+
+  gen["ds_all_stats_block"] = function (block) {
+    const name = varName(block, "VAR", "df");
+    const col  = (block.getFieldValue("COL") || "col").trim();
+    return `print(${name}["${col}"].describe())\n`;
+  };
+
+  gen["ds_compare_columns_block"] = function (block) {
+    const name = varName(block, "VAR", "df");
+    const colA = (block.getFieldValue("COL_A") || "col1").trim();
+    const colB = (block.getFieldValue("COL_B") || "col2").trim();
+    return `print(${name}[["${colA}", "${colB}"]].describe())\n`;
+  };
+
+  gen["ds_save_chart_block"] = function (block) {
+    const name      = varName(block, "VAR", "df");
+    const chartType = (block.getFieldValue("CHART_TYPE") || "bar").trim();
+    const xCol      = (block.getFieldValue("X_COL") || "x").trim();
+    const yCol      = (block.getFieldValue("Y_COL") || "y").trim();
+    return `${name}.plot(kind="${chartType}", x="${xCol}", y="${yCol}").get_figure().savefig("chart.png")\n`;
+  };
+
+  gen["ds_filter_and_block"] = function (block) {
+    const result = varName(block, "RESULT", "filtered");
+    const name   = varName(block, "VAR", "df");
+    const colA   = (block.getFieldValue("COL_A") || "col").trim();
+    const valA   = (block.getFieldValue("VAL_A") || "").trim();
+    const colB   = (block.getFieldValue("COL_B") || "col").trim();
+    const valB   = (block.getFieldValue("VAL_B") || "").trim();
+    return `${result} = ${name}[(${name}["${colA}"] == "${valA}") & (${name}["${colB}"] == "${valB}")]\n`;
+  };
+
+  gen["ds_filter_or_block"] = function (block) {
+    const result = varName(block, "RESULT", "filtered");
+    const name   = varName(block, "VAR", "df");
+    const colA   = (block.getFieldValue("COL_A") || "col").trim();
+    const valA   = (block.getFieldValue("VAL_A") || "").trim();
+    const colB   = (block.getFieldValue("COL_B") || "col").trim();
+    const valB   = (block.getFieldValue("VAL_B") || "").trim();
+    return `${result} = ${name}[(${name}["${colA}"] == "${valA}") | (${name}["${colB}"] == "${valB}")]\n`;
+  };
+
+  gen["ds_identify_type_block"] = function (block) {
+    const result = varName(block, "RESULT", "type");
+    const name   = varName(block, "VAR", "df");
+    const col    = (block.getFieldValue("COL") || "col").trim();
+    return `${result} = str(${name}["${col}"].dtype)\n`;
+  };
+
+  /* ── New physics-stats blocks ── */
+  gen["ds_add_column_transform_block"] = function (block) {
+    const result    = varName(block, "RESULT", "df2");
+    const name      = varName(block, "VAR", "df");
+    const newCol    = (block.getFieldValue("NEW_COL") || "new_col").trim();
+    const transform = block.getFieldValue("TRANSFORM") || "ln";
+    const srcCol    = (block.getFieldValue("SOURCE_COL") || "col").trim();
+    const pyFn = { ln: "np.log", log10: "np.log10", sqrt: "np.sqrt", square: "np.square", reciprocal: "lambda x: 1/x" };
+    const fn = pyFn[transform] || "np.log";
+    return `${result} = ${name}.copy()\n${result}["${newCol}"] = (${fn})(${name}["${srcCol}"])\n`;
+  };
+
+  gen["ds_multiply_columns_block"] = function (block) {
+    const result = varName(block, "RESULT", "df2");
+    const name   = varName(block, "VAR", "df");
+    const newCol = (block.getFieldValue("NEW_COL") || "product").trim();
+    const colA   = (block.getFieldValue("COL_A") || "col1").trim();
+    const colB   = (block.getFieldValue("COL_B") || "col2").trim();
+    return `${result} = ${name}.copy()\n${result}["${newCol}"] = ${name}["${colA}"] * ${name}["${colB}"]\n`;
+  };
+
+  gen["ds_calc_std_error_block"] = function (block) {
+    const result = varName(block, "RESULT", "se");
+    const name   = varName(block, "VAR", "df");
+    const col    = (block.getFieldValue("COL") || "col").trim();
+    return `from scipy import stats\n${result} = stats.sem(${name}["${col}"].dropna())\n`;
+  };
+
+  gen["ds_print_uncertainty_block"] = function (block) {
+    const mean  = varName(block, "MEAN_VAR", "mean_val");
+    const se    = varName(block, "SE_VAR", "se");
+    const label = (block.getFieldValue("LABEL") || "measurement").trim();
+    return `print(f"${label}: {${mean}:.4g} ± {${se}:.3g}  ({abs(${se}/${mean})*100:.1f}% relative)")\n`;
+  };
+
+  gen["ds_calc_relative_uncertainty_block"] = function (block) {
+    const result = varName(block, "RESULT", "rel_unc");
+    const mean   = varName(block, "MEAN_VAR", "mean_val");
+    const se     = varName(block, "SE_VAR", "se");
+    return `${result} = abs(${se} / ${mean}) * 100 if ${mean} != 0 else None\n`;
+  };
+
+  gen["ds_linear_regression_block"] = function (block) {
+    const result = varName(block, "RESULT", "fit");
+    const name   = varName(block, "VAR", "df");
+    const xCol   = (block.getFieldValue("X_COL") || "x").trim();
+    const yCol   = (block.getFieldValue("Y_COL") || "y").trim();
+    return `from scipy import stats as _stats\n_res = _stats.linregress(${name}["${xCol}"].dropna(), ${name}["${yCol}"].dropna())\n${result} = {"slope": _res.slope, "intercept": _res.intercept, "rSquared": _res.rvalue**2, "n": len(${name})}\n`;
+  };
+
+  gen["ds_chart_scatter_fit_block"] = function (block) {
+    const name  = varName(block, "VAR", "df");
+    const xCol  = (block.getFieldValue("X_COL") || "x").trim();
+    const yCol  = (block.getFieldValue("Y_COL") || "y").trim();
+    const title = (block.getFieldValue("TITLE") || "").trim();
+    return `scatter_plot(${name}, x="${xCol}", y="${yCol}"${title ? `, title="${title}"` : ""})\n`;
+  };
+
+  gen["ds_correlation_block"] = function (block) {
+    const result = varName(block, "RESULT", "r");
+    const name   = varName(block, "VAR", "df");
+    const colA   = (block.getFieldValue("COL_A") || "col1").trim();
+    const colB   = (block.getFieldValue("COL_B") || "col2").trim();
+    return `${result} = ${name}["${colA}"].corr(${name}["${colB}"])\n`;
+  };
+
+  gen["ds_calc_percentile_block"] = function (block) {
+    const result = varName(block, "RESULT", "p_val");
+    const name   = varName(block, "VAR", "df");
+    const col    = (block.getFieldValue("COL") || "col").trim();
+    const p      = parseFloat(block.getFieldValue("P") || "25");
+    return `${result} = ${name}["${col}"].quantile(${p / 100})\n`;
+  };
+
+  gen["ds_calc_iqr_block"] = function (block) {
+    const result = varName(block, "RESULT", "iqr_val");
+    const name   = varName(block, "VAR", "df");
+    const col    = (block.getFieldValue("COL") || "col").trim();
+    return `from scipy.stats import iqr as _iqr\n${result} = _iqr(${name}["${col}"].dropna())\n`;
+  };
+
   initialized = true;
 }
 
-/* ── Block catalogue — used by the search bar ───────────── */
-export const BLOCK_CATALOGUE = [
-  // Starter
-  { type: "preset_sphere_block",   label: "Quick Sphere / Ball",           category: "Starter", keywords: ["sphere","ball","create","quick","object"] },
-  { type: "preset_box_block",      label: "Quick Box / Wall / Floor",      category: "Starter", keywords: ["box","wall","floor","create","quick","object"] },
-  { type: "physics_const_block",   label: "Physics Constant  (g, G, \u03c0\u2026)", category: "Starter", keywords: ["constant","g","gravity","pi","G","c","h"] },
-  { type: "time_step_block",       label: "Time step  dt",                 category: "Starter", keywords: ["dt","time","step","timestep"] },
-  { type: "set_gravity_block",     label: "Gravity  (g = 9.81)",           category: "Starter", keywords: ["gravity","g","9.81","downward"] },
-  { type: "forever_loop_block",    label: "Forever loop",                  category: "Starter", keywords: ["loop","forever","while","simulation","main"] },
-  { type: "rate_block",            label: "Rate  (animation fps)",         category: "Starter", keywords: ["rate","fps","speed","animation"] },
-  { type: "update_position_block", label: "Update position  pos += v\u00d7dt", category: "Starter", keywords: ["position","pos","move","update","euler"] },
-  { type: "apply_force_block",     label: "Apply force  v += a\u00d7dt",   category: "Starter", keywords: ["force","velocity","acceleration","apply","gravity"] },
-  { type: "if_block",              label: "If  condition",                 category: "Starter", keywords: ["if","when","condition","check"] },
-  { type: "if_else_block",         label: "If / Else",                     category: "Starter", keywords: ["if","else","condition","branch","otherwise"] },
-  // Values
-  { type: "define_const_block",    label: "Define constant  (const NAME = \u2026)",  category: "Values", keywords: ["constant","define","const","mass","spring","charge","named","reuse"] },
-  { type: "physics_const_block",   label: "Physics Constant  (g, G, \u03c0\u2026)", category: "Values", keywords: ["constant","g","G","pi","c","h","m_e","m_p"] },
-  { type: "vector_block",          label: "Vector  (x, y, z)",             category: "Values", keywords: ["vector","vec","position","velocity","axis"] },
-  { type: "colour_block",          label: "Colour",                        category: "Values", keywords: ["colour","color","red","blue","green","hue"] },
-  { type: "expr_block",            label: "Expression  (any Python)",      category: "Values", keywords: ["expression","expr","formula","code","custom"] },
-  { type: "var_read_block",        label: "Read variable  (var x)",         category: "Values", keywords: ["variable","read","var","name","value","get"] },
-  { type: "get_prop_block",        label: "Object property  (ball.pos)",   category: "Values", keywords: ["property","prop","dot","ball","pos","velocity","radius"] },
-  { type: "get_component_block",   label: "Vector component  .x .y .z",   category: "Values", keywords: ["component","x","y","z","scalar"] },
-  { type: "mag_block",             label: "Magnitude  mag(vec)",           category: "Values", keywords: ["magnitude","mag","speed","length","scalar"] },
-  { type: "norm_block",            label: "Unit vector  norm(vec)",        category: "Values", keywords: ["normalise","norm","unit","direction","hat"] },
-  // Objects
-  { type: "preset_sphere_block",   label: "Quick Sphere (preset)",         category: "Objects", keywords: ["sphere","preset","quick","ball","create"] },
-  { type: "preset_box_block",      label: "Quick Box (preset)",            category: "Objects", keywords: ["box","preset","quick","wall","floor","create"] },
-  { type: "sphere_block",          label: "Sphere",                        category: "Objects", keywords: ["sphere","ball","circle","round"] },
-  { type: "sphere_trail_block",    label: "Sphere + trail",                category: "Objects", keywords: ["sphere","trail","track","path","particle"] },
-  { type: "sphere_emissive_block", label: "Glowing sphere",                category: "Objects", keywords: ["sphere","glow","emissive","star","sun","light"] },
-  { type: "box_block",             label: "Box",                           category: "Objects", keywords: ["box","cube","wall","floor","ground","rect"] },
-  { type: "box_opacity_block",     label: "Box (transparent)",             category: "Objects", keywords: ["box","opacity","transparent","glass","semi"] },
-  { type: "cylinder_block",        label: "Cylinder",                      category: "Objects", keywords: ["cylinder","rod","pipe","tube","circle"] },
-  { type: "arrow_block",           label: "Arrow",                         category: "Objects", keywords: ["arrow","vector","force","direction","axis"] },
-  { type: "helix_block",           label: "Helix / Spring",                category: "Objects", keywords: ["helix","spring","coil","spiral"] },
-  { type: "helix_full_block",      label: "Helix detailed",                category: "Objects", keywords: ["helix","spring","coils","thickness","detailed"] },
-  { type: "label_block",           label: "Text label",                    category: "Objects", keywords: ["label","text","display","print","show"] },
-  { type: "label_full_block",      label: "Live display label",            category: "Objects", keywords: ["label","telemetry","live","display","hud"] },
-  { type: "local_light_block",     label: "Point light source",            category: "Objects", keywords: ["light","lamp","glow","local","point"] },
-  // Motion
-  { type: "set_velocity_block",    label: "Set velocity",                  category: "Motion", keywords: ["velocity","speed","v","motion","initial","set"] },
-  { type: "update_position_block", label: "Update position",               category: "Motion", keywords: ["position","pos","update","move","euler","step"] },
-  { type: "apply_force_block",     label: "Apply force / acceleration",    category: "Motion", keywords: ["force","acceleration","gravity","apply","net"] },
-  { type: "set_gravity_block",     label: "Gravity constant",              category: "Motion", keywords: ["gravity","g","9.81","vector","down"] },
-  // State
-  { type: "define_const_block",    label: "Define constant",               category: "State", keywords: ["constant","define","const","named","global"] },
-  { type: "set_scalar_block",      label: "Set variable  (x = \u2026)",   category: "State", keywords: ["variable","set","assign","scalar","number"] },
-  { type: "set_attr_expr_block",   label: "Set object attribute",          category: "State", keywords: ["set","attribute","property","object","dot"] },
-  { type: "add_attr_expr_block",   label: "Add to attribute  (+=)",        category: "State", keywords: ["add","increment","plus","attribute","update"] },
-  { type: "telemetry_update_block",label: "Live display update",           category: "State", keywords: ["telemetry","display","live","update","show","hud"] },
-  // Control
-  { type: "time_step_block",       label: "Time step  dt",                 category: "Control", keywords: ["dt","time","step","timestep"] },
-  { type: "rate_block",            label: "Rate  (fps)",                   category: "Control", keywords: ["rate","fps","animation","framerate"] },
-  { type: "forever_loop_block",    label: "Forever loop",                  category: "Control", keywords: ["loop","forever","while","main","simulation"] },
-  { type: "for_range_block",       label: "For loop  (range)",             category: "Control", keywords: ["for","loop","range","repeat","iterate","i"] },
-  { type: "if_block",              label: "If  condition",                 category: "Control", keywords: ["if","condition","when","check"] },
-  { type: "if_else_block",         label: "If / Else",                     category: "Control", keywords: ["if","else","condition","branch"] },
-  { type: "break_loop_block",      label: "Break loop",                    category: "Control", keywords: ["break","stop","exit","end","quit"] },
-  { type: "comment_block",         label: "Comment / Note",                category: "Control", keywords: ["comment","note","describe","explain","text"] },
-  // Advanced
-  { type: "python_raw_block",      label: "Raw Python code",               category: "Advanced", keywords: ["python","code","raw","custom","advanced","statement"] },
-  { type: "python_raw_expr_block", label: "Raw Python expression",         category: "Advanced", keywords: ["python","expression","raw","custom","advanced","value"] },
-  // Standard Blockly (commonly searched)
-  { type: "logic_compare",         label: "Compare  (< > == \u2260)",      category: "Logic", keywords: ["compare","less","greater","equal","condition","lt","gt"] },
-  { type: "logic_operation",       label: "AND / OR",                      category: "Logic", keywords: ["and","or","logic","boolean","both"] },
-  { type: "logic_negate",          label: "NOT",                           category: "Logic", keywords: ["not","negate","invert","false","true"] },
-  { type: "logic_boolean",         label: "True / False",                  category: "Logic", keywords: ["true","false","boolean"] },
-  { type: "compare_block",         label: "Compare  (< ≤ > ≥ = ≠)",         category: "Logic", keywords: ["compare","less","greater","equal","condition","lt","gt","custom"] },
-  { type: "logic_and_or_block",    label: "AND / OR  (custom)",             category: "Logic", keywords: ["and","or","logic","boolean","both","either","combine"] },
-  { type: "logic_not_block",       label: "NOT  (custom)",                  category: "Logic", keywords: ["not","negate","invert","flip"] },
-  { type: "math_number",           label: "Number",                        category: "Math", keywords: ["number","value","digit","constant","scalar"] },
-  { type: "math_arithmetic",       label: "Maths  (+ \u2212 \u00d7 \u00f7)", category: "Math", keywords: ["add","subtract","multiply","divide","arithmetic","math"] },
-  { type: "math_single",           label: "Math function  (sqrt, abs\u2026)", category: "Math", keywords: ["sqrt","abs","square","root","power","log","math"] },
-  { type: "math_trig",             label: "Trig  (sin, cos, tan)",         category: "Math", keywords: ["sin","cos","tan","trig","angle","radians","degrees"] },
-  { type: "math_constant",         label: "Math constant  (\u03c0, e, \u221a2)", category: "Math", keywords: ["pi","e","constant","phi","golden"] },
-  // Simulation structure
-  { type: "sim_start_block",       label: "Simulation Start",              category: "Starter", keywords: ["start","begin","simulation","setup","init"] },
-  { type: "sim_end_block",         label: "Simulation End",                category: "Starter", keywords: ["end","stop","finish","simulation","complete"] },
-  // 3D Math
-  { type: "cross_product_block",   label: "Cross product  cross(a, b)",    category: "3D Math", keywords: ["cross","product","perpendicular","torque","angular","3d"] },
-  { type: "dot_product_block",     label: "Dot product  dot(a, b)",        category: "3D Math", keywords: ["dot","product","scalar","work","projection","angle"] },
-  { type: "math_trig_block",       label: "Trig / math  (sin, cos, radians…)", category: "3D Math", keywords: ["sin","cos","tan","trig","radians","degrees","sqrt","abs","asin","acos"] },
-  { type: "vector_compose_block",  label: "Vector compose  (x, y, z slots)", category: "3D Math", keywords: ["vector","compose","build","variable","dynamic","expression"] },
-  { type: "math_min_block",        label: "Min  min(a, b)",               category: "3D Math", keywords: ["min","minimum","smaller","clamp","floor","lower"] },
-  { type: "math_max_block",        label: "Max  max(a, b)",               category: "3D Math", keywords: ["max","maximum","larger","clamp","ceiling","upper"] },
-  { type: "math_pow_block",        label: "Power  a ** b",                category: "3D Math", keywords: ["power","exponent","squared","cubed","inverse","square"] },
-  { type: "math_clamp_block",      label: "Clamp  (val, lo, hi)",         category: "3D Math", keywords: ["clamp","constrain","bound","limit","range","between"] },
-  { type: "rotate_object_block",   label: "Rotate object  (angle, axis)",  category: "3D Math", keywords: ["rotate","spin","angle","axis","angular","rotation","3d"] },
-  { type: "scene_camera_block",    label: "Scene / camera  (center, forward…)", category: "3D Math", keywords: ["scene","camera","forward","up","center","range","zoom","view"] },
-];
 
 /* ================================================================
    generatePythonFromWorkspace

@@ -281,4 +281,12 @@ export const ArrowLeftIcon = ({ size } = {}) => (
   <svg {...sz(size)}><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
 );
 
+export const LightbulbIcon = ({ size } = {}) => (
+  <svg {...sz(size)}><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0018 8 6 6 0 006 8c0 1 .23 2.23 1.5 3.5.76.76 1.23 1.52 1.41 2.5"/></svg>
+);
+
+export const AlertTriangleIcon = ({ size } = {}) => (
+  <svg {...sz(size)}><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+);
+
 

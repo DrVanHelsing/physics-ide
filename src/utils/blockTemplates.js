@@ -670,6 +670,15 @@ const PROJECTILE_BLOCKS = [
         fields: { LABEL: "telemetry", M: "peak", D: 2, U: "m" },
         values: { V: v("max_height") },
       },
+      {
+        type: "comment_block",
+        fields: { TEXT: "vy = vertical velocity. During flight vy = v0y - g*t (a straight line), so plotting vy vs t gives slope -g." },
+      },
+      {
+        type: "telemetry_update_block",
+        fields: { LABEL: "telemetry", M: "vy", D: 2, U: "m/s" },
+        values: { V: getComp(getProp("ball","velocity"),"y") },
+      },
 
       // Advance time
       {
@@ -1414,6 +1423,15 @@ const SPRING_BLOCKS = [
         fields: { LABEL: "telemetry", M: "PE", D: 3, U: "J" },
         values: { V: v("PE") },
       },
+      {
+        type: "comment_block",
+        fields: { TEXT: "Fspring = -k*stretch. Plotting Fspring vs stretch is a straight line of slope -k." },
+      },
+      {
+        type: "telemetry_update_block",
+        fields: { LABEL: "telemetry", M: "Fspring", D: 3, U: "N" },
+        values: { V: v("Fspring") },
+      },
 
       // Advance time
       {
@@ -1647,7 +1665,712 @@ const PENDULUM_BLOCKS = [
   { type: "sim_end_block", fields: { MSG: "Pendulum simulation complete." } },
 ];
 
+/* ── DS / Hybrid template XML helpers ───────────────── */
+
+const DS_PENGUINS_STATS_XML = `<xml xmlns="https://developers.google.com/blockly/xml">
+  <variables>
+    <variable id="ds-pg-df">df</variable>
+    <variable id="ds-pg-n">n_rows</variable>
+    <variable id="ds-pg-grp">by_species</variable>
+    <variable id="ds-pg-r">r</variable>
+    <variable id="ds-pg-fit">fit</variable>
+  </variables>
+  <block type="ds_start_block" x="40" y="40">
+    <field name="TITLE">Penguins: exploratory analysis</field>
+    <statement name="BODY">
+      <block type="ds_load_builtin_block">
+        <field name="VAR" id="ds-pg-df">df</field>
+        <field name="ID">penguins</field>
+        <next>
+          <block type="ds_show_table_block">
+            <field name="VAR" id="ds-pg-df">df</field>
+            <next>
+              <block type="ds_count_rows_block">
+                <field name="VAR" id="ds-pg-df">df</field>
+                <field name="RESULT" id="ds-pg-n">n_rows</field>
+                <next>
+                  <block type="ds_all_stats_block">
+                    <field name="VAR" id="ds-pg-df">df</field>
+                    <field name="COL">body_mass_g</field>
+                    <next>
+                      <block type="ds_group_mean_block">
+                        <field name="RESULT" id="ds-pg-grp">by_species</field>
+                        <field name="VAR" id="ds-pg-df">df</field>
+                        <field name="VALUE_COL">body_mass_g</field>
+                        <field name="GROUP_COL">species</field>
+                        <next>
+                          <block type="ds_chart_bar_block">
+                            <field name="VAR" id="ds-pg-grp">by_species</field>
+                            <field name="X_COL">species</field>
+                            <field name="Y_COL">mean_body_mass_g</field>
+                            <field name="TITLE">Average body mass by species (g)</field>
+                            <next>
+                              <block type="ds_chart_scatter_block">
+                                <field name="VAR" id="ds-pg-df">df</field>
+                                <field name="X_COL">flipper_length_mm</field>
+                                <field name="Y_COL">body_mass_g</field>
+                                <field name="TITLE">Flipper length vs body mass</field>
+                                <next>
+                                  <block type="ds_chart_histogram_block">
+                                    <field name="VAR" id="ds-pg-df">df</field>
+                                    <field name="COL">body_mass_g</field>
+                                    <field name="TITLE">Distribution of body mass</field>
+                                    <next>
+                                      <block type="ds_correlation_block">
+                                        <field name="RESULT" id="ds-pg-r">r</field>
+                                        <field name="VAR" id="ds-pg-df">df</field>
+                                        <field name="COL_A">bill_length_mm</field>
+                                        <field name="COL_B">body_mass_g</field>
+                                        <next>
+                                          <block type="ds_linear_regression_block">
+                                            <field name="RESULT" id="ds-pg-fit">fit</field>
+                                            <field name="VAR" id="ds-pg-df">df</field>
+                                            <field name="X_COL">bill_length_mm</field>
+                                            <field name="Y_COL">body_mass_g</field>
+                                            <next>
+                                              <block type="ds_chart_scatter_fit_block">
+                                                <field name="VAR" id="ds-pg-df">df</field>
+                                                <field name="X_COL">bill_length_mm</field>
+                                                <field name="Y_COL">body_mass_g</field>
+                                                <field name="FIT_VAR" id="ds-pg-fit">fit</field>
+                                                <field name="TITLE">Bill length vs body mass (with fit)</field>
+                                                <next>
+                                                  <block type="ds_state_conclusion_block">
+                                                    <field name="TEXT">Heavier penguins tend to have longer bills — confirmed by Pearson r and the regression line. Gentoo penguins are the largest of the three species.</field>
+                                                  </block>
+                                                </next>
+                                              </block>
+                                            </next>
+                                          </block>
+                                        </next>
+                                      </block>
+                                    </next>
+                                  </block>
+                                </next>
+                              </block>
+                            </next>
+                          </block>
+                        </next>
+                      </block>
+                    </next>
+                  </block>
+                </next>
+              </block>
+            </next>
+          </block>
+        </next>
+      </block>
+    </statement>
+  </block>
+</xml>`;
+
+const DS_WEATHER_FILTER_XML = `<xml xmlns="https://developers.google.com/blockly/xml">
+  <variables>
+    <variable id="ds-wx-df">weather</variable>
+    <variable id="ds-wx-grp">city_avg</variable>
+    <variable id="ds-wx-ct">cape_town</variable>
+  </variables>
+  <block type="ds_start_block" x="40" y="40">
+    <field name="TITLE">Weather: compare two cities</field>
+    <statement name="BODY">
+      <block type="ds_load_builtin_block">
+        <field name="VAR" id="ds-wx-df">weather</field>
+        <field name="ID">weather</field>
+        <next>
+          <block type="ds_show_table_block">
+            <field name="VAR" id="ds-wx-df">weather</field>
+            <next>
+              <block type="ds_group_mean_block">
+                <field name="RESULT" id="ds-wx-grp">city_avg</field>
+                <field name="VAR" id="ds-wx-df">weather</field>
+                <field name="VALUE_COL">temp_high_c</field>
+                <field name="GROUP_COL">city</field>
+                <next>
+                  <block type="ds_chart_bar_block">
+                    <field name="VAR" id="ds-wx-grp">city_avg</field>
+                    <field name="X_COL">city</field>
+                    <field name="Y_COL">mean_temp_high_c</field>
+                    <field name="TITLE">Average high temperature by city (°C)</field>
+                    <next>
+                      <block type="ds_filter_eq_block">
+                        <field name="RESULT" id="ds-wx-ct">cape_town</field>
+                        <field name="VAR" id="ds-wx-df">weather</field>
+                        <field name="COL">city</field>
+                        <field name="VALUE">Cape Town</field>
+                        <next>
+                          <block type="ds_chart_line_block">
+                            <field name="VAR" id="ds-wx-ct">cape_town</field>
+                            <field name="X_COL">date</field>
+                            <field name="Y_COL">temp_high_c</field>
+                            <field name="TITLE">Cape Town daily high (°C)</field>
+                            <next>
+                              <block type="ds_chart_box_block">
+                                <field name="VAR" id="ds-wx-df">weather</field>
+                                <field name="VALUE_COL">temp_high_c</field>
+                                <field name="GROUP_COL">city</field>
+                                <field name="TITLE">High-temperature spread by city</field>
+                                <next>
+                                  <block type="ds_state_conclusion_block">
+                                    <field name="TEXT">Johannesburg and Cape Town have noticeably different temperature ranges over this period.</field>
+                                  </block>
+                                </next>
+                              </block>
+                            </next>
+                          </block>
+                        </next>
+                      </block>
+                    </next>
+                  </block>
+                </next>
+              </block>
+            </next>
+          </block>
+        </next>
+      </block>
+    </statement>
+  </block>
+</xml>`;
+
+const DS_PLANETS_CHART_XML = `<xml xmlns="https://developers.google.com/blockly/xml">
+  <variables>
+    <variable id="ds-pl-df">planets</variable>
+    <variable id="ds-pl-df2">df2</variable>
+    <variable id="ds-pl-df3">df3</variable>
+    <variable id="ds-pl-fit">fit</variable>
+  </variables>
+  <block type="ds_start_block" x="40" y="40">
+    <field name="TITLE">Planets: Kepler's third law</field>
+    <statement name="BODY">
+      <block type="ds_load_builtin_block">
+        <field name="VAR" id="ds-pl-df">planets</field>
+        <field name="ID">planets</field>
+        <next>
+          <block type="ds_show_table_block">
+            <field name="VAR" id="ds-pl-df">planets</field>
+            <next>
+              <block type="ds_add_column_transform_block">
+                <field name="RESULT" id="ds-pl-df2">df2</field>
+                <field name="VAR" id="ds-pl-df">planets</field>
+                <field name="NEW_COL">log_dist</field>
+                <field name="TRANSFORM">log10</field>
+                <field name="SOURCE_COL">distance_au</field>
+                <next>
+                  <block type="ds_add_column_transform_block">
+                    <field name="RESULT" id="ds-pl-df3">df3</field>
+                    <field name="VAR" id="ds-pl-df2">df2</field>
+                    <field name="NEW_COL">log_period</field>
+                    <field name="TRANSFORM">log10</field>
+                    <field name="SOURCE_COL">period_days</field>
+                    <next>
+                      <block type="ds_linear_regression_block">
+                        <field name="RESULT" id="ds-pl-fit">fit</field>
+                        <field name="VAR" id="ds-pl-df3">df3</field>
+                        <field name="X_COL">log_dist</field>
+                        <field name="Y_COL">log_period</field>
+                        <next>
+                          <block type="ds_chart_scatter_fit_block">
+                            <field name="VAR" id="ds-pl-df3">df3</field>
+                            <field name="X_COL">log_dist</field>
+                            <field name="Y_COL">log_period</field>
+                            <field name="FIT_VAR" id="ds-pl-fit">fit</field>
+                            <field name="TITLE">log(distance) vs log(period)</field>
+                            <next>
+                              <block type="ds_state_conclusion_block">
+                                <field name="TEXT">Slope ≈ 1.5 confirms T ∝ a^(3/2) — Kepler's Third Law. log(T) = 1.5·log(a) + const.</field>
+                              </block>
+                            </next>
+                          </block>
+                        </next>
+                      </block>
+                    </next>
+                  </block>
+                </next>
+              </block>
+            </next>
+          </block>
+        </next>
+      </block>
+    </statement>
+  </block>
+</xml>`;
+
+const DS_UNCERTAINTY_PENDULUM_XML = `<xml xmlns="https://developers.google.com/blockly/xml">
+  <variables>
+    <variable id="ds-up-df">pendulum</variable>
+    <variable id="ds-up-rep">repeats</variable>
+    <variable id="ds-up-mean">mean_T</variable>
+    <variable id="ds-up-se">se_T</variable>
+    <variable id="ds-up-rel">rel_unc</variable>
+  </variables>
+  <block type="ds_start_block" x="40" y="40">
+    <field name="TITLE">Uncertainty: repeated period measurements</field>
+    <statement name="BODY">
+      <block type="ds_load_builtin_block">
+        <field name="VAR" id="ds-up-df">pendulum</field>
+        <field name="ID">pendulum</field>
+        <next>
+          <block type="ds_filter_eq_block">
+            <field name="RESULT" id="ds-up-rep">repeats</field>
+            <field name="VAR" id="ds-up-df">pendulum</field>
+            <field name="COL">study</field>
+            <field name="VALUE">repeat</field>
+            <next>
+              <block type="ds_show_table_block">
+                <field name="VAR" id="ds-up-rep">repeats</field>
+                <next>
+                  <block type="ds_calc_mean_block">
+                    <field name="RESULT" id="ds-up-mean">mean_T</field>
+                    <field name="VAR" id="ds-up-rep">repeats</field>
+                    <field name="COL">period_s</field>
+                    <next>
+                      <block type="ds_calc_std_error_block">
+                        <field name="RESULT" id="ds-up-se">se_T</field>
+                        <field name="VAR" id="ds-up-rep">repeats</field>
+                        <field name="COL">period_s</field>
+                        <next>
+                          <block type="ds_print_uncertainty_block">
+                            <field name="MEAN_VAR" id="ds-up-mean">mean_T</field>
+                            <field name="SE_VAR" id="ds-up-se">se_T</field>
+                            <field name="LABEL">Period at L = 0.50 m (8 repeats), s</field>
+                            <next>
+                              <block type="ds_calc_relative_uncertainty_block">
+                                <field name="RESULT" id="ds-up-rel">rel_unc</field>
+                                <field name="MEAN_VAR" id="ds-up-mean">mean_T</field>
+                                <field name="SE_VAR" id="ds-up-se">se_T</field>
+                                <next>
+                                  <block type="ds_print_result_block">
+                                    <field name="VAR" id="ds-up-rel">rel_unc</field>
+                                    <field name="LABEL">Relative uncertainty (%)</field>
+                                    <next>
+                                      <block type="ds_state_conclusion_block">
+                                        <field name="TEXT">Timing the same pendulum 8 times gives a spread of periods. The mean ± standard error reports our best value and how precisely we know it — the standard error (σ/√n) shrinks as we take more repeats.</field>
+                                      </block>
+                                    </next>
+                                  </block>
+                                </next>
+                              </block>
+                            </next>
+                          </block>
+                        </next>
+                      </block>
+                    </next>
+                  </block>
+                </next>
+              </block>
+            </next>
+          </block>
+        </next>
+      </block>
+    </statement>
+  </block>
+</xml>`;
+
+const DS_MEASURE_G_FREEFALL_XML = `<xml xmlns="https://developers.google.com/blockly/xml">
+  <variables>
+    <variable id="ds-ff-df">fall</variable>
+    <variable id="ds-ff-fit">fit</variable>
+  </variables>
+  <block type="ds_start_block" x="40" y="40">
+    <field name="TITLE">Measure g from a free fall</field>
+    <statement name="BODY">
+      <block type="ds_load_builtin_block">
+        <field name="VAR" id="ds-ff-df">fall</field>
+        <field name="ID">freefall</field>
+        <next>
+          <block type="ds_show_table_block">
+            <field name="VAR" id="ds-ff-df">fall</field>
+            <next>
+              <block type="ds_linear_regression_block">
+                <field name="RESULT" id="ds-ff-fit">fit</field>
+                <field name="VAR" id="ds-ff-df">fall</field>
+                <field name="X_COL">time_s</field>
+                <field name="Y_COL">velocity_y_ms</field>
+                <next>
+                  <block type="ds_chart_scatter_fit_block">
+                    <field name="VAR" id="ds-ff-df">fall</field>
+                    <field name="X_COL">time_s</field>
+                    <field name="Y_COL">velocity_y_ms</field>
+                    <field name="FIT_VAR" id="ds-ff-fit">fit</field>
+                    <field name="TITLE">velocity vs time — slope = g</field>
+                    <next>
+                      <block type="ds_state_conclusion_block">
+                        <field name="TEXT">For an object dropped from rest, v = g·t, so velocity vs time is a straight line through the origin with slope g ≈ 9.8 m/s². (You could also compute t² and regress distance vs t² — that slope is g/2.)</field>
+                      </block>
+                    </next>
+                  </block>
+                </next>
+              </block>
+            </next>
+          </block>
+        </next>
+      </block>
+    </statement>
+  </block>
+</xml>`;
+
+const DS_REGRESSION_SPRING_XML = `<xml xmlns="https://developers.google.com/blockly/xml">
+  <variables>
+    <variable id="ds-rs-df">spring</variable>
+    <variable id="ds-rs-fit">fit</variable>
+  </variables>
+  <block type="ds_start_block" x="40" y="40">
+    <field name="TITLE">Linear regression: Hooke's law</field>
+    <statement name="BODY">
+      <block type="ds_load_builtin_block">
+        <field name="VAR" id="ds-rs-df">spring</field>
+        <field name="ID">spring</field>
+        <next>
+          <block type="ds_show_table_block">
+            <field name="VAR" id="ds-rs-df">spring</field>
+            <next>
+              <block type="ds_linear_regression_block">
+                <field name="RESULT" id="ds-rs-fit">fit</field>
+                <field name="VAR" id="ds-rs-df">spring</field>
+                <field name="X_COL">extension_m</field>
+                <field name="Y_COL">force_N</field>
+                <next>
+                  <block type="ds_chart_scatter_fit_block">
+                    <field name="VAR" id="ds-rs-df">spring</field>
+                    <field name="X_COL">extension_m</field>
+                    <field name="Y_COL">force_N</field>
+                    <field name="FIT_VAR" id="ds-rs-fit">fit</field>
+                    <field name="TITLE">Hooke's law: force vs extension</field>
+                    <next>
+                      <block type="ds_state_conclusion_block">
+                        <field name="TEXT">Slope = spring constant k ≈ 9.8 N/m. F = kx confirmed — the straight line through the origin shows the spring obeys Hooke's law.</field>
+                      </block>
+                    </next>
+                  </block>
+                </next>
+              </block>
+            </next>
+          </block>
+        </next>
+      </block>
+    </statement>
+  </block>
+</xml>`;
+
+const DS_LINEARIZATION_PENDULUM_XML = `<xml xmlns="https://developers.google.com/blockly/xml">
+  <variables>
+    <variable id="ds-lp-df">pendulum</variable>
+    <variable id="ds-lp-len">len_data</variable>
+    <variable id="ds-lp-tsq">df_len</variable>
+    <variable id="ds-lp-fit">fit</variable>
+    <variable id="ds-lp-mass">mass_data</variable>
+    <variable id="ds-lp-mavg">mass_avg</variable>
+  </variables>
+  <block type="ds_start_block" x="40" y="40">
+    <field name="TITLE">Pendulum: what controls the period?</field>
+    <statement name="BODY">
+      <block type="ds_load_builtin_block">
+        <field name="VAR" id="ds-lp-df">pendulum</field>
+        <field name="ID">pendulum</field>
+        <next>
+          <block type="ds_show_table_block">
+            <field name="VAR" id="ds-lp-df">pendulum</field>
+            <next>
+              <block type="ds_filter_eq_block">
+                <field name="RESULT" id="ds-lp-len">len_data</field>
+                <field name="VAR" id="ds-lp-df">pendulum</field>
+                <field name="COL">study</field>
+                <field name="VALUE">length</field>
+                <next>
+                  <block type="ds_multiply_columns_block">
+                    <field name="RESULT" id="ds-lp-tsq">df_len</field>
+                    <field name="VAR" id="ds-lp-len">len_data</field>
+                    <field name="NEW_COL">T_sq</field>
+                    <field name="COL_A">period_s</field>
+                    <field name="COL_B">period_s</field>
+                    <next>
+                      <block type="ds_linear_regression_block">
+                        <field name="RESULT" id="ds-lp-fit">fit</field>
+                        <field name="VAR" id="ds-lp-tsq">df_len</field>
+                        <field name="X_COL">length_m</field>
+                        <field name="Y_COL">T_sq</field>
+                        <next>
+                          <block type="ds_chart_scatter_fit_block">
+                            <field name="VAR" id="ds-lp-tsq">df_len</field>
+                            <field name="X_COL">length_m</field>
+                            <field name="Y_COL">T_sq</field>
+                            <field name="FIT_VAR" id="ds-lp-fit">fit</field>
+                            <field name="TITLE">T² vs length — slope = 4π²/g</field>
+                            <next>
+                              <block type="ds_filter_eq_block">
+                                <field name="RESULT" id="ds-lp-mass">mass_data</field>
+                                <field name="VAR" id="ds-lp-df">pendulum</field>
+                                <field name="COL">study</field>
+                                <field name="VALUE">mass</field>
+                                <next>
+                                  <block type="ds_group_mean_block">
+                                    <field name="RESULT" id="ds-lp-mavg">mass_avg</field>
+                                    <field name="VAR" id="ds-lp-mass">mass_data</field>
+                                    <field name="VALUE_COL">period_s</field>
+                                    <field name="GROUP_COL">mass_kg</field>
+                                    <next>
+                                      <block type="ds_chart_bar_block">
+                                        <field name="VAR" id="ds-lp-mavg">mass_avg</field>
+                                        <field name="X_COL">mass_kg</field>
+                                        <field name="Y_COL">mean_period_s</field>
+                                        <field name="TITLE">Mean period vs mass — flat means no effect</field>
+                                        <next>
+                                          <block type="ds_state_conclusion_block">
+                                            <field name="TEXT">Length study: T² rises in a straight line with length (slope = 4π²/g ≈ 4.03, so g ≈ 9.8 m/s²) — so T² ∝ L. Mass study: the period stays ≈ 1.42 s whatever the mass — mass has NO effect on the period.</field>
+                                          </block>
+                                        </next>
+                                      </block>
+                                    </next>
+                                  </block>
+                                </next>
+                              </block>
+                            </next>
+                          </block>
+                        </next>
+                      </block>
+                    </next>
+                  </block>
+                </next>
+              </block>
+            </next>
+          </block>
+        </next>
+      </block>
+    </statement>
+  </block>
+</xml>`;
+
+const HYBRID_PROJECTILE_G_XML = `<xml xmlns="https://developers.google.com/blockly/xml">
+  <variables>
+    <variable id="hy-pg-run">run_data</variable>
+    <variable id="hy-pg-fit">fit</variable>
+  </variables>
+  <block type="ds_start_block" x="40" y="40">
+    <field name="TITLE">Projectile: measure g from vertical velocity</field>
+    <statement name="BODY">
+      <block type="ds_load_trace_block">
+        <field name="VAR" id="hy-pg-run">run_data</field>
+        <field name="DATASET_NAME">paste-trace-label-here</field>
+        <next>
+          <block type="ds_show_table_block">
+            <field name="VAR" id="hy-pg-run">run_data</field>
+            <next>
+              <block type="ds_linear_regression_block">
+                <field name="RESULT" id="hy-pg-fit">fit</field>
+                <field name="VAR" id="hy-pg-run">run_data</field>
+                <field name="X_COL">t</field>
+                <field name="Y_COL">vy</field>
+                <next>
+                  <block type="ds_chart_scatter_fit_block">
+                    <field name="VAR" id="hy-pg-run">run_data</field>
+                    <field name="X_COL">t</field>
+                    <field name="Y_COL">vy</field>
+                    <field name="FIT_VAR" id="hy-pg-fit">fit</field>
+                    <field name="TITLE">vy vs t — slope = −g</field>
+                    <next>
+                      <block type="ds_state_conclusion_block">
+                        <field name="TEXT">During flight vy = v0y − g·t, a straight line of slope −g. The regression slope ≈ −9.8, so g ≈ 9.8 m/s². Tip: when you save the run, crop the time window to BEFORE the first bounce so the line stays straight.</field>
+                      </block>
+                    </next>
+                  </block>
+                </next>
+              </block>
+            </next>
+          </block>
+        </next>
+      </block>
+    </statement>
+  </block>
+</xml>`;
+
+const HYBRID_SPRING_K_XML = `<xml xmlns="https://developers.google.com/blockly/xml">
+  <variables>
+    <variable id="hy-sk-run">run_data</variable>
+    <variable id="hy-sk-fit">fit</variable>
+  </variables>
+  <block type="ds_start_block" x="40" y="40">
+    <field name="TITLE">Spring-mass: find k from force and stretch</field>
+    <statement name="BODY">
+      <block type="ds_load_trace_block">
+        <field name="VAR" id="hy-sk-run">run_data</field>
+        <field name="DATASET_NAME">paste-trace-label-here</field>
+        <next>
+          <block type="ds_show_table_block">
+            <field name="VAR" id="hy-sk-run">run_data</field>
+            <next>
+              <block type="ds_linear_regression_block">
+                <field name="RESULT" id="hy-sk-fit">fit</field>
+                <field name="VAR" id="hy-sk-run">run_data</field>
+                <field name="X_COL">stretch</field>
+                <field name="Y_COL">Fspring</field>
+                <next>
+                  <block type="ds_chart_scatter_fit_block">
+                    <field name="VAR" id="hy-sk-run">run_data</field>
+                    <field name="X_COL">stretch</field>
+                    <field name="Y_COL">Fspring</field>
+                    <field name="FIT_VAR" id="hy-sk-fit">fit</field>
+                    <field name="TITLE">Fspring vs stretch — slope = −k</field>
+                    <next>
+                      <block type="ds_state_conclusion_block">
+                        <field name="TEXT">Hooke's law: Fspring = −k·stretch, a straight line of slope −k. The regression slope ≈ −14, so k ≈ 14 N/m — matching the simulation's spring constant.</field>
+                      </block>
+                    </next>
+                  </block>
+                </next>
+              </block>
+            </next>
+          </block>
+        </next>
+      </block>
+    </statement>
+  </block>
+</xml>`;
+
+const HYBRID_PENDULUM_DAMP_XML = `<xml xmlns="https://developers.google.com/blockly/xml">
+  <variables>
+    <variable id="hy-pd-run">run_data</variable>
+    <variable id="hy-pd-flt">filtered</variable>
+    <variable id="hy-pd-df2">df2</variable>
+    <variable id="hy-pd-fit">fit</variable>
+  </variables>
+  <block type="ds_start_block" x="40" y="40">
+    <field name="TITLE">Pendulum: measure the damping coefficient</field>
+    <statement name="BODY">
+      <block type="ds_load_trace_block">
+        <field name="VAR" id="hy-pd-run">run_data</field>
+        <field name="DATASET_NAME">paste-trace-label-here</field>
+        <next>
+          <block type="ds_show_table_block">
+            <field name="VAR" id="hy-pd-run">run_data</field>
+            <next>
+              <block type="ds_filter_gt_block">
+                <field name="RESULT" id="hy-pd-flt">filtered</field>
+                <field name="VAR" id="hy-pd-run">run_data</field>
+                <field name="COL">E_total</field>
+                <field name="VALUE">0.001</field>
+                <next>
+                  <block type="ds_add_column_transform_block">
+                    <field name="RESULT" id="hy-pd-df2">df2</field>
+                    <field name="VAR" id="hy-pd-flt">filtered</field>
+                    <field name="NEW_COL">log_E</field>
+                    <field name="TRANSFORM">ln</field>
+                    <field name="SOURCE_COL">E_total</field>
+                    <next>
+                      <block type="ds_linear_regression_block">
+                        <field name="RESULT" id="hy-pd-fit">fit</field>
+                        <field name="VAR" id="hy-pd-df2">df2</field>
+                        <field name="X_COL">t</field>
+                        <field name="Y_COL">log_E</field>
+                        <next>
+                          <block type="ds_chart_scatter_fit_block">
+                            <field name="VAR" id="hy-pd-df2">df2</field>
+                            <field name="X_COL">t</field>
+                            <field name="Y_COL">log_E</field>
+                            <field name="FIT_VAR" id="hy-pd-fit">fit</field>
+                            <field name="TITLE">ln(E) vs time (linearized damping)</field>
+                            <next>
+                              <block type="ds_state_conclusion_block">
+                                <field name="TEXT">Energy decays as E = E₀·e^(−γt), so ln(E) vs t is a straight line of slope −γ. The regression slope ≈ −0.1, giving the damping coefficient γ ≈ 0.1 s⁻¹ (matching the simulation's b). This single run measures how fast the pendulum loses energy.</field>
+                              </block>
+                            </next>
+                          </block>
+                        </next>
+                      </block>
+                    </next>
+                  </block>
+                </next>
+              </block>
+            </next>
+          </block>
+        </next>
+      </block>
+    </statement>
+  </block>
+</xml>`;
+
 /* ── Export ───────────────────────────────────────────── */
+
+export const DS_TEMPLATES = [
+  {
+    id: "ds_penguins_stats",
+    title: "Penguins: exploratory analysis",
+    description: "Full EDA workflow: stats, group averages, charts, plus Pearson correlation and regression line on bill length vs body mass.",
+    kind: "blocks",
+    goal: "datascience",
+    xml: DS_PENGUINS_STATS_XML,
+  },
+  {
+    id: "ds_weather_filter",
+    title: "Weather: compare two cities",
+    description: "Group by city, filter Cape Town, and compare with line, bar and box-plot charts.",
+    kind: "blocks",
+    goal: "datascience",
+    xml: DS_WEATHER_FILTER_XML,
+  },
+  {
+    id: "ds_planets_chart",
+    title: "Planets: Kepler's third law",
+    description: "Log-log linearisation of distance vs period data. Regression slope ≈ 1.5 confirms T ∝ a^(3/2).",
+    kind: "blocks",
+    goal: "datascience",
+    xml: DS_PLANETS_CHART_XML,
+  },
+  {
+    id: "ds_uncertainty_pendulum",
+    title: "Uncertainty: repeated measurements",
+    description: "Time the same pendulum 8 times, then report period mean ± standard error and relative uncertainty %.",
+    kind: "blocks",
+    goal: "datascience",
+    xml: DS_UNCERTAINTY_PENDULUM_XML,
+  },
+  {
+    id: "ds_regression_spring",
+    title: "Linear regression: Hooke's law",
+    description: "Fit F = kx to spring loading data. The slope is the spring constant k ≈ 19.6 N/m, with a scatter+fit chart.",
+    kind: "blocks",
+    goal: "datascience",
+    xml: DS_REGRESSION_SPRING_XML,
+  },
+  {
+    id: "ds_linearization_pendulum",
+    title: "Pendulum: what controls the period?",
+    description: "Vary length → regress T² vs L (slope 4π²/g → measure g); vary mass → period stays flat. Shows T² ∝ L and mass independence.",
+    kind: "blocks",
+    goal: "datascience",
+    xml: DS_LINEARIZATION_PENDULUM_XML,
+  },
+  {
+    id: "ds_measure_g_freefall",
+    title: "Free fall: measure g",
+    description: "Regress velocity vs time on a dropped-ball log; the slope is g ≈ 9.8 m/s². (Distance vs t² gives g/2.)",
+    kind: "blocks",
+    goal: "datascience",
+    xml: DS_MEASURE_G_FREEFALL_XML,
+  },
+  {
+    id: "hybrid_projectile_g",
+    title: "Projectile: measure g from vertical velocity",
+    description: "Run the Projectile sim, save a run (cropped to before the bounce), then regress vy vs t — the slope is −g.",
+    kind: "blocks",
+    goal: "hybrid",
+    xml: HYBRID_PROJECTILE_G_XML,
+  },
+  {
+    id: "hybrid_spring_k",
+    title: "Spring-mass: find k from force and stretch",
+    description: "Run the Spring-Mass sim, save a run with stretch and Fspring, then regress Fspring vs stretch — the slope is −k.",
+    kind: "blocks",
+    goal: "hybrid",
+    xml: HYBRID_SPRING_K_XML,
+  },
+  {
+    id: "hybrid_pendulum_damp",
+    title: "Pendulum: measure the damping coefficient",
+    description: "Run the Pendulum sim, save a run with t and E_total, then regress ln(E) vs t — the slope is −γ.",
+    kind: "blocks",
+    goal: "hybrid",
+    xml: HYBRID_PENDULUM_DAMP_XML,
+  },
+];
 
 export const BLOCK_TEMPLATES = [
   {
@@ -1681,5 +2404,42 @@ export const BLOCK_TEMPLATES = [
     description:
       "Full nonlinear ODE \u03b1 = \u2212(g/L)\u00b7sin(\u03b8) \u2212 b\u00b7\u03c9 with symplectic Euler integration. Live KE, PE, and E_total telemetry. Rod and bob geometry update every frame.",
     xml: buildTemplate(normalizeSimulationFlow(PENDULUM_BLOCKS)),
+  },
+];
+
+/* ── Hybrid topics ──────────────────────────────────────────
+ * Each hybrid topic couples a physics simulation template with the
+ * matching DS analysis template, so picking a topic wires up the whole
+ * investigation instead of making the user match two separate templates.
+ *   - defaultEntry "model" → the project opens with the simulation ready
+ *     to run; after saving a run the IDE offers the paired analysis.
+ *   - defaultEntry "data"  → the project opens straight into the analysis.
+ * simTemplateId   → an id in BLOCK_TEMPLATES
+ * analysisTemplateId → an id in DS_TEMPLATES (goal: "hybrid")
+ */
+export const HYBRID_TOPICS = [
+  {
+    id: "pendulum",
+    title: "Pendulum: measure damping",
+    description: "Run the pendulum, save a run, then fit ln(E) vs t to find the damping coefficient γ.",
+    simTemplateId: "blocks_pendulum",
+    analysisTemplateId: "hybrid_pendulum_damp",
+    defaultEntry: "model",
+  },
+  {
+    id: "projectile",
+    title: "Projectile: measure g",
+    description: "Run the projectile, save a run (crop before the bounce), then fit vy vs t to find g.",
+    simTemplateId: "blocks_projectile",
+    analysisTemplateId: "hybrid_projectile_g",
+    defaultEntry: "model",
+  },
+  {
+    id: "spring",
+    title: "Spring-mass: find k",
+    description: "Run the spring oscillator, save a run, then fit Fspring vs stretch to find the spring constant k.",
+    simTemplateId: "blocks_spring",
+    analysisTemplateId: "hybrid_spring_k",
+    defaultEntry: "model",
   },
 ];

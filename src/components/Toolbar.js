@@ -21,7 +21,6 @@ import {
   ZoomOutIcon,
   PanelRightCloseIcon,
   PanelRightOpenIcon,
-  GraduationCapIcon,
   TableIcon,
   BugIcon,
 } from "./Icons";
@@ -114,13 +113,14 @@ function Toolbar({
   onExportScreenshot,
   onCopyCode,
   onImport,
+  onExportProject,
+  onImportProject,
   onReset,
   onClearWorkspace,
   onToggleTheme,
   onHome,
   onHelp,
   onToggleViewport,
-  onToggleBeginnerMode,
   traceVisible,
   onToggleTrace,
   onDebugMode,
@@ -130,10 +130,16 @@ function Toolbar({
   zoom,
   onZoomChange,
   viewportHidden,
-  beginnerMode,
+  goal = "physics",
   children,
 }) {
+  /* ── Capability flags driven by the project goal (Phase B.8).
+     The toolbar only renders actions that make sense for the active goal.
+     Physics and Hybrid show simulation controls; pure Data Science does
+     not. Phase C will populate DS-specific actions in this same slot. */
+  const showSimActions = goal === "physics" || goal === "hybrid";
   const importInputRef = useRef(null);
+  const importProjectRef = useRef(null);
 
   const handleImportClick = () => {
     if (importInputRef.current) {
@@ -145,6 +151,18 @@ function Toolbar({
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file && onImport) onImport(file);
+  };
+
+  const handleImportProjectClick = () => {
+    if (importProjectRef.current) {
+      importProjectRef.current.value = "";
+      importProjectRef.current.click();
+    }
+  };
+
+  const handleImportProjectChange = (e) => {
+    const file = e.target.files[0];
+    if (file && onImportProject) onImportProject(file);
   };
   return (
     <header className="toolbar">
@@ -168,25 +186,29 @@ function Toolbar({
         <span className="tb-btn-label">Help</span>
       </button>
 
-      <div className="tb-separator" />
+      {showSimActions && (
+        <>
+          <div className="tb-separator" />
 
-      {/* ── Simulation controls ── */}
-      <div className="tb-group tb-group--sim">
-        <button type="button" className="tb-btn tb-btn--run" onClick={onRun} title="Run simulation (Ctrl+Enter)">
-          <PlayIcon size={13} />
-          <span className="tb-btn-label">Run</span>
-        </button>
-        <button
-          type="button"
-          className={`tb-btn tb-btn--stop${running ? "" : " tb-btn--disabled"}`}
-          onClick={running ? onStop : undefined}
-          disabled={!running}
-          title={running ? "Stop simulation" : "No simulation running"}
-        >
-          <StopIcon size={13} />
-          <span className="tb-btn-label">Stop</span>
-        </button>
-      </div>
+          {/* ── Simulation controls (physics / hybrid) ── */}
+          <div className="tb-group tb-group--sim">
+            <button type="button" className="tb-btn tb-btn--run" onClick={onRun} title="Run simulation (Ctrl+Enter)">
+              <PlayIcon size={13} />
+              <span className="tb-btn-label">Run</span>
+            </button>
+            <button
+              type="button"
+              className={`tb-btn tb-btn--stop${running ? "" : " tb-btn--disabled"}`}
+              onClick={running ? onStop : undefined}
+              disabled={!running}
+              title={running ? "Stop simulation" : "No simulation running"}
+            >
+              <StopIcon size={13} />
+              <span className="tb-btn-label">Stop</span>
+            </button>
+          </div>
+        </>
+      )}
 
       <div className="tb-separator" />
 
@@ -218,8 +240,8 @@ function Toolbar({
         </>
       )}
 
-      {/* ── Viewport toggle ── */}
-      {onToggleViewport && (
+      {/* ── Viewport toggle (physics / hybrid) ── */}
+      {showSimActions && onToggleViewport && (
         <button
           type="button"
           className="tb-btn tb-btn--subtle"
@@ -231,8 +253,8 @@ function Toolbar({
         </button>
       )}
 
-      {/* ── Live trace table toggle ── */}
-      {onToggleTrace && (
+      {/* ── Live trace table toggle (physics / hybrid) ── */}
+      {showSimActions && onToggleTrace && (
         <button
           type="button"
           className={`tb-btn tb-btn--subtle${traceVisible ? " tb-btn--active" : ""}`}
@@ -244,8 +266,8 @@ function Toolbar({
         </button>
       )}
 
-      {/* ── Debug Mode button ── */}
-      {onDebugMode && (
+      {/* ── Debug Mode button (physics / hybrid) ── */}
+      {showSimActions && onDebugMode && (
         <button
           type="button"
           className="tb-btn tb-btn--subtle"
@@ -254,19 +276,6 @@ function Toolbar({
         >
           <BugIcon size={13} />
           <span className="tb-btn-label">Debug</span>
-        </button>
-      )}
-
-      {/* ── Beginner mode toggle ── */}
-      {onToggleBeginnerMode && (
-        <button
-          type="button"
-          className={`tb-btn tb-btn--subtle${beginnerMode ? " tb-btn--active" : ""}`}
-          onClick={onToggleBeginnerMode}
-          title={beginnerMode ? "Switch to Advanced toolbox" : "Switch to Beginner toolbox"}
-        >
-          <GraduationCapIcon size={13} />
-          <span className="tb-btn-label">{beginnerMode ? "Beginner" : "Advanced"}</span>
         </button>
       )}
 
@@ -290,6 +299,28 @@ function Toolbar({
           >
             <UploadIcon size={13} />
             <span className="tb-btn-label">Import</span>
+          </button>
+        </>
+      )}
+
+      {/* ── Import Project (.physide.json) ── */}
+      {onImportProject && (
+        <>
+          <input
+            ref={importProjectRef}
+            type="file"
+            accept=".json,.physide.json"
+            style={{ display: "none" }}
+            onChange={handleImportProjectChange}
+          />
+          <button
+            type="button"
+            className="tb-btn tb-btn--subtle"
+            onClick={handleImportProjectClick}
+            title="Import a .physide.json project bundle"
+          >
+            <UploadIcon size={13} />
+            <span className="tb-btn-label">Open…</span>
           </button>
         </>
       )}
@@ -338,6 +369,15 @@ function Toolbar({
               <CopyIcon size={14} />
               <span>Copy Code to Clipboard</span>
               <span className="tb-dropdown-shortcut">Ctrl+C</span>
+            </button>
+          </>
+        )}
+        {onExportProject && (
+          <>
+            <div className="tb-dropdown-divider" />
+            <button type="button" className="tb-dropdown-item" onClick={onExportProject}>
+              <DownloadIcon size={14} />
+              <span>Export Project Bundle (.physide.json)</span>
             </button>
           </>
         )}
