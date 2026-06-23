@@ -276,6 +276,22 @@ export const MASTER_TOOLBOX_XML = `
     <block type="ds_calc_stddev_block"><field name="COL">mass</field></block>
     <block type="ds_all_stats_block"><field name="COL">mass</field></block>
     <block type="ds_compare_columns_block"><field name="COL_A">bill_length_mm</field><field name="COL_B">bill_depth_mm</field></block>
+    <block type="ds_calc_percentile_block"><field name="COL">mass</field><field name="P">50</field></block>
+    <block type="ds_calc_iqr_block"><field name="COL">mass</field></block>
+    <sep gap="8"></sep>
+    <label text="Transform columns" web-class="tb-label"></label>
+    <block type="ds_add_column_transform_block"><field name="SOURCE_COL">x</field><field name="NEW_NAME">log_x</field><field name="TRANSFORM">log10</field></block>
+    <block type="ds_multiply_columns_block"><field name="COL_A">t</field><field name="COL_B">t</field><field name="NEW_NAME">t_sq</field></block>
+    <sep gap="8"></sep>
+    <label text="Uncertainty" web-class="tb-label"></label>
+    <block type="ds_calc_std_error_block"><field name="COL">mass</field></block>
+    <block type="ds_print_uncertainty_block"><field name="LABEL">measurement</field></block>
+    <block type="ds_calc_relative_uncertainty_block"></block>
+    <sep gap="8"></sep>
+    <label text="Relationships" web-class="tb-label"></label>
+    <block type="ds_linear_regression_block"><field name="X_COL">x</field><field name="Y_COL">y</field></block>
+    <block type="ds_chart_scatter_fit_block"><field name="X_COL">x</field><field name="Y_COL">y</field></block>
+    <block type="ds_correlation_block"><field name="COL_A">x</field><field name="COL_B">y</field></block>
     <sep gap="8"></sep>
     <label text="Filter and Sort" web-class="tb-label"></label>
     <block type="ds_filter_eq_block"><field name="COL">species</field><field name="VALUE">Adelie</field></block>

@@ -1047,6 +1047,9 @@ export function defineCustomBlocksAndGenerator(Blockly) {
             ["Planets",  "planets"],
             ["Penguins", "penguins"],
             ["Weather",  "weather"],
+            ["Pendulum", "pendulum"],
+            ["Spring",   "spring"],
+            ["Free fall", "freefall"],
           ],
         },
       ],
@@ -1054,7 +1057,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       previousStatement: null,
       nextStatement: null,
       colour: 160,
-      tooltip: "Load a built-in dataset (planets, penguins, weather) into a variable.",
+      tooltip: "Load a built-in dataset (planets, penguins, weather, pendulum, spring, free fall) into a variable.",
     },
     {
       type: "ds_load_trace_block",
@@ -1703,6 +1706,164 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       nextStatement: null,
       colour: 45,
       tooltip: "Find out the data type of a column (number, text, boolean).",
+    },
+
+    /* ── Transform columns ── */
+    {
+      type: "ds_add_column_transform_block",
+      message0: "%1 = %2 with new column %3 = %4( %5 )",
+      args0: [
+        { type: "field_variable", name: "RESULT",    variable: "df2" },
+        { type: "field_variable", name: "VAR",       variable: "df" },
+        { type: "field_input",    name: "NEW_COL",   text: "log_L" },
+        { type: "field_dropdown", name: "TRANSFORM",
+          options: [["ln","ln"],["log10","log10"],["√","sqrt"],["x²","square"],["1/x","reciprocal"]] },
+        { type: "field_input",    name: "SOURCE_COL", text: "col" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 160,
+      tooltip: "Add a new column by applying a maths transform (ln, log10, √, x², 1/x) to an existing column.",
+    },
+    {
+      type: "ds_multiply_columns_block",
+      message0: "%1 = %2 with new column %3 = %4 × %5",
+      args0: [
+        { type: "field_variable", name: "RESULT",  variable: "df2" },
+        { type: "field_variable", name: "VAR",     variable: "df" },
+        { type: "field_input",    name: "NEW_COL", text: "product" },
+        { type: "field_input",    name: "COL_A",   text: "col1" },
+        { type: "field_input",    name: "COL_B",   text: "col2" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 160,
+      tooltip: "Add a new column containing the element-wise product of two existing columns (e.g. T² = period_s × period_s).",
+    },
+
+    /* ── Uncertainty ── */
+    {
+      type: "ds_calc_std_error_block",
+      message0: "%1 = std error of %2 . %3",
+      args0: [
+        { type: "field_variable", name: "RESULT", variable: "se" },
+        { type: "field_variable", name: "VAR",    variable: "df" },
+        { type: "field_input",    name: "COL",    text: "col" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 160,
+      tooltip: "Standard error of the mean: σ / √n. Represents uncertainty in the mean from repeated measurements.",
+    },
+    {
+      type: "ds_print_uncertainty_block",
+      message0: "print %1 ± %2  label %3",
+      args0: [
+        { type: "field_variable", name: "MEAN_VAR", variable: "mean_val" },
+        { type: "field_variable", name: "SE_VAR",   variable: "se" },
+        { type: "field_input",    name: "LABEL",    text: "measurement" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 30,
+      tooltip: "Display a measurement result as X.XXX ± Y.YY with relative uncertainty %.",
+    },
+    {
+      type: "ds_calc_relative_uncertainty_block",
+      message0: "%1 = relative uncertainty of %2 ± %3  (%)",
+      args0: [
+        { type: "field_variable", name: "RESULT",   variable: "rel_unc" },
+        { type: "field_variable", name: "MEAN_VAR", variable: "mean_val" },
+        { type: "field_variable", name: "SE_VAR",   variable: "se" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 160,
+      tooltip: "Calculate relative uncertainty: (uncertainty / value) × 100 %.",
+    },
+
+    /* ── Relationships ── */
+    {
+      type: "ds_linear_regression_block",
+      message0: "%1 = linear fit of %2  x= %3  y= %4",
+      args0: [
+        { type: "field_variable", name: "RESULT", variable: "fit" },
+        { type: "field_variable", name: "VAR",    variable: "df" },
+        { type: "field_input",    name: "X_COL",  text: "x" },
+        { type: "field_input",    name: "Y_COL",  text: "y" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 160,
+      tooltip: "Fit a straight line y = mx + b (OLS). Stores slope, intercept, R², and n.",
+    },
+    {
+      type: "ds_chart_scatter_fit_block",
+      message0: "scatter+fit chart  %1  x= %2  y= %3  fit= %4  title %5",
+      args0: [
+        { type: "field_variable", name: "VAR",     variable: "df" },
+        { type: "field_input",    name: "X_COL",   text: "x" },
+        { type: "field_input",    name: "Y_COL",   text: "y" },
+        { type: "field_variable", name: "FIT_VAR", variable: "fit" },
+        { type: "field_input",    name: "TITLE",   text: "" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 20,
+      tooltip: "Scatter plot with linear regression line overlay. Use the linear fit block first to compute the fit.",
+    },
+    {
+      type: "ds_correlation_block",
+      message0: "%1 = correlation of %2  %3  vs  %4",
+      args0: [
+        { type: "field_variable", name: "RESULT", variable: "r" },
+        { type: "field_variable", name: "VAR",    variable: "df" },
+        { type: "field_input",    name: "COL_A",  text: "col1" },
+        { type: "field_input",    name: "COL_B",  text: "col2" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 160,
+      tooltip: "Pearson correlation coefficient r (range −1 to +1). Close to ±1 = strong linear relationship.",
+    },
+
+    /* ── Additional stats ── */
+    {
+      type: "ds_calc_percentile_block",
+      message0: "%1 = %2 . %3  percentile %4",
+      args0: [
+        { type: "field_variable", name: "RESULT", variable: "p_val" },
+        { type: "field_variable", name: "VAR",    variable: "df" },
+        { type: "field_input",    name: "COL",    text: "col" },
+        { type: "field_number",   name: "P",      value: 25, min: 0, max: 100 },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 160,
+      tooltip: "Calculate the p-th percentile of a column using linear interpolation.",
+    },
+    {
+      type: "ds_calc_iqr_block",
+      message0: "%1 = IQR of %2 . %3",
+      args0: [
+        { type: "field_variable", name: "RESULT", variable: "iqr_val" },
+        { type: "field_variable", name: "VAR",    variable: "df" },
+        { type: "field_input",    name: "COL",    text: "col" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: 160,
+      tooltip: "Interquartile range: Q3 − Q1 (75th percentile minus 25th percentile).",
     },
   ]);
 
@@ -2541,6 +2702,87 @@ export function defineCustomBlocksAndGenerator(Blockly) {
     const name   = varName(block, "VAR", "df");
     const col    = (block.getFieldValue("COL") || "col").trim();
     return `${result} = str(${name}["${col}"].dtype)\n`;
+  };
+
+  /* ── New physics-stats blocks ── */
+  gen["ds_add_column_transform_block"] = function (block) {
+    const result    = varName(block, "RESULT", "df2");
+    const name      = varName(block, "VAR", "df");
+    const newCol    = (block.getFieldValue("NEW_COL") || "new_col").trim();
+    const transform = block.getFieldValue("TRANSFORM") || "ln";
+    const srcCol    = (block.getFieldValue("SOURCE_COL") || "col").trim();
+    const pyFn = { ln: "np.log", log10: "np.log10", sqrt: "np.sqrt", square: "np.square", reciprocal: "lambda x: 1/x" };
+    const fn = pyFn[transform] || "np.log";
+    return `${result} = ${name}.copy()\n${result}["${newCol}"] = (${fn})(${name}["${srcCol}"])\n`;
+  };
+
+  gen["ds_multiply_columns_block"] = function (block) {
+    const result = varName(block, "RESULT", "df2");
+    const name   = varName(block, "VAR", "df");
+    const newCol = (block.getFieldValue("NEW_COL") || "product").trim();
+    const colA   = (block.getFieldValue("COL_A") || "col1").trim();
+    const colB   = (block.getFieldValue("COL_B") || "col2").trim();
+    return `${result} = ${name}.copy()\n${result}["${newCol}"] = ${name}["${colA}"] * ${name}["${colB}"]\n`;
+  };
+
+  gen["ds_calc_std_error_block"] = function (block) {
+    const result = varName(block, "RESULT", "se");
+    const name   = varName(block, "VAR", "df");
+    const col    = (block.getFieldValue("COL") || "col").trim();
+    return `from scipy import stats\n${result} = stats.sem(${name}["${col}"].dropna())\n`;
+  };
+
+  gen["ds_print_uncertainty_block"] = function (block) {
+    const mean  = varName(block, "MEAN_VAR", "mean_val");
+    const se    = varName(block, "SE_VAR", "se");
+    const label = (block.getFieldValue("LABEL") || "measurement").trim();
+    return `print(f"${label}: {${mean}:.4g} ± {${se}:.3g}  ({abs(${se}/${mean})*100:.1f}% relative)")\n`;
+  };
+
+  gen["ds_calc_relative_uncertainty_block"] = function (block) {
+    const result = varName(block, "RESULT", "rel_unc");
+    const mean   = varName(block, "MEAN_VAR", "mean_val");
+    const se     = varName(block, "SE_VAR", "se");
+    return `${result} = abs(${se} / ${mean}) * 100 if ${mean} != 0 else None\n`;
+  };
+
+  gen["ds_linear_regression_block"] = function (block) {
+    const result = varName(block, "RESULT", "fit");
+    const name   = varName(block, "VAR", "df");
+    const xCol   = (block.getFieldValue("X_COL") || "x").trim();
+    const yCol   = (block.getFieldValue("Y_COL") || "y").trim();
+    return `from scipy import stats as _stats\n_res = _stats.linregress(${name}["${xCol}"].dropna(), ${name}["${yCol}"].dropna())\n${result} = {"slope": _res.slope, "intercept": _res.intercept, "rSquared": _res.rvalue**2, "n": len(${name})}\n`;
+  };
+
+  gen["ds_chart_scatter_fit_block"] = function (block) {
+    const name  = varName(block, "VAR", "df");
+    const xCol  = (block.getFieldValue("X_COL") || "x").trim();
+    const yCol  = (block.getFieldValue("Y_COL") || "y").trim();
+    const title = (block.getFieldValue("TITLE") || "").trim();
+    return `scatter_plot(${name}, x="${xCol}", y="${yCol}"${title ? `, title="${title}"` : ""})\n`;
+  };
+
+  gen["ds_correlation_block"] = function (block) {
+    const result = varName(block, "RESULT", "r");
+    const name   = varName(block, "VAR", "df");
+    const colA   = (block.getFieldValue("COL_A") || "col1").trim();
+    const colB   = (block.getFieldValue("COL_B") || "col2").trim();
+    return `${result} = ${name}["${colA}"].corr(${name}["${colB}"])\n`;
+  };
+
+  gen["ds_calc_percentile_block"] = function (block) {
+    const result = varName(block, "RESULT", "p_val");
+    const name   = varName(block, "VAR", "df");
+    const col    = (block.getFieldValue("COL") || "col").trim();
+    const p      = parseFloat(block.getFieldValue("P") || "25");
+    return `${result} = ${name}["${col}"].quantile(${p / 100})\n`;
+  };
+
+  gen["ds_calc_iqr_block"] = function (block) {
+    const result = varName(block, "RESULT", "iqr_val");
+    const name   = varName(block, "VAR", "df");
+    const col    = (block.getFieldValue("COL") || "col").trim();
+    return `from scipy.stats import iqr as _iqr\n${result} = _iqr(${name}["${col}"].dropna())\n`;
   };
 
   initialized = true;
