@@ -21,7 +21,7 @@
 
 import React, { useMemo, useRef, useState } from "react";
 import { EXAMPLES } from "../utils/precodedExamples";
-import { BLOCK_TEMPLATES, DS_TEMPLATES } from "../utils/blockTemplates";
+import { BLOCK_TEMPLATES, DS_TEMPLATES, HYBRID_TOPICS } from "../utils/blockTemplates";
 import { DEFAULT_PYTHON_CODE } from "../constants";
 import {
   RocketIcon,
@@ -63,6 +63,12 @@ const GOALS = [
   },
 ];
 
+const GOAL_BADGE = {
+  physics: "Physics",
+  datascience: "Data Science",
+  hybrid: "Hybrid",
+};
+
 const CARD_ICONS = {
   projectile: RocketIcon,
   spring: SpringIcon,
@@ -85,6 +91,32 @@ function buildManifestSpec({ goal, title, startPath, templateId, editor, hybridE
     preferredEditor,
     title: trimmedTitle || undefined,
   };
+
+  // ── Hybrid topic: a single selection couples the simulation template with
+  //    its matching analysis. The model/data-first entry decides which one the
+  //    project opens in; the pairing is persisted so the IDE can offer the
+  //    other half later ("Analyse this run →"). ───────────────────────────
+  if (goal === "hybrid" && startPath === "template" && templateId) {
+    const topic = HYBRID_TOPICS.find((t) => t.id === templateId);
+    if (topic) {
+      const simTpl = BLOCK_TEMPLATES.find((t) => t.id === topic.simTemplateId);
+      const analysisTpl = DS_TEMPLATES.find((t) => t.id === topic.analysisTemplateId);
+      const entry = hybridEntry === "data" ? "data" : "model";
+      spec.projectType = "block_template";
+      spec.preferredEditor = "blocks";
+      spec.workspaceXml =
+        entry === "data" ? (analysisTpl?.xml || "") : (simTpl?.xml || "");
+      // Model-first opens the sim, so pair its Python code template too.
+      const pairedCodeId = topic.simTemplateId.replace(/^blocks_/, "");
+      const pairedCode = EXAMPLES.find((e) => e.id === pairedCodeId);
+      spec.python = entry === "data" ? "" : (pairedCode?.code || DEFAULT_PYTHON_CODE);
+      spec.hybridPairing = {
+        simId: topic.simTemplateId,
+        analysisId: topic.analysisTemplateId,
+      };
+      return spec;
+    }
+  }
 
   if (startPath === "blank") {
     spec.projectType = preferredEditor === "code" ? "code_blank" : "custom";
@@ -200,20 +232,15 @@ export default function StartMenu({
       }));
     }
     if (wizardGoal === "hybrid") {
-      // Physics block templates + hybrid DS analysis template
-      const physicsBlockTemplates = BLOCK_TEMPLATES.map((t) => ({
+      // Topic cards: each couples a sim with its matching analysis. Picking one
+      // also auto-sets the model/data-first entry (see WizardPanel).
+      return HYBRID_TOPICS.map((t) => ({
         id: t.id,
         title: t.title,
         description: t.description,
         kind: "blocks",
+        defaultEntry: t.defaultEntry,
       }));
-      const hybridDsTemplates = DS_TEMPLATES.filter((t) => t.goal === "hybrid").map((t) => ({
-        id: t.id,
-        title: t.title,
-        description: t.description,
-        kind: "blocks",
-      }));
-      return [...physicsBlockTemplates, ...hybridDsTemplates];
     }
     // Physics
     const codeTemplates = EXAMPLES.map((ex) => ({
@@ -339,7 +366,7 @@ export default function StartMenu({
                         <Icon size={22} />
                       </div>
                       <div className="start-card-body">
-                        <span className="start-card-badge start-card-badge--code">{g.id}</span>
+                        <span className="start-card-badge start-card-badge--code">{GOAL_BADGE[g.id] || g.id}</span>
                         <h3 className="start-card-title">{g.label}</h3>
                         <p className="start-card-desc">{g.description}</p>
                       </div>
@@ -459,12 +486,21 @@ function WizardPanel({
                   key={tpl.id}
                   type="button"
                   className={`start-wizard-template${templateId === tpl.id ? " start-wizard-template--active" : ""}`}
-                  onClick={() => setTemplateId(tpl.id)}
+                  onClick={() => {
+                    setTemplateId(tpl.id);
+                    // Hybrid topic cards carry a default entry — picking one
+                    // auto-sets the model/data-first radio below.
+                    if (tpl.defaultEntry) setHybridEntry(tpl.defaultEntry);
+                  }}
                 >
                   <span className="start-wizard-template-icon"><TplIcon size={14} /></span>
                   <span className="start-wizard-template-meta">
                     <strong>{tpl.title}</strong>
-                    <span>{tpl.kind === "code" ? "Code" : "Blocks"} · {tpl.description}</span>
+                    <span>
+                      {tpl.defaultEntry
+                        ? tpl.description
+                        : `${tpl.kind === "code" ? "Code" : "Blocks"} · ${tpl.description}`}
+                    </span>
                   </span>
                 </button>
               );

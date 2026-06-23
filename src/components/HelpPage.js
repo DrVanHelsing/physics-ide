@@ -8,7 +8,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   AtomIcon, RocketIcon, BlocksIcon, BookOpenIcon, CodeIcon,
-  DownloadIcon, ZapIcon, LayersIcon, EditIcon, UsersIcon, BugIcon,
+  DownloadIcon, ZapIcon, LayersIcon, EditIcon, BugIcon,
+  TableIcon, GraduationCapIcon,
 } from "./Icons";
 
 /* ── Tiny inline components ──────────────────────────────── */
@@ -52,13 +53,14 @@ const SECTION_ICON_MAP = {
   "debug-mode":      BugIcon,
   "block-editor":    BlocksIcon,
   "block-reference": BookOpenIcon,
+  "data-science":    TableIcon,
   "code-editor":     CodeIcon,
   "templates":       LayersIcon,
   "custom-scenes":   EditIcon,
   "vpython-ref":     CodeIcon,
   "physics-models":  AtomIcon,
   "export":          DownloadIcon,
-  "educators":       UsersIcon,
+  "educators":       GraduationCapIcon,
   "shortcuts":       ZapIcon,
 };
 
@@ -79,27 +81,32 @@ const SEARCH_INDEX = [
   {
     id: "overview",
     title: "Overview",
-    content: "Physics IDE browser-based physics simulation environment block editor VPython GlowScript 3D viewport WebGL architecture two ways to build blocks code blank project toggle view",
+    content: "Physics IDE browser-based physics simulation data science environment three goals Physics Modelling Data Science Hybrid block editor VPython GlowScript 3D viewport WebGL architecture project goal wizard multi-project",
   },
   {
     id: "getting-started",
     title: "Getting Started",
-    content: "start menu blocks template code example blank project run simulation stop toolbar 3D viewport orbit pan zoom camera mouse drag scroll auto-save localStorage export restore session",
+    content: "start menu goal card Physics Modelling Data Science Hybrid blank template wizard title project list run simulation stop toolbar 3D viewport orbit pan zoom camera auto-save localForage multi-project open delete",
   },
   {
     id: "debug-mode",
     title: "Debug Mode",
-    content: "debug mode breakpoints pause resume step execution highlight yellow glow red dot trace recording CSV synchronous stop block click toggle debugger inspect simulation code-only step forward F10 space pause BugIcon overlay three panel",
+    content: "debug mode breakpoints pause resume step execution highlight yellow glow red dot trace recording CSV synchronous stop block click toggle debugger inspect simulation code-only step forward F10 space pause overlay three panel",
   },
   {
     id: "block-editor",
     title: "Block Editor",
-    content: "Google Blockly v11 toolbox drag connect blocks right-click duplicate delete undo redo Ctrl+Z Ctrl+Y code mirror beginner advanced mode starter category sphere box gravity loop forever rate update position apply force logic loops math functions text variables physics constants",
+    content: "Google Blockly v11 goal-filtered toolbox drag connect blocks right-click duplicate delete undo redo Ctrl+Z Ctrl+Y code mirror block search Advanced drawer 3D Math Raw Python Loops sphere box gravity loop forever rate update position apply force logic loops math functions text variables physics constants domain filter",
   },
   {
     id: "block-reference",
     title: "Block Reference",
     content: "block reference objects motion forces physics constants values math logic control loops functions lists text advanced raw Python sphere box cylinder arrow helix ring trail velocity acceleration gravity mass bounce friction scene background expr_block expression custom code python_raw_block python_raw_expr_block define_const_block constant sim_start_block sim_end_block simulation structure rotate_object_block scene_camera_block cross_product_block dot_product_block math_trig_block sin cos tan radians degrees sqrt abs vector_compose_block math_pow_block math_min_block math_max_block math_clamp_block clamp power exponent 3D math trig",
+  },
+  {
+    id: "data-science",
+    title: "Data Science",
+    content: "data science DS blocks toolbox load dataset penguins weather planets pendulum spring free fall freefall CSV trace filter sort group mean median mode min max range sum count stddev statistics regression slope intercept R squared linear fit uncertainty standard error linearization chart bar line scatter histogram box plot communicate note conclusion result Data panel Arquero Observable Plot ds_start_block ds_load_builtin_block ds_show_table_block ds_calc_mean_block ds_filter_eq_block ds_group_count_block ds_chart_bar_block ds_linear_regression_block ds_chart_scatter_fit_block ds_multiply_columns_block ds_print_uncertainty_block",
   },
   {
     id: "code-editor",
@@ -109,7 +116,7 @@ const SEARCH_INDEX = [
   {
     id: "templates",
     title: "Built-in Templates",
-    content: "built-in templates precoded examples projectile motion pendulum spring orbital gravity solar system bouncing ball collision momentum energy wave interference electric field magnetic",
+    content: "built-in templates physics projectile motion pendulum spring orbital gravity data science penguins weather planets exploratory analysis compare cities Kepler regression Hooke's law spring constant uncertainty repeated measurements standard error pendulum period length mass investigation free fall measure g linearization hybrid topic coupling model-first data-first measure g from vertical velocity vy find k Fspring damping coefficient gamma Analyse this run",
   },
   {
     id: "custom-scenes",
@@ -129,17 +136,17 @@ const SEARCH_INDEX = [
   {
     id: "export",
     title: "Export & Share",
-    content: "export share download save PNG screenshot PDF print trace table CSV blocks workspace XML VPython code copy clipboard report",
+    content: "export share download save PNG screenshot PDF print trace table CSV blocks workspace XML VPython code copy clipboard report project bundle physide.json import Open",
   },
   {
     id: "educators",
     title: "For Educators",
-    content: "educators teachers classroom students beginner advanced mode guided learning assessment print PDF trace table variable dialog custom scenes lesson plan curriculum",
+    content: "educators teachers classroom students physics data science guided learning assessment print PDF trace table lesson plan curriculum deployment Vercel",
   },
   {
     id: "shortcuts",
     title: "Keyboard Shortcuts",
-    content: "keyboard shortcuts Ctrl+Z undo Ctrl+Y redo Ctrl+A select all Delete Backspace Escape close help F1 run stop space Enter",
+    content: "keyboard shortcuts Ctrl+Z undo Ctrl+Y redo Ctrl+A select all Delete Backspace Escape close help run stop space Enter debug F10",
   },
 ];
 
@@ -188,13 +195,14 @@ const NAV = [
   { id: "debug-mode",      label: "Debug Mode",             Icon: BugIcon },
   { id: "block-editor",    label: "Block Editor",           Icon: BlocksIcon },
   { id: "block-reference", label: "Block Reference",        Icon: BookOpenIcon },
+  { id: "data-science",    label: "Data Science",           Icon: TableIcon },
   { id: "code-editor",     label: "Code Editor",            Icon: CodeIcon },
   { id: "templates",       label: "Built-in Templates",     Icon: LayersIcon },
   { id: "custom-scenes",   label: "Custom Scenes",          Icon: EditIcon },
   { id: "vpython-ref",     label: "VPython Reference",      Icon: CodeIcon },
   { id: "physics-models",  label: "Physics Models",         Icon: AtomIcon },
   { id: "export",          label: "Export & Share",         Icon: DownloadIcon },
-  { id: "educators",       label: "For Educators",          Icon: UsersIcon },
+  { id: "educators",       label: "For Educators",          Icon: GraduationCapIcon },
   { id: "shortcuts",       label: "Keyboard Shortcuts",     Icon: ZapIcon },
 ];
 
@@ -335,64 +343,82 @@ export default function HelpPage({ onClose }) {
             <section className="help-section">
               <SectionHeader id="overview">Overview</SectionHeader>
               <p>
-                <strong>Physics IDE</strong> is a browser-based physics simulation environment that lets you
-                build, run, and explore 3D physics simulations without installing anything. It combines a
-                visual <strong>block editor</strong> (powered by Google Blockly) with a full{" "}
-                <strong>VPython / GlowScript 3.2 code editor</strong> and a live <strong>3D viewport</strong>{" "}
-                that renders real-time WebGL simulations.
+                <strong>Physics IDE</strong> is a browser-based environment for physics simulation and
+                foundational data science. It combines a visual <strong>block editor</strong> (Google Blockly),
+                a <strong>Monaco code editor</strong>, a live <strong>3D WebGL viewport</strong>, and a
+                reactive <strong>Data panel</strong> — all running entirely in the browser with no installation,
+                no accounts, and no backend.
               </p>
               <Note type="info">
-                Physics IDE runs entirely in your browser. All simulations execute inside an isolated
-                GlowScript 3.2 runtime — no server needed, no data uploaded.
+                All simulations and analyses execute locally in your browser. Physics simulations run
+                inside an isolated GlowScript 3.2 iframe. Data Science analyses run in an async
+                JavaScript sandbox. No data is uploaded to any server.
               </Note>
+
+              <h3 className="help-h3">Three project goals</h3>
+              <table className="help-table">
+                <thead>
+                  <tr><th>Goal</th><th>Toolbox</th><th>Output panel</th><th>Use it for</th></tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><Tag color="blue">Physics Modelling</Tag></td>
+                    <td>Values, Objects, Motion, State, Control, Logic, Math + Advanced</td>
+                    <td>3D Viewport</td>
+                    <td>VPython simulations — projectile, orbital, pendulum, spring</td>
+                  </tr>
+                  <tr>
+                    <td><Tag color="green">Data Science</Tag></td>
+                    <td>Data Science, Control, Logic, Math + Advanced</td>
+                    <td>Data panel (tables, charts, values)</td>
+                    <td>Exploratory data analysis on built-in or imported datasets</td>
+                  </tr>
+                  <tr>
+                    <td><Tag color="purple">Hybrid</Tag></td>
+                    <td>All physics and DS categories</td>
+                    <td>3D Viewport + Data panel</td>
+                    <td>Promote a simulation run to a dataset; analyse in the same project</td>
+                  </tr>
+                </tbody>
+              </table>
 
               <h3 className="help-h3">Architecture at a glance</h3>
               <div className="help-arch-grid">
                 <div className="help-arch-box help-arch-box--blue">
                   <strong>Block Editor</strong>
-                  <p>Drag-and-drop Blockly blocks. Each block generates valid VPython code automatically.</p>
+                  <p>Google Blockly v11. The toolbox is generated per goal — physics projects
+                  never show DS blocks; DS projects never show physics objects. Each block
+                  generates executable code automatically.</p>
                 </div>
                 <div className="help-arch-box help-arch-box--purple">
                   <strong>Code Editor</strong>
-                  <p>Monaco-powered editor (same engine as VS Code). Read-only view in block mode; editable in code-template and blank projects.</p>
+                  <p>Monaco (VS Code engine). Editable in blank and code-template projects.
+                  Read-only code mirror when working in Blocks mode — shows the VPython generated
+                  from your block stack in real time.</p>
                 </div>
                 <div className="help-arch-box help-arch-box--green">
                   <strong>3D Viewport</strong>
-                  <p>Isolated iframe running GlowScript 3.2. Renders WebGL via VPython's web runtime. Camera: left-drag to orbit, right-drag to pan, scroll to zoom.</p>
+                  <p>Isolated iframe running GlowScript 3.2 VPython. Camera: left-drag to orbit,
+                  right-drag to pan, scroll to zoom. Physics simulations render here.</p>
+                </div>
+                <div className="help-arch-box help-arch-box--teal">
+                  <strong>Data Panel</strong>
+                  <p>DS and Hybrid projects only. Re-executes the DS analysis automatically on
+                  every workspace change and renders tables, charts, numeric values, and
+                  conclusion cards in the right-hand panel.</p>
                 </div>
               </div>
 
-              <h3 className="help-h3">Two ways to build</h3>
-              <table className="help-table">
-                <thead>
-                  <tr><th>Method</th><th>Best for</th><th>Code editable?</th></tr>
-                </thead>
-                <tbody>
-                  <tr><td><Tag color="purple">Blocks</Tag> Block Editor</td><td>Learners, prototyping</td><td>Read-only mirror</td></tr>
-                  <tr><td><Tag color="blue">Code</Tag> Code Template</td><td>Intermediate learners, customization</td><td>Yes — full Monaco editor</td></tr>
-                  <tr><td><Tag color="green">Blank</Tag> Blank Project</td><td>Advanced users, custom models</td><td>Yes (code view only)</td></tr>
-                </tbody>
-              </table>
-
-              <h3 className="help-h3">Switching views on templates</h3>
+              <h3 className="help-h3">Two editing modes — every goal</h3>
               <p>
-                When working with a template, use the <strong>Blocks / Code</strong> toggle in the
-                toolbar to switch between both representations:
+                Within any goal, use the <strong>Blocks / Code</strong> toggle in the toolbar to
+                switch between both representations. In a Blocks project the Code tab is a
+                read-only mirror — ideal for students learning to read generated VPython. In
+                a Code project the Blocks tab provides a read-only block reference.
               </p>
-              <ul className="help-list">
-                <li>
-                  <Tag color="purple">Blocks Template</Tag> — <strong>Blocks</strong> is the
-                  editable Block Editor; <strong>Code</strong> shows the generated VPython (read-only).
-                </li>
-                <li>
-                  <Tag color="blue">Code Template</Tag> — <strong>Code</strong> is the editable
-                  Code Editor; <strong>Blocks</strong> shows the block structure (read-only reference).
-                </li>
-              </ul>
               <Note type="tip">
-                Toggling between Blocks and Code is the quickest way to study how visual blocks
-                translate to VPython code — ideal for students transitioning from visual to
-                textual programming.
+                Toggling between Blocks and Code is the most effective way to help students
+                connect visual programming to text programming at their own pace.
               </Note>
             </section>
 
@@ -403,45 +429,84 @@ export default function HelpPage({ onClose }) {
 
               <h3 className="help-h3">The Start Menu</h3>
               <p>
-                When you launch Physics IDE you land on the <strong>Start Menu</strong>. Three types of
-                project are available:
+                When you launch Physics IDE you land on the <strong>Start Menu</strong>. It shows
+                your saved projects at the top and three <strong>goal cards</strong> below. Click
+                a goal card to open the creation wizard.
               </p>
-              <ul className="help-list">
-                <li>
-                  <Tag color="purple">Blocks Template</Tag> — loads a complete pre-built simulation into the
-                  Block Editor. Every block is wired up and ready to run. Use this to learn how block
-                  programs map to VPython code.
-                </li>
-                <li>
-                  <Tag color="blue">Code Example</Tag> — loads a polished VPython simulation directly into
-                  the Code Editor. Fully editable. Use this to study real physics code or tweak parameters.
-                </li>
-                <li>
-                  <Tag color="green">Blank Project</Tag> — empty workspace. Start building from scratch
-                  in either blocks or code mode.
-                </li>
-              </ul>
+              <table className="help-table">
+                <thead>
+                  <tr><th>Goal card</th><th>What you get</th></tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><Tag color="blue">Physics Modelling</Tag></td>
+                    <td>A block or code workspace connected to the 3D viewport. Choose Blank for an empty workspace or Template to start from a pre-built simulation.</td>
+                  </tr>
+                  <tr>
+                    <td><Tag color="green">Data Science</Tag></td>
+                    <td>A block workspace with the Data panel. A <Code>ds_start_block</Code> hat is pre-seeded. Choose Blank or one of seven DS templates.</td>
+                  </tr>
+                  <tr>
+                    <td><Tag color="purple">Hybrid</Tag></td>
+                    <td>Both the 3D viewport and Data panel active. Simulate and analyse in the same project. Choose Blank or a coupled <strong>Hybrid topic</strong> (Pendulum, Projectile, or Spring) that wires the simulation to its matching analysis automatically.</td>
+                  </tr>
+                </tbody>
+              </table>
 
+              <h3 className="help-h3">Creating a project</h3>
+              <ol className="help-list">
+                <li>Click a goal card.</li>
+                <li>Enter a project title in the wizard (optional — a default is provided).</li>
+                <li>Choose <strong>Blank</strong> for an empty workspace or <strong>Template</strong> to pick from pre-built examples.</li>
+                <li>Select an editor default (<strong>Blocks</strong> or <strong>Code</strong>).</li>
+                <li>Click <strong>Create project</strong>.</li>
+              </ol>
               <Note type="tip">
-                <strong>Tip for educators:</strong> Start with a <em>Blocks Template</em> for a live
-                demo — students can immediately see how the blocks translate to code by switching to
-                the Code tab.
+                In a <Tag color="purple">Hybrid</Tag> project, the Template path shows{" "}
+                <strong>topic cards</strong> instead of a flat list. Picking a topic — Pendulum,
+                Projectile, or Spring — loads the matching simulation <em>and</em> remembers its
+                paired analysis. It also auto-sets the <strong>Model-first / Data-first</strong>{" "}
+                entry: Model-first opens the simulation ready to run; Data-first opens straight into
+                the analysis. After you save a run, the chart offers an{" "}
+                <strong>"Analyse this run →"</strong> button that loads the paired analysis with the
+                run label already filled in.
               </Note>
 
-              <h3 className="help-h3">Running a simulation</h3>
+              <h3 className="help-h3">Managing projects</h3>
+              <p>
+                All projects are listed on the Start Menu and persist across browser sessions via
+                IndexedDB (localForage). Each project shows its goal, title, and last-modified time.
+                Click a project row to open it, or click the delete button on the right to remove it.
+              </p>
+              <p>
+                To return to the Start Menu from inside the IDE, click the <strong>Menu</strong>
+                button at the left of the toolbar.
+              </p>
+
+              <h3 className="help-h3">Running a physics simulation</h3>
               <ol className="help-list">
-                <li>Select a template or build your own model.</li>
-                <li>Click <Tag color="green">Run</Tag> in the toolbar.</li>
-                <li>The 3D Viewport will initialise the GlowScript runtime and start rendering.</li>
-                <li>Use the mouse to <strong>orbit</strong> (left drag), <strong>pan</strong> (right drag), and <strong>zoom</strong> (scroll wheel) inside the viewport.</li>
+                <li>Open or create a Physics Modelling or Hybrid project.</li>
+                <li>Click <Tag color="green">Run</Tag> in the toolbar (or press <Kbd>Ctrl+Enter</Kbd>).</li>
+                <li>The 3D Viewport initialises the GlowScript runtime and starts rendering.</li>
+                <li>Use the mouse to <strong>orbit</strong> (left drag), <strong>pan</strong> (right drag), and <strong>zoom</strong> (scroll wheel).</li>
                 <li>Click <Tag color="red">Stop</Tag> to halt the simulation.</li>
               </ol>
 
+              <h3 className="help-h3">Running a data science analysis</h3>
+              <p>
+                Data Science and Hybrid projects <strong>auto-execute</strong> the analysis every
+                time the block workspace changes. You do not need to press Run. The Data panel on
+                the right updates automatically with tables, charts, and values as you build your
+                analysis. If there is a runner error, the status bar at the bottom displays the
+                error message.
+              </p>
+
               <h3 className="help-h3">Saving your work</h3>
               <p>
-                Physics IDE <strong>auto-saves</strong> your workspace every 2 seconds to browser
-                localStorage. Your session will be restored when you reopen the app. For permanent
-                saves use the <strong>Export</strong> buttons.
+                Physics IDE <strong>auto-saves</strong> every project to the browser's IndexedDB
+                storage after each change. Your projects are restored when you reopen the app. For
+                portable saves or submissions, use the <strong>Export</strong> dropdown in the
+                toolbar.
               </p>
             </section>
 
@@ -611,41 +676,20 @@ export default function HelpPage({ onClose }) {
                 <li>Press <Kbd>&times;</Kbd> in the search bar to clear and close results.</li>
               </ul>
 
-              <h3 className="help-h3">Beginner / Advanced mode</h3>
+              <h3 className="help-h3">Goal-filtered toolbox</h3>
               <p>
-                The <strong>Beginner / Advanced</strong> button in the toolbar switches the toolbox
-                between two modes:
+                The toolbox is generated per project goal. Physics Modelling projects show Values,
+                Objects, Motion, State, and the physics control blocks. Data Science projects show
+                only the Data Science category and shared utility categories (Control, Logic, Math,
+                Variables). Hybrid projects show all categories. This means students see only what
+                is relevant to their current task.
               </p>
-              <ul className="help-list">
-                <li>
-                  <Tag color="green">Beginner</Tag> — shows only the <strong>Starter</strong> category
-                  plus stripped-down Values, Objects, Motion, Control, Logic, and Math categories.
-                  Advanced topics (Functions, Lists, Text, raw Python) are hidden.
-                </li>
-                <li>
-                  <Tag color="blue">Advanced</Tag> — shows all categories including Functions, Lists,
-                  Text, Advanced (raw Python), and the full Physics Expressions set.
-                </li>
-              </ul>
-              <Note type="tip">
-                Start new students in <strong>Beginner</strong> mode. The Starter
-                category has every block needed to build a complete physics simulation on a single screen.
-              </Note>
-
-              <h3 className="help-h3">Starter category</h3>
               <p>
-                The <strong>Starter</strong> category appears at the top of the toolbox in both modes.
-                It is a curated shortcut panel containing the most commonly needed blocks
-                for a first simulation, labelled and grouped by purpose:
+                Power-user categories — <strong>3D Math</strong>, <strong>Raw Python</strong>,
+                Loops, Text, Lists, and Functions — are grouped inside an{" "}
+                <strong>Advanced drawer</strong> that collapses under a single expandable row at
+                the bottom of the toolbox. Click it to expand or collapse.
               </p>
-              <ul className="help-list">
-                <li><strong>Quick create objects</strong> — <Code>preset_sphere_block</Code>, <Code>preset_box_block</Code></li>
-                <li><strong>Physics constants</strong> — <Code>physics_const_block</Code></li>
-                <li><strong>Initial velocity</strong> — <Code>set_velocity_block</Code></li>
-                <li><strong>Simulation setup</strong> — <Code>set_gravity_block</Code>, <Code>time_step_block</Code></li>
-                <li><strong>Main loop</strong> — <Code>forever_loop_block</Code>, <Code>rate_block</Code>, <Code>update_position_block</Code>, <Code>apply_force_block</Code></li>
-                <li><strong>Conditions</strong> — <Code>if_block</Code>, <Code>if_else_block</Code></li>
-              </ul>
 
               <h3 className="help-h3">Standard Blockly categories</h3>
               <p>
@@ -1265,6 +1309,232 @@ angle = clamp(input_angle, -30, 30)`}</Pre>
               </div>
             </section>
 
+            {/* ══════════════ DATA SCIENCE ══════════════ */}
+            <SectionAnchor id="data-science" />
+            <section className="help-section">
+              <SectionHeader id="data-science">Data Science</SectionHeader>
+              <p>
+                Data Science and Hybrid projects provide a full foundational data analysis workflow
+                through blocks. Every block in the Data Science toolbox category produces visible
+                output — tables, charts, numeric values, or conclusion cards — in the Data panel
+                on the right. The analysis re-executes automatically on every workspace change.
+              </p>
+              <Note type="info">
+                Data Science analyses run in an async JavaScript sandbox (not the GlowScript
+                iframe). The Run button is not used — the analysis fires automatically as you build.
+              </Note>
+
+              <h3 className="help-h3">Analysis structure</h3>
+              <p>
+                Every analysis must begin with a <Code>ds_start_block</Code> hat block. All other
+                DS blocks chain inside its body. Blocks outside the hat are greyed and ignored.
+              </p>
+              <Pre>{`Start analysis  "My Analysis"\n  df = load dataset  Penguins\n  show table  df\n  result = mean( df . bill_length_mm )\n  bar chart  df  x: species  y: body_mass_g`}</Pre>
+
+              <h3 className="help-h3">Load blocks</h3>
+              <div className="help-block-table">
+                <div className="help-block-row">
+                  <div className="help-block-name">ds_load_builtin_block</div>
+                  <div className="help-block-desc">Load one of the six built-in datasets into a variable: <strong>Planets</strong>, <strong>Penguins</strong>, <strong>Weather</strong>, <strong>Pendulum</strong>, <strong>Spring</strong>, or <strong>Free fall</strong>. The Pendulum, Spring, and Free fall sets are realistic first-year lab measurements (see the Built-in datasets table below).</div>
+                </div>
+                <div className="help-block-row">
+                  <div className="help-block-name">ds_load_csv_block</div>
+                  <div className="help-block-desc">Open a system file picker and load a CSV file. Column types are inferred automatically from the first 100 rows. The file is cached per variable name so the dialog opens only once.</div>
+                </div>
+                <div className="help-block-row">
+                  <div className="help-block-name">ds_load_trace_block</div>
+                  <div className="help-block-desc">Load a saved simulation trace as a dataset. Available only in Hybrid projects after a trace has been promoted via the Trace table. Paste the label from the Data panel's "Saved traces" list.</div>
+                </div>
+              </div>
+
+              <h3 className="help-h3">Explore blocks</h3>
+              <div className="help-block-table">
+                <div className="help-block-row">
+                  <div className="help-block-name">ds_show_table_block</div>
+                  <div className="help-block-desc">Render a scrollable table of the dataset. The table shows up to 12 rows; a "N more rows" indicator appears when the dataset is larger.</div>
+                </div>
+                <div className="help-block-row">
+                  <div className="help-block-name">ds_show_first_n_block / ds_show_last_n_block</div>
+                  <div className="help-block-desc">Show the first or last N rows as a table. Use after sorting to inspect the extreme values.</div>
+                </div>
+                <div className="help-block-row">
+                  <div className="help-block-name">ds_count_rows_block</div>
+                  <div className="help-block-desc">Output the total row count as a named numeric value. Useful after filtering to confirm the filter worked.</div>
+                </div>
+                <div className="help-block-row">
+                  <div className="help-block-name">ds_all_stats_block</div>
+                  <div className="help-block-desc">Show count, mean, median, min, max, range, sum, and spread (standard deviation) for a column in a compact grid.</div>
+                </div>
+              </div>
+
+              <h3 className="help-h3">Statistics blocks</h3>
+              <p>All statistics blocks store their result in a named variable and output a value card to the Data panel.</p>
+              <table className="help-table">
+                <thead><tr><th>Block</th><th>Computes</th></tr></thead>
+                <tbody>
+                  <tr><td><Code>ds_calc_mean_block</Code></td><td>Arithmetic mean of a numeric column</td></tr>
+                  <tr><td><Code>ds_calc_median_block</Code></td><td>Median (middle value when sorted)</td></tr>
+                  <tr><td><Code>ds_calc_mode_block</Code></td><td>Most frequently occurring value</td></tr>
+                  <tr><td><Code>ds_calc_min_block</Code> / <Code>ds_calc_max_block</Code></td><td>Minimum / maximum of the column</td></tr>
+                  <tr><td><Code>ds_calc_range_block</Code></td><td>max − min</td></tr>
+                  <tr><td><Code>ds_calc_sum_block</Code></td><td>Sum of all non-missing values</td></tr>
+                  <tr><td><Code>ds_calc_count_block</Code></td><td>Count of non-missing values</td></tr>
+                  <tr><td><Code>ds_calc_stddev_block</Code></td><td>Sample standard deviation (n−1)</td></tr>
+                </tbody>
+              </table>
+
+              <h3 className="help-h3">Filter and Sort blocks</h3>
+              <p>All filter/sort blocks take an input dataset variable and produce a new result variable — the original is unchanged.</p>
+              <table className="help-table">
+                <thead><tr><th>Block</th><th>Operation</th></tr></thead>
+                <tbody>
+                  <tr><td><Code>ds_filter_eq_block</Code></td><td>Keep rows where column equals a value</td></tr>
+                  <tr><td><Code>ds_filter_gt_block</Code></td><td>Keep rows where column is greater than a number</td></tr>
+                  <tr><td><Code>ds_filter_lt_block</Code></td><td>Keep rows where column is less than a number</td></tr>
+                  <tr><td><Code>ds_filter_and_block</Code></td><td>Keep rows matching two conditions simultaneously</td></tr>
+                  <tr><td><Code>ds_filter_or_block</Code></td><td>Keep rows matching either condition</td></tr>
+                  <tr><td><Code>ds_sort_asc_block</Code></td><td>Sort ascending by a column</td></tr>
+                  <tr><td><Code>ds_sort_desc_block</Code></td><td>Sort descending by a column</td></tr>
+                  <tr><td><Code>ds_remove_missing_block</Code></td><td>Drop rows where a column is null or empty</td></tr>
+                  <tr><td><Code>ds_find_missing_block</Code></td><td>Keep only rows where a column is null or empty</td></tr>
+                </tbody>
+              </table>
+
+              <h3 className="help-h3">Group and Compare blocks</h3>
+              <div className="help-block-table">
+                <div className="help-block-row">
+                  <div className="help-block-name">ds_group_count_block</div>
+                  <div className="help-block-desc">Count rows per unique value in a group column. Outputs a table with one row per group and a count column.</div>
+                </div>
+                <div className="help-block-row">
+                  <div className="help-block-name">ds_group_mean_block</div>
+                  <div className="help-block-desc">Calculate the mean of a value column grouped by a categorical column. The result column is named <Code>mean_&lt;valueCol&gt;</Code>. Use this result variable in a bar chart to compare group averages.</div>
+                </div>
+              </div>
+
+              <h3 className="help-h3">Analyse blocks <Tag color="teal">regression &amp; uncertainty</Tag></h3>
+              <p>
+                These blocks power the lab-style templates — linearising data, fitting straight
+                lines, and reporting measurement uncertainty.
+              </p>
+              <div className="help-block-table">
+                <div className="help-block-row">
+                  <div className="help-block-name">ds_linear_regression_block</div>
+                  <div className="help-block-desc">Fit a straight line <Code>y = m·x + c</Code> to two numeric columns. Stores the result in a variable and shows a regression card with slope, intercept, R², and a quality rating. The slope is the physical quantity in most labs (g, k, −γ).</div>
+                </div>
+                <div className="help-block-row">
+                  <div className="help-block-name">ds_multiply_columns_block</div>
+                  <div className="help-block-desc">Create a new column from the product of two existing columns. Used to compute <Code>T² = period_s × period_s</Code> so T² vs length can be regressed.</div>
+                </div>
+                <div className="help-block-row">
+                  <div className="help-block-name">ds_add_column_transform_block</div>
+                  <div className="help-block-desc">Add a column derived from another via a transform (square, square-root, natural log, etc.) — e.g. <Code>ln(E_total)</Code> for the damping analysis or <Code>t²</Code> for a distance-vs-t² linearisation.</div>
+                </div>
+                <div className="help-block-row">
+                  <div className="help-block-name">ds_print_uncertainty_block</div>
+                  <div className="help-block-desc">Report a column's <strong>mean ± standard error</strong> as an uncertainty card. Use on a set of repeated measurements (e.g. one length's timing trials).</div>
+                </div>
+                <div className="help-block-row">
+                  <div className="help-block-name">ds_calc_relative_uncertainty_block</div>
+                  <div className="help-block-desc">Compute the relative uncertainty (standard error ÷ mean, as a %) for a column — a quick measure of how precise a measurement is.</div>
+                </div>
+              </div>
+
+              <h3 className="help-h3">Chart blocks</h3>
+              <table className="help-table">
+                <thead><tr><th>Block</th><th>Chart type</th><th>Required fields</th></tr></thead>
+                <tbody>
+                  <tr><td><Code>ds_chart_bar_block</Code></td><td>Bar chart</td><td>x column (categorical), y column (numeric)</td></tr>
+                  <tr><td><Code>ds_chart_line_block</Code></td><td>Line chart</td><td>x column, y column</td></tr>
+                  <tr><td><Code>ds_chart_scatter_block</Code></td><td>Scatter plot</td><td>x column, y column</td></tr>
+                  <tr><td><Code>ds_chart_scatter_fit_block</Code></td><td>Scatter plot with regression line</td><td>x column, y column, fit variable (from a regression block)</td></tr>
+                  <tr><td><Code>ds_chart_histogram_block</Code></td><td>Histogram</td><td>numeric column</td></tr>
+                  <tr><td><Code>ds_chart_box_block</Code></td><td>Box plot</td><td>value column; optional group column</td></tr>
+                </tbody>
+              </table>
+              <Note type="tip">
+                To chart grouped averages, chain a <Code>ds_group_mean_block</Code> first, then pass
+                the result variable to <Code>ds_chart_bar_block</Code> with the group column as x and
+                the <Code>mean_&lt;col&gt;</Code> column as y.
+              </Note>
+
+              <h3 className="help-h3">Communicate blocks</h3>
+              <div className="help-block-table">
+                <div className="help-block-row">
+                  <div className="help-block-name">ds_write_note_block</div>
+                  <div className="help-block-desc">Insert a free-text markdown note in the Data panel. Use to annotate findings between charts.</div>
+                </div>
+                <div className="help-block-row">
+                  <div className="help-block-name">ds_print_result_block</div>
+                  <div className="help-block-desc">Display a named variable as a labelled value card. Use after a stats block to show the result with a human-readable label.</div>
+                </div>
+                <div className="help-block-row">
+                  <div className="help-block-name">ds_state_conclusion_block</div>
+                  <div className="help-block-desc">Display a styled conclusion callout at the end of the analysis. Encourages students to articulate a finding in plain language.</div>
+                </div>
+                <div className="help-block-row">
+                  <div className="help-block-name">ds_export_table_block</div>
+                  <div className="help-block-desc">Download the current dataset as a CSV file.</div>
+                </div>
+                <div className="help-block-row">
+                  <div className="help-block-name">ds_show_python_block</div>
+                  <div className="help-block-desc">Reveal the generated Python (pandas-style) code for the current analysis. Useful for students transitioning to a Python data science workflow.</div>
+                </div>
+              </div>
+
+              <h3 className="help-h3">Built-in datasets</h3>
+              <table className="help-table">
+                <thead><tr><th>Dataset</th><th>Rows</th><th>Columns</th><th>Key columns</th></tr></thead>
+                <tbody>
+                  <tr>
+                    <td><strong>Penguins</strong></td>
+                    <td>30</td>
+                    <td>7</td>
+                    <td>species, island, bill_length_mm, bill_depth_mm, flipper_length_mm, body_mass_g, sex</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Weather</strong></td>
+                    <td>28</td>
+                    <td>6</td>
+                    <td>date, city, temp_high_c, temp_low_c, precip_mm, condition</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Planets</strong></td>
+                    <td>9</td>
+                    <td>7</td>
+                    <td>name, type, mass_earth, radius_km, period_days, distance_au, moons</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Pendulum</strong></td>
+                    <td>56</td>
+                    <td>7</td>
+                    <td>study, length_m, mass_kg, amplitude_deg, trial, time_10swings_s, period_s</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Spring</strong></td>
+                    <td>8</td>
+                    <td>3</td>
+                    <td>mass_g, force_N, extension_m</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Free fall</strong></td>
+                    <td>12</td>
+                    <td>3</td>
+                    <td>time_s, velocity_y_ms, distance_m</td>
+                  </tr>
+                </tbody>
+              </table>
+              <Note type="info">
+                The <strong>Pendulum</strong> set is a two-study lab: a <em>length</em> study
+                (length varied, mass fixed, three timed trials each) and a <em>mass</em> study
+                (mass varied, length fixed). It deliberately ships <strong>no pre-computed T²</strong> —
+                students compute period² themselves to discover T² ∝ L and that mass has no effect.
+                <strong> Spring</strong> (Hooke's law: 100 g mass steps, k ≈ 19.6 N/m) and{" "}
+                <strong>Free fall</strong> (drop from rest: velocity and distance vs time) round out
+                the measurement labs.
+              </Note>
+            </section>
+
             {/* ══════════════ CODE EDITOR ══════════════ */}
             <SectionAnchor id="code-editor" />
             <section className="help-section">
@@ -1312,11 +1582,17 @@ angle = clamp(input_angle, -30, 30)`}</Pre>
             <SectionAnchor id="templates" />
             <section className="help-section">
               <SectionHeader id="templates">Built-in Templates</SectionHeader>
-              <p>Physics IDE ships with four fully worked simulations available in both Code and Blocks modes.</p>
+              <p>
+                Physics IDE ships with four fully worked physics simulations, seven data science
+                analyses, and three coupled hybrid topics. The physics templates are available in
+                both Code and Blocks editing modes; the data science and hybrid analyses are
+                block-only.
+              </p>
               <Note type="tip">
-                All four Blocks templates are built entirely from semantic blocks — no <Code>python_raw_block</Code> is used.
-                Every scene property, object constructor, for-loop, if-statement, and telemetry update
-                has a dedicated block. This makes the templates fully inspectable and editable in the Block Editor.
+                All four Physics Blocks templates are built entirely from semantic blocks — no{" "}
+                <Code>python_raw_block</Code> is used. Every scene property, object constructor,
+                loop, condition, and telemetry update has a dedicated block, making the templates
+                fully inspectable in the Block Editor.
               </Note>
 
               <h3 className="help-h3">1 · Projectile Motion</h3>
@@ -1385,6 +1661,131 @@ angle = clamp(input_angle, -30, 30)`}</Pre>
                 The angular acceleration is built from <Code>math_trig_block</Code> (sin, cos, radians),
                 <Code>vector_compose_block</Code>, <Code>math_pow_block</Code>, and nested arithmetic
                 blocks. Students can read the physics directly from the block stack.
+              </Note>
+
+              <h3 className="help-h3">Data Science Templates</h3>
+              <Tag color="green">Blocks</Tag>
+              <Note type="info">
+                Data Science templates are block-only. They auto-execute when loaded — the Data
+                panel populates immediately with tables, charts, and values. No Run press is needed.
+              </Note>
+
+              <h3 className="help-h3">DS 1 · Penguins: Exploratory Analysis</h3>
+              <p>
+                A complete exploratory data analysis on the Palmer Penguins dataset. The template
+                demonstrates the full Load → Explore → Analyse → Visualise → Communicate pipeline:
+              </p>
+              <ul className="help-list">
+                <li>Load penguins; show the full table; count rows</li>
+                <li>All-stats summary for body mass</li>
+                <li>Group mean of body mass by species → bar chart of species averages</li>
+                <li>Scatter plot of flipper length vs body mass</li>
+                <li>Histogram of body mass distribution</li>
+                <li>Written conclusion</li>
+              </ul>
+
+              <h3 className="help-h3">DS 2 · Weather: Compare Two Cities</h3>
+              <p>
+                Compares Cape Town and Johannesburg weather data across temperature ranges
+                and over time:
+              </p>
+              <ul className="help-list">
+                <li>Load weather; show the full table</li>
+                <li>Group mean of high temperature by city → bar chart</li>
+                <li>Filter to Cape Town only → line chart of daily high temperature</li>
+                <li>Box plot of high-temperature spread for both cities side by side</li>
+                <li>Written conclusion</li>
+              </ul>
+
+              <h3 className="help-h3">DS 3 · Planets: Kepler's Third Law</h3>
+              <p>
+                Investigates the relationship between orbital distance and period across the solar
+                system, confirming Kepler's third law:
+              </p>
+              <ul className="help-list">
+                <li>Load planets; show the full table</li>
+                <li>Sort by distance from the Sun (ascending) → show sorted table</li>
+                <li>Scatter plot of distance vs orbital period</li>
+                <li>Calculate and print the maximum orbital period (Pluto, 90 560 days)</li>
+                <li>Written conclusion: planets farther from the Sun take longer to orbit</li>
+              </ul>
+
+              <h3 className="help-h3">DS 4 · Pendulum: What Controls the Period?</h3>
+              <p>
+                The headline measurement lab, driven by the realistic <strong>Pendulum</strong>
+                dataset. Two investigations in one analysis:
+              </p>
+              <ul className="help-list">
+                <li>Filter to the <Code>length</Code> study → compute <Code>T_sq = period_s × period_s</Code> → regress T² vs length</li>
+                <li>The slope is <Code>4π²/g</Code>, so a slope ≈ 4.03 recovers g ≈ 9.8 m/s² (R² ≈ 0.99)</li>
+                <li>Filter to the <Code>mass</Code> study → mean period per mass → period stays flat ≈ 1.42 s</li>
+                <li>Conclusion: <strong>T² ∝ L</strong>, and <strong>mass has no effect</strong> on the period</li>
+              </ul>
+
+              <h3 className="help-h3">DS 5 · Free Fall: Measure g</h3>
+              <p>
+                Uses the <strong>Free fall</strong> dropped-ball log to measure gravitational
+                acceleration directly:
+              </p>
+              <ul className="help-list">
+                <li>Load free fall; regress <Code>velocity_y_ms</Code> vs <Code>time_s</Code></li>
+                <li>The slope is g ≈ 9.8 m/s² (a <Code>distance vs t²</Code> linearisation instead gives g/2)</li>
+                <li>Written conclusion linking the slope to g</li>
+              </ul>
+
+              <h3 className="help-h3">DS 6 · Uncertainty: Repeated Measurements</h3>
+              <p>
+                A genuine repeated-measurement uncertainty lab (replacing the old two-city weather
+                example), driven by the Pendulum trials:
+              </p>
+              <ul className="help-list">
+                <li>Filter to one length's repeated timing trials</li>
+                <li>Report period <strong>mean ± standard error</strong> and the relative uncertainty %</li>
+                <li>Written conclusion on measurement precision</li>
+              </ul>
+
+              <h3 className="help-h3">DS 7 · Linear Regression: Hooke's Law</h3>
+              <p>
+                Fits a straight line to the <strong>Spring</strong> loading data:
+              </p>
+              <ul className="help-list">
+                <li>Regress force vs extension → slope is the spring constant k ≈ 19.6 N/m</li>
+                <li>Scatter-plus-fit chart with the regression line overlaid</li>
+                <li>R², slope, and intercept reported as a regression card</li>
+              </ul>
+
+              <h3 className="help-h3">Hybrid Topics <Tag color="purple">simulate → analyse</Tag></h3>
+              <p>
+                Hybrid projects couple a simulation with its matching analysis. Pick a topic in the
+                creation wizard, run the simulation, save a run, then use{" "}
+                <strong>"Analyse this run →"</strong> on the chart to load the paired analysis with
+                the run label pre-filled.
+              </p>
+              <table className="help-table">
+                <thead><tr><th>Topic</th><th>Simulation telemetry</th><th>Analysis (slope)</th></tr></thead>
+                <tbody>
+                  <tr>
+                    <td><strong>Pendulum: measure damping</strong></td>
+                    <td>t, E_total</td>
+                    <td>Regress ln(E) vs t → slope −γ (damping coefficient)</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Projectile: measure g</strong></td>
+                    <td>t, vy (vertical velocity)</td>
+                    <td>Regress vy vs t → slope −g (crop to before the first bounce)</td>
+                  </tr>
+                  <tr>
+                    <td><strong>Spring-mass: find k</strong></td>
+                    <td>stretch, Fspring</td>
+                    <td>Regress Fspring vs stretch → slope −k (spring constant)</td>
+                  </tr>
+                </tbody>
+              </table>
+              <Note type="tip">
+                The simulations expose the right telemetry for a clean linear fit: the projectile
+                emits <Code>vy</Code> (so vy vs t is a straight line of slope −g, unlike height vs
+                t² on an angled launch), and the spring emits <Code>Fspring</Code> (so force vs
+                stretch is linear, unlike √PE which folds into a V-shape).
               </Note>
             </section>
 
@@ -1567,54 +1968,78 @@ angle = clamp(input_angle, -30, 30)`}</Pre>
             <SectionAnchor id="export" />
             <section className="help-section">
               <SectionHeader id="export">Export &amp; Share</SectionHeader>
-              <p>Physics IDE provides four export formats, all accessible from the toolbar.</p>
+              <p>
+                Physics IDE provides seven export options, all accessible from the{" "}
+                <strong>Export</strong> dropdown in the toolbar (keyboard: <Kbd>Ctrl+S</Kbd> for
+                Python, <Kbd>Ctrl+C</Kbd> for clipboard).
+              </p>
               <table className="help-table">
-                <thead><tr><th>Button</th><th>Format</th><th>Contents</th><th>Best for</th></tr></thead>
+                <thead><tr><th>Export option</th><th>Format</th><th>Contents</th><th>Best for</th></tr></thead>
                 <tbody>
                   <tr>
-                    <td><Tag color="blue">.py</Tag></td>
+                    <td><Tag color="blue">Export as Python (.py)</Tag></td>
                     <td>Python file</td>
-                    <td>The current VPython code (generated or written)</td>
+                    <td>Current VPython code (generated or written)</td>
                     <td>Running locally in a VPython desktop installation, sharing code</td>
                   </tr>
                   <tr>
-                    <td><Tag color="purple">.xml</Tag></td>
+                    <td><Tag color="purple">Export Blocks (.xml)</Tag></td>
                     <td>Blockly XML</td>
-                    <td>Complete serialised block workspace</td>
+                    <td>Serialised block workspace</td>
                     <td>Saving and sharing block programs; restoring exact block layout</td>
                   </tr>
                   <tr>
-                    <td><Tag color="teal">Blocks PDF</Tag></td>
-                    <td>PDF image</td>
-                    <td>Screenshot of the current block canvas</td>
-                    <td>Assessment submissions, handouts, printed documentation</td>
-                  </tr>
-                  <tr>
-                    <td><Tag color="teal">Code PDF</Tag></td>
+                    <td><Tag color="teal">Code as PDF</Tag></td>
                     <td>PDF document</td>
                     <td>Formatted VPython source code</td>
                     <td>Assessment submissions, code review printouts</td>
                   </tr>
                   <tr>
-                    <td><Tag color="blue">CSV</Tag></td>
-                    <td>CSV file</td>
-                    <td>Recorded trace data (variable, value, delta, min, max, timestamp)</td>
-                    <td>Post-run analysis, data export — available in Debug Mode after recording</td>
+                    <td><Tag color="teal">Blocks as PDF</Tag></td>
+                    <td>PDF image</td>
+                    <td>Screenshot of the current block canvas</td>
+                    <td>Assessment submissions, handouts, printed documentation</td>
+                  </tr>
+                  <tr>
+                    <td><Tag color="blue">Screenshot Viewport (.png)</Tag></td>
+                    <td>PNG image</td>
+                    <td>Current 3D viewport frame</td>
+                    <td>Capturing a simulation state for reports or presentations</td>
+                  </tr>
+                  <tr>
+                    <td><Tag color="green">Copy Code to Clipboard</Tag></td>
+                    <td>Clipboard text</td>
+                    <td>Current VPython code</td>
+                    <td>Pasting into an external editor or LMS submission box</td>
+                  </tr>
+                  <tr>
+                    <td><Tag color="purple">Export Project Bundle (.physide.json)</Tag></td>
+                    <td>JSON file</td>
+                    <td>Complete project manifest — goal, title, block XML, code, and datasets</td>
+                    <td>Portable save; import on another machine or browser</td>
                   </tr>
                 </tbody>
               </table>
               <Note type="tip">
-                Students can submit both the <strong>.xml</strong> (block structure) and the
-                <strong>Code PDF</strong> as a complete assignment package. Lecturers can reload the
-                .xml to inspect the original block program.
+                For a complete assessment submission, export the <strong>.xml</strong> (block
+                structure) and the <strong>Code as PDF</strong>. Lecturers can reload the .xml
+                to inspect and edit the original block program.
               </Note>
 
-              <h3 className="help-h3">Importing a saved workspace</h3>
+              <h3 className="help-h3">Importing a project</h3>
               <p>
-                To reload a <Code>.xml</Code> file: on the Start Menu, choose{" "}
-                <strong>Blank Project</strong>, then use your browser to open the page and paste the
-                XML into the block workspace via Blockly's built-in import (right-click the canvas →
-                Import XML). A dedicated import button is planned for a future version.
+                Click the <strong>Open...</strong> button in the toolbar to import a{" "}
+                <Code>.physide.json</Code> project bundle. The imported project replaces the current
+                workspace after a confirmation prompt. To restore a <Code>.xml</Code> Blockly
+                workspace file, use the toolbar Import button which accepts both formats.
+              </p>
+
+              <h3 className="help-h3">Exporting trace data (Debug Mode)</h3>
+              <p>
+                In Debug Mode, press <Tag color="red">Record</Tag>, run or step through the
+                simulation, press <Tag color="red">Stop Rec</Tag>, then click{" "}
+                <Tag color="blue">CSV</Tag> to download the trace data as a CSV file containing
+                variable, value, delta, min, max, and timestamp columns for every captured event.
               </p>
             </section>
 
@@ -1740,14 +2165,52 @@ angle = clamp(input_angle, -30, 30)`}</Pre>
                 </tbody>
               </table>
 
+              <div className="help-lesson-grid">
+                <div className="help-lesson-card">
+                  <div className="help-lesson-num">07</div>
+                  <div className="help-lesson-body">
+                    <strong>Data Science: first analysis</strong>
+                    <p>Open the Penguins exploratory analysis template. Run through each block.
+                    Ask students: which species is heaviest? How do you know?</p>
+                    <Tag color="green">Introductory</Tag>
+                  </div>
+                </div>
+                <div className="help-lesson-card">
+                  <div className="help-lesson-num">08</div>
+                  <div className="help-lesson-body">
+                    <strong>Data Science: filter and compare</strong>
+                    <p>Open the Weather template. Filter for one city, then filter for the other.
+                    Use a box plot to compare spread. State a conclusion block.</p>
+                    <Tag color="yellow">Intermediate</Tag>
+                  </div>
+                </div>
+                <div className="help-lesson-card">
+                  <div className="help-lesson-num">09</div>
+                  <div className="help-lesson-body">
+                    <strong>Hybrid: simulate then analyse</strong>
+                    <p>Create a Hybrid project and pick the <strong>Projectile: measure g</strong>
+                    topic. Run the simulation, record the trace, and save a run cropped to before
+                    the first bounce. Click <strong>"Analyse this run →"</strong> — the paired
+                    analysis regresses vy vs t. Compare the slope (≈ −9.8 m/s²) to the known value
+                    of g.</p>
+                    <Tag color="red">Advanced</Tag>
+                  </div>
+                </div>
+              </div>
+
               <h3 className="help-h3">Deploying to students</h3>
               <p>
-                Physics IDE is a static React app. The production build can be deployed to any
-                static hosting service (Vercel, Netlify, GitHub Pages, a school web server) with no
-                server-side setup. Students access it via URL in any modern browser — no accounts,
-                no downloads required.
+                Physics IDE is a static React single-page application with no backend, no
+                accounts, and no data uploaded to any server. The production build can be deployed
+                to any static hosting service — Vercel, Cloudflare Pages, Netlify, GitHub Pages,
+                or a school web server. Students access it via URL in any modern browser with no
+                accounts or downloads required.
               </p>
               <Pre>{`# Run locally:\nnpm install\nnpm start\n\n# Build for production:\nnpm run build\n\n# Deploy to Vercel:\nvercel --prod`}</Pre>
+              <p>
+                See <Code>DEPLOY.md</Code> in the project root for full Vercel and Cloudflare
+                Pages instructions including SPA rewrite configuration and CI smoke tests.
+              </p>
             </section>
 
             {/* ══════════════ SHORTCUTS ══════════════ */}
@@ -1777,7 +2240,7 @@ angle = clamp(input_angle, -30, 30)`}</Pre>
             </section>
 
             <div className="help-footer">
-              Physics IDE — Open source physics simulation environment · Built with React, Blockly & GlowScript 3.2 VPython
+              Physics IDE v1.0 — Browser-based physics simulation and data science environment · React · Google Blockly · Monaco · GlowScript 3.2 VPython · Arquero · Observable Plot
             </div>
             </div>{/* end hidden-when-searching wrapper */}
           </div>

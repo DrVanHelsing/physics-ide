@@ -76,7 +76,7 @@ async function downloadPng(containerEl, filename) {
   });
 }
 
-export default function ChartOverlay({ dataset, onClose }) {
+export default function ChartOverlay({ dataset, onClose, onAnalyse }) {
   const containerRef = useRef(null);
   const [chartType, setChartType] = useState("line");
   const [encodings, setEncodings] = useState(() => defaultEncodings(dataset));
@@ -122,9 +122,20 @@ export default function ChartOverlay({ dataset, onClose }) {
               {dataset.provenance}
             </span>
           </div>
-          <button className="chart-overlay-close" onClick={onClose} title="Close">
-            <XIcon size={14} />
-          </button>
+          <div className="chart-overlay-header-actions">
+            {onAnalyse && (
+              <button
+                className="chart-overlay-analyse"
+                onClick={onAnalyse}
+                title="Load the paired analysis for this run"
+              >
+                Analyse this run →
+              </button>
+            )}
+            <button className="chart-overlay-close" onClick={onClose} title="Close">
+              <XIcon size={14} />
+            </button>
+          </div>
         </div>
 
         <div className="chart-overlay-controls">
