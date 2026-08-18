@@ -346,13 +346,12 @@ export default function HelpPage({ onClose }) {
                 <strong>Physics IDE</strong> is a browser-based environment for physics simulation and
                 foundational data science. It combines a visual <strong>block editor</strong> (Google Blockly),
                 a <strong>Monaco code editor</strong>, a live <strong>3D WebGL viewport</strong>, and a
-                reactive <strong>Data panel</strong> — all running entirely in the browser with no installation,
-                no accounts, and no backend.
+                reactive <strong>Data panel</strong> — all running entirely in the browser with no installation required.
               </p>
               <Note type="info">
                 All simulations and analyses execute locally in your browser. Physics simulations run
                 inside an isolated GlowScript 3.2 iframe. Data Science analyses run in an async
-                JavaScript sandbox. No data is uploaded to any server.
+                JavaScript sandbox. Simulations and analyses never run on a server. If you create an account, your projects can also sync to it — guests stay entirely local.
               </Note>
 
               <h3 className="help-h3">Three project goals</h3>
