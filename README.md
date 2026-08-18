@@ -54,6 +54,7 @@ The block toolbox is generated at runtime by `buildToolboxXml(goal)` in `src/uti
 ```bash
 npm install
 npm run db:up      # start Postgres (Docker)
+npm run db:migrate    # create/update database tables
 npm run dev        # API on :4000 + app on :3000
 ```
 
