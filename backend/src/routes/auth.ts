@@ -4,12 +4,21 @@ import { eq, sql, and, isNull, gt } from "drizzle-orm";
 import {
   SignupInputSchema,
   ConfirmInputSchema,
+  SigninInputSchema,
+  UpdateMeInputSchema,
   ACCOUNT_CAP_MESSAGE,
   type AuthUser,
 } from "@physics-ide/shared";
 import { users, emailTokens, settings } from "../db/schema.js";
 import { logEvent } from "../db/events.js";
 import { newToken, hashToken } from "../auth/tokens.js";
+import {
+  createSession,
+  destroySessionByToken,
+  SESSION_COOKIE,
+  SESSION_TTL_MS,
+} from "../auth/session.js";
+import { requireUser } from "../auth/guards.js";
 import { confirmEmail, teacherSignupAlert } from "../email/templates.js";
 import { config } from "../config.js";
 
@@ -147,6 +156,60 @@ export function authRoutes(app: FastifyInstance): void {
       return reply.code(400).send({ error: "That link is invalid or has expired." });
     }
     return { ok: true };
+  });
+
+  app.post(
+    "/api/auth/signin",
+    { config: { rateLimit: { max: 10, timeWindow: "1 minute" } } },
+    async (req, reply) => {
+      const parsed = SigninInputSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return reply.code(401).send({ error: "Invalid email or password." });
+      }
+      const rows = await app.db.select().from(users).where(eq(users.email, parsed.data.email));
+      const user = rows[0];
+      const ok = user ? await argon2.verify(user.passwordHash, parsed.data.password) : false;
+      if (!user || !ok) {
+        return reply.code(401).send({ error: "Invalid email or password." });
+      }
+      if (!user.active) {
+        return reply.code(403).send({ error: "This account has been deactivated." });
+      }
+      const session = await createSession(app.db, user.id);
+      await logEvent(app.db, "auth.signin", user.id, {});
+      reply.setCookie(SESSION_COOKIE, session.token, {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: config.nodeEnv === "production",
+        maxAge: Math.floor(SESSION_TTL_MS / 1000),
+      });
+      return { user: toAuthUser(user) };
+    },
+  );
+
+  app.post("/api/auth/signout", async (req, reply) => {
+    const token = req.cookies[SESSION_COOKIE];
+    if (token) await destroySessionByToken(app.db, token);
+    reply.clearCookie(SESSION_COOKIE, { path: "/" });
+    return { ok: true };
+  });
+
+  app.get("/api/auth/me", { preHandler: requireUser }, async (req) => {
+    return { user: toAuthUser(req.user!) };
+  });
+
+  app.patch("/api/auth/me", { preHandler: requireUser }, async (req, reply) => {
+    const parsed = UpdateMeInputSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: parsed.error.issues[0]?.message ?? "Invalid input." });
+    }
+    const [updated] = await app.db
+      .update(users)
+      .set({ name: parsed.data.name })
+      .where(eq(users.id, req.user!.id))
+      .returning();
+    return { user: toAuthUser(updated) };
   });
 }
 
