@@ -454,10 +454,10 @@ A full sweep of the repository's documentation confirms this platform was envisi
 
 | Where | What was already planned there |
 |---|---|
-| [Physics_IDE_Technical.md](Physics_IDE_Technical.md) §6.6.6 "Planned Managed Platform" | The closest ancestor: login, teacher/student roles, class context, server-side work history, teacher templates, student submissions, controlled peer sharing with **mandatory name attribution**, and an audit trail specified as *owner, sharer, recipient, timestamps, version identifier* — nearly word-for-word what section 8 of this document specifies. It also recommends PostgreSQL as the database. |
-| [Physics_IDE_Technical.md](Physics_IDE_Technical.md) §11.3–11.4 | POPIA data-minimisation rules and the academic-integrity metadata spec ("write-once, visible to authorised staff only") — feeds sections 8 and 11 here. |
+| Physics_IDE_Technical.md (removed in the Aug 2026 docs cleanup — retrievable from git history) §6.6.6 "Planned Managed Platform" | The closest ancestor: login, teacher/student roles, class context, server-side work history, teacher templates, student submissions, controlled peer sharing with **mandatory name attribution**, and an audit trail specified as *owner, sharer, recipient, timestamps, version identifier* — nearly word-for-word what section 8 of this document specifies. It also recommends PostgreSQL as the database. |
+| Physics_IDE_Technical.md §11.3–11.4 | POPIA data-minimisation rules and the academic-integrity metadata spec ("write-once, visible to authorised staff only") — feeds sections 8 and 11 here. |
 | [plan.md](../plan.md) Phases D & E | The deferral gates this document now legitimately opens: cloud save and auth were parked behind "a written feature need" — which this document is. Phase E even sketched the exact mechanism section 3.2 uses for importing guest projects into a new account. |
-| [TECHNICAL_ARCHITECTURE.md](TECHNICAL_ARCHITECTURE.md) §9.2 | Notes that the existing project-bundle export is today's manual "submission" workaround — and that bundle format is the natural payload for section 6.4's submission snapshots. |
+| TECHNICAL_ARCHITECTURE.md (removed in the Aug 2026 docs cleanup — retrievable from git history) §9.2 | Notes that the existing project-bundle export is today's manual "submission" workaround — and that bundle format is the natural payload for section 6.4's submission snapshots. |
 | [Physics_IDE_User_Guide.md](Physics_IDE_User_Guide.md) §19 "For Educators" | Documents the current manual workflow (export a file, email it around) that this platform replaces. |
 
 ### 17.2 Where this document deliberately overrides older plans

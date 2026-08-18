@@ -121,7 +121,7 @@ Branch: `phase-a-spike`. All work browser-only; no backend, no auth.
 - **Goal threaded into the workspace;** the toolbox rebuilds when the project goal changes.
 - **DS analysis anchor:** new `ds_start_block` "Start analysis" hat (mirrors physics `sim_start`). DS codegen walks only the hat's body (falls back to all top blocks for legacy projects); a disable-orphans pass greys top-level blocks left outside the hat. Seeded into new DS projects and all DS/Hybrid templates.
 - **Gate check passed:** 90/90 tests (4 new goal-filter cases), `check:blocks` 115 entries / 107 toolbox ids, clean production build.
-- Origin & rationale: [docs/makecode-audit.md](docs/makecode-audit.md) (items P0–P1).
+- Origin & rationale: docs/makecode-audit.md (removed in the Aug 2026 docs cleanup — retrievable from git history) (items P0–P1).
 
 ### Phases D + E — Deferred, no work in progress
 - Both behind explicit triggers in `docs/product-contract.md`. Do not start.
@@ -378,7 +378,7 @@ This table is the canonical source for both registry entries and tests. Build it
 - [src/utils/runner/glowRunner.js](src/utils/runner/glowRunner.js) — keep as the physics runner; no abstraction wrapper yet.
 - [src/utils/exportUtils.js](src/utils/exportUtils.js), [src/utils/pdfExport.js](src/utils/pdfExport.js) — extend for CSV / PNG / bundle export.
 - [docs/foundational_ds_blocks.md](docs/foundational_ds_blocks.md) — authoritative DS scope.
-- [docs/Physics_Data_Science_Integration_Vision.md](docs/Physics_Data_Science_Integration_Vision.md) — product vision alignment.
+- docs/Physics_Data_Science_Integration_Vision.md (removed in the Aug 2026 docs cleanup — retrievable from git history) — product vision alignment.
 
 New files to introduce:
 - `src/utils/blockly/blockRegistry.js` — canonical metadata registry.
