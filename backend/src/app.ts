@@ -4,6 +4,7 @@ import rateLimit from "@fastify/rate-limit";
 import type { Db } from "./db/types.js";
 import { createDevMailer, type Mailer } from "./email/mailer.js";
 import { authRoutes } from "./routes/auth.js";
+import { adminRoutes } from "./routes/admin.js";
 
 export interface AppDeps {
   db: Db;
@@ -33,6 +34,7 @@ export function buildApp(deps: AppDeps): FastifyInstance {
   app.get("/api/health", async () => ({ ok: true, service: "physics-ide-api" }));
 
   app.register(authRoutes);
+  app.register(adminRoutes);
 
   return app;
 }
