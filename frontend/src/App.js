@@ -1,11 +1,12 @@
 /**
- * App.js — slim provider shell
+ * App.js — provider shell + router
  *
- * Composes all React context providers in the correct nesting order and
- * renders the single IDELayout component inside an error boundary.
- * All business logic lives in contexts, hooks, and IDELayout.
+ * The IDE stays exactly what it was at "/" (IDELayout inside the original
+ * provider stack). Auth, profile and admin screens are sibling routes.
  */
 import React from "react";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider }      from "./contexts/ThemeContext";
 import { SimulationProvider } from "./contexts/SimulationContext";
 import { ProjectProvider }    from "./contexts/ProjectContext";
@@ -13,22 +14,43 @@ import { DebugProvider }      from "./contexts/DebugContext";
 import { TraceProvider }      from "./contexts/TraceContext";
 import ErrorBoundary          from "./components/common/ErrorBoundary";
 import IDELayout              from "./components/layout/IDELayout";
+import SignUpPage             from "./components/auth/SignUpPage";
+import SignInPage             from "./components/auth/SignInPage";
+import CheckEmailPage         from "./components/auth/CheckEmailPage";
+import ConfirmPage            from "./components/auth/ConfirmPage";
+import ForgotPage             from "./components/auth/ForgotPage";
+import ResetPage              from "./components/auth/ResetPage";
+
+const queryClient = new QueryClient();
 
 function App() {
   return (
-    <ThemeProvider>
-      <SimulationProvider>
-        <ProjectProvider>
-          <DebugProvider>
-            <TraceProvider>
-              <ErrorBoundary>
-                <IDELayout />
-              </ErrorBoundary>
-            </TraceProvider>
-          </DebugProvider>
-        </ProjectProvider>
-      </SimulationProvider>
-    </ThemeProvider>
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <ThemeProvider>
+          <SimulationProvider>
+            <ProjectProvider>
+              <DebugProvider>
+                <TraceProvider>
+                  <ErrorBoundary>
+                    <Routes>
+                      <Route path="/" element={<IDELayout />} />
+                      <Route path="/auth/signup" element={<SignUpPage />} />
+                      <Route path="/auth/signin" element={<SignInPage />} />
+                      <Route path="/auth/check-email" element={<CheckEmailPage />} />
+                      <Route path="/auth/confirm" element={<ConfirmPage />} />
+                      <Route path="/auth/forgot" element={<ForgotPage />} />
+                      <Route path="/auth/reset" element={<ResetPage />} />
+                      <Route path="*" element={<Navigate to="/" replace />} />
+                    </Routes>
+                  </ErrorBoundary>
+                </TraceProvider>
+              </DebugProvider>
+            </ProjectProvider>
+          </SimulationProvider>
+        </ThemeProvider>
+      </BrowserRouter>
+    </QueryClientProvider>
   );
 }
 

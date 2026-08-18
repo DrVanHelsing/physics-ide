@@ -23,6 +23,7 @@ import React, { useMemo, useRef, useState } from "react";
 import { EXAMPLES } from "../utils/precodedExamples";
 import { BLOCK_TEMPLATES, DS_TEMPLATES, HYBRID_TOPICS } from "../utils/blockTemplates";
 import { DEFAULT_PYTHON_CODE } from "../constants";
+import AccountChip from "./auth/AccountChip";
 import {
   RocketIcon,
   AtomIcon,
@@ -304,6 +305,7 @@ export default function StartMenu({
             >
               <UploadIcon size={16} /> Open File…
             </button>
+            <AccountChip />
           </nav>
         </aside>
 
