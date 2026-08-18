@@ -9,5 +9,8 @@
     "test": "npm run test -ws --if-present",
     "db:up": "docker compose up -d db",
     "db:down": "docker compose down"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.44.0"
   }
 }
