@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import AuthLayout from "./AuthLayout";
 import { api } from "../../utils/api/client";
@@ -8,10 +8,13 @@ export default function ConfirmPage() {
   const [state, setState] = useState("working"); // working | done | failed
   const [message, setMessage] = useState("");
   const token = params.get("token") || "";
+  const posted = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      if (posted.current) return;
+      posted.current = true;
       try {
         await api("/api/auth/confirm", { method: "POST", body: { token } });
         if (!cancelled) setState("done");

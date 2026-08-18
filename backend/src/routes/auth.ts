@@ -135,9 +135,9 @@ export function authRoutes(app: FastifyInstance): void {
     const tokenHash = hashToken(parsed.data.token);
     const now = new Date();
     const updated = await app.db.transaction(async (tx) => {
-      const rows = await tx
-        .select()
-        .from(emailTokens)
+      const claimed = await tx
+        .update(emailTokens)
+        .set({ usedAt: now })
         .where(
           and(
             eq(emailTokens.tokenHash, tokenHash),
@@ -145,10 +145,10 @@ export function authRoutes(app: FastifyInstance): void {
             isNull(emailTokens.usedAt),
             gt(emailTokens.expiresAt, now),
           ),
-        );
-      const tok = rows[0];
+        )
+        .returning();
+      const tok = claimed[0];
       if (!tok) return false;
-      await tx.update(emailTokens).set({ usedAt: now }).where(eq(emailTokens.id, tok.id));
       await tx
         .update(users)
         .set({ emailConfirmedAt: now })
@@ -254,9 +254,9 @@ export function authRoutes(app: FastifyInstance): void {
       const passwordHash = await argon2.hash(parsed.data.password, { type: argon2.argon2id });
       const now = new Date();
       const done = await app.db.transaction(async (tx) => {
-        const rows = await tx
-          .select()
-          .from(emailTokens)
+        const claimed = await tx
+          .update(emailTokens)
+          .set({ usedAt: now })
           .where(
             and(
               eq(emailTokens.tokenHash, tokenHash),
@@ -264,10 +264,10 @@ export function authRoutes(app: FastifyInstance): void {
               isNull(emailTokens.usedAt),
               gt(emailTokens.expiresAt, now),
             ),
-          );
-        const tok = rows[0];
+          )
+          .returning();
+        const tok = claimed[0];
         if (!tok) return false;
-        await tx.update(emailTokens).set({ usedAt: now }).where(eq(emailTokens.id, tok.id));
         // Any other outstanding reset links die with this one.
         await tx
           .update(emailTokens)
@@ -289,38 +289,42 @@ export function authRoutes(app: FastifyInstance): void {
     },
   );
 
-  app.post("/api/auth/change-password", { preHandler: requireUser }, async (req, reply) => {
-    const parsed = ChangePasswordInputSchema.safeParse(req.body);
-    if (!parsed.success) {
-      return reply.code(400).send({ error: parsed.error.issues[0]?.message ?? "Invalid input." });
-    }
-    const ok = await argon2.verify(req.user!.passwordHash, parsed.data.currentPassword);
-    if (!ok) {
-      return reply.code(400).send({ error: "Your current password is incorrect." });
-    }
-    const passwordHash = await argon2.hash(parsed.data.newPassword, { type: argon2.argon2id });
-    const currentTokenHash = hashToken(req.cookies[SESSION_COOKIE]!);
-    const now = new Date();
-    await app.db.transaction(async (tx) => {
-      await tx.update(users).set({ passwordHash }).where(eq(users.id, req.user!.id));
-      await tx
-        .delete(sessions)
-        .where(and(eq(sessions.userId, req.user!.id), ne(sessions.tokenHash, currentTokenHash)));
-      // Any outstanding reset links for this user are now stale.
-      await tx
-        .update(emailTokens)
-        .set({ usedAt: now })
-        .where(
-          and(
-            eq(emailTokens.userId, req.user!.id),
-            eq(emailTokens.type, "reset"),
-            isNull(emailTokens.usedAt),
-          ),
-        );
-      await logEvent(tx, "account.password_reset", req.user!.id, { via: "change-password" });
-    });
-    return { ok: true };
-  });
+  app.post(
+    "/api/auth/change-password",
+    { preHandler: requireUser, config: { rateLimit: { max: 5, timeWindow: "1 minute" } } },
+    async (req, reply) => {
+      const parsed = ChangePasswordInputSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return reply.code(400).send({ error: parsed.error.issues[0]?.message ?? "Invalid input." });
+      }
+      const ok = await argon2.verify(req.user!.passwordHash, parsed.data.currentPassword);
+      if (!ok) {
+        return reply.code(400).send({ error: "Your current password is incorrect." });
+      }
+      const passwordHash = await argon2.hash(parsed.data.newPassword, { type: argon2.argon2id });
+      const currentTokenHash = hashToken(req.cookies[SESSION_COOKIE]!);
+      const now = new Date();
+      await app.db.transaction(async (tx) => {
+        await tx.update(users).set({ passwordHash }).where(eq(users.id, req.user!.id));
+        await tx
+          .delete(sessions)
+          .where(and(eq(sessions.userId, req.user!.id), ne(sessions.tokenHash, currentTokenHash)));
+        // Any outstanding reset links for this user are now stale.
+        await tx
+          .update(emailTokens)
+          .set({ usedAt: now })
+          .where(
+            and(
+              eq(emailTokens.userId, req.user!.id),
+              eq(emailTokens.type, "reset"),
+              isNull(emailTokens.usedAt),
+            ),
+          );
+        await logEvent(tx, "account.password_reset", req.user!.id, { via: "change-password" });
+      });
+      return { ok: true };
+    },
+  );
 }
 
 class CapReached extends Error {}

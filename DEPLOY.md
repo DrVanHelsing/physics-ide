@@ -2,6 +2,8 @@
 
 > **Restructure note (Aug 2026):** the static app now lives in `frontend/` (build output `frontend/dist/`, no longer a committed `build/` folder). Point Vercel/Cloudflare's root directory at `frontend/` with build command `npm run build` and output `dist`. Backend deployment arrives with the GCP plan (see docs/classroom-platform-stack.md §6).
 
+> **Accounts note (Aug 2026):** the app now includes sign-in/sign-up screens that need the backend API. A static-only deploy (this document's Vercel/Cloudflare path) serves a fully working guest IDE, but the account doors will fail — there is no API behind them until the GCP step. Either deploy static builds from the pre-accounts tag, or accept dead account screens until the backend ships.
+
 The deployed site is a static single-page React app (Vite). The repo also contains a backend (Fastify + Drizzle + Postgres) and a database, but neither is deployed yet — that arrives with the GCP plan (see docs/classroom-platform-stack.md §6). Anywhere that can serve a `dist/` directory with SPA fallback will host the current deployment. Two zero-cost paths are documented below.
 
 > **Constraint locked in v1:** the app must run fully offline after first load. No HTTP request to a non-CDN origin during normal use. CI smoke-tests this. If you add a remote dependency, update the product contract first.
@@ -90,6 +92,18 @@ Open `http://localhost:3000`, complete the project-creation wizard, run a templa
 - `frontend/dist/assets/index-*.js` — the application bundle (~455 kB gzip). Hashed filename so the long-cache header is safe.
 - `frontend/dist/assets/index-*.css` — same caching story (~13 kB gzip).
 - `frontend/dist/assets/*.js` — code-split chunks produced by Vite for vendor splitting.
+
+## Before the GCP step (security checklist)
+
+The classroom backend ships local-first. These obligations were accepted during Plans 1–2 with the explicit gate that they land before any cloud deployment. Do not deploy the backend until every box is ticked.
+
+- [ ] Production mail driver must NOT persist raw token URLs — store redacted bodies (strip `token=` params); the clickable pretend inbox stays dev-driver-only.
+- [ ] Configure Fastify `trustProxy` for the load balancer and verify X-Forwarded-For spoofing is closed; without it every user shares one rate-limit bucket.
+- [ ] Set explicit argon2id parameters sized for the instance (OWASP baseline: memoryCost ≈ 19456 KiB, timeCost 2, parallelism 1) instead of library defaults (64 MiB per hash).
+- [ ] `NODE_ENV=production` so the session cookie carries `Secure`.
+- [ ] Make `ADMIN_PASSWORD` mandatory at seed time in production (the seed currently only warns on the dev default).
+- [ ] @fastify/rate-limit's store is in-memory per instance — pin the service to max 1 instance or accept multiplied limits.
+- [ ] Before real email: per-email-address throttle on `/api/auth/forgot` (mail-bomb shape) and wrap the mailer send so a mail failure cannot become a user-existence oracle.
 
 ## What does NOT belong here
 
