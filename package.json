@@ -2,15 +2,25 @@
   "name": "physics-ide",
   "version": "2.0.0",
   "private": true,
-  "engines": { "node": ">=20.19.2" },
-  "workspaces": ["frontend", "shared", "backend"],
+  "engines": {
+    "node": ">=20.19.2"
+  },
+  "workspaces": [
+    "frontend",
+    "shared",
+    "backend"
+  ],
   "scripts": {
-    "check:blocks": "npm run check:blocks -w frontend",
-    "test": "npm run test -ws --if-present",
+    "dev": "concurrently -n api,web -c blue,green \"npm run dev -w backend\" \"npm run start -w frontend\"",
     "db:up": "docker compose up -d db",
-    "db:down": "docker compose down"
+    "db:down": "docker compose down",
+    "check:blocks": "npm run check:blocks -w frontend",
+    "test": "npm run test -ws --if-present"
   },
   "dependencies": {
     "drizzle-orm": "^0.44.0"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.4"
   }
 }

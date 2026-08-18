@@ -1,5 +1,7 @@
 # Deploying the Physics IDE
 
+> **Restructure note (Aug 2026):** the static app now lives in `frontend/` (build output `frontend/dist/`, no longer a committed `build/` folder). Point Vercel/Cloudflare's root directory at `frontend/` with build command `npm run build` and output `dist`. Backend deployment arrives with the GCP plan (see docs/classroom-platform-stack.md §6).
+
 This is a static single-page React app (Create React App). There is no backend, no database, no auth. Anywhere that can serve a `build/` directory with SPA fallback will host it. Two zero-cost paths are documented below.
 
 > **Constraint locked in v1:** the app must run fully offline after first load. No HTTP request to a non-CDN origin during normal use. CI smoke-tests this. If you add a remote dependency, update the product contract first.
