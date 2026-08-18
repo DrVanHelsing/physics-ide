@@ -1,6 +1,6 @@
 .vercel
 node_modules
-md2pdf.config.json
+frontend/md2pdf.config.json
 docs/Physics_IDE_Technical.pdf
 docs/vscode-theme.css
 docs/diagrams/technical-dataflow-debug.svg
@@ -13,14 +13,18 @@ docs/Physics_IDE_User_Guide.pdf
 docs/Physics_IDE_Technical.md
 docs/vscode-theme.css
 docs/Physics_IDE_User_Guide.pdf
-build/static/js/main.60b8d68b.js
+frontend/build/static/js/main.60b8d68b.js
 .gitignore
 
 # Browser verification artifacts
-scripts/ss*.png
-scripts/ss*.jpg
+frontend/scripts/ss*.png
+frontend/scripts/ss*.jpg
 
 # E2E test output
 e2e/
 
 .superpowers/
+
+frontend/dist/
+backend/dist/
+backend/.env
