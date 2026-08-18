@@ -413,7 +413,7 @@ export type AccountRole = (typeof ACCOUNT_ROLES)[number];
 
 ```ts
 import { describe, test, expect } from "vitest";
-import { WorkspaceRulesSchema, BUILT_IN_RULE_SETS } from "./workspaceRules";
+import { WorkspaceRulesSchema, BUILT_IN_RULE_SETS } from "./workspaceRules.js";
 
 describe("built-in workspace rule sets", () => {
   test("all three built-in sets validate against the schema", () => {
@@ -522,8 +522,8 @@ export const BUILT_IN_RULE_SETS: Record<
 - [ ] **Step 7: Create `shared/src/index.ts`**
 
 ```ts
-export * from "./roles";
-export * from "./workspaceRules";
+export * from "./roles.js";
+export * from "./workspaceRules.js";
 ```
 
 - [ ] **Step 8: Run tests and typecheck — expect green**
