@@ -84,8 +84,6 @@ mkdir frontend
 git mv src frontend/src
 git mv public frontend/public
 git mv scripts frontend/scripts
-git mv e2e frontend/e2e
-git mv tools frontend/tools
 git mv build frontend/build
 git mv vercel.json frontend/vercel.json
 git mv md2pdf.config.json frontend/md2pdf.config.json
