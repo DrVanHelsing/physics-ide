@@ -45,9 +45,9 @@ Inside each goal the student picks an editing mode: **Blocks** or **Code**. Ther
 
 The following are explicitly out of scope for v1 and require a written decision to bring back in:
 
-- Servers, databases, queues, background workers, Python services.
-- Accounts, login, sessions, identity, roles, user_id columns.
-- Cross-device sync, cloud save, classroom rosters, teacher dashboards.
+- ~~Servers, databases, queues, background workers, Python services.~~ *(lifted 2026-08-18 — see Amendment; queues/workers/Python services remain excluded)*
+- ~~Accounts, login, sessions, identity, roles, user_id columns.~~ *(lifted 2026-08-18 — see Amendment)*
+- ~~Cross-device sync, cloud save, classroom rosters, teacher dashboards.~~ *(lifted 2026-08-18 — see Amendment)*
 - Collaboration, real-time multi-user editing, comments.
 - Machine learning, train / test splits, model fitting, prediction.
 - Joining or merging across multiple tables.
@@ -117,6 +117,16 @@ A step-by-step guided mode for beginners, **selectable at project creation** per
 - **Generated Python is hidden by default** and revealed on demand. The reveal emits clean, commented pandas-style code for DS blocks and VPython for physics blocks.
 
 ---
+
+## Amendment — Classroom Platform (18 August 2026)
+
+The Phase D and Phase E deferral gates have been satisfied by an explicit product decision. The owner approved a full classroom platform — accounts, teacher/learner/TA roles, classrooms, assignments, submissions, marking, and a light audit trail — specified in [docs/classroom-platform.md](classroom-platform.md) (functionality, approved 18 Aug 2026) and [docs/classroom-platform-stack.md](classroom-platform-stack.md) (stack, approved 18 Aug 2026).
+
+Effective for the `feature/classroom-platform` branch onward:
+
+- The exclusion-list bullets covering servers/databases, accounts/login/roles, cross-device sync/cloud save/rosters/dashboards are **lifted**. All other exclusions stand.
+- Phase D/E's Supabase choice is **superseded**: the stack is a Fastify + PostgreSQL backend, self-hosted auth, Google Cloud (`africa-south1`) at deployment, hard cap **200 accounts**.
+- The browser-first core is unchanged: simulation and DS execution never move server-side; guest mode remains.
 
 ## Change protocol
 
