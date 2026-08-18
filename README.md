@@ -55,8 +55,11 @@ The block toolbox is generated at runtime by `buildToolboxXml(goal)` in `src/uti
 npm install
 npm run db:up      # start Postgres (Docker)
 npm run db:migrate    # create/update database tables
+npm run seed       # seed settings + the admin account (admin@physics-ide.local)
 npm run dev        # API on :4000 + app on :3000
 ```
+
+Accounts are live in local dev: sign up from the start menu (student or teacher), and manage people, the 200-account cap, and the pretend email inbox from the admin console (sign in as the seeded admin — dev default password `admin-dev-password`, override with `ADMIN_EMAIL` / `ADMIN_NAME` / `ADMIN_PASSWORD` env vars before running the seed). No real email is sent in local dev; every message lands in the admin console's Emails tab.
 
 ```bash
 npm run test           # all workspace test suites (Vitest)
