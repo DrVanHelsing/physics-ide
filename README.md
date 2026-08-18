@@ -49,21 +49,21 @@ The block toolbox is generated at runtime by `buildToolboxXml(goal)` in `src/uti
 
 ## 2. Install and Run
 
-**Requirements:** Node.js 18 or later, npm 9 or later.
+**Requirements:** Node.js 20.19+, npm 10+, Docker Desktop (for the local database).
 
 ```bash
 npm install
-npm start          # development server on :3000
+npm run db:up      # start Postgres (Docker)
+npm run dev        # API on :4000 + app on :3000
 ```
 
 ```bash
-npm run build      # production build → build/
-```
-
-```bash
+npm run test           # all workspace test suites (Vitest)
 npm run check:blocks   # verify block registry has no duplicates
-CI=true npm test       # full Jest suite
+npm run build -w frontend   # production build → frontend/dist/
 ```
+
+The repo is an npm-workspaces monorepo: `frontend/` (the React IDE, Vite), `backend/` (Fastify API), `shared/` (schemas used by both). The classroom platform is being built per [docs/classroom-platform.md](docs/classroom-platform.md).
 
 ---
 
