@@ -1,9 +1,11 @@
 import { describe, test, expect, beforeAll, afterAll } from "vitest";
 import argon2 from "argon2";
+import { eq } from "drizzle-orm";
 import { buildApp } from "../app.js";
 import { testDb, testPool, truncateAuthTables } from "../db/testClient.js";
 import { setSetting } from "../db/settings.js";
-import { users } from "../db/schema.js";
+import { users, sessions } from "../db/schema.js";
+import { newToken } from "../auth/tokens.js";
 
 const app = buildApp({ db: testDb });
 
@@ -76,6 +78,10 @@ describe("signin / me / signout", () => {
     expect(res.json().user).toMatchObject({ email: "sess@example.com", emailConfirmed: true });
     const raw = res.headers["set-cookie"];
     expect(String(raw)).toContain("HttpOnly");
+    expect(String(raw)).toContain("SameSite=Lax");
+    expect(String(raw)).toContain("Path=/");
+    expect(String(raw)).toContain("Max-Age=2592000");
+    expect(String(raw)).not.toContain("Secure");
     const token = cookieOf(res);
     expect(token).toBeTruthy();
 
@@ -115,5 +121,45 @@ describe("signin / me / signout", () => {
     const res = await app.inject({ method: "GET", url: "/api/auth/me" });
     expect(res.statusCode).toBe(401);
     expect(res.json().error).toBe("Not signed in.");
+  });
+});
+
+describe("session rejection", () => {
+  test("expired session → 401", async () => {
+    const [user] = await testDb.select().from(users).where(eq(users.email, "sess@example.com"));
+    const { token, hash } = newToken();
+    await testDb.insert(sessions).values({
+      tokenHash: hash,
+      userId: user.id,
+      expiresAt: new Date(Date.now() - 1000),
+    });
+
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/auth/me",
+      cookies: { pide_session: token },
+    });
+    expect(res.statusCode).toBe(401);
+  });
+
+  test("inactive user with a live session → 401", async () => {
+    const signin = await app.inject({
+      method: "POST",
+      url: "/api/auth/signin",
+      payload: { email: "sess@example.com", password: "a-long-password" },
+    });
+    const token = cookieOf(signin);
+    try {
+      await testDb.update(users).set({ active: false }).where(eq(users.email, "sess@example.com"));
+
+      const res = await app.inject({
+        method: "GET",
+        url: "/api/auth/me",
+        cookies: { pide_session: token! },
+      });
+      expect(res.statusCode).toBe(401);
+    } finally {
+      await testDb.update(users).set({ active: true }).where(eq(users.email, "sess@example.com"));
+    }
   });
 });
