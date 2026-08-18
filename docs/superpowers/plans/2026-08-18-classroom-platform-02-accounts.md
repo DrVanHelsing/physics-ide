@@ -2144,7 +2144,7 @@ git commit -m "feat(backend): admin API (people, cap, email log, health) and see
 The IDE keeps `/`. New sibling routes carry the auth flows. No IDE file changes except App.js (provider shell) and one insertion in StartMenu.
 
 **Files:**
-- Modify: `frontend/package.json` (deps), `frontend/src/App.js`, `frontend/src/components/StartMenu.js`, `frontend/src/styles.css` (append one section)
+- Modify: `frontend/package.json` (deps), `frontend/src/App.js`, `frontend/src/components/StartMenu.js`, `frontend/src/styles.css` (append one section), `frontend/vite.config.mjs` (scoped TS transform for the shared workspace — see Step 1b; plan amendment 2026-08-18: the original plan missed that the JSX-in-`.js` `esbuild.include` narrowing stops Vite from stripping TypeScript out of `@physics-ide/shared`'s raw `.ts` source, in dev and build alike)
 - Create: `frontend/src/utils/api/client.js`, `frontend/src/auth/useAuth.js`, `frontend/src/components/auth/AuthLayout.js`, `frontend/src/components/auth/SignUpPage.js`, `frontend/src/components/auth/SignInPage.js`, `frontend/src/components/auth/CheckEmailPage.js`, `frontend/src/components/auth/ConfirmPage.js`, `frontend/src/components/auth/ForgotPage.js`, `frontend/src/components/auth/ResetPage.js`, `frontend/src/components/auth/AccountChip.js`
 - Test: `frontend/src/utils/api/__tests__/client.test.js`
 
@@ -2165,6 +2165,36 @@ Then add the workspace dependency by editing `frontend/package.json` dependencie
 ```
 
 and run `npm install` once at the root so the workspace link materialises.
+
+- [ ] **Step 1b: Teach Vite to strip TypeScript from the shared workspace (plan amendment)**
+
+The existing `esbuild.include: /src\/.*\.js$/` (the CRA-era JSX-in-`.js` shim) narrows Vite's esbuild transform so raw `.ts` from `@physics-ide/shared` is never type-stripped — `as const`/`export type` reach the browser as a SyntaxError and kill the whole module graph. Fix by adding a scoped pre-plugin in `frontend/vite.config.mjs`. Change the first two lines and the `plugins` array to:
+
+```js
+import { defineConfig, transformWithEsbuild } from "vite";
+import react from "@vitejs/plugin-react";
+
+export default defineConfig({
+  plugins: [
+    {
+      // The esbuild.include below narrows Vite's transform to src/*.js (the
+      // CRA-era JSX-in-.js shim), which also stops Vite from stripping
+      // TypeScript out of the raw-TS @physics-ide/shared workspace source —
+      // in dev and build alike. This scoped pre-plugin restores TS handling
+      // for exactly that package and nothing else.
+      name: "shared-workspace-ts",
+      enforce: "pre",
+      async transform(code, id) {
+        if (/[\\/]shared[\\/]src[\\/][^?]*\.ts$/.test(id)) {
+          return transformWithEsbuild(code, id, { loader: "ts" });
+        }
+      },
+    },
+    react(),
+  ],
+```
+
+Everything below `plugins` stays byte-identical.
 
 - [ ] **Step 2: Write the failing api-client test**
 
