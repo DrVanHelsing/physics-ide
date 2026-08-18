@@ -8,6 +8,7 @@ const EnvSchema = z.object({
     .url()
     .default("postgres://postgres:physics@localhost:5433/physics_ide"),
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+  APP_BASE_URL: z.string().url().default("http://127.0.0.1:3000"),
 });
 
 const env = EnvSchema.parse(process.env);
@@ -16,4 +17,5 @@ export const config = {
   port: env.PORT,
   databaseUrl: env.DATABASE_URL,
   nodeEnv: env.NODE_ENV,
+  appBaseUrl: env.APP_BASE_URL,
 } as const;

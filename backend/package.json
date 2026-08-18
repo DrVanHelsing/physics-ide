@@ -13,7 +13,10 @@
     "seed": "tsx src/seed.ts"
   },
   "dependencies": {
+    "@fastify/cookie": "^11.0.0",
+    "@fastify/rate-limit": "^11.0.0",
     "@physics-ide/shared": "*",
+    "argon2": "^0.45.0",
     "dotenv": "^16.4.0",
     "drizzle-orm": "^0.44.0",
     "fastify": "^5.0.0",
