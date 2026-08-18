@@ -9,44 +9,22 @@
     "jspdf": "^4.1.0",
     "localforage": "^1.10.0",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "react-scripts": "5.0.1",
-    "vercel": "^50.32.5"
+    "react-dom": "^18.3.1"
   },
   "scripts": {
     "start": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "react-scripts test",
+    "test": "vitest run",
     "check:blocks": "node scripts/check-block-registry.mjs"
-  },
-  "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
-    ],
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version"
-    ]
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^5.2.0",
     "eslint-plugin-react-hooks": "^4.6.2",
+    "jsdom": "^25.0.1",
     "md-to-pdf": "^5.2.5",
-    "vite": "^7.3.6"
-  },
-  "eslintConfig": {
-    "extends": [
-      "react-app"
-    ]
-  },
-  "jest": {
-    "transformIgnorePatterns": [
-      "[/\\\\]node_modules[/\\\\](?!(arquero|@uwdata|apache-arrow|@observablehq|internmap|d3-[a-z-]+)[/\\\\]).+\\.(js|jsx|mjs|cjs|ts|tsx)$",
-      "^.+\\.module\\.(css|sass|scss)$"
-    ]
+    "vercel": "^50.32.5",
+    "vite": "^7.3.6",
+    "vitest": "^4.1.10"
   }
 }
