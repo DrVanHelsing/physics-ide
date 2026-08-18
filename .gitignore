@@ -22,3 +22,5 @@ scripts/ss*.jpg
 
 # E2E test output
 e2e/
+
+.superpowers/
