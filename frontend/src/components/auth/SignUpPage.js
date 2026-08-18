@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { SignupInputSchema } from "@physics-ide/shared";
+import { SignupInputSchema, PASSWORD_MIN_LENGTH } from "@physics-ide/shared";
 import AuthLayout from "./AuthLayout";
 import { useSignup } from "../../auth/useAuth";
 
@@ -29,7 +29,7 @@ export default function SignUpPage() {
         issue.path[0] === "consent"
           ? "Please tick the consent box to continue."
           : issue.path[0] === "password"
-            ? "Passwords need at least 10 characters."
+            ? `Passwords need at least ${PASSWORD_MIN_LENGTH} characters.`
             : "Please check your name and email address.",
       );
       return;
