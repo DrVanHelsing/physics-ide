@@ -87,8 +87,8 @@ Open `http://localhost:3000`, complete the project-creation wizard, run a templa
 ## What lives where on disk after a deploy
 
 - `frontend/dist/index.html` — the SPA shell. The Vercel rewrite (or `_redirects` on Pages) sends every unknown path here so the client router (or React state) handles it.
-- `frontend/dist/assets/main.*.js` — the application bundle (~455 kB gzip). Hashed filename so the long-cache header is safe.
-- `frontend/dist/assets/main.*.css` — same caching story (~13 kB gzip).
+- `frontend/dist/assets/index-*.js` — the application bundle (~455 kB gzip). Hashed filename so the long-cache header is safe.
+- `frontend/dist/assets/index-*.css` — same caching story (~13 kB gzip).
 - `frontend/dist/assets/*.js` — code-split chunks produced by Vite for vendor splitting.
 
 ## What does NOT belong here
