@@ -4,7 +4,9 @@ import { eq, and } from "drizzle-orm";
 import { buildApp } from "../app.js";
 import { testDb, testPool, truncateAuthTables } from "../db/testClient.js";
 import { setSetting } from "../db/settings.js";
-import { users, emails, sessions } from "../db/schema.js";
+import { users, emails, sessions, emailTokens, events } from "../db/schema.js";
+import { newToken } from "../auth/tokens.js";
+import { RESET_TTL_MS } from "./auth.js";
 
 const app = buildApp({ db: testDb });
 
@@ -89,6 +91,113 @@ describe("forgot / reset", () => {
       payload: { token, password: "sneaky-password" },
     });
     expect(again.statusCode).toBe(400);
+  });
+});
+
+describe("reset hardening", () => {
+  const hApp = buildApp({ db: testDb });
+
+  afterAll(async () => {
+    await hApp.close();
+  });
+
+  test("retiring a reset token retires every other outstanding one for that user", async () => {
+    await testDb.insert(users).values({
+      name: "Hardening Person",
+      email: "hardening@example.com",
+      passwordHash: await argon2.hash("hardening-pw-1", { type: argon2.argon2id }),
+      emailConfirmedAt: new Date(),
+      consentAt: new Date(),
+    });
+
+    await hApp.inject({
+      method: "POST",
+      url: "/api/auth/forgot",
+      payload: { email: "hardening@example.com" },
+    });
+    await hApp.inject({
+      method: "POST",
+      url: "/api/auth/forgot",
+      payload: { email: "hardening@example.com" },
+    });
+
+    const mails = await testDb
+      .select()
+      .from(emails)
+      .where(and(eq(emails.toEmail, "hardening@example.com"), eq(emails.template, "reset")))
+      .orderBy(emails.id);
+    expect(mails).toHaveLength(2);
+    const token1 = /token=([A-Za-z0-9_-]+)/.exec(mails[0].bodyText)![1];
+    const token2 = /token=([A-Za-z0-9_-]+)/.exec(mails[1].bodyText)![1];
+
+    const second = await hApp.inject({
+      method: "POST",
+      url: "/api/auth/reset",
+      payload: { token: token2, password: "hardened-pw-2" },
+    });
+    expect(second.statusCode).toBe(200);
+
+    const first = await hApp.inject({
+      method: "POST",
+      url: "/api/auth/reset",
+      payload: { token: token1, password: "sneaky-pw-3" },
+    });
+    expect(first.statusCode).toBe(400);
+    expect(first.json().error).toBe("That link is invalid or has expired.");
+
+    const auditRows = await testDb
+      .select()
+      .from(events)
+      .where(eq(events.type, "account.password_reset"));
+    expect(auditRows.length).toBeGreaterThan(0);
+  });
+
+  test("forgot skips inactive users without mailing them", async () => {
+    await testDb.insert(users).values({
+      name: "Inactive Person",
+      email: "inactive@example.com",
+      passwordHash: await argon2.hash("inactive-pw-1", { type: argon2.argon2id }),
+      emailConfirmedAt: new Date(),
+      consentAt: new Date(),
+      active: false,
+    });
+
+    const res = await hApp.inject({
+      method: "POST",
+      url: "/api/auth/forgot",
+      payload: { email: "inactive@example.com" },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ ok: true });
+
+    const mails = await testDb
+      .select()
+      .from(emails)
+      .where(eq(emails.toEmail, "inactive@example.com"));
+    expect(mails).toHaveLength(0);
+  });
+
+  test("an expired token is rejected with the uniform message", async () => {
+    const [u] = await testDb.select().from(users).where(eq(users.email, "hardening@example.com"));
+    const expired = newToken();
+    await testDb.insert(emailTokens).values({
+      userId: u.id,
+      type: "reset",
+      tokenHash: expired.hash,
+      expiresAt: new Date(Date.now() - 1000),
+    });
+
+    const res = await hApp.inject({
+      method: "POST",
+      url: "/api/auth/reset",
+      payload: { token: expired.token, password: "another-pw-4" },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toBe("That link is invalid or has expired.");
+  });
+
+  test("RESET_TTL_MS is 60 minutes", () => {
+    expect(RESET_TTL_MS).toBe(60 * 60 * 1000);
   });
 });
 
