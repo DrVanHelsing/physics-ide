@@ -26,6 +26,10 @@ export function buildApp(deps: AppDeps): FastifyInstance {
   app.register(cookie);
   app.register(rateLimit, { global: false });
 
+  // NOTE: routes added directly on this root instance register BEFORE the
+  // rate-limit plugin boots, so `config.rateLimit` on them is silently
+  // ignored. Any route that needs a rate limit must live in a plugin
+  // registered below (like authRoutes).
   app.get("/api/health", async () => ({ ok: true, service: "physics-ide-api" }));
 
   app.register(authRoutes);
