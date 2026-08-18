@@ -300,11 +300,23 @@ export function authRoutes(app: FastifyInstance): void {
     }
     const passwordHash = await argon2.hash(parsed.data.newPassword, { type: argon2.argon2id });
     const currentTokenHash = hashToken(req.cookies[SESSION_COOKIE]!);
+    const now = new Date();
     await app.db.transaction(async (tx) => {
       await tx.update(users).set({ passwordHash }).where(eq(users.id, req.user!.id));
       await tx
         .delete(sessions)
         .where(and(eq(sessions.userId, req.user!.id), ne(sessions.tokenHash, currentTokenHash)));
+      // Any outstanding reset links for this user are now stale.
+      await tx
+        .update(emailTokens)
+        .set({ usedAt: now })
+        .where(
+          and(
+            eq(emailTokens.userId, req.user!.id),
+            eq(emailTokens.type, "reset"),
+            isNull(emailTokens.usedAt),
+          ),
+        );
       await logEvent(tx, "account.password_reset", req.user!.id, { via: "change-password" });
     });
     return { ok: true };

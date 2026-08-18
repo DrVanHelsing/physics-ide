@@ -199,6 +199,51 @@ describe("reset hardening", () => {
   test("RESET_TTL_MS is 60 minutes", () => {
     expect(RESET_TTL_MS).toBe(60 * 60 * 1000);
   });
+
+  test("change-password retires an outstanding reset token minted before it", async () => {
+    await testDb.insert(users).values({
+      name: "Defensive Person",
+      email: "defensive@example.com",
+      passwordHash: await argon2.hash("defensive-pw-1", { type: argon2.argon2id }),
+      emailConfirmedAt: new Date(),
+      consentAt: new Date(),
+    });
+
+    const signinRes = await hApp.inject({
+      method: "POST",
+      url: "/api/auth/signin",
+      payload: { email: "defensive@example.com", password: "defensive-pw-1" },
+    });
+    expect(signinRes.statusCode).toBe(200);
+    const sessionToken = signinRes.cookies.find((c) => c.name === "pide_session")!.value;
+
+    await hApp.inject({
+      method: "POST",
+      url: "/api/auth/forgot",
+      payload: { email: "defensive@example.com" },
+    });
+    const [mail] = await testDb
+      .select()
+      .from(emails)
+      .where(and(eq(emails.toEmail, "defensive@example.com"), eq(emails.template, "reset")));
+    const preMintedToken = /token=([A-Za-z0-9_-]+)/.exec(mail.bodyText)![1];
+
+    const changed = await hApp.inject({
+      method: "POST",
+      url: "/api/auth/change-password",
+      cookies: { pide_session: sessionToken },
+      payload: { currentPassword: "defensive-pw-1", newPassword: "defensive-pw-2" },
+    });
+    expect(changed.statusCode).toBe(200);
+
+    const stale = await hApp.inject({
+      method: "POST",
+      url: "/api/auth/reset",
+      payload: { token: preMintedToken, password: "sneaky-pw-5" },
+    });
+    expect(stale.statusCode).toBe(400);
+    expect(stale.json().error).toBe("That link is invalid or has expired.");
+  });
 });
 
 describe("change password (signed in)", () => {
