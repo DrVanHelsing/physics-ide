@@ -6,6 +6,8 @@
   "workspaces": ["frontend", "shared", "backend"],
   "scripts": {
     "check:blocks": "npm run check:blocks -w frontend",
-    "test": "npm run test -ws --if-present"
+    "test": "npm run test -ws --if-present",
+    "db:up": "docker compose up -d db",
+    "db:down": "docker compose down"
   }
 }
