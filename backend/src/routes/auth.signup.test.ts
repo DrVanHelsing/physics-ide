@@ -108,6 +108,26 @@ describe("POST /api/auth/signup", () => {
   });
 });
 
+describe("signup rate limit", () => {
+  test("allows 10 requests per minute then returns 429", async () => {
+    // Fresh instance: the limiter's in-memory store is per-app, so this can't
+    // interfere with the other tests' request counts.
+    const rlApp = buildApp({ db: testDb });
+    try {
+      // Invalid body: burns no argon2 hashes and creates no users. The limiter
+      // counts in its onRequest hook, before validation runs.
+      for (let i = 0; i < 10; i++) {
+        const res = await rlApp.inject({ method: "POST", url: "/api/auth/signup", payload: {} });
+        expect(res.statusCode).toBe(400);
+      }
+      const res11 = await rlApp.inject({ method: "POST", url: "/api/auth/signup", payload: {} });
+      expect(res11.statusCode).toBe(429);
+    } finally {
+      await rlApp.close();
+    }
+  });
+});
+
 describe("POST /api/auth/confirm", () => {
   test("a valid token confirms the account and is single-use", async () => {
     await app.inject({
