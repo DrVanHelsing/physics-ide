@@ -91,6 +91,14 @@ describe("people", () => {
   });
 
   test("deactivate kills sessions and blocks signin; reactivate restores", async () => {
+    await app.inject({
+      method: "POST",
+      url: "/api/auth/signin",
+      payload: { email: "kid@example.com", password: "kid-password-1" },
+    });
+    const before = await testDb.select().from(sessions).where(eq(sessions.userId, studentId));
+    expect(before.length).toBeGreaterThanOrEqual(1);
+
     const res = await app.inject({
       method: "POST",
       url: `/api/admin/users/${studentId}/deactivate`,
