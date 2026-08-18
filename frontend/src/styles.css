@@ -4282,3 +4282,57 @@ mark.help-search-highlight {
 }
 .account-chip-btn:hover { background: var(--bg-card-hover); }
 .account-chip-btn--primary { border-color: var(--accent); color: var(--accent-bright); }
+
+/* ---- Admin console (Plan 2) ---- */
+.admin-page { min-height: 100vh; background: var(--bg-base); color: var(--text); }
+.admin-header {
+  padding: 18px 24px 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-surface);
+}
+.admin-header h1 { font-size: 18px; color: var(--text-bright); margin: 10px 0 12px; }
+.admin-tabs { display: flex; gap: 4px; }
+.admin-tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-dim);
+  padding: 8px 14px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.admin-tab--on { color: var(--text-bright); border-bottom-color: var(--accent); }
+.admin-body { padding: 20px 24px; display: flex; flex-direction: column; gap: 14px; max-width: 1000px; }
+.admin-cap { display: flex; align-items: center; gap: 10px; font-size: 14px; }
+.admin-cap-input { width: 90px; }
+.admin-btn {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.admin-btn:hover { background: var(--bg-card-hover); }
+.admin-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.admin-table th {
+  text-align: left;
+  color: var(--text-muted);
+  font-weight: 500;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+}
+.admin-table td { padding: 6px 8px; border-bottom: 1px solid var(--border); }
+.admin-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.admin-mail-row { cursor: pointer; }
+.admin-mail-row:hover td { background: var(--bg-hover); }
+.admin-mail-body {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 10px;
+  white-space: pre-wrap;
+  font-size: 12px;
+}
+.admin-health { list-style: none; padding: 0; font-size: 14px; display: flex; flex-direction: column; gap: 6px; }
