@@ -1,44 +1,29 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { Navigate } from "react-router-dom";
-import { listProjects } from "../utils/storage/projectStore";
-import { SIGNED_IN_HINT_KEY, WELCOME_SEEN_KEY } from "../constants";
+import { SIGNED_IN_HINT_KEY, WELCOME_PASSED_SESSION_KEY } from "../constants";
 
-/** Pure decision: only brand-new visitors get the welcome screen. */
-export function shouldShowWelcome({ seenFlag, signedInHint, projectCount }) {
-  if (seenFlag || signedInHint) return false;
-  return projectCount === 0;
+/** Pure decision (v2): guests meet the front door once per browser session. */
+export function shouldShowWelcome({ signedInHint, sessionPassed }) {
+  return !signedInHint && !sessionPassed;
 }
 
 /**
- * Wraps "/": brand-new visitors (no seen-flag, no session hint, no local
- * projects) go to /welcome; everyone else gets the IDE untouched. A guest
- * who already has projects is grandfathered — stamp the flag, show the IDE.
+ * Wraps "/": a visitor who is not signed in and hasn't passed through the
+ * welcome screen in this browser session goes to /welcome. The CTAs there
+ * stamp the session pass, so the IDE stays at "/" for the rest of the
+ * session; a new session sees the front door again. Signed-in visitors are
+ * never hijacked. Fully synchronous — no storage read to await, no flash.
  */
 export default function WelcomeGate({ children }) {
-  const seenFlag = !!localStorage.getItem(WELCOME_SEEN_KEY);
-  const signedInHint = !!localStorage.getItem(SIGNED_IN_HINT_KEY);
-  // Sync fast-path: when a flag already decides it, skip the storage read.
-  const [projectCount, setProjectCount] = useState(seenFlag || signedInHint ? 1 : null);
-
-  useEffect(() => {
-    if (projectCount !== null) return;
-    let cancelled = false;
-    listProjects()
-      .then((list) => {
-        if (cancelled) return;
-        if (list.length > 0) localStorage.setItem(WELCOME_SEEN_KEY, "1");
-        setProjectCount(list.length);
-      })
-      .catch(() => {
-        if (!cancelled) setProjectCount(0);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [projectCount]);
-
-  if (projectCount === null) return null; // one IndexedDB read; avoids an IDE flash
-  if (shouldShowWelcome({ seenFlag, signedInHint, projectCount })) {
+  let signedInHint = false;
+  let sessionPassed = false;
+  try {
+    signedInHint = !!localStorage.getItem(SIGNED_IN_HINT_KEY);
+    sessionPassed = !!sessionStorage.getItem(WELCOME_PASSED_SESSION_KEY);
+  } catch {
+    // Storage blocked: treat it as a fresh guest and show the welcome screen.
+  }
+  if (shouldShowWelcome({ signedInHint, sessionPassed })) {
     // React.createElement (not JSX) here: this is the one file in the welcome
     // module unit-tested directly (see __tests__/welcomeGate.test.js), and
     // vitest's bundled Vite copy only auto-strips JSX from .jsx/.tsx files —

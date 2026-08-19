@@ -1,5 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../utils/api/client";
+import {
+  flushPendingSyncBeforeSignOut,
+  clearCloudProjectsAfterSignOut,
+} from "../utils/sync/signOutCleanup";
 import { SIGNED_IN_HINT_KEY } from "../constants";
 
 export const ME_KEY = ["auth", "me"];
@@ -46,10 +50,18 @@ export function useSignup() {
 export function useSignout() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => api("/api/auth/signout", { method: "POST", body: {} }),
-    onSuccess: () => {
+    mutationFn: async () => {
+      // Push anything still parked while the session cookie is valid — after
+      // the request below it would 401. Never throws, never blocks sign-out.
+      await flushPendingSyncBeforeSignOut();
+      return api("/api/auth/signout", { method: "POST", body: {} });
+    },
+    onSuccess: async () => {
       localStorage.removeItem(SIGNED_IN_HINT_KEY);
       qc.setQueryData(ME_KEY, null);
+      // Cloud-pulled projects must not outlive the session on a shared
+      // computer (final review F3). Guest-era work stays put.
+      await clearCloudProjectsAfterSignOut();
     },
   });
 }

@@ -5,8 +5,13 @@
  */
 
 export function createSyncEngine({ api, store, meta, now = () => Date.now() }) {
-  let status = { state: "idle", pendingCount: 0 };
+  let status = { state: "idle", pendingCount: 0, lastError: null };
   let online = true;
+  /* The account every push currently belongs to. Threaded down from
+     reconcile/adopt/pushProject so meta always names the account whose
+     session actually wrote the server row (never a previous user's id).
+     Cleared by reset() on sign-out / account switch. */
+  let currentOwnerId = null;
   const pending = new Set();
   const listeners = new Set();
 
@@ -21,20 +26,39 @@ export function createSyncEngine({ api, store, meta, now = () => Date.now() }) {
     }
   }
 
-  async function pushOne(id) {
+  /* Only a server response carries a sentence worth showing a human — the
+     plan's Caps constraint says the client surfaces it VERBATIM. Transport
+     failures (no `status`) have no server sentence, so they clear it. */
+  function serverSentence(err) {
+    return typeof err?.status === "number" && typeof err?.message === "string" && err.message
+      ? err.message
+      : null;
+  }
+
+  function rememberOwner(ownerId) {
+    if (ownerId) currentOwnerId = ownerId;
+  }
+
+  async function pushOne(id, ownerId) {
     const manifest = await store.loadProject(id);
     if (!manifest) return;
     const res = await api(`/api/projects/${id}`, { method: "PUT", body: { manifest } });
+    /* The server writes the row under the session that made this request, so
+       meta must name THAT account. Re-reading and preserving the stored
+       ownerId (as this used to) leaves meta claiming a previous user after a
+       shared-device account switch, which permanently disables push-after-save
+       for those projects and keeps the cross-account gates below guessing. */
+    const owner = ownerId ?? currentOwnerId ?? (await meta.getSyncMeta(id))?.ownerId ?? null;
     if (res.outcome === "kept-remote") {
       await store.saveProject(res.project.manifest, { preserveTimestamp: true });
       await meta.setSyncMeta(id, {
-        ownerId: (await meta.getSyncMeta(id))?.ownerId ?? null,
+        ownerId: owner,
         remoteUpdatedAt: res.project.clientUpdatedAt,
         lastPushedAt: now(),
       });
     } else {
       await meta.setSyncMeta(id, {
-        ownerId: (await meta.getSyncMeta(id))?.ownerId ?? null,
+        ownerId: owner,
         remoteUpdatedAt: manifest.updatedAt,
         lastPushedAt: now(),
       });
@@ -42,9 +66,9 @@ export function createSyncEngine({ api, store, meta, now = () => Date.now() }) {
   }
 
   /** Push, but on failure park the id for later retry via drainPending(). */
-  async function pushTracked(id) {
+  async function pushTracked(id, ownerId) {
     try {
-      await pushOne(id);
+      await pushOne(id, ownerId);
     } catch (err) {
       pending.add(id);
       throw err;
@@ -56,7 +80,8 @@ export function createSyncEngine({ api, store, meta, now = () => Date.now() }) {
     await meta.deleteSyncMeta(id);
   }
 
-  async function pushProject(id) {
+  async function pushProject(id, ownerId) {
+    rememberOwner(ownerId);
     if (!online) {
       pending.add(id);
       setStatus({ state: "offline" });
@@ -64,14 +89,14 @@ export function createSyncEngine({ api, store, meta, now = () => Date.now() }) {
     }
     setStatus({ state: "syncing" });
     try {
-      await pushOne(id);
+      await pushOne(id, ownerId);
       pending.delete(id);
-      setStatus({ state: "synced" });
+      setStatus({ state: "synced", lastError: null });
     } catch (err) {
       pending.add(id);
       const offline =
         err?.status === undefined && typeof navigator !== "undefined" && !navigator.onLine;
-      setStatus({ state: offline ? "offline" : "error" });
+      setStatus({ state: offline ? "offline" : "error", lastError: serverSentence(err) });
     }
   }
 
@@ -89,12 +114,19 @@ export function createSyncEngine({ api, store, meta, now = () => Date.now() }) {
       setStatus({ state: "offline" });
       return;
     }
-    setStatus({ state: pending.size === 0 ? "synced" : "error" });
+    if (pending.size === 0) setStatus({ state: "synced", lastError: null });
+    else setStatus({ state: "error" });
   }
 
   async function adoptLocalProject(id, ownerId) {
+    rememberOwner(ownerId);
     await meta.setSyncMeta(id, { ownerId, remoteUpdatedAt: 0, lastPushedAt: 0 });
-    await pushProject(id);
+    await pushProject(id, ownerId);
+    // pushProject never throws, so a cap/oversize/validation refusal would
+    // otherwise vanish. Surface the server's sentence verbatim.
+    if (status.state === "error" && status.lastError) {
+      console.warn(`sync: could not add project ${id} to your account — ${status.lastError}`);
+    }
   }
 
   /** Propagate a local delete to the server. Never throws. */
@@ -102,15 +134,16 @@ export function createSyncEngine({ api, store, meta, now = () => Date.now() }) {
     setStatus({ state: "syncing" });
     try {
       await deleteOne(id);
-      setStatus({ state: "synced" });
-    } catch {
+      setStatus({ state: "synced", lastError: null });
+    } catch (err) {
       // Meta stays in place on failure — the next reconcile() will infer the
       // same "locally absent, remote live, meta present" case and retry.
-      setStatus({ state: "error" });
+      setStatus({ state: "error", lastError: serverSentence(err) });
     }
   }
 
   async function reconcile(ownerId) {
+    rememberOwner(ownerId);
     if (!online) {
       setStatus({ state: "offline" });
       return;
@@ -130,14 +163,27 @@ export function createSyncEngine({ api, store, meta, now = () => Date.now() }) {
       if (!Array.isArray(remoteList)) {
         throw new Error("malformed /api/projects response: missing projects array");
       }
-    } catch {
-      setStatus({ state: "error" });
+    } catch (err) {
+      setStatus({ state: "error", lastError: serverSentence(err) });
       return;
     }
+
+    /* Ownership gate. A meta record only counts as "this project is adopted"
+       when it belongs to the account we are reconciling for (or predates
+       owner stamping — ownerId null). Meta naming ANOTHER account must be
+       treated as not-adopted on every branch: never auto-pushed into this
+       account's cloud (that is the shared-device cross-account leak), never
+       auto-deleted, never used to infer anything. Such a project stays
+       strictly local until its owner signs back in. */
+    const ownedMeta = (id) => {
+      const mm = metaAll[id];
+      return mm && (!mm.ownerId || mm.ownerId === ownerId) ? mm : null;
+    };
 
     const remoteById = new Map(remoteList.map((r) => [r.id, r]));
     const localById = new Map(localList.map((l) => [l.id, l]));
     let failures = 0;
+    let lastFailureSentence = null;
     // An empty local index alongside populated sync meta is indistinguishable
     // from "the local project index is corrupt" — treat that combination as
     // suspect and skip delete-inference this pass (pulls/imports still run
@@ -150,12 +196,12 @@ export function createSyncEngine({ api, store, meta, now = () => Date.now() }) {
       try {
         const local = localById.get(r.id);
         if (r.deleted) {
-          if (local && metaAll[r.id]) {
+          if (local && ownedMeta(r.id)) {
             if (local.updatedAt > r.clientUpdatedAt) {
               // Our copy is newer than the tombstone: revive it. The
               // server's PUT resurrects a tombstoned project with newer
               // content — most-recent-wins, as specced.
-              await pushTracked(r.id);
+              await pushTracked(r.id, ownerId);
             } else {
               // Tag this delete as sync-applied so SyncProvider's
               // onProjectDeleted handler doesn't echo it straight back to the
@@ -163,21 +209,22 @@ export function createSyncEngine({ api, store, meta, now = () => Date.now() }) {
               await store.deleteProject(r.id, { fromSync: true });
               await meta.deleteSyncMeta(r.id);
             }
-          } else if (!local && metaAll[r.id]) {
+          } else if (!local && ownedMeta(r.id)) {
             // Stale meta for a project that's gone on both sides.
             await meta.deleteSyncMeta(r.id);
           }
           continue;
         }
         if (!local) {
-          if (metaAll[r.id] && !suspectEmptyLocalIndex) {
+          if (ownedMeta(r.id) && !suspectEmptyLocalIndex) {
             // Known to us before, absent now: it was deleted locally.
             // Propagate the delete instead of re-importing it.
             await deleteOne(r.id);
           } else {
-            // No meta (never seen before), OR the local index looks suspect
-            // (corruption reads the same as "deleted everything" — don't
-            // infer a mass delete from it, just re-pull/import instead).
+            // No meta of ours (never seen before, or it belongs to another
+            // account), OR the local index looks suspect (corruption reads
+            // the same as "deleted everything" — don't infer a mass delete
+            // from it, just re-pull/import instead).
             const { project } = await api(`/api/projects/${r.id}`);
             await store.saveProject(project.manifest, { preserveTimestamp: true });
             await meta.setSyncMeta(r.id, {
@@ -197,27 +244,33 @@ export function createSyncEngine({ api, store, meta, now = () => Date.now() }) {
             lastPushedAt: now(),
           });
         } else if (r.clientUpdatedAt < local.updatedAt) {
-          await pushTracked(r.id);
+          await pushTracked(r.id, ownerId);
         }
       } catch (err) {
         failures += 1;
+        lastFailureSentence = serverSentence(err) ?? lastFailureSentence;
         console.warn(`sync reconcile: failed for project ${r.id}`, err);
       }
     }
 
-    // Locals the server doesn't know: only push ones ALREADY adopted (meta exists).
+    // Locals the server doesn't know: only push ones ALREADY adopted BY THIS
+    // ACCOUNT (owned meta exists). A local project carrying another account's
+    // meta is left alone — pushing it here is what uploaded the previous
+    // student's library into the next student's cloud.
     for (const l of localList) {
-      if (!remoteById.has(l.id) && metaAll[l.id]) {
+      if (!remoteById.has(l.id) && ownedMeta(l.id)) {
         try {
-          await pushTracked(l.id);
+          await pushTracked(l.id, ownerId);
         } catch (err) {
           failures += 1;
+          lastFailureSentence = serverSentence(err) ?? lastFailureSentence;
           console.warn(`sync reconcile: failed for project ${l.id}`, err);
         }
       }
     }
 
-    setStatus({ state: failures === 0 ? "synced" : "error" });
+    if (failures === 0) setStatus({ state: "synced", lastError: null });
+    else setStatus({ state: "error", lastError: lastFailureSentence });
   }
 
   return {
@@ -238,6 +291,17 @@ export function createSyncEngine({ api, store, meta, now = () => Date.now() }) {
       } else {
         setStatus({ state: "offline" });
       }
+    },
+    /**
+     * Forget everything that belongs to the account that just left: parked
+     * ids, the remembered owner, and any error/status it produced. The engine
+     * is a page-lifetime singleton, so without this a previous account's
+     * pending pushes would drain under the NEXT account's session.
+     */
+    reset: () => {
+      pending.clear();
+      currentOwnerId = null;
+      setStatus({ state: "idle", lastError: null });
     },
     dispose: () => listeners.clear(),
   };

@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from "react";
 
 const DAMPING = 0.82;
 const COLORS = ["#7dd3fc", "#f9a8d4", "#fcd34d", "#86efac", "#c4b5fd"];
+/** One frame's worth of motion, used for the single-step renders while paused. */
+const STEP_DT = 1 / 60;
 
 function makeBall(x, y) {
   return {
@@ -14,6 +16,14 @@ function makeBall(x, y) {
   };
 }
 
+function prefersReducedMotion() {
+  try {
+    return !!window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+  } catch {
+    return false;
+  }
+}
+
 /** A tiny canvas physics toy: drag the slider, click to drop balls. */
 export default function GravityPlayground() {
   const canvasRef = useRef(null);
@@ -21,16 +31,19 @@ export default function GravityPlayground() {
   const gravityRef = useRef(9.8);
   const [gravity, setGravity] = useState(9.8);
   gravityRef.current = gravity;
+  /* "Reduce motion" means no continuous animation: the box renders one static
+     frame and only moves when the visitor asks it to (slider, click, Play). */
+  const [running, setRunning] = useState(() => !prefersReducedMotion());
+  /* Renders one frame, advancing the simulation by `dt` seconds (0 = redraw
+     only). Kept in a ref so the paused-mode handlers below can call it. */
+  const renderRef = useRef(() => {});
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    const ctx = canvas.getContext("2d");
-    let raf = 0;
-    let last = performance.now();
+    const ctx = canvas?.getContext?.("2d");
+    if (!ctx) return undefined;
 
-    const frame = (t) => {
-      const dt = Math.min((t - last) / 1000, 0.05);
-      last = t;
+    const render = (dt) => {
       const w = canvas.clientWidth;
       const h = canvas.clientHeight;
       if (canvas.width !== w || canvas.height !== h) {
@@ -39,33 +52,63 @@ export default function GravityPlayground() {
       }
       ctx.clearRect(0, 0, w, h);
       for (const b of ballsRef.current) {
-        b.vy += gravityRef.current * 60 * dt;
-        b.x += b.vx * dt;
-        b.y += b.vy * dt;
-        if (b.y + b.r > h) { b.y = h - b.r; b.vy = -Math.abs(b.vy) * DAMPING; }
-        if (b.x + b.r > w) { b.x = w - b.r; b.vx = -Math.abs(b.vx) * DAMPING; }
-        if (b.x - b.r < 0) { b.x = b.r; b.vx = Math.abs(b.vx) * DAMPING; }
+        if (dt > 0) {
+          b.vy += gravityRef.current * 60 * dt;
+          b.x += b.vx * dt;
+          b.y += b.vy * dt;
+          if (b.y + b.r > h) { b.y = h - b.r; b.vy = -Math.abs(b.vy) * DAMPING; }
+          if (b.x + b.r > w) { b.x = w - b.r; b.vx = -Math.abs(b.vx) * DAMPING; }
+          if (b.x - b.r < 0) { b.x = b.r; b.vx = Math.abs(b.vx) * DAMPING; }
+        }
         ctx.beginPath();
         ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
         ctx.fillStyle = b.color;
         ctx.fill();
       }
+    };
+    renderRef.current = render;
+
+    if (!running) {
+      render(0); // a single static frame — no rAF loop at all
+      return undefined;
+    }
+    let raf = 0;
+    let last = performance.now();
+    const frame = (t) => {
+      const dt = Math.min((t - last) / 1000, 0.05);
+      last = t;
+      render(dt);
       raf = requestAnimationFrame(frame);
     };
     raf = requestAnimationFrame(frame);
     return () => cancelAnimationFrame(raf);
-  }, []);
+  }, [running]);
+
+  /* Paused, but still interactive: changing gravity steps one frame so the
+     effect of the slider is visible without starting a loop. */
+  useEffect(() => {
+    if (!running) renderRef.current(STEP_DT);
+  }, [gravity, running]);
 
   const drop = (e) => {
     const rect = canvasRef.current.getBoundingClientRect();
     if (ballsRef.current.length >= 40) ballsRef.current.shift();
     ballsRef.current.push(makeBall(e.clientX - rect.left, e.clientY - rect.top));
+    if (!running) renderRef.current(STEP_DT);
   };
 
   return (
     <div className="welcome-playground">
       <canvas ref={canvasRef} className="welcome-playground__canvas" onPointerDown={drop} />
       <div className="welcome-playground__controls">
+        <button
+          className="welcome-btn welcome-btn--small"
+          type="button"
+          aria-pressed={running}
+          onClick={() => setRunning((r) => !r)}
+        >
+          {running ? "Pause" : "Play"}
+        </button>
         <label htmlFor="welcome-gravity">Gravity: {gravity.toFixed(1)} m/s²</label>
         <input
           id="welcome-gravity"
