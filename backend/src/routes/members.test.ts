@@ -237,3 +237,42 @@ describe("roster", () => {
     expect(last.json().error).toBe("A class must keep at least one teacher.");
   });
 });
+
+describe("last-teacher guard is status-gated", () => {
+  test("a waiting teacher may be removed; the sole active teacher still cannot be", async () => {
+    const t2 = await makeUser("mteach2@example.com", { isTeacher: true });
+    const teacher2Cookie = await signin("mteach2@example.com");
+    const freshClass = await createClass(teacher2Cookie, "Fresh Class");
+
+    const waitingTeacher = await makeUser("mkid4@example.com");
+    await testDb.insert(classMembers).values({
+      classId: freshClass.id,
+      userId: waitingTeacher.id,
+      role: "teacher",
+      status: "waiting",
+    });
+
+    // Removing a WAITING teacher must not be blocked by the last-teacher guard.
+    const removeWaiting = await app.inject({
+      method: "DELETE",
+      url: `/api/classes/${freshClass.id}/members/${waitingTeacher.id}`,
+      cookies: { pide_session: teacher2Cookie },
+    });
+    expect(removeWaiting.statusCode).toBe(200);
+
+    const [stillActive] = await testDb
+      .select()
+      .from(classMembers)
+      .where(and(eq(classMembers.classId, freshClass.id), eq(classMembers.userId, t2.id)));
+    expect(stillActive.status).toBe("active");
+
+    // The sole ACTIVE teacher is still protected.
+    const removeLastActive = await app.inject({
+      method: "DELETE",
+      url: `/api/classes/${freshClass.id}/members/${t2.id}`,
+      cookies: { pide_session: teacher2Cookie },
+    });
+    expect(removeLastActive.statusCode).toBe(400);
+    expect(removeLastActive.json().error).toBe("A class must keep at least one teacher.");
+  });
+});
