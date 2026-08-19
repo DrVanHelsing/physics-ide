@@ -25,6 +25,9 @@ import AdminConsole           from "./components/admin/AdminConsole";
 import ClassesHome            from "./components/classes/ClassesHome";
 import { AssignmentsStub }    from "./components/classes/ClassChrome";
 import PeopleTab              from "./components/classes/PeopleTab";
+import SettingsTab            from "./components/classes/SettingsTab";
+import JoinClassPage          from "./components/classes/JoinClassPage";
+import InviteLandingPage      from "./components/classes/InviteLandingPage";
 
 const queryClient = new QueryClient();
 
@@ -51,6 +54,10 @@ function App() {
                       <Route path="/classes" element={<ClassesHome />} />
                       <Route path="/classes/:id" element={<AssignmentsStub />} />
                       <Route path="/classes/:id/people" element={<PeopleTab />} />
+                      <Route path="/classes/:id/settings" element={<SettingsTab />} />
+                      <Route path="/join" element={<JoinClassPage />} />
+                      <Route path="/join/invite" element={<InviteLandingPage />} />
+                      <Route path="/join/:code" element={<JoinClassPage />} />
                       <Route path="*" element={<Navigate to="/" replace />} />
                     </Routes>
                   </ErrorBoundary>

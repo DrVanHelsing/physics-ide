@@ -15,7 +15,7 @@ export default function SignInPage() {
     setError(null);
     try {
       await signin.mutateAsync({ email: email.trim().toLowerCase(), password });
-      navigate("/");
+      navigate(sessionStorage.getItem("pide_pending_invite") ? "/join/invite" : "/");
     } catch (err) {
       setError(err.message);
     }

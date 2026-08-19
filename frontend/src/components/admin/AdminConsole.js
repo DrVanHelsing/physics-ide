@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../utils/api/client";
 import { useMe } from "../../auth/useAuth";
 
-const TABS = ["People", "Emails", "Health"];
+const TABS = ["People", "Classes", "Emails", "Health"];
 
 export default function AdminConsole() {
   const { data: me, isLoading } = useMe();
@@ -35,6 +35,7 @@ export default function AdminConsole() {
         </nav>
       </header>
       {tab === "People" ? <PeopleTab /> : null}
+      {tab === "Classes" ? <ClassesTab /> : null}
       {tab === "Emails" ? <EmailsTab /> : null}
       {tab === "Health" ? <HealthTab /> : null}
     </div>
@@ -176,6 +177,45 @@ function EmailsTab() {
                 </tr>
               ) : null}
             </React.Fragment>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function ClassesTab() {
+  const classesQuery = useQuery({
+    queryKey: ["admin", "classes"],
+    queryFn: () => api("/api/admin/classes"),
+  });
+  return (
+    <div className="admin-body">
+      <p className="auth-text auth-text--dim">
+        Every class on the site — visibility, not management.
+      </p>
+      <table className="admin-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Teachers</th>
+            <th>Members</th>
+            <th>Joining</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {(classesQuery.data?.classes ?? []).map((c) => (
+            <tr key={c.id}>
+              <td>
+                {c.name}
+                {c.subjectLabel ? ` · ${c.subjectLabel}` : ""}
+              </td>
+              <td>{c.teachers.join(", ")}</td>
+              <td>{c.activeMembers}</td>
+              <td>{c.joinMode}</td>
+              <td>{c.archived ? "archived" : "active"}</td>
+            </tr>
           ))}
         </tbody>
       </table>
