@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { and, eq, sql } from "drizzle-orm";
 import { JoinByCodeInputSchema } from "@physics-ide/shared";
-import { classes, classMembers, users } from "../db/schema.js";
+import { classes, classMembers, invites, users } from "../db/schema.js";
 import { requireConfirmed } from "../auth/guards.js";
 import { getMembership, requireClassTeacher, sendClassAuthError } from "../classes/guards.js";
 import { logEvent } from "../db/events.js";
@@ -143,7 +143,32 @@ export function memberRoutes(app: FastifyInstance): void {
         await tx
           .delete(classMembers)
           .where(and(eq(classMembers.classId, id), eq(classMembers.userId, userId)));
-        await logEvent(tx, "member.removed", req.user!.id, { classId: id, subject: userId });
+
+        // A removed member's outstanding pending invites must die with them — otherwise
+        // the old emailed link lets them re-enter active, bypassing approval mode, with
+        // no notification to the teacher.
+        const [targetUser] = await tx.select().from(users).where(eq(users.id, userId));
+        let revokedPendingInvites = 0;
+        if (targetUser) {
+          const revoked = await tx
+            .update(invites)
+            .set({ status: "revoked" })
+            .where(
+              and(
+                eq(invites.classId, id),
+                eq(invites.email, targetUser.email),
+                eq(invites.status, "pending"),
+              ),
+            )
+            .returning();
+          revokedPendingInvites = revoked.length;
+        }
+
+        await logEvent(tx, "member.removed", req.user!.id, {
+          classId: id,
+          subject: userId,
+          revokedPendingInvites,
+        });
       });
     } catch (err) {
       if (err instanceof MemberNotFound) {
