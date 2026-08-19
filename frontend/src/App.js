@@ -22,6 +22,8 @@ import ForgotPage             from "./components/auth/ForgotPage";
 import ResetPage              from "./components/auth/ResetPage";
 import ProfilePage            from "./components/auth/ProfilePage";
 import AdminConsole           from "./components/admin/AdminConsole";
+import ClassesHome            from "./components/classes/ClassesHome";
+import { AssignmentsStub }    from "./components/classes/ClassChrome";
 
 const queryClient = new QueryClient();
 
@@ -45,6 +47,8 @@ function App() {
                       <Route path="/auth/reset" element={<ResetPage />} />
                       <Route path="/profile" element={<ProfilePage />} />
                       <Route path="/admin" element={<AdminConsole />} />
+                      <Route path="/classes" element={<ClassesHome />} />
+                      <Route path="/classes/:id" element={<AssignmentsStub />} />
                       <Route path="*" element={<Navigate to="/" replace />} />
                     </Routes>
                   </ErrorBoundary>

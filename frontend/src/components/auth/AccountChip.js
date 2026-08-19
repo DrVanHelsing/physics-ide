@@ -31,6 +31,9 @@ export default function AccountChip() {
         {me.name}
         {!me.emailConfirmed ? <span className="account-chip-badge">unconfirmed</span> : null}
       </div>
+      <Link className="account-chip-btn" to="/classes">
+        My classes
+      </Link>
       <Link className="account-chip-btn" to="/profile">
         Profile
       </Link>
