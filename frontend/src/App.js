@@ -24,6 +24,7 @@ import ProfilePage            from "./components/auth/ProfilePage";
 import AdminConsole           from "./components/admin/AdminConsole";
 import ClassesHome            from "./components/classes/ClassesHome";
 import { AssignmentsStub }    from "./components/classes/ClassChrome";
+import PeopleTab              from "./components/classes/PeopleTab";
 
 const queryClient = new QueryClient();
 
@@ -49,6 +50,7 @@ function App() {
                       <Route path="/admin" element={<AdminConsole />} />
                       <Route path="/classes" element={<ClassesHome />} />
                       <Route path="/classes/:id" element={<AssignmentsStub />} />
+                      <Route path="/classes/:id/people" element={<PeopleTab />} />
                       <Route path="*" element={<Navigate to="/" replace />} />
                     </Routes>
                   </ErrorBoundary>
