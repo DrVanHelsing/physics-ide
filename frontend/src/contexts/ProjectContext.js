@@ -27,6 +27,7 @@ import {
 } from "../utils/storage/projectStore";
 import { readLegacyV1, migrate, LEGACY_V1_KEY } from "../utils/manifest/migrate";
 import { createManifest } from "../utils/manifest/factory";
+import { SIGNED_IN_HINT_KEY } from "../constants";
 
 const ProjectContext = createContext(null);
 
@@ -52,7 +53,8 @@ export function ProjectProvider({ children }) {
         const list = await listProjects();
         if (cancelled) return;
         if (list.length === 0) {
-          const legacy = readLegacyV1();
+          // signed-in first runs pull from the cloud instead (SyncProvider backfills the legacy blob if the cloud is empty too)
+          const legacy = localStorage.getItem(SIGNED_IN_HINT_KEY) ? null : readLegacyV1();
           if (legacy) {
             const migrated = migrate(legacy);
             const saved = await saveProject(migrated);

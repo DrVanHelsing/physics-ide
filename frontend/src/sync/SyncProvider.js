@@ -1,8 +1,10 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMe } from "../auth/useAuth";
-import { listProjects, onProjectSaved, onProjectDeleted } from "../utils/storage/projectStore";
+import { listProjects, saveProject, onProjectSaved, onProjectDeleted } from "../utils/storage/projectStore";
 import { getSyncMeta, listSyncMeta } from "../utils/storage/syncMeta";
 import { getGlobalSyncEngine } from "../utils/sync/syncEngine";
+import { readLegacyV1, migrate } from "../utils/manifest/migrate";
+import GuestImportPrompt from "./GuestImportPrompt";
 
 /**
  * Invisible wiring: signed-in sessions get push-after-save, push-after-delete,
@@ -16,6 +18,11 @@ export default function SyncProvider({ children }) {
      owns those; anything saved later without meta was created signed-in and
      is adopted automatically. */
   const guestIdsRef = useRef(new Set());
+  /* Spec §3.2 offer state: null when nothing to show, otherwise
+     { count, ids } describing the unadopted guest-era projects found at
+     sign-in. */
+  const [importPrompt, setImportPrompt] = useState(null);
+  const [importBusy, setImportBusy] = useState(false);
 
   useEffect(() => {
     if (!me) return undefined;
@@ -46,8 +53,36 @@ export default function SyncProvider({ children }) {
       }
       if (disposed) return;
 
+      // Legacy v1 backfill: cloud pulled nothing and there were no local
+      // projects to begin with, but a v1 blob is still on disk. This is the
+      // signed-in resurrection case ProjectContext's bootstrap guard skips
+      // (SIGNED_IN_HINT_KEY steers it toward the cloud pull above instead).
+      // Uses a FRESH listProjects() (post-reconcile) — if the cloud pulled
+      // anything down, the list is non-empty and no resurrection happens.
+      // Runs BEFORE the guest-set snapshot below (so a resurrected project
+      // lands in the §3.2 offer) and BEFORE the onProjectSaved subscription
+      // is registered (so this save can't trigger auto-adoption).
+      let resurrectedId = null;
+      if ((await listProjects()).length === 0) {
+        const legacy = readLegacyV1();
+        if (legacy) {
+          const saved = await saveProject(migrate(legacy));
+          resurrectedId = saved.id;
+        }
+      }
+      if (disposed) return;
+
       const metas = await listSyncMeta();
       guestIdsRef.current = new Set(locals.filter((l) => !metas[l.id]).map((l) => l.id));
+      // The resurrected project can't be in `locals` (that snapshot was
+      // taken pre-reconcile, before this save happened) — add it explicitly
+      // so the §3.2 offer includes it and a later save doesn't silently
+      // auto-adopt it.
+      if (resurrectedId) guestIdsRef.current.add(resurrectedId);
+
+      if (guestIdsRef.current.size > 0 && !localStorage.getItem(`pide_guest_import_declined:${me.id}`)) {
+        setImportPrompt({ count: guestIdsRef.current.size, ids: Array.from(guestIdsRef.current) });
+      }
 
       unsubSave = onProjectSaved(async (manifest, opts) => {
         try {
@@ -104,5 +139,35 @@ export default function SyncProvider({ children }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [me?.id]);
 
-  return children;
+  const handleAcceptImport = async () => {
+    if (!importPrompt || !me) return;
+    setImportBusy(true);
+    const engine = engineRef.current;
+    for (const id of importPrompt.ids) {
+      // eslint-disable-next-line no-await-in-loop
+      await engine.adoptLocalProject(id, me.id);
+      guestIdsRef.current.delete(id);
+    }
+    setImportBusy(false);
+    setImportPrompt(null);
+  };
+
+  const handleDeclineImport = () => {
+    if (me) localStorage.setItem(`pide_guest_import_declined:${me.id}`, "1");
+    setImportPrompt(null);
+  };
+
+  return (
+    <>
+      {importPrompt && (
+        <GuestImportPrompt
+          count={importPrompt.count}
+          onAccept={handleAcceptImport}
+          onDecline={handleDeclineImport}
+          busy={importBusy}
+        />
+      )}
+      {children}
+    </>
+  );
 }
