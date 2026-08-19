@@ -63,12 +63,22 @@ export default function SyncProvider({ children }) {
       // lands in the §3.2 offer) and BEFORE the onProjectSaved subscription
       // is registered (so this save can't trigger auto-adoption).
       let resurrectedId = null;
-      if ((await listProjects()).length === 0) {
-        const legacy = readLegacyV1();
-        if (legacy) {
-          const saved = await saveProject(migrate(legacy));
-          resurrectedId = saved.id;
+      try {
+        if ((await listProjects()).length === 0) {
+          const legacy = readLegacyV1();
+          if (legacy) {
+            const saved = await saveProject(migrate(legacy));
+            resurrectedId = saved.id;
+          }
         }
+      } catch (err) {
+        // migrate() throws by design on corrupt/future-schema blobs, and
+        // saveProject can reject (e.g. IndexedDB failure) — either way this
+        // must not skip the snapshot, the prompt, or the onProjectSaved
+        // subscription below (that would silently kill push-after-save for
+        // the whole session, exactly what the reconcile try/catch above
+        // guards against).
+        console.warn("sync wiring: legacy v1 backfill failed", err);
       }
       if (disposed) return;
 
@@ -80,6 +90,7 @@ export default function SyncProvider({ children }) {
       // auto-adopt it.
       if (resurrectedId) guestIdsRef.current.add(resurrectedId);
 
+      if (disposed) return;
       if (guestIdsRef.current.size > 0 && !localStorage.getItem(`pide_guest_import_declined:${me.id}`)) {
         setImportPrompt({ count: guestIdsRef.current.size, ids: Array.from(guestIdsRef.current) });
       }
@@ -132,6 +143,11 @@ export default function SyncProvider({ children }) {
       window.removeEventListener("focus", onFocus);
       window.removeEventListener("online", onOnline);
       window.removeEventListener("offline", onOffline);
+      // Sign-out, or switching to a different account, must not leave the
+      // previous account's §3.2 offer showing (and definitely must not let
+      // its ids get adopted into a different account via a stale closure).
+      setImportPrompt(null);
+      setImportBusy(false);
     };
     // Only `me.id` is used inside this effect — object-identity churn from
     // unrelated profile field changes must not tear down and rebuild the
@@ -143,13 +159,22 @@ export default function SyncProvider({ children }) {
     if (!importPrompt || !me) return;
     setImportBusy(true);
     const engine = engineRef.current;
-    for (const id of importPrompt.ids) {
-      // eslint-disable-next-line no-await-in-loop
-      await engine.adoptLocalProject(id, me.id);
-      guestIdsRef.current.delete(id);
+    try {
+      for (const id of importPrompt.ids) {
+        // eslint-disable-next-line no-await-in-loop
+        await engine.adoptLocalProject(id, me.id);
+        guestIdsRef.current.delete(id);
+      }
+      setImportPrompt(null);
+    } catch (err) {
+      // Leave the prompt open on failure rather than latching on
+      // "Bringing them in…" forever — ids already adopted above were
+      // deleted from guestIdsRef as they succeeded, so clicking "Bring
+      // them in" again only retries what's left.
+      console.warn("sync wiring: guest import accept failed", err);
+    } finally {
+      setImportBusy(false);
     }
-    setImportBusy(false);
-    setImportPrompt(null);
   };
 
   const handleDeclineImport = () => {
