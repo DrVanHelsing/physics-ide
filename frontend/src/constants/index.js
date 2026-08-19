@@ -47,6 +47,8 @@ export const GLOWSCRIPT_HOST_ID = "glowscript-host";
 export const SIGNED_IN_HINT_KEY = "pide_signed_in_hint";
 
 // ── Welcome screen ────────────────────────────────────────────────────────
-/* localStorage key: stamped once the visitor has seen (or skipped) the welcome
-   screen, so "/" never redirects them again. */
-export const WELCOME_SEEN_KEY = "pide_welcome_seen";
+/* sessionStorage key (v2, user directive 2026-08-19): stamped when a visitor
+   passes through the welcome screen via one of its CTAs, so "/" renders the
+   IDE for the rest of THIS browser session. A new session lands on /welcome
+   again; signed-in visitors skip it entirely. */
+export const WELCOME_PASSED_SESSION_KEY = "pide_welcome_passed";

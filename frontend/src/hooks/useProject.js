@@ -17,6 +17,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { useProjectContext } from "../contexts/ProjectContext";
 import { useSimulationContext } from "../contexts/SimulationContext";
 import { createManifest } from "../utils/manifest/factory";
+import { onProjectSaved } from "../utils/storage/projectStore";
 import { debounce } from "../utils/debounce";
 import { MANIFEST_AUTOSAVE_MS } from "../constants";
 
@@ -71,6 +72,13 @@ export function useProject() {
       });
     }, MANIFEST_AUTOSAVE_MS);
   }
+  // Cancel a pending autosave when the ACTIVE PROJECT CHANGES, not just on
+  // unmount: a timer armed while project A was open otherwise fires against
+  // whatever is open when it expires, restamping (and pushing) an untouched
+  // project B — which can demote a genuinely newer server copy of B under
+  // most-recent-wins. Declared before the dirty-check effect below so this
+  // cleanup runs first. Also covers unmount.
+  useEffect(() => () => debouncedSaveRef.current.cancel(), [proj.activeProjectId]);
   useEffect(() => {
     if (!proj.activeProjectId || !proj.activeManifest) return;
     // Dirty check: opening a project pushes its fields INTO sim, which fires
@@ -94,7 +102,34 @@ export function useProject() {
     sim.mode,
     sim.projectType,
   ]);
-  useEffect(() => () => debouncedSaveRef.current.cancel(), []);
+
+  /* A sync PULL writes straight through projectStore (preserveTimestamp), so
+     without this the open project would keep rendering the OLD content while
+     disk holds the new — and the next keystroke would autosave the stale base
+     back over it, archiving the other device's work. Adopt the pulled
+     manifest into the live session instead: most-recent-wins, made visible.
+     Refs keep this subscription registered exactly once. */
+  const activeProjectIdRef = useRef(proj.activeProjectId);
+  const applyRef = useRef(applyManifestToWorkingState);
+  const setActiveManifestRef = useRef(proj.setActiveManifest);
+  useEffect(() => {
+    activeProjectIdRef.current = proj.activeProjectId;
+    applyRef.current = applyManifestToWorkingState;
+    setActiveManifestRef.current = proj.setActiveManifest;
+  });
+  useEffect(
+    () =>
+      onProjectSaved((manifest, opts) => {
+        if (!opts?.preserveTimestamp) return; // only sync-applied writes
+        if (!manifest || manifest.id !== activeProjectIdRef.current) return;
+        // An autosave already in flight would land on top of the pull with a
+        // stale base — drop it before swapping the content in.
+        debouncedSaveRef.current.cancel();
+        setActiveManifestRef.current?.(manifest);
+        applyRef.current?.(manifest);
+      }),
+    [],
+  );
 
   const selectProject = useCallback(
     async (id) => {

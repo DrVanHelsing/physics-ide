@@ -441,3 +441,125 @@ describe("re-review fix: drainPending offline + empty pending (finding C)", () =
     expect(eng.getStatus().state).toBe("offline");
   });
 });
+
+/* Final review F1 (+ mustFix 1-3): the shared-device cross-account leak.
+   Student A signs in on a lab machine (their cloud library lands on disk with
+   `sync-meta{ownerId:"u-A"}`), signs out, and student B signs in on the same
+   browser profile. Every meta-driven branch of reconcile must treat A's meta
+   as "not adopted by me". */
+describe("final-review fix: reconcile is owner-gated (F1)", () => {
+  test("a local project whose meta names ANOTHER account is never pushed into this account's cloud", async () => {
+    const w = fakeWorld();
+    w.local.set("p-a", m("p-a", 4000, "student A's work"));
+    w.metaMap.set("p-a", { ownerId: "u-A", remoteUpdatedAt: 4000, lastPushedAt: 1 });
+    // u-B's cloud has never heard of p-a: pre-fix, the "locals the server
+    // doesn't know" loop PUT it straight into u-B's account.
+    const eng = createSyncEngine({ ...w, now: () => 9999 });
+    await eng.reconcile("u-B");
+
+    expect(w.calls.some((c) => c.opts.method === "PUT")).toBe(false);
+    expect(w.remote.has("p-a")).toBe(false);
+    expect(w.local.has("p-a")).toBe(true); // left strictly local, not deleted
+    expect(w.metaMap.get("p-a")).toEqual({ ownerId: "u-A", remoteUpdatedAt: 4000, lastPushedAt: 1 });
+  });
+
+  test("a remote tombstone never deletes a local project whose meta names another account", async () => {
+    const w = fakeWorld();
+    w.local.set("p-x", m("p-x", 3000, "A's copy"));
+    w.metaMap.set("p-x", { ownerId: "u-A", remoteUpdatedAt: 3000, lastPushedAt: 1 });
+    // u-B deleted THEIR project that happens to share the id.
+    w.remote.set("p-x", { clientUpdatedAt: 5000, manifest: m("p-x", 5000), deleted: true });
+    const eng = createSyncEngine({ ...w, now: () => 9999 });
+    await eng.reconcile("u-B");
+
+    expect(w.deleteProjectCalls).toEqual([]);
+    expect(w.local.get("p-x").title).toBe("A's copy");
+    expect(w.metaMap.get("p-x")).toEqual({ ownerId: "u-A", remoteUpdatedAt: 3000, lastPushedAt: 1 });
+  });
+
+  test("delete-inference never fires off another account's meta (the remote is imported instead)", async () => {
+    const w = fakeWorld();
+    w.local.set("p-keep", m("p-keep", 1, "guest work")); // keeps the local index non-suspect
+    w.metaMap.set("p-y", { ownerId: "u-A", remoteUpdatedAt: 2000, lastPushedAt: 1 });
+    // u-B's own live cloud project, absent locally: pre-fix, A's leftover meta
+    // made reconcile "infer a local delete" and DELETE u-B's project.
+    w.remote.set("p-y", { clientUpdatedAt: 2000, manifest: m("p-y", 2000, "B's project"), deleted: false });
+    const eng = createSyncEngine({ ...w, now: () => 9999 });
+    await eng.reconcile("u-B");
+
+    expect(w.calls.some((c) => c.opts.method === "DELETE")).toBe(false);
+    expect(w.remote.get("p-y").deleted).toBe(false);
+    expect(w.local.get("p-y").title).toBe("B's project");
+    expect(w.metaMap.get("p-y").ownerId).toBe("u-B");
+  });
+
+  test("pushOne stamps the reconciling account, repairing a null/stale ownerId (mustFix 1 & 3)", async () => {
+    const w = fakeWorld();
+    // Legacy meta with a null ownerId predates owner stamping, so the gate
+    // lets it through — the push must then REPAIR the record rather than
+    // write null (or a previous owner) back over it.
+    w.local.set("p-1", m("p-1", 8000, "local-newer"));
+    w.metaMap.set("p-1", { ownerId: null, remoteUpdatedAt: 2000, lastPushedAt: 1 });
+    w.remote.set("p-1", { clientUpdatedAt: 2000, manifest: m("p-1", 2000) });
+    const eng = createSyncEngine({ ...w, now: () => 9999 });
+    await eng.reconcile("u-B");
+
+    expect(w.remote.get("p-1").clientUpdatedAt).toBe(8000);
+    expect(w.metaMap.get("p-1").ownerId).toBe("u-B");
+  });
+
+  test("reset() clears pending so one account's parked pushes never drain under the next", async () => {
+    const w = fakeWorld();
+    w.local.set("p-a", m("p-a", 2000));
+    const eng = createSyncEngine({ ...w, now: () => 5 });
+    eng.setOnline(false);
+    await eng.pushProject("p-a", "u-A");
+    expect(eng.getStatus().pendingCount).toBe(1);
+
+    eng.setOnline(true);
+    eng.reset(); // sign-out / account switch
+    expect(eng.getStatus()).toMatchObject({ state: "idle", pendingCount: 0 });
+
+    await eng.drainPending(); // now signed in as u-B
+    expect(w.calls.some((c) => c.opts.method === "PUT")).toBe(false);
+    expect(w.remote.has("p-a")).toBe(false);
+  });
+});
+
+describe("final-review fix: server sentences surface verbatim (F5)", () => {
+  const CAP = "You've reached the 100-project limit — delete something first.";
+
+  test("a cap refusal keeps the server sentence on the status, and success clears it", async () => {
+    const w = fakeWorld();
+    w.local.set("p-1", m("p-1", 2000));
+    let failing = true;
+    const realApi = w.api;
+    w.api = vi.fn(async (path, opts = {}) => {
+      if (opts.method === "PUT" && failing) {
+        throw Object.assign(new Error(CAP), { status: 403 });
+      }
+      return realApi(path, opts);
+    });
+    const eng = createSyncEngine({ ...w, now: () => 1 });
+
+    await eng.pushProject("p-1", "u-1");
+    expect(eng.getStatus()).toMatchObject({ state: "error", lastError: CAP });
+
+    failing = false;
+    await eng.pushProject("p-1", "u-1");
+    expect(eng.getStatus()).toMatchObject({ state: "synced", lastError: null });
+  });
+
+  test("a transport failure carries no server sentence", async () => {
+    const w = fakeWorld();
+    w.local.set("p-1", m("p-1", 2000));
+    const realApi = w.api;
+    w.api = vi.fn(async (path, opts = {}) => {
+      if (opts.method === "PUT") throw new TypeError("Failed to fetch");
+      return realApi(path, opts);
+    });
+    const eng = createSyncEngine({ ...w, now: () => 1 });
+    await eng.pushProject("p-1", "u-1");
+    expect(eng.getStatus().lastError).toBeNull();
+  });
+});

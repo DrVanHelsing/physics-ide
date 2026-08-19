@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import GravityPlayground from "./GravityPlayground";
-import { WELCOME_SEEN_KEY } from "../constants";
+import { WELCOME_PASSED_SESSION_KEY } from "../constants";
 
 const FEATURES = [
   { icon: "🧩", title: "Blocks or Python", body: "Start with drag-and-drop blocks, flip to real Python whenever you're ready — same project, both views." },
@@ -17,7 +17,9 @@ export default function WelcomePage() {
 
   const go = useCallback(
     (path) => {
-      localStorage.setItem(WELCOME_SEEN_KEY, "1");
+      // Session-scoped pass: "/" renders the IDE for the rest of this browser
+      // session, and a new session meets the front door again.
+      sessionStorage.setItem(WELCOME_PASSED_SESSION_KEY, "1");
       navigate(path);
     },
     [navigate],

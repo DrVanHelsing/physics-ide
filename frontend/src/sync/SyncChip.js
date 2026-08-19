@@ -10,9 +10,14 @@ const LABELS = {
   error: "Sync error",
 };
 
+const DEFAULT_TITLE = "Your work saves locally first and syncs to your account.";
+
 export default function SyncChip() {
   const { data: me } = useMe();
   const [state, setState] = useState("idle");
+  /* The server's own sentence for the last failure (cap, oversize, invalid
+     shape) — carried through verbatim, never paraphrased. */
+  const [lastError, setLastError] = useState(null);
 
   useEffect(() => {
     if (!me) return undefined;
@@ -21,9 +26,16 @@ export default function SyncChip() {
     (async () => {
       const engine = await getGlobalSyncEngine();
       if (disposed) return;
-      setState(engine.getStatus().state);
-      unsub = engine.subscribe((s) => setState(s.state));
-    })();
+      const s0 = engine.getStatus();
+      setState(s0.state);
+      setLastError(s0.lastError ?? null);
+      unsub = engine.subscribe((s) => {
+        setState(s.state);
+        setLastError(s.lastError ?? null);
+      });
+    })().catch(() => {
+      // No engine, no status to show — the chip keeps its last known state.
+    });
     return () => {
       disposed = true;
       unsub();
@@ -32,7 +44,7 @@ export default function SyncChip() {
 
   if (!me) return null;
   return (
-    <span className={`sync-chip sync-chip--${state}`} title="Your work saves locally first and syncs to your account.">
+    <span className={`sync-chip sync-chip--${state}`} title={lastError || DEFAULT_TITLE}>
       Saved on this computer · {LABELS[state] ?? "Synced"}
     </span>
   );
