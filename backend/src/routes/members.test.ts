@@ -4,7 +4,7 @@ import { and, eq } from "drizzle-orm";
 import { buildApp } from "../app.js";
 import { testDb, testPool, truncateAuthTables } from "../db/testClient.js";
 import { setSetting } from "../db/settings.js";
-import { users, classes, classMembers } from "../db/schema.js";
+import { users, classes, classMembers, emails, invites } from "../db/schema.js";
 
 const app = buildApp({ db: testDb });
 let teacherCookie: string;
@@ -274,5 +274,58 @@ describe("last-teacher guard is status-gated", () => {
     });
     expect(removeLastActive.statusCode).toBe(400);
     expect(removeLastActive.json().error).toBe("A class must keep at least one teacher.");
+  });
+});
+
+describe("removing a member revokes their outstanding pending invites", () => {
+  test("teacher invites X; X joins by code instead; removing X revokes the invite; the old link 400s", async () => {
+    const revokeClass = await createClass(teacherCookie, "Revoke On Removal");
+    const targetEmail = "mrevokeinvitee@example.com";
+    await makeUser(targetEmail);
+    const targetCookie = await signin(targetEmail);
+
+    await app.inject({
+      method: "POST",
+      url: `/api/classes/${revokeClass.id}/invites`,
+      cookies: { pide_session: teacherCookie },
+      payload: { emails: [targetEmail], role: "student" },
+    });
+    const [mail] = await testDb
+      .select()
+      .from(emails)
+      .where(and(eq(emails.template, "class-invite"), eq(emails.toEmail, targetEmail)));
+    const token = /token=([A-Za-z0-9_-]+)/.exec(mail.bodyText)![1];
+
+    const join = await app.inject({
+      method: "POST",
+      url: "/api/classes/join",
+      cookies: { pide_session: targetCookie },
+      payload: { code: revokeClass.joinCode },
+    });
+    expect(join.statusCode).toBe(200);
+    expect(join.json().status).toBe("active");
+
+    const [targetUser] = await testDb.select().from(users).where(eq(users.email, targetEmail));
+    const remove = await app.inject({
+      method: "DELETE",
+      url: `/api/classes/${revokeClass.id}/members/${targetUser.id}`,
+      cookies: { pide_session: teacherCookie },
+    });
+    expect(remove.statusCode).toBe(200);
+
+    const [invRow] = await testDb
+      .select()
+      .from(invites)
+      .where(and(eq(invites.classId, revokeClass.id), eq(invites.email, targetEmail)));
+    expect(invRow.status).toBe("revoked");
+
+    const accept = await app.inject({
+      method: "POST",
+      url: "/api/invites/accept",
+      cookies: { pide_session: targetCookie },
+      payload: { token },
+    });
+    expect(accept.statusCode).toBe(400);
+    expect(accept.json().error).toBe("That invite link is no longer valid.");
   });
 });

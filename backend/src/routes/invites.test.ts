@@ -113,6 +113,46 @@ describe("sending invites", () => {
     expect(res.json().skipped).toEqual(["outsider@example.com"]);
     expect(res.json().sent).toEqual([]);
   });
+
+  test("inviting a WAITING member sends (not skips); accepting upgrades them to active with the invited role", async () => {
+    const waiter = await makeUser("waiter@example.com");
+    await testDb.insert(classMembers).values({
+      classId,
+      userId: waiter.id,
+      role: "student",
+      status: "waiting",
+    });
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/classes/${classId}/invites`,
+      cookies: { pide_session: teacherCookie },
+      payload: { emails: ["waiter@example.com"], role: "ta" },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().sent).toEqual(["waiter@example.com"]);
+    expect(res.json().skipped).toEqual([]);
+
+    const [mail] = await testDb
+      .select()
+      .from(emails)
+      .where(and(eq(emails.template, "class-invite"), eq(emails.toEmail, "waiter@example.com")));
+    const token = /token=([A-Za-z0-9_-]+)/.exec(mail.bodyText)![1];
+    const waiterCookie = await signin("waiter@example.com");
+    const accept = await app.inject({
+      method: "POST",
+      url: "/api/invites/accept",
+      cookies: { pide_session: waiterCookie },
+      payload: { token },
+    });
+    expect(accept.statusCode).toBe(200);
+
+    const [row] = await testDb
+      .select()
+      .from(classMembers)
+      .where(and(eq(classMembers.classId, classId), eq(classMembers.userId, waiter.id)));
+    expect(row.status).toBe("active");
+    expect(row.role).toBe("ta");
+  });
 });
 
 describe("accepting and revoking", () => {
@@ -224,6 +264,40 @@ describe("accepting and revoking", () => {
       payload: { token: freshToken },
     });
     expect(newRes.statusCode).toBe(200);
+  });
+
+  test("resend into an archived class is refused", async () => {
+    const archived = await app.inject({
+      method: "POST",
+      url: "/api/classes",
+      cookies: { pide_session: teacherCookie },
+      payload: { name: "Archive Resend Class" },
+    });
+    const archivedClassId = archived.json().class.id as string;
+    await app.inject({
+      method: "POST",
+      url: `/api/classes/${archivedClassId}/invites`,
+      cookies: { pide_session: teacherCookie },
+      payload: { emails: ["archivedinvitee@example.com"], role: "student" },
+    });
+    const [inv] = await testDb
+      .select()
+      .from(invites)
+      .where(
+        and(eq(invites.classId, archivedClassId), eq(invites.email, "archivedinvitee@example.com")),
+      );
+    await app.inject({
+      method: "POST",
+      url: `/api/classes/${archivedClassId}/archive`,
+      cookies: { pide_session: teacherCookie },
+    });
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/invites/${inv.id}/resend`,
+      cookies: { pide_session: teacherCookie },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toBe("That class is archived.");
   });
 
   test("teacher lists pending invites", async () => {

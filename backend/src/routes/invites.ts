@@ -28,12 +28,18 @@ export function inviteRoutes(app: FastifyInstance): void {
       return reply.code(400).send({ error: parsed.error.issues[0]?.message ?? "Invalid input." });
     }
     // Emails already holding an ACTIVE membership are skipped, not errored (spec: invite tools are forgiving).
+    // WAITING members are NOT skipped: an invite is how a teacher pulls someone straight
+    // into active, bypassing the approval queue (see the accept route's upgrade branch).
     const existingUsers = await app.db
       .select({ user: users, member: classMembers })
       .from(users)
       .innerJoin(
         classMembers,
-        and(eq(classMembers.userId, users.id), eq(classMembers.classId, id)),
+        and(
+          eq(classMembers.userId, users.id),
+          eq(classMembers.classId, id),
+          eq(classMembers.status, "active"),
+        ),
       )
       .where(inArray(users.email, parsed.data.emails));
     const memberEmails = new Set(existingUsers.map((r) => r.user.email));
@@ -128,6 +134,7 @@ export function inviteRoutes(app: FastifyInstance): void {
     }
     const [c] = await app.db.select().from(classes).where(eq(classes.id, inv.classId));
     if (!c) return reply.code(404).send({ error: "No such class." });
+    if (c.archived) return reply.code(400).send({ error: "That class is archived." });
     const t = newToken();
     await app.db.transaction(async (tx) => {
       // Rotate the token: the previously emailed link stops working.
