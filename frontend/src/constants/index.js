@@ -33,6 +33,8 @@ export const HIGHLIGHT_DURATION_MS = 250;
 // ── Auto-save ─────────────────────────────────────────────────────────────
 /** How often the workspace state is persisted to localStorage (ms). */
 export const AUTOSAVE_INTERVAL_MS = 2000;
+/** Trailing-debounce delay before an editor change is saved into the active project manifest (ms). */
+export const MANIFEST_AUTOSAVE_MS = 3000;
 
 // ── DOM ids ───────────────────────────────────────────────────────────────
 /** Container id that glowRunner injects the GlowScript iframe into. */

@@ -13,10 +13,12 @@
  *   - saveCurrent(): persist current working state into the active manifest.
  */
 
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useProjectContext } from "../contexts/ProjectContext";
 import { useSimulationContext } from "../contexts/SimulationContext";
 import { createManifest } from "../utils/manifest/factory";
+import { debounce } from "../utils/debounce";
+import { MANIFEST_AUTOSAVE_MS } from "../constants";
 
 export function useProject() {
   const proj = useProjectContext();
@@ -54,6 +56,43 @@ export function useProject() {
     const next = captureWorkingStateInto(proj.activeManifest);
     return proj.persistActive(next);
   }, [captureWorkingStateInto, proj]);
+
+  // Debounced editor→manifest autosave: edits reach the manifest (and thus sync)
+  // without waiting for a project switch. Guests benefit too (pure local persistence).
+  const saveCurrentRef = useRef(saveCurrent);
+  useEffect(() => {
+    saveCurrentRef.current = saveCurrent;
+  });
+  const debouncedSaveRef = useRef(null);
+  if (!debouncedSaveRef.current) {
+    debouncedSaveRef.current = debounce(() => {
+      saveCurrentRef.current?.();
+    }, MANIFEST_AUTOSAVE_MS);
+  }
+  useEffect(() => {
+    if (!proj.activeProjectId || !proj.activeManifest) return;
+    // Dirty check: opening a project pushes its fields INTO sim, which fires
+    // this effect too. Saving then would restamp updatedAt — and with sync,
+    // merely opening a stale offline copy would claim most-recent-wins
+    // recency. Only schedule a save when sim actually differs from the
+    // persisted manifest.
+    const m = proj.activeManifest;
+    const unchanged =
+      (m.source?.python || "") === (sim.pythonCode || "") &&
+      (m.workspace?.xml || "") === (sim.workspaceXml || "") &&
+      (m.preferredEditor === "code" ? "text" : "blocks") === sim.mode &&
+      (m.projectType || "custom") === (sim.projectType || "custom");
+    if (unchanged) return;
+    debouncedSaveRef.current();
+  }, [
+    proj.activeProjectId,
+    proj.activeManifest,
+    sim.pythonCode,
+    sim.workspaceXml,
+    sim.mode,
+    sim.projectType,
+  ]);
+  useEffect(() => () => debouncedSaveRef.current.cancel(), []);
 
   const selectProject = useCallback(
     async (id) => {
