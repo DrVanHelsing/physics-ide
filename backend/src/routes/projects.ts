@@ -1,15 +1,19 @@
-import type { FastifyInstance } from "fastify";
+import type { FastifyError, FastifyInstance } from "fastify";
 import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { projects, projectVersions, users } from "../db/schema.js";
 import { requireUser } from "../auth/guards.js";
 import { logEvent } from "../db/events.js";
+import type { Db } from "../db/types.js";
 
 export const MAX_PROJECTS_PER_USER = 100;
 export const MAX_MANIFEST_BYTES = 400 * 1024;
 export const MAX_VERSIONS_PER_PROJECT = 20;
 
 const PROJECT_ID_REGEX = /^p-[A-Za-z0-9-]{3,60}$/;
+
+const OVERSIZE_ERROR = "This project is too large to sync. Export it as a file instead.";
+const CAP_ERROR = "You've reached the 100-project limit — delete something first.";
 
 /** Just enough shape-checking to store it; the client owns full validation. */
 const ManifestSchema = z
@@ -24,11 +28,26 @@ const ManifestSchema = z
   })
   .passthrough();
 
-async function pruneVersions(
-  db: FastifyInstance["db"],
-  ownerId: string,
-  projectId: string,
-): Promise<void> {
+/**
+ * Canonical JSON: object keys sorted recursively. Postgres jsonb does not preserve
+ * key order, so a plain JSON.stringify comparison of a round-tripped manifest against
+ * the freshly-parsed incoming one could report "different" for two objects that are
+ * actually equal — this comparison is immune to that.
+ */
+function stableStringify(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map(stableStringify).join(",")}]`;
+  }
+  if (value !== null && typeof value === "object") {
+    const keys = Object.keys(value as Record<string, unknown>).sort();
+    return `{${keys
+      .map((k) => `${JSON.stringify(k)}:${stableStringify((value as Record<string, unknown>)[k])}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
+async function pruneVersions(db: Db, ownerId: string, projectId: string): Promise<void> {
   await db.execute(sql`
     DELETE FROM project_versions
     WHERE owner_id = ${ownerId} AND project_id = ${projectId}
@@ -40,8 +59,53 @@ async function pruneVersions(
   `);
 }
 
+/**
+ * §15.7 "fatal for abuse" bound: a create/delete loop must not grow tombstones
+ * without limit while the live count stays at (or near) zero. Keeps this owner's
+ * newest MAX_PROJECTS_PER_USER tombstoned rows and hard-deletes the rest — the
+ * composite FK cascade takes their version history with them. Non-abusive accounts
+ * (well under the cap) never have enough tombstones to hit this.
+ */
+async function pruneTombstones(db: Pick<Db, "execute">, ownerId: string): Promise<void> {
+  await db.execute(sql`
+    DELETE FROM projects
+    WHERE owner_id = ${ownerId} AND deleted_at IS NOT NULL
+      AND id NOT IN (
+        SELECT id FROM projects
+        WHERE owner_id = ${ownerId} AND deleted_at IS NOT NULL
+        ORDER BY deleted_at DESC LIMIT ${MAX_PROJECTS_PER_USER}
+      )
+  `);
+}
+
+/**
+ * Locks the owner's row and reports whether they're already at the live-project cap.
+ * Shared by the create path and the tombstone-revive path so neither can bypass it —
+ * reviving a tombstone re-adds a live project, same as creating one from scratch.
+ */
+async function isAtCap(tx: Pick<Db, "select">, ownerId: string): Promise<boolean> {
+  await tx.select({ id: users.id }).from(users).where(eq(users.id, ownerId)).for("update");
+  const [{ count }] = await tx
+    .select({ count: sql<number>`count(*)::int` })
+    .from(projects)
+    .where(and(eq(projects.ownerId, ownerId), sql`deleted_at IS NULL`));
+  return count >= MAX_PROJECTS_PER_USER;
+}
+
 export function projectRoutes(app: FastifyInstance): void {
   app.addHook("preHandler", requireUser);
+
+  // Scoped to this plugin's encapsulation context: a manifest whose serialized body
+  // exceeds Fastify's default 1 MiB bodyLimit never reaches the route handler, so the
+  // MAX_MANIFEST_BYTES check below can't produce the exact oversize sentence for it —
+  // catch that specific error here and give the same byte-exact message. Everything
+  // else falls through to normal handling.
+  app.setErrorHandler<FastifyError>((err, _req, reply) => {
+    if (err.code === "FST_ERR_CTP_BODY_TOO_LARGE") {
+      return reply.code(413).send({ error: OVERSIZE_ERROR });
+    }
+    return reply.send(err);
+  });
 
   app.get("/api/projects", async (req) => {
     const rows = await app.db
@@ -80,14 +144,13 @@ export function projectRoutes(app: FastifyInstance): void {
     }
     const m = parsed.data;
     if (Buffer.byteLength(JSON.stringify(m), "utf8") > MAX_MANIFEST_BYTES) {
-      return reply
-        .code(413)
-        .send({ error: "This project is too large to sync. Export it as a file instead." });
+      return reply.code(413).send({ error: OVERSIZE_ERROR });
     }
 
     const result = await app.db.transaction(async (tx) => {
-      // Updates serialize on the head row lock; creations lock the owner row
-      // below so two concurrent first-pushes cannot race past the cap check.
+      // Updates serialize on the head row lock; creations (and revives, which also
+      // add a live project) lock the owner row via isAtCap so concurrent pushes
+      // cannot race past the cap check.
       const existing = await tx
         .select()
         .from(projects)
@@ -96,16 +159,7 @@ export function projectRoutes(app: FastifyInstance): void {
       const head = existing[0];
 
       if (!head) {
-        await tx
-          .select({ id: users.id })
-          .from(users)
-          .where(eq(users.id, req.user!.id))
-          .for("update");
-        const [{ count }] = await tx
-          .select({ count: sql<number>`count(*)::int` })
-          .from(projects)
-          .where(and(eq(projects.ownerId, req.user!.id), sql`deleted_at IS NULL`));
-        if (count >= MAX_PROJECTS_PER_USER) return { kind: "cap" as const };
+        if (await isAtCap(tx, req.user!.id)) return { kind: "cap" as const };
         await tx.insert(projects).values({
           id,
           ownerId: req.user!.id,
@@ -131,19 +185,33 @@ export function projectRoutes(app: FastifyInstance): void {
         return { kind: "kept-remote" as const, head };
       }
 
-      if (m.updatedAt !== head.clientUpdatedAt || head.deletedAt) {
-        // Newer (or reviving a tombstone): archive the PREVIOUS head, then overwrite.
-        await tx.insert(projectVersions).values({
-          ownerId: req.user!.id,
-          projectId: id,
-          manifest: head.manifest,
-          clientUpdatedAt: head.clientUpdatedAt,
-          savedBy: req.user!.id,
-          reason: "overwrite",
-        });
-      } else {
-        return { kind: "saved" as const }; // equal-ms idempotent re-push: nothing to do
+      // Equal-ms ties count as newer — nothing may be silently dropped. Only an EXACT
+      // content match (compared canonically; jsonb doesn't preserve key order) is a
+      // true no-op. A live head with equal ms but different content falls through to
+      // the overwrite branch below, same as a strictly-newer push.
+      if (
+        !head.deletedAt &&
+        m.updatedAt === head.clientUpdatedAt &&
+        stableStringify(m) === stableStringify(head.manifest)
+      ) {
+        return { kind: "saved" as const }; // identical re-push: nothing to do
       }
+
+      if (head.deletedAt && (await isAtCap(tx, req.user!.id))) {
+        // Reviving would re-add a live project — same cap as creating one.
+        return { kind: "cap" as const };
+      }
+
+      // Newer, reviving a tombstone, or an equal-ms tie with different content:
+      // archive the PREVIOUS head, then overwrite.
+      await tx.insert(projectVersions).values({
+        ownerId: req.user!.id,
+        projectId: id,
+        manifest: head.manifest,
+        clientUpdatedAt: head.clientUpdatedAt,
+        savedBy: req.user!.id,
+        reason: "overwrite",
+      });
       await tx
         .update(projects)
         .set({
@@ -160,9 +228,7 @@ export function projectRoutes(app: FastifyInstance): void {
     });
 
     if (result.kind === "cap") {
-      return reply
-        .code(403)
-        .send({ error: "You've reached the 100-project limit — delete something first." });
+      return reply.code(403).send({ error: CAP_ERROR });
     }
     await pruneVersions(app.db, req.user!.id, id);
     if (result.kind === "kept-remote") {
@@ -201,6 +267,8 @@ export function projectRoutes(app: FastifyInstance): void {
         .set({ deletedAt: new Date(), updatedAt: new Date() })
         .where(and(eq(projects.ownerId, req.user!.id), eq(projects.id, id)));
       await logEvent(tx, "project.deleted", req.user!.id, { projectId: id });
+      // §15.7 abuse bound: keep this owner's tombstone count in check (see pruneTombstones).
+      await pruneTombstones(tx, req.user!.id);
     });
     void reply;
     return { ok: true };
