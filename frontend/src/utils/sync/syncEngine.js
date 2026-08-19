@@ -20,7 +20,14 @@ export function createSyncEngine({ api, store, meta, now = () => Date.now() }) {
      after an await captures the epoch on entry and re-checks it immediately
      before each api call — and before each store/meta write and status write
      that follows one — so a stale continuation stops silently and leaves no
-     trace. */
+     trace.
+
+     That includes the SECOND half of every paired local write (saveProject +
+     setSyncMeta, deleteProject + deleteSyncMeta): each pair is itself a
+     check-then-act across an await, so the second write is re-checked too.
+     A stale continuation must not half-write local state either — a project
+     saved without its meta, or deleted without it, is exactly the orphan the
+     sign-out ordering rules exist to avoid. */
   let epoch = 0;
   const pending = new Set();
   const listeners = new Set();
@@ -67,6 +74,7 @@ export function createSyncEngine({ api, store, meta, now = () => Date.now() }) {
     if (stale(myEpoch)) return;
     if (res.outcome === "kept-remote") {
       await store.saveProject(res.project.manifest, { preserveTimestamp: true });
+      if (stale(myEpoch)) return; // paired writes: never leave meta half-written
       await meta.setSyncMeta(id, {
         ownerId: owner,
         remoteUpdatedAt: res.project.clientUpdatedAt,
@@ -245,6 +253,7 @@ export function createSyncEngine({ api, store, meta, now = () => Date.now() }) {
               // onProjectDeleted handler doesn't echo it straight back to the
               // server as if a human deleted it locally.
               await store.deleteProject(r.id, { fromSync: true });
+              if (stale(myEpoch)) return; // paired writes: never leave meta half-written
               await meta.deleteSyncMeta(r.id);
             }
           } else if (!local && ownedMeta(r.id)) {
@@ -266,6 +275,7 @@ export function createSyncEngine({ api, store, meta, now = () => Date.now() }) {
             const { project } = await api(`/api/projects/${r.id}`);
             if (stale(myEpoch)) return;
             await store.saveProject(project.manifest, { preserveTimestamp: true });
+            if (stale(myEpoch)) return; // paired writes: never leave meta half-written
             await meta.setSyncMeta(r.id, {
               ownerId,
               remoteUpdatedAt: project.clientUpdatedAt,
@@ -278,6 +288,7 @@ export function createSyncEngine({ api, store, meta, now = () => Date.now() }) {
           const { project } = await api(`/api/projects/${r.id}`);
           if (stale(myEpoch)) return;
           await store.saveProject(project.manifest, { preserveTimestamp: true });
+          if (stale(myEpoch)) return; // paired writes: never leave meta half-written
           await meta.setSyncMeta(r.id, {
             ownerId,
             remoteUpdatedAt: project.clientUpdatedAt,

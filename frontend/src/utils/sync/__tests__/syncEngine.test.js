@@ -692,3 +692,73 @@ describe("residual fix: detached work can never dispatch across an account trans
     expect(eng.getEpoch()).toBe(before + 1);
   });
 });
+
+/* Residual round 3: each paired local write (saveProject + setSyncMeta,
+   deleteProject + deleteSyncMeta) is itself a check-then-act across an await.
+   A stale continuation must not land the FIRST half and then the second —
+   a project saved without its meta, or deleted without it, is precisely the
+   orphan state the sign-out ordering rules exist to avoid. */
+describe("residual fix: a stale continuation cannot half-write paired local state", () => {
+  function hangingStore(store, method) {
+    let release = () => {};
+    let entered = () => {};
+    const gate = new Promise((r) => {
+      release = r;
+    });
+    const arrived = new Promise((r) => {
+      entered = r;
+    });
+    const real = store[method];
+    let calls = 0;
+    const patched = {
+      ...store,
+      [method]: async (...args) => {
+        calls += 1;
+        if (calls === 1) {
+          entered();
+          await gate;
+        }
+        return real(...args);
+      },
+    };
+    return { patched, release: () => release(), arrived };
+  }
+
+  test("a pull interrupted inside saveProject writes NO sync meta", async () => {
+    const w = fakeWorld();
+    w.remote.set("p-cloud", { clientUpdatedAt: 4000, manifest: m("p-cloud", 4000, "cloud"), deleted: false });
+    const { patched, release, arrived } = hangingStore(w.store, "saveProject");
+    w.store = patched;
+
+    const eng = createSyncEngine({ ...w, now: () => 9999 });
+    const pull = eng.reconcile("u-A");
+    await arrived; // execution is now INSIDE the first write of the pair
+
+    eng.reset(); // sign-out / next account signs in
+    release();
+    await pull;
+
+    expect(w.local.has("p-cloud")).toBe(true); // the first write did land
+    expect(w.metaMap.has("p-cloud")).toBe(false); // the second was skipped
+  });
+
+  test("a tombstone-apply interrupted inside deleteProject leaves the meta alone", async () => {
+    const w = fakeWorld();
+    w.local.set("p-gone", m("p-gone", 3000));
+    w.metaMap.set("p-gone", { ownerId: "u-A", remoteUpdatedAt: 3000, lastPushedAt: 1 });
+    w.remote.set("p-gone", { clientUpdatedAt: 3000, manifest: m("p-gone", 3000), deleted: true });
+    const { patched, release, arrived } = hangingStore(w.store, "deleteProject");
+    w.store = patched;
+
+    const eng = createSyncEngine({ ...w, now: () => 9999 });
+    const run = eng.reconcile("u-A");
+    await arrived;
+
+    eng.reset();
+    release();
+    await run;
+
+    expect(w.local.has("p-gone")).toBe(false); // the first write did land
+    expect(w.metaMap.get("p-gone")).toEqual({ ownerId: "u-A", remoteUpdatedAt: 3000, lastPushedAt: 1 });
+  });
+});
