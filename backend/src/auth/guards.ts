@@ -25,3 +25,12 @@ export async function requireAdmin(req: FastifyRequest, reply: FastifyReply): Pr
     await reply.code(403).send({ error: "Admin only." });
   }
 }
+
+/** Spec §3.1 — unconfirmed accounts can look around but not join or create classes. */
+export async function requireConfirmed(req: FastifyRequest, reply: FastifyReply): Promise<void> {
+  await requireUser(req, reply);
+  if (reply.sent) return;
+  if (!req.user!.emailConfirmedAt) {
+    await reply.code(403).send({ error: "Confirm your email address first." });
+  }
+}
