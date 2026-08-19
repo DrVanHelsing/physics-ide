@@ -300,6 +300,107 @@ describe("accepting and revoking", () => {
     expect(res.json().error).toBe("That class is archived.");
   });
 
+  test("accepting an invite into an archived class is refused; the invite stays pending", async () => {
+    const archived = await app.inject({
+      method: "POST",
+      url: "/api/classes",
+      cookies: { pide_session: teacherCookie },
+      payload: { name: "Archive Accept Class" },
+    });
+    const archivedClassId = archived.json().class.id as string;
+    await app.inject({
+      method: "POST",
+      url: `/api/classes/${archivedClassId}/invites`,
+      cookies: { pide_session: teacherCookie },
+      payload: { emails: ["archivedaccepter@example.com"], role: "student" },
+    });
+    const [mail] = await testDb
+      .select()
+      .from(emails)
+      .where(and(eq(emails.template, "class-invite"), eq(emails.toEmail, "archivedaccepter@example.com")));
+    const token = /token=([A-Za-z0-9_-]+)/.exec(mail.bodyText)![1];
+    await makeUser("archivedaccepter@example.com");
+    const accepterCookie = await signin("archivedaccepter@example.com");
+
+    await app.inject({
+      method: "POST",
+      url: `/api/classes/${archivedClassId}/archive`,
+      cookies: { pide_session: teacherCookie },
+    });
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/invites/accept",
+      cookies: { pide_session: accepterCookie },
+      payload: { token },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toBe("That class is archived.");
+
+    const [inv] = await testDb
+      .select()
+      .from(invites)
+      .where(
+        and(eq(invites.classId, archivedClassId), eq(invites.email, "archivedaccepter@example.com")),
+      );
+    expect(inv.status).toBe("pending");
+  });
+
+  test("an already-active member who accepts an invite gets the invited role applied", async () => {
+    // Fresh (open-join) class so the direct join below lands active immediately —
+    // the shared `classId` above is already in approval mode by this point in the file.
+    const promoClassRes = await app.inject({
+      method: "POST",
+      url: "/api/classes",
+      cookies: { pide_session: teacherCookie },
+      payload: { name: "Promotion Class" },
+    });
+    const promoClassId = promoClassRes.json().class.id as string;
+    const promoJoinCode = promoClassRes.json().class.joinCode as string;
+
+    // The invitee joins by code directly first, landing active as a student —
+    // independent of (and before accepting) the co-teacher invite already in flight.
+    const promoted = await makeUser("mpromoted@example.com");
+    const promotedCookie = await signin("mpromoted@example.com");
+    const inviteRes = await app.inject({
+      method: "POST",
+      url: `/api/classes/${promoClassId}/invites`,
+      cookies: { pide_session: teacherCookie },
+      payload: { emails: ["mpromoted@example.com"], role: "teacher" },
+    });
+    expect(inviteRes.statusCode).toBe(200);
+    expect(inviteRes.json().sent).toEqual(["mpromoted@example.com"]);
+    const [mail] = await testDb
+      .select()
+      .from(emails)
+      .where(and(eq(emails.template, "class-invite"), eq(emails.toEmail, "mpromoted@example.com")));
+    const token = /token=([A-Za-z0-9_-]+)/.exec(mail.bodyText)![1];
+
+    const joinRes = await app.inject({
+      method: "POST",
+      url: "/api/classes/join",
+      cookies: { pide_session: promotedCookie },
+      payload: { code: promoJoinCode },
+    });
+    expect(joinRes.statusCode).toBe(200);
+    expect(joinRes.json().status).toBe("active");
+
+    const acceptRes = await app.inject({
+      method: "POST",
+      url: "/api/invites/accept",
+      cookies: { pide_session: promotedCookie },
+      payload: { token },
+    });
+    expect(acceptRes.statusCode).toBe(200);
+
+    const [row] = await testDb
+      .select()
+      .from(classMembers)
+      .where(and(eq(classMembers.classId, promoClassId), eq(classMembers.userId, promoted.id)));
+    expect(row.status).toBe("active");
+    expect(row.role).toBe("teacher");
+  });
+
   test("teacher lists pending invites", async () => {
     const res = await app.inject({
       method: "GET",

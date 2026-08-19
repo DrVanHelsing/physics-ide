@@ -3,7 +3,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { InviteInputSchema, AcceptInviteInputSchema } from "@physics-ide/shared";
 import { classes, classMembers, invites, users } from "../db/schema.js";
 import { requireConfirmed } from "../auth/guards.js";
-import { getMembership, requireClassTeacher, sendClassAuthError } from "../classes/guards.js";
+import { requireClassTeacher, sendClassAuthError } from "../classes/guards.js";
 import { newToken, hashToken } from "../auth/tokens.js";
 import { classInvite } from "../email/templates.js";
 import { logEvent } from "../db/events.js";
@@ -111,10 +111,21 @@ export function inviteRoutes(app: FastifyInstance): void {
     if (inv.status !== "pending") {
       return reply.code(400).send({ error: "That invite is not pending." });
     }
-    await app.db.transaction(async (tx) => {
-      await tx.update(invites).set({ status: "revoked" }).where(eq(invites.id, id));
+    const missed = await app.db.transaction(async (tx) => {
+      // Re-check status inside the UPDATE's where: a concurrent accept between the
+      // pre-check above and this write must not clobber an already-accepted invite.
+      const updated = await tx
+        .update(invites)
+        .set({ status: "revoked" })
+        .where(and(eq(invites.id, id), eq(invites.status, "pending")))
+        .returning();
+      if (updated.length === 0) return true;
       await logEvent(tx, "invite.revoked", req.user!.id, { classId: inv.classId, email: inv.email });
+      return false;
     });
+    if (missed) {
+      return reply.code(400).send({ error: "That invite is not pending." });
+    }
     return { ok: true };
   });
 
@@ -136,15 +147,25 @@ export function inviteRoutes(app: FastifyInstance): void {
     if (!c) return reply.code(404).send({ error: "No such class." });
     if (c.archived) return reply.code(400).send({ error: "That class is archived." });
     const t = newToken();
-    await app.db.transaction(async (tx) => {
-      // Rotate the token: the previously emailed link stops working.
-      await tx.update(invites).set({ tokenHash: t.hash }).where(eq(invites.id, id));
+    const missed = await app.db.transaction(async (tx) => {
+      // Rotate the token: the previously emailed link stops working. Re-check status
+      // inside the UPDATE's where: a concurrent accept must not resurrect a dead invite.
+      const updated = await tx
+        .update(invites)
+        .set({ tokenHash: t.hash })
+        .where(and(eq(invites.id, id), eq(invites.status, "pending")))
+        .returning();
+      if (updated.length === 0) return true;
       await logEvent(tx, "invite.sent", req.user!.id, {
         classId: inv.classId,
         email: inv.email,
         resend: true,
       });
+      return false;
     });
+    if (missed) {
+      return reply.code(400).send({ error: "That invite is not pending." });
+    }
     const mail = classInvite({
       className: c.name,
       inviterName: req.user!.name,
@@ -161,40 +182,59 @@ export function inviteRoutes(app: FastifyInstance): void {
       return reply.code(400).send({ error: "That invite link is no longer valid." });
     }
     const tokenHash = hashToken(parsed.data.token);
-    const result = await app.db.transaction(async (tx) => {
-      // Atomic claim, Plan 2 pattern: only a pending invite flips to accepted.
-      const claimed = await tx
-        .update(invites)
-        .set({ status: "accepted", acceptedBy: req.user!.id })
-        .where(and(eq(invites.tokenHash, tokenHash), eq(invites.status, "pending")))
-        .returning();
-      const inv = claimed[0];
-      if (!inv) return null;
-      const existing = await tx
-        .select()
-        .from(classMembers)
-        .where(and(eq(classMembers.classId, inv.classId), eq(classMembers.userId, req.user!.id)));
-      if (existing.length === 0) {
-        // Invited members land active regardless of joinMode — the teacher asked for them.
-        await tx.insert(classMembers).values({
+    let result;
+    try {
+      result = await app.db.transaction(async (tx) => {
+        // Atomic claim, Plan 2 pattern: only a pending invite flips to accepted.
+        const claimed = await tx
+          .update(invites)
+          .set({ status: "accepted", acceptedBy: req.user!.id })
+          .where(and(eq(invites.tokenHash, tokenHash), eq(invites.status, "pending")))
+          .returning();
+        const inv = claimed[0];
+        if (!inv) return null;
+        // Refuse (and roll back the claim) if the class went archived after the invite
+        // was sent — the invite stays pending so a teacher can decide, not silently burn.
+        const [c] = await tx.select().from(classes).where(eq(classes.id, inv.classId));
+        if (c?.archived) throw new AcceptIntoArchivedClass();
+        const existing = await tx
+          .select()
+          .from(classMembers)
+          .where(and(eq(classMembers.classId, inv.classId), eq(classMembers.userId, req.user!.id)));
+        if (existing.length === 0) {
+          // Invited members land active regardless of joinMode — the teacher asked for them.
+          await tx.insert(classMembers).values({
+            classId: inv.classId,
+            userId: req.user!.id,
+            role: inv.role,
+            status: "active",
+          });
+        } else if (existing[0].status === "waiting") {
+          await tx
+            .update(classMembers)
+            .set({ status: "active", role: inv.role })
+            .where(eq(classMembers.id, existing[0].id));
+        } else if (existing[0].status === "active" && existing[0].role !== inv.role) {
+          // Already active (e.g. joined by code separately): the invite is still the
+          // promotion path, so apply its role rather than silently no-op-ing.
+          await tx
+            .update(classMembers)
+            .set({ role: inv.role })
+            .where(eq(classMembers.id, existing[0].id));
+        }
+        await logEvent(tx, "invite.accepted", req.user!.id, {
           classId: inv.classId,
-          userId: req.user!.id,
+          invitedEmail: inv.email,
           role: inv.role,
-          status: "active",
         });
-      } else if (existing[0].status === "waiting") {
-        await tx
-          .update(classMembers)
-          .set({ status: "active", role: inv.role })
-          .where(eq(classMembers.id, existing[0].id));
-      }
-      await logEvent(tx, "invite.accepted", req.user!.id, {
-        classId: inv.classId,
-        invitedEmail: inv.email,
-        role: inv.role,
+        return inv;
       });
-      return inv;
-    });
+    } catch (err) {
+      if (err instanceof AcceptIntoArchivedClass) {
+        return reply.code(400).send({ error: "That class is archived." });
+      }
+      throw err;
+    }
     if (!result) {
       return reply.code(400).send({ error: "That invite link is no longer valid." });
     }
@@ -202,3 +242,5 @@ export function inviteRoutes(app: FastifyInstance): void {
     return { ok: true, classId: result.classId, className: c?.name ?? "", status: "active" };
   });
 }
+
+class AcceptIntoArchivedClass extends Error {}

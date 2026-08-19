@@ -277,6 +277,99 @@ describe("last-teacher guard is status-gated", () => {
   });
 });
 
+describe("archived classes refuse roster mutations", () => {
+  // Membership rows are seeded directly (rather than via a real join + signin) so
+  // these tests don't burn the /api/auth/signin rate-limit budget shared across the file.
+  test("approve after archive is refused", async () => {
+    const archivedClass = await createClass(teacherCookie, "Archive Approve");
+    const waiter = await makeUser("mwaiter-approve@example.com");
+    await testDb.insert(classMembers).values({
+      classId: archivedClass.id,
+      userId: waiter.id,
+      role: "student",
+      status: "waiting",
+    });
+    await app.inject({
+      method: "POST",
+      url: `/api/classes/${archivedClass.id}/archive`,
+      cookies: { pide_session: teacherCookie },
+    });
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/classes/${archivedClass.id}/members/${waiter.id}/approve`,
+      cookies: { pide_session: teacherCookie },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toBe("That class is archived.");
+  });
+
+  test("deny after archive is refused", async () => {
+    const archivedClass = await createClass(teacherCookie, "Archive Deny");
+    const waiter = await makeUser("mwaiter-deny@example.com");
+    await testDb.insert(classMembers).values({
+      classId: archivedClass.id,
+      userId: waiter.id,
+      role: "student",
+      status: "waiting",
+    });
+    await app.inject({
+      method: "POST",
+      url: `/api/classes/${archivedClass.id}/archive`,
+      cookies: { pide_session: teacherCookie },
+    });
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/classes/${archivedClass.id}/members/${waiter.id}/deny`,
+      cookies: { pide_session: teacherCookie },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toBe("That class is archived.");
+  });
+
+  test("remove after archive is refused", async () => {
+    const archivedClass = await createClass(teacherCookie, "Archive Remove");
+    const member = await makeUser("mmember-remove@example.com");
+    await testDb.insert(classMembers).values({
+      classId: archivedClass.id,
+      userId: member.id,
+      role: "student",
+      status: "active",
+    });
+    await app.inject({
+      method: "POST",
+      url: `/api/classes/${archivedClass.id}/archive`,
+      cookies: { pide_session: teacherCookie },
+    });
+    const res = await app.inject({
+      method: "DELETE",
+      url: `/api/classes/${archivedClass.id}/members/${member.id}`,
+      cookies: { pide_session: teacherCookie },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toBe("That class is archived.");
+  });
+});
+
+describe("only an active teacher may approve", () => {
+  test("an active TA gets 403 from approve", async () => {
+    const taClass = await createClass(teacherCookie, "TA Approve Check");
+    const ta = await makeUser("mta-approve@example.com");
+    await testDb.insert(classMembers).values({
+      classId: taClass.id,
+      userId: ta.id,
+      role: "ta",
+      status: "active",
+    });
+    const taCookie = await signin("mta-approve@example.com");
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/classes/${taClass.id}/members/${ta.id}/approve`,
+      cookies: { pide_session: taCookie },
+    });
+    expect(res.statusCode).toBe(403);
+  });
+});
+
 describe("removing a member revokes their outstanding pending invites", () => {
   test("teacher invites X; X joins by code instead; removing X revokes the invite; the old link 400s", async () => {
     const revokeClass = await createClass(teacherCookie, "Revoke On Removal");

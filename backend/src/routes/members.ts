@@ -83,6 +83,9 @@ export function memberRoutes(app: FastifyInstance): void {
         if (await sendClassAuthError(reply, err)) return;
         throw err;
       }
+      const [c] = await app.db.select().from(classes).where(eq(classes.id, id));
+      if (!c) return reply.code(404).send({ error: "No such class." });
+      if (c.archived) return reply.code(400).send({ error: "That class is archived." });
       const target = await getMembership(app.db, id, userId);
       if (!target || target.status !== "waiting") {
         return reply.code(404).send({ error: "No waiting member to act on." });
@@ -121,7 +124,12 @@ export function memberRoutes(app: FastifyInstance): void {
       await app.db.transaction(async (tx) => {
         // Lock the class row so two concurrent removals in this class serialize
         // instead of both reading the active-teacher count before either deletes.
-        await tx.execute(sql`SELECT id FROM classes WHERE id = ${id} FOR UPDATE`);
+        const lock = await tx.execute<{ id: string; archived: boolean }>(
+          sql`SELECT id, archived FROM classes WHERE id = ${id} FOR UPDATE`,
+        );
+        const classRow = lock.rows[0];
+        if (!classRow) throw new MemberNotFound();
+        if (classRow.archived) throw new ClassArchived();
         const [target] = await tx
           .select()
           .from(classMembers)
@@ -177,6 +185,9 @@ export function memberRoutes(app: FastifyInstance): void {
       if (err instanceof LastTeacher) {
         return reply.code(400).send({ error: "A class must keep at least one teacher." });
       }
+      if (err instanceof ClassArchived) {
+        return reply.code(400).send({ error: "That class is archived." });
+      }
       throw err;
     }
     return { ok: true };
@@ -185,6 +196,7 @@ export function memberRoutes(app: FastifyInstance): void {
 
 class MemberNotFound extends Error {}
 class LastTeacher extends Error {}
+class ClassArchived extends Error {}
 
 /** drizzle 0.44 may wrap driver errors; the pg code then lives on .cause. */
 function pgErrorCode(err: unknown): string | undefined {
