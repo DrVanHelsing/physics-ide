@@ -2692,7 +2692,7 @@ function SettingsBody({ classData }) {
 Create `frontend/src/components/classes/JoinClassPage.js`:
 
 ```js
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { normalizeClassCode, CLASS_CODE_REGEX } from "@physics-ide/shared";
 import AuthLayout from "../auth/AuthLayout";
@@ -2706,6 +2706,7 @@ export default function JoinClassPage() {
   const [code, setCode] = useState(codeParam ? normalizeClassCode(codeParam) : "");
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
+  const autoJoined = useRef(false); // StrictMode double-invoke guard (Plan 2 ConfirmPage pattern)
 
   async function join(joinCode) {
     setError(null);
@@ -2720,9 +2721,11 @@ export default function JoinClassPage() {
     }
   }
 
-  // Arriving via /join/CODE while signed in: submit automatically once.
+  // Arriving via /join/CODE while signed in: submit automatically, exactly once.
   useEffect(() => {
+    if (autoJoined.current) return;
     if (!isLoading && me && codeParam && CLASS_CODE_REGEX.test(normalizeClassCode(codeParam))) {
+      autoJoined.current = true;
       join(normalizeClassCode(codeParam));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
