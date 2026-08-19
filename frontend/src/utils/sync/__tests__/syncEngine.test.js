@@ -237,9 +237,17 @@ describe("review fix: delete propagation (finding 2)", () => {
 
   test("reconcile infers a local delete: remote live + meta present + local absent -> DELETE issued, not re-imported", async () => {
     const w = fakeWorld();
+    // A second, untouched local project keeps the local index non-empty so
+    // this pass isn't treated as a suspect empty index (finding A) — proving
+    // delete-inference fires on a genuine partial absence, not just "there's
+    // nothing local at all".
+    w.local.set("p-stays", m("p-stays", 500, "stays"));
+    w.metaMap.set("p-stays", { ownerId: "u-1", remoteUpdatedAt: 500, lastPushedAt: 1 });
+    w.remote.set("p-stays", { clientUpdatedAt: 500, manifest: m("p-stays", 500, "stays"), deleted: false });
+
     w.remote.set("p-was-local", { clientUpdatedAt: 2000, manifest: m("p-was-local", 2000, "gone-locally"), deleted: false });
     w.metaMap.set("p-was-local", { ownerId: "u-1", remoteUpdatedAt: 2000, lastPushedAt: 1 });
-    // no local entry: it was deleted on this device
+    // no local entry for p-was-local: it was deleted on this device
     const eng = createSyncEngine({ ...w, now: () => 9999 });
     await eng.reconcile("u-1");
     expect(w.calls.some((c) => c.path === "/api/projects/p-was-local" && c.opts.method === "DELETE")).toBe(true);
@@ -276,10 +284,14 @@ describe("review fix: subscriber isolation (finding 3)", () => {
 describe("review fix: per-project reconcile isolation (finding 4)", () => {
   test("one project's failure during reconcile does not abort the others; final state is error", async () => {
     const w = fakeWorld();
+    // p-bad is inserted FIRST so the fake /api/projects list processes it
+    // BEFORE p-good — this is what actually distinguishes "isolated" from
+    // "abort on first throw" (a for-loop that aborts on the first error would
+    // still happen to pass if the failure were processed last).
+    w.remote.set("p-bad", { clientUpdatedAt: 5000, manifest: m("p-bad", 5000, "unreachable") });
     w.local.set("p-good", m("p-good", 1000, "old"));
     w.metaMap.set("p-good", { ownerId: "u-1", remoteUpdatedAt: 1000, lastPushedAt: 1 });
     w.remote.set("p-good", { clientUpdatedAt: 5000, manifest: m("p-good", 5000, "fresh") });
-    w.remote.set("p-bad", { clientUpdatedAt: 5000, manifest: m("p-bad", 5000, "unreachable") });
     // no local/meta for p-bad -> triggers the import branch -> GET on it throws
     const realApi = w.api;
     w.api = vi.fn(async (path, opts = {}) => {
@@ -364,5 +376,54 @@ describe("review fix: getGlobalSyncEngine promise cache (finding 8)", () => {
     expect(p1).toBe(p2);
     const [e1, e2] = await Promise.all([p1, p2]);
     expect(e1).toBe(e2);
+  });
+});
+
+describe("re-review fix: delete-inference containment on a suspect empty index (finding A)", () => {
+  test("empty local list + populated meta does NOT mass-delete; live remotes are pulled/imported instead", async () => {
+    const w = fakeWorld();
+    // Local index is empty (as if corrupt), but sync meta for BOTH remote
+    // projects survived — the pre-fix code reads this as "everything was
+    // deleted locally" and issues a DELETE for each. It must not.
+    w.metaMap.set("p-one", { ownerId: "u-1", remoteUpdatedAt: 1000, lastPushedAt: 1 });
+    w.metaMap.set("p-two", { ownerId: "u-1", remoteUpdatedAt: 2000, lastPushedAt: 1 });
+    w.remote.set("p-one", { clientUpdatedAt: 1000, manifest: m("p-one", 1000, "one"), deleted: false });
+    w.remote.set("p-two", { clientUpdatedAt: 2000, manifest: m("p-two", 2000, "two"), deleted: false });
+
+    const eng = createSyncEngine({ ...w, now: () => 9999 });
+    await eng.reconcile("u-1");
+
+    expect(w.calls.some((c) => c.opts.method === "DELETE")).toBe(false);
+    expect(w.local.get("p-one")?.title).toBe("one");
+    expect(w.local.get("p-two")?.title).toBe("two");
+    expect(w.remote.get("p-one").deleted).toBe(false);
+    expect(w.remote.get("p-two").deleted).toBe(false);
+  });
+});
+
+describe("re-review fix: malformed remote list ends on error, not a rejection (finding B)", () => {
+  test("a /api/projects response missing `projects` resolves reconcile with error status", async () => {
+    const w = fakeWorld();
+    const realApi = w.api;
+    w.api = vi.fn(async (path, opts = {}) => {
+      if (path === "/api/projects" && !opts.method) {
+        return {}; // malformed: no `projects` array
+      }
+      return realApi(path, opts);
+    });
+    const eng = createSyncEngine({ ...w, now: () => 1 });
+    await expect(eng.reconcile("u-1")).resolves.toBeUndefined();
+    expect(eng.getStatus().state).toBe("error");
+  });
+});
+
+describe("re-review fix: drainPending offline + empty pending (finding C)", () => {
+  test("draining an empty pending set while offline leaves state offline, not synced", async () => {
+    const w = fakeWorld();
+    const eng = createSyncEngine({ ...w, now: () => 1 });
+    eng.setOnline(false);
+    expect(eng.getStatus().pendingCount).toBe(0);
+    await eng.drainPending();
+    expect(eng.getStatus().state).toBe("offline");
   });
 });
