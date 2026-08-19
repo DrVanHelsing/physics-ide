@@ -12,7 +12,13 @@ export function createSyncEngine({ api, store, meta, now = () => Date.now() }) {
 
   function setStatus(next) {
     status = { ...status, ...next, pendingCount: pending.size };
-    for (const fn of listeners) fn(status);
+    for (const fn of listeners) {
+      try {
+        fn(status);
+      } catch {
+        // A misbehaving subscriber must never break the engine.
+      }
+    }
   }
 
   async function pushOne(id) {
@@ -35,6 +41,21 @@ export function createSyncEngine({ api, store, meta, now = () => Date.now() }) {
     }
   }
 
+  /** Push, but on failure park the id for later retry via drainPending(). */
+  async function pushTracked(id) {
+    try {
+      await pushOne(id);
+    } catch (err) {
+      pending.add(id);
+      throw err;
+    }
+  }
+
+  async function deleteOne(id) {
+    await api(`/api/projects/${id}`, { method: "DELETE" });
+    await meta.deleteSyncMeta(id);
+  }
+
   async function pushProject(id) {
     if (!online) {
       pending.add(id);
@@ -48,7 +69,9 @@ export function createSyncEngine({ api, store, meta, now = () => Date.now() }) {
       setStatus({ state: "synced" });
     } catch (err) {
       pending.add(id);
-      setStatus({ state: err?.status === undefined && !navigator?.onLine ? "offline" : "error" });
+      const offline =
+        err?.status === undefined && typeof navigator !== "undefined" && !navigator.onLine;
+      setStatus({ state: offline ? "offline" : "error" });
     }
   }
 
@@ -59,11 +82,25 @@ export function createSyncEngine({ api, store, meta, now = () => Date.now() }) {
       await pushProject(id);
       if (!online) return;
     }
+    setStatus({ state: pending.size === 0 ? "synced" : online ? "error" : "offline" });
   }
 
   async function adoptLocalProject(id, ownerId) {
     await meta.setSyncMeta(id, { ownerId, remoteUpdatedAt: 0, lastPushedAt: 0 });
     await pushProject(id);
+  }
+
+  /** Propagate a local delete to the server. Never throws. */
+  async function deleteRemoteProject(id) {
+    setStatus({ state: "syncing" });
+    try {
+      await deleteOne(id);
+      setStatus({ state: "synced" });
+    } catch {
+      // Meta stays in place on failure — the next reconcile() will infer the
+      // same "locally absent, remote live, meta present" case and retry.
+      setStatus({ state: "error" });
+    }
   }
 
   async function reconcile(ownerId) {
@@ -72,30 +109,57 @@ export function createSyncEngine({ api, store, meta, now = () => Date.now() }) {
       return;
     }
     setStatus({ state: "syncing" });
-    try {
-      const { projects: remoteList } = await api("/api/projects");
-      const remoteById = new Map(remoteList.map((r) => [r.id, r]));
-      const localList = await store.listProjects();
-      const localById = new Map(localList.map((l) => [l.id, l]));
-      const metaAll = await meta.listSyncMeta();
 
-      for (const r of remoteList) {
+    let remoteList;
+    let localList;
+    let metaAll;
+    try {
+      ({ projects: remoteList } = await api("/api/projects"));
+      localList = await store.listProjects();
+      metaAll = await meta.listSyncMeta();
+    } catch {
+      setStatus({ state: "error" });
+      return;
+    }
+
+    const remoteById = new Map(remoteList.map((r) => [r.id, r]));
+    const localById = new Map(localList.map((l) => [l.id, l]));
+    let failures = 0;
+
+    for (const r of remoteList) {
+      try {
         const local = localById.get(r.id);
         if (r.deleted) {
           if (local && metaAll[r.id]) {
-            await store.deleteProject(r.id);
+            if (local.updatedAt > r.clientUpdatedAt) {
+              // Our copy is newer than the tombstone: revive it. The
+              // server's PUT resurrects a tombstoned project with newer
+              // content — most-recent-wins, as specced.
+              await pushTracked(r.id);
+            } else {
+              await store.deleteProject(r.id);
+              await meta.deleteSyncMeta(r.id);
+            }
+          } else if (!local && metaAll[r.id]) {
+            // Stale meta for a project that's gone on both sides.
             await meta.deleteSyncMeta(r.id);
           }
           continue;
         }
         if (!local) {
-          const { project } = await api(`/api/projects/${r.id}`);
-          await store.saveProject(project.manifest, { preserveTimestamp: true });
-          await meta.setSyncMeta(r.id, {
-            ownerId,
-            remoteUpdatedAt: project.clientUpdatedAt,
-            lastPushedAt: now(),
-          });
+          if (metaAll[r.id]) {
+            // Known to us before, absent now: it was deleted locally.
+            // Propagate the delete instead of re-importing it.
+            await deleteOne(r.id);
+          } else {
+            const { project } = await api(`/api/projects/${r.id}`);
+            await store.saveProject(project.manifest, { preserveTimestamp: true });
+            await meta.setSyncMeta(r.id, {
+              ownerId,
+              remoteUpdatedAt: project.clientUpdatedAt,
+              lastPushedAt: now(),
+            });
+          }
           continue;
         }
         if (r.clientUpdatedAt > local.updatedAt) {
@@ -107,20 +171,27 @@ export function createSyncEngine({ api, store, meta, now = () => Date.now() }) {
             lastPushedAt: now(),
           });
         } else if (r.clientUpdatedAt < local.updatedAt) {
-          await pushOne(r.id);
+          await pushTracked(r.id);
         }
+      } catch (err) {
+        failures += 1;
+        console.warn(`sync reconcile: failed for project ${r.id}`, err);
       }
-
-      // Locals the server doesn't know: only push ones ALREADY adopted (meta exists).
-      for (const l of localList) {
-        if (!remoteById.has(l.id) && metaAll[l.id]) {
-          await pushOne(l.id);
-        }
-      }
-      setStatus({ state: "synced" });
-    } catch {
-      setStatus({ state: "error" });
     }
+
+    // Locals the server doesn't know: only push ones ALREADY adopted (meta exists).
+    for (const l of localList) {
+      if (!remoteById.has(l.id) && metaAll[l.id]) {
+        try {
+          await pushTracked(l.id);
+        } catch (err) {
+          failures += 1;
+          console.warn(`sync reconcile: failed for project ${l.id}`, err);
+        }
+      }
+    }
+
+    setStatus({ state: failures === 0 ? "synced" : "error" });
   }
 
   return {
@@ -128,6 +199,7 @@ export function createSyncEngine({ api, store, meta, now = () => Date.now() }) {
     drainPending,
     reconcile,
     adoptLocalProject,
+    deleteRemoteProject,
     getStatus: () => status,
     subscribe: (fn) => {
       listeners.add(fn);
@@ -135,20 +207,34 @@ export function createSyncEngine({ api, store, meta, now = () => Date.now() }) {
     },
     setOnline: (v) => {
       online = v;
-      setStatus({ state: v ? status.state : "offline" });
+      if (v) {
+        setStatus({ state: status.state === "offline" ? "idle" : status.state });
+      } else {
+        setStatus({ state: "offline" });
+      }
     },
     dispose: () => listeners.clear(),
   };
 }
 
-let globalEngine = null;
+let globalEnginePromise = null;
 
-/** Lazily wires the real dependencies. Import cost only when first used. */
-export async function getGlobalSyncEngine() {
-  if (globalEngine) return globalEngine;
-  const { api } = await import("../api/client");
-  const store = await import("../storage/projectStore");
-  const meta = await import("../storage/syncMeta");
-  globalEngine = createSyncEngine({ api, store, meta });
-  return globalEngine;
+/**
+ * Lazily wires the real dependencies. Caches the in-flight build promise (not
+ * the resolved engine) so concurrent first callers all share one build; a
+ * failed build clears the cache so a later call can retry.
+ */
+export function getGlobalSyncEngine() {
+  if (!globalEnginePromise) {
+    globalEnginePromise = (async () => {
+      const { api } = await import("../api/client");
+      const store = await import("../storage/projectStore");
+      const meta = await import("../storage/syncMeta");
+      return createSyncEngine({ api, store, meta });
+    })().catch((err) => {
+      globalEnginePromise = null;
+      throw err;
+    });
+  }
+  return globalEnginePromise;
 }
