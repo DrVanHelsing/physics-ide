@@ -4392,3 +4392,10 @@ mark.help-search-highlight {
   margin-left: 6px;
   color: var(--text-dim);
 }
+
+/* ---- Sync chip (Plan 4) ---- */
+.sync-chip { font-size: 11px; color: var(--text-dim); margin-right: 14px; }
+.sync-chip--synced { color: var(--green); }
+.sync-chip--syncing { color: var(--accent-bright); }
+.sync-chip--offline { color: var(--yellow); }
+.sync-chip--error { color: var(--red); }
