@@ -88,11 +88,13 @@ export async function loadProject(id) {
   return m;
 }
 
-export async function saveProject(manifest) {
+export async function saveProject(manifest, opts = {}) {
   if (!isManifest(manifest)) {
     throw new Error(`saveProject: ${explainManifest(manifest) || "invalid manifest"}`);
   }
-  const stamped = { ...manifest, updatedAt: Date.now() };
+  const stamped = opts.preserveTimestamp
+    ? { ...manifest }
+    : { ...manifest, updatedAt: Date.now() };
   await projectStore.setItem(MANIFEST_PREFIX + stamped.id, stamped);
   await upsertSummary(stamped);
   return stamped;
