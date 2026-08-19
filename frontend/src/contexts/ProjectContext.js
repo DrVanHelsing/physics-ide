@@ -93,10 +93,10 @@ export function ProjectProvider({ children }) {
      that was tombstoned remotely while open. */
   useEffect(() => {
     const unsubSaved = onProjectSaved(() => {
-      refreshList();
+      refreshList().catch(() => {});
     });
     const unsubDeleted = onProjectDeleted((id) => {
-      refreshList();
+      refreshList().catch(() => {});
       setActiveProjectId((cur) => (cur === id ? null : cur));
       setActiveManifest((cur) => (cur && cur.id === id ? null : cur));
     });
