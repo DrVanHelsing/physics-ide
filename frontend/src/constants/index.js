@@ -39,3 +39,9 @@ export const MANIFEST_AUTOSAVE_MS = 3000;
 // ── DOM ids ───────────────────────────────────────────────────────────────
 /** Container id that glowRunner injects the GlowScript iframe into. */
 export const GLOWSCRIPT_HOST_ID = "glowscript-host";
+
+// ── Auth ──────────────────────────────────────────────────────────────────
+/* localStorage key: present while the auth layer last knew the user to be
+   signed in. Read synchronously by ProjectContext's bootstrap so the legacy
+   v1 resurrection doesn't race a signed-in first cloud pull. */
+export const SIGNED_IN_HINT_KEY = "pide_signed_in_hint";

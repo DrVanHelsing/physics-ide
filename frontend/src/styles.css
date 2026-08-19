@@ -4399,3 +4399,23 @@ mark.help-search-highlight {
 .sync-chip--syncing { color: var(--accent-bright); }
 .sync-chip--offline { color: var(--yellow); }
 .sync-chip--error { color: var(--red); }
+
+/* ---- Guest import prompt (Plan 4) ---- */
+.guest-import {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 4000;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  background: var(--bg-surface);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: var(--text-bright);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+}
+.admin-btn--primary { border-color: var(--accent); color: var(--accent-bright); }
