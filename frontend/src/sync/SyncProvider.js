@@ -27,31 +27,55 @@ export default function SyncProvider({ children }) {
       if (disposed) return;
       engineRef.current = engine;
       engine.setOnline(navigator.onLine);
-      await engine.reconcile(me.id);
+
+      // Read the local project list BEFORE reconcile (not after): a save
+      // that lands while the awaited reconcile below is still running would
+      // otherwise have no sync meta yet and get permanently misclassified as
+      // guest-era. Filtering this pre-reconcile snapshot by POST-reconcile
+      // `metas` still excludes cloud-pulled and tombstone-removed projects
+      // (both get meta); anything saved mid-reconcile is simply absent from
+      // `locals` and gets adopted normally on its next save instead.
+      const locals = await listProjects();
+      try {
+        await engine.reconcile(me.id);
+      } catch {
+        // The engine's reconcile is never-throwing after its own review
+        // rounds; this is defense in depth so a future regression there
+        // can't permanently kill push-after-save for the whole session.
+        // Reconcile re-runs on focus/online regardless.
+      }
       if (disposed) return;
 
-      const locals = await listProjects();
       const metas = await listSyncMeta();
       guestIdsRef.current = new Set(locals.filter((l) => !metas[l.id]).map((l) => l.id));
 
       unsubSave = onProjectSaved(async (manifest, opts) => {
-        if (opts?.preserveTimestamp) return; // sync-pulled writes never re-push
-        const meta = await getSyncMeta(manifest.id);
-        if (meta && meta.ownerId && meta.ownerId !== me.id) return; // another account's project
-        if (meta) {
-          engine.pushProject(manifest.id);
-          return;
+        try {
+          if (opts?.preserveTimestamp) return; // sync-pulled writes never re-push
+          const meta = await getSyncMeta(manifest.id);
+          if (meta && meta.ownerId && meta.ownerId !== me.id) return; // another account's project
+          if (meta) {
+            engine.pushProject(manifest.id);
+            return;
+          }
+          if (guestIdsRef.current.has(manifest.id)) return; // guest-era: wait for the §3.2 offer
+          await engine.adoptLocalProject(manifest.id, me.id); // born signed-in: adopt now
+        } catch (err) {
+          console.warn("sync wiring: onProjectSaved handler failed", err);
         }
-        if (guestIdsRef.current.has(manifest.id)) return; // guest-era: wait for the §3.2 offer
-        await engine.adoptLocalProject(manifest.id, me.id); // born signed-in: adopt now
       });
 
-      unsubDelete = onProjectDeleted((id) => {
+      unsubDelete = onProjectDeleted((id, opts) => {
+        if (opts?.fromSync) return; // sync-applied deletes must not echo back to the server
         (async () => {
-          const meta = await getSyncMeta(id);
-          if (!meta) return; // guest-era/unadopted local: untouched
-          if (meta.ownerId && meta.ownerId !== me.id) return; // another account's project
-          engine.deleteRemoteProject(id).catch(() => {}); // belt-and-suspenders; engine never throws
+          try {
+            const meta = await getSyncMeta(id);
+            if (!meta) return; // guest-era/unadopted local: untouched
+            if (meta.ownerId && meta.ownerId !== me.id) return; // another account's project
+            engine.deleteRemoteProject(id).catch(() => {}); // belt-and-suspenders; engine never throws
+          } catch (err) {
+            console.warn("sync wiring: onProjectDeleted handler failed", err);
+          }
         })();
       });
     })();
@@ -74,7 +98,11 @@ export default function SyncProvider({ children }) {
       window.removeEventListener("online", onOnline);
       window.removeEventListener("offline", onOffline);
     };
-  }, [me]);
+    // Only `me.id` is used inside this effect — object-identity churn from
+    // unrelated profile field changes must not tear down and rebuild the
+    // whole wiring (that would re-open the mid-reconcile window above).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [me?.id]);
 
   return children;
 }

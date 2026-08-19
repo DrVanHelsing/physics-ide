@@ -169,4 +169,22 @@ describe("project store listeners", () => {
     expect(seen).toEqual([saved.id]);
     un();
   });
+
+  test("onProjectDeleted passes opts through unchanged (fromSync provenance flag)", async () => {
+    const saved = await saveProject(createManifest({ goal: "physics" }));
+    const seen = [];
+    const un = onProjectDeleted((id, opts) => seen.push([id, opts]));
+    await deleteProject(saved.id, { fromSync: true });
+    expect(seen).toEqual([[saved.id, { fromSync: true }]]);
+    un();
+  });
+
+  test("onProjectDeleted receives an empty opts object when the caller omits it", async () => {
+    const saved = await saveProject(createManifest({ goal: "physics" }));
+    const seen = [];
+    const un = onProjectDeleted((id, opts) => seen.push([id, opts]));
+    await deleteProject(saved.id);
+    expect(seen).toEqual([[saved.id, {}]]);
+    un();
+  });
 });

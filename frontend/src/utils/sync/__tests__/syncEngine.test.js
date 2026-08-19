@@ -45,6 +45,7 @@ function fakeWorld(overrides = {}) {
     }
     throw new Error(`unexpected ${opts.method ?? "GET"} ${path}`);
   });
+  const deleteProjectCalls = [];
   const store = {
     listProjects: async () => [...local.values()].map((m) => ({ id: m.id, updatedAt: m.updatedAt })),
     loadProject: async (id) => local.get(id) ?? null,
@@ -53,7 +54,10 @@ function fakeWorld(overrides = {}) {
       local.set(m.id, stamped);
       return stamped;
     },
-    deleteProject: async (id) => void local.delete(id),
+    deleteProject: async (id, opts = {}) => {
+      deleteProjectCalls.push({ id, opts });
+      local.delete(id);
+    },
   };
   const meta = {
     getSyncMeta: async (id) => metaMap.get(id) ?? null,
@@ -61,7 +65,7 @@ function fakeWorld(overrides = {}) {
     deleteSyncMeta: async (id) => void metaMap.delete(id),
     listSyncMeta: async () => Object.fromEntries(metaMap),
   };
-  return { api, store, meta, local, remote, metaMap, calls };
+  return { api, store, meta, local, remote, metaMap, calls, deleteProjectCalls };
 }
 
 function m(id, updatedAt, title = "t") {
@@ -201,6 +205,16 @@ describe("review fix: tombstone recency (finding 1)", () => {
     await eng.reconcile("u-1");
     expect(w.local.has("p-gone")).toBe(false);
     expect(w.metaMap.has("p-gone")).toBe(false);
+  });
+
+  test("review fix (finding 1, round 2): tombstone-applied deletes are tagged fromSync so the wiring layer never echoes them back", async () => {
+    const w = fakeWorld();
+    w.local.set("p-gone", m("p-gone", 3000));
+    w.metaMap.set("p-gone", { ownerId: "u-1", remoteUpdatedAt: 3000, lastPushedAt: 1 });
+    w.remote.set("p-gone", { clientUpdatedAt: 3000, manifest: m("p-gone", 3000), deleted: true });
+    const eng = createSyncEngine({ ...w, now: () => 9999 });
+    await eng.reconcile("u-1");
+    expect(w.deleteProjectCalls).toEqual([{ id: "p-gone", opts: { fromSync: true } }]);
   });
 
   test("tombstone with no local copy but stale meta just clears the meta", async () => {

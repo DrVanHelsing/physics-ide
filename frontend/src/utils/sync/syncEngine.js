@@ -157,7 +157,10 @@ export function createSyncEngine({ api, store, meta, now = () => Date.now() }) {
               // content — most-recent-wins, as specced.
               await pushTracked(r.id);
             } else {
-              await store.deleteProject(r.id);
+              // Tag this delete as sync-applied so SyncProvider's
+              // onProjectDeleted handler doesn't echo it straight back to the
+              // server as if a human deleted it locally.
+              await store.deleteProject(r.id, { fromSync: true });
               await meta.deleteSyncMeta(r.id);
             }
           } else if (!local && metaAll[r.id]) {

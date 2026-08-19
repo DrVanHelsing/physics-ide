@@ -111,6 +111,9 @@ export async function saveProject(manifest, opts = {}) {
     : { ...manifest, updatedAt: Date.now() };
   await projectStore.setItem(MANIFEST_PREFIX + stamped.id, stamped);
   await upsertSummary(stamped);
+  // These loops only guard SYNCHRONOUS throws from a listener — a listener
+  // that returns a rejecting promise (e.g. an async fn) is on its own for
+  // catching that; see SyncProvider for the async-listener contract.
   for (const fn of saveListeners) {
     try {
       fn(stamped, opts);
@@ -121,16 +124,17 @@ export async function saveProject(manifest, opts = {}) {
   return stamped;
 }
 
-export async function deleteProject(id) {
+export async function deleteProject(id, opts = {}) {
   if (!id) return;
   await projectStore.removeItem(MANIFEST_PREFIX + id);
   await removeSummary(id);
   // Clean up associated dataset and run blobs.
   await pruneStoreByPrefix(datasetStore, `dataset:`, (key) => key.includes(`:${id}:`) || keyOwnedByProject(key, id));
   await pruneStoreByPrefix(runStore, `run:`, (key) => keyOwnedByProject(key, id));
+  // Same synchronous-only guarantee as saveProject's notify loop above.
   for (const fn of deleteListeners) {
     try {
-      fn(id);
+      fn(id, opts);
     } catch {
       /* same */
     }
