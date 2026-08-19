@@ -349,6 +349,8 @@ export function projectRoutes(app: FastifyInstance): void {
           manifest: restored,
           clientUpdatedAt: now,
           title: (restored.title as string) ?? head.title,
+          goal: (restored.goal as string) ?? head.goal,
+          projectType: (restored.projectType as string) ?? head.projectType,
           deletedAt: null,
           updatedAt: new Date(),
         })

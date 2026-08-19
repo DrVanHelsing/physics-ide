@@ -9,7 +9,7 @@ const app = buildApp({ db: testDb });
 let cookie: string;
 let cookieCap: string;
 
-function manifest(updatedAt: number, title: string) {
+function manifest(updatedAt: number, title: string, overrides: Record<string, unknown> = {}) {
   return {
     schemaVersion: 2,
     id: "p-hist-1",
@@ -18,6 +18,7 @@ function manifest(updatedAt: number, title: string) {
     projectType: "custom",
     createdAt: 1,
     updatedAt,
+    ...overrides,
   };
 }
 
@@ -73,16 +74,19 @@ beforeAll(async () => {
   });
   cookieCap = resCap.cookies.find((c) => c.name === "pide_session")!.value;
 
-  for (const [ts, title] of [
-    [1000, "v1"],
+  // v1 carries a different goal/projectType than v2/v3 so the restore test below
+  // can assert those columns (not just title) get resynced from the restored manifest.
+  const seeds: Array<[number, string, Record<string, unknown>?]> = [
+    [1000, "v1", { goal: "engineering", projectType: "robotics" }],
     [2000, "v2"],
     [3000, "v3"],
-  ] as const) {
+  ];
+  for (const [ts, title, overrides] of seeds) {
     await app.inject({
       method: "PUT",
       url: "/api/projects/p-hist-1",
       cookies: { pide_session: cookie },
-      payload: { manifest: manifest(ts, title) },
+      payload: { manifest: manifest(ts, title, overrides) },
     });
   }
 });
@@ -127,6 +131,17 @@ describe("version history", () => {
     });
     expect(head.json().project.manifest.title).toBe("v1");
     expect(head.json().project.manifest.updatedAt).toBe(res.json().clientUpdatedAt);
+
+    // Review fix: restore must resync goal/projectType columns too, not just title —
+    // GET /api/projects serves those straight from the projects row.
+    const list2 = await app.inject({
+      method: "GET",
+      url: "/api/projects",
+      cookies: { pide_session: cookie },
+    });
+    const row = list2.json().projects.find((p: { id: string }) => p.id === "p-hist-1");
+    expect(row.goal).toBe("engineering");
+    expect(row.projectType).toBe("robotics");
 
     const after = await app.inject({
       method: "GET",
