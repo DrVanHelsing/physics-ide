@@ -1,14 +1,17 @@
 import { describe, test, expect, beforeAll, afterAll } from "vitest";
 import argon2 from "argon2";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { buildApp } from "../app.js";
 import { testDb, testPool, truncateAuthTables } from "../db/testClient.js";
 import { setSetting } from "../db/settings.js";
 import { users, projects, projectVersions } from "../db/schema.js";
+import { MAX_PROJECTS_PER_USER } from "./projects.js";
 
 const app = buildApp({ db: testDb });
 let cookieA: string;
 let cookieB: string;
+let cookieC: string;
+let cookieD: string;
 
 function manifest(overrides: Record<string, unknown> = {}) {
   return {
@@ -60,13 +63,21 @@ async function put(cookie: string, id: string, m: Record<string, unknown>) {
   });
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 beforeAll(async () => {
   await truncateAuthTables();
   await setSetting(testDb, "account_cap", 200);
   await makeUser("synca@example.com");
   await makeUser("syncb@example.com");
+  await makeUser("syncc@example.com");
+  await makeUser("syncd@example.com");
   cookieA = await signin("synca@example.com");
   cookieB = await signin("syncb@example.com");
+  cookieC = await signin("syncc@example.com");
+  cookieD = await signin("syncd@example.com");
 });
 
 afterAll(async () => {
@@ -230,5 +241,110 @@ describe("the 100-project cap", () => {
     const over = await put(cookieB, "p-cap-overflow", manifest({ id: "p-cap-overflow" }));
     expect(over.statusCode).toBe(403);
     expect(over.json().error).toBe("You've reached the 100-project limit — delete something first.");
+  });
+});
+
+describe("equal-ms tie with differing content (review fix)", () => {
+  test("same updatedAt as head but different content is treated as newer, not silently dropped", async () => {
+    const first = await put(cookieA, "p-tie-1", manifest({ id: "p-tie-1", updatedAt: 5000, title: "Tie A" }));
+    expect(first.json().outcome).toBe("saved");
+
+    const second = await put(cookieA, "p-tie-1", manifest({ id: "p-tie-1", updatedAt: 5000, title: "Tie B" }));
+    expect(second.json().outcome).toBe("saved");
+
+    const got = await app.inject({
+      method: "GET",
+      url: "/api/projects/p-tie-1",
+      cookies: { pide_session: cookieA },
+    });
+    expect(got.json().project.manifest.title).toBe("Tie B");
+
+    const versions = await testDb
+      .select()
+      .from(projectVersions)
+      .where(eq(projectVersions.projectId, "p-tie-1"));
+    expect(versions).toHaveLength(1);
+    expect(versions[0].reason).toBe("overwrite");
+    expect(versions[0].clientUpdatedAt).toBe(5000);
+    expect((versions[0].manifest as { title: string }).title).toBe("Tie A");
+
+    // A truly identical re-push (same ms, same content) stays a real no-op:
+    // no additional version row.
+    const third = await put(cookieA, "p-tie-1", manifest({ id: "p-tie-1", updatedAt: 5000, title: "Tie B" }));
+    expect(third.json().outcome).toBe("saved");
+    const versionsAfter = await testDb
+      .select()
+      .from(projectVersions)
+      .where(eq(projectVersions.projectId, "p-tie-1"));
+    expect(versionsAfter).toHaveLength(1);
+  });
+});
+
+describe("manifests larger than Fastify's default body limit (review fix)", () => {
+  test("a manifest over 1 MiB still gets the exact oversize sentence", async () => {
+    const res = await put(
+      cookieA,
+      "p-huge",
+      manifest({ id: "p-huge", workspace: { xml: "x".repeat(1024 * 1024) } }),
+    );
+    expect(res.statusCode).toBe(413);
+    expect(res.json().error).toBe("This project is too large to sync. Export it as a file instead.");
+  });
+});
+
+describe("tombstone revive respects the cap (review fix)", () => {
+  test("reviving a tombstone when already at the live cap is refused", async () => {
+    for (let i = 0; i < 99; i++) {
+      const r = await put(cookieC, `p-revcap-${i}`, manifest({ id: `p-revcap-${i}` }));
+      expect(r.json().outcome).toBe("saved");
+    }
+    const created = await put(cookieC, "p-revcap-99", manifest({ id: "p-revcap-99" }));
+    expect(created.json().outcome).toBe("saved");
+
+    const del = await app.inject({
+      method: "DELETE",
+      url: "/api/projects/p-revcap-99",
+      cookies: { pide_session: cookieC },
+    });
+    expect(del.statusCode).toBe(200);
+
+    // Back up to 100 live: 99 originals + this new one, plus the one tombstone above.
+    const tail = await put(cookieC, "p-revcap-tail", manifest({ id: "p-revcap-tail" }));
+    expect(tail.json().outcome).toBe("saved");
+
+    const revive = await put(
+      cookieC,
+      "p-revcap-99",
+      manifest({ id: "p-revcap-99", updatedAt: 9999, title: "Revived Over Cap" }),
+    );
+    expect(revive.statusCode).toBe(403);
+    expect(revive.json().error).toBe("You've reached the 100-project limit — delete something first.");
+  });
+});
+
+describe("tombstones are bounded (review fix)", () => {
+  test("tombstoning beyond the cap hard-deletes the oldest tombstoned rows", async () => {
+    for (let i = 0; i < MAX_PROJECTS_PER_USER + 1; i++) {
+      const id = `p-tombbound-${i}`;
+      const created = await put(cookieD, id, manifest({ id }));
+      expect(created.json().outcome).toBe("saved");
+      const del = await app.inject({
+        method: "DELETE",
+        url: `/api/projects/${id}`,
+        cookies: { pide_session: cookieD },
+      });
+      expect(del.statusCode).toBe(200);
+      // Guarantee strictly increasing deleted_at timestamps (Date has ms resolution)
+      // so the "oldest" row is unambiguous.
+      await sleep(5);
+    }
+
+    const owner = (await testDb.select().from(users).where(eq(users.email, "syncd@example.com")))[0];
+    const tombstones = await testDb
+      .select()
+      .from(projects)
+      .where(and(eq(projects.ownerId, owner.id), sql`deleted_at IS NOT NULL`));
+    expect(tombstones.length).toBeLessThanOrEqual(MAX_PROJECTS_PER_USER);
+    expect(tombstones.some((p) => p.id === "p-tombbound-0")).toBe(false);
   });
 });
