@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { desc, eq, ilike, or, sql } from "drizzle-orm";
 import { z } from "zod";
-import { users, emails, emailTokens } from "../db/schema.js";
+import { users, emails, emailTokens, classes, classMembers } from "../db/schema.js";
 import { getSetting, setSetting } from "../db/settings.js";
 import { requireAdmin } from "../auth/guards.js";
 import { destroyAllUserSessions } from "../auth/session.js";
@@ -135,5 +135,29 @@ export function adminRoutes(app: FastifyInstance): void {
       .from(emails);
     const cap = (await getSetting(app.db, "account_cap")) ?? 200;
     return { ok: true, db: "ok", users: userCount, cap, emailsLogged: emailCount };
+  });
+
+  app.get("/api/admin/classes", async () => {
+    const rows = await app.db.select().from(classes);
+    const members = await app.db
+      .select({ member: classMembers, user: users })
+      .from(classMembers)
+      .innerJoin(users, eq(classMembers.userId, users.id));
+    return {
+      classes: rows.map((c) => {
+        const mine = members.filter((m) => m.member.classId === c.id);
+        return {
+          id: c.id,
+          name: c.name,
+          subjectLabel: c.subjectLabel,
+          archived: c.archived,
+          joinMode: c.joinMode,
+          activeMembers: mine.filter((m) => m.member.status === "active").length,
+          teachers: mine
+            .filter((m) => m.member.role === "teacher" && m.member.status === "active")
+            .map((m) => m.user.name),
+        };
+      }),
+    };
   });
 }
