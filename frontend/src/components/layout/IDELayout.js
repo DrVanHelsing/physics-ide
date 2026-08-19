@@ -32,6 +32,7 @@ import DebugMode    from "../DebugMode";
 import ChartOverlay from "../ChartOverlay";
 import DataPanel    from "../DataPanel";
 import TracePromoteDialog from "../TracePromoteDialog";
+import SyncChip     from "../../sync/SyncChip";
 import { BlocksIcon, CodeIcon, GlobeIcon } from "../Icons";
 
 import { fromTraceBuffer, toCsvText, serializeDescriptor } from "../../utils/dataset/dataset";
@@ -497,6 +498,7 @@ export default function IDELayout() {
           {running && <span className="status-dot" />}
           {status.text}
         </span>
+        <SyncChip />
         <span>
           Mode: {mode === "blocks" ? "Blocks" : isCustom ? "Code View Only" : "Code"} | VPython 3.2
         </span>
