@@ -45,12 +45,19 @@ export default function AccountChip() {
       <button
         className="account-chip-btn"
         type="button"
-        onClick={async () => {
-          await signout.mutateAsync();
-          navigate("/");
+        disabled={signout.isPending}
+        onClick={() => {
+          // Sign-out now flushes pending sync first (bounded), so it can take a
+          // moment — show that, and never leave a rejected mutation silent.
+          signout
+            .mutateAsync()
+            .then(() => navigate("/"))
+            .catch((err) => {
+              console.warn("sign-out failed; you are still signed in", err);
+            });
         }}
       >
-        Sign out
+        {signout.isPending ? "Signing out…" : "Sign out"}
       </button>
     </div>
   );

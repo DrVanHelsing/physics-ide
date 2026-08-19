@@ -1549,9 +1549,9 @@ angle = clamp(input_angle, -30, 30)`}</Pre>
                   <tr><th>Project type</th><th>Code editable?</th><th>Notes</th></tr>
                 </thead>
                 <tbody>
-                  <tr><td>Blank Project</td><td>✅ Yes — Code View Only</td><td>Write VPython directly</td></tr>
-                  <tr><td>Code Template</td><td>✅ Yes</td><td>Edit the pre-loaded simulation</td></tr>
-                  <tr><td>Blocks Template</td><td>❌ Read-only mirror</td><td>Shows generated code</td></tr>
+                  <tr><td>Blank Project</td><td>Yes — code view only</td><td>Write VPython directly</td></tr>
+                  <tr><td>Code Template</td><td>Yes</td><td>Edit the pre-loaded simulation</td></tr>
+                  <tr><td>Blocks Template</td><td>No — read-only mirror</td><td>Shows generated code</td></tr>
                 </tbody>
               </table>
 

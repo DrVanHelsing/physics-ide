@@ -1,15 +1,23 @@
 import React, { useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import GravityPlayground from "./GravityPlayground";
+import {
+  BlocksIcon,
+  OrbitIcon,
+  ChartIcon,
+  LocalFirstIcon,
+  ClassroomIcon,
+  PrivacyIcon,
+} from "./WelcomeIcons";
 import { WELCOME_PASSED_SESSION_KEY } from "../constants";
 
 const FEATURES = [
-  { icon: "🧩", title: "Blocks or Python", body: "Start with drag-and-drop blocks, flip to real Python whenever you're ready — same project, both views." },
-  { icon: "🪐", title: "Live 3D simulations", body: "VPython scenes render as your code runs: orbits, springs, collisions, projectiles — watch physics happen." },
-  { icon: "📈", title: "Charts & data", body: "Every run captures data you can plot, fit, and analyse — the data-science half of the lab." },
-  { icon: "💾", title: "Yours, offline", body: "Everything saves to your computer first. Wi-Fi dies mid-lesson? Keep working. Sign in and projects follow you to any computer." },
-  { icon: "🏫", title: "Classrooms", body: "Teachers create classes, share a join code or QR, and manage rosters. Assignments and marking are on the way." },
-  { icon: "🕵️", title: "No surveillance", body: "No tracking, no paste detection, no webcam. Just an honest record of how your work grew." },
+  { Icon: BlocksIcon, title: "Blocks or Python", body: "Start with drag-and-drop blocks, flip to real Python whenever you're ready — same project, both views." },
+  { Icon: OrbitIcon, title: "Live 3D simulations", body: "VPython scenes render as your code runs: orbits, springs, collisions, projectiles — watch physics happen." },
+  { Icon: ChartIcon, title: "Charts & data", body: "Every run captures data you can plot, fit, and analyse — the data-science half of the lab." },
+  { Icon: LocalFirstIcon, title: "Yours, offline", body: "Everything saves to your computer first. Wi-Fi dies mid-lesson? Keep working. Sign in and projects follow you to any computer." },
+  { Icon: ClassroomIcon, title: "Classrooms", body: "Teachers create classes, share a join code or QR, and manage rosters. Assignments and marking are on the way." },
+  { Icon: PrivacyIcon, title: "No surveillance", body: "No tracking, no paste detection, no webcam. Just an honest record of how your work grew." },
 ];
 
 export default function WelcomePage() {
@@ -65,7 +73,7 @@ export default function WelcomePage() {
       <section className="welcome-features">
         {FEATURES.map((f) => (
           <article key={f.title} className="welcome-card welcome-reveal">
-            <span className="welcome-card__icon" aria-hidden="true">{f.icon}</span>
+            <span className="welcome-card__icon" aria-hidden="true"><f.Icon /></span>
             <h2>{f.title}</h2>
             <p>{f.body}</p>
           </article>

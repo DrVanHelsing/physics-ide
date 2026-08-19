@@ -4462,7 +4462,8 @@ mark.help-search-highlight {
   background: var(--bg-surface); border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 8px; padding: 18px;
 }
-.welcome-card__icon { font-size: 26px; }
+.welcome-card__icon { display: inline-flex; color: var(--accent-bright); }
+.welcome-card__icon svg { width: 28px; height: 28px; }
 .welcome-card h2 { font-size: 16px; margin: 10px 0 6px; }
 .welcome-card p { font-size: 13px; color: var(--text-dim); line-height: 1.55; margin: 0; }
 
