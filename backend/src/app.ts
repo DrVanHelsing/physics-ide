@@ -6,6 +6,7 @@ import { createDevMailer, type Mailer } from "./email/mailer.js";
 import { authRoutes } from "./routes/auth.js";
 import { adminRoutes } from "./routes/admin.js";
 import { classRoutes } from "./routes/classes.js";
+import { memberRoutes } from "./routes/members.js";
 
 export interface AppDeps {
   db: Db;
@@ -37,6 +38,7 @@ export function buildApp(deps: AppDeps): FastifyInstance {
   app.register(authRoutes);
   app.register(adminRoutes);
   app.register(classRoutes);
+  app.register(memberRoutes);
 
   return app;
 }
