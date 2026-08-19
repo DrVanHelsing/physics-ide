@@ -66,7 +66,9 @@ export function useProject() {
   const debouncedSaveRef = useRef(null);
   if (!debouncedSaveRef.current) {
     debouncedSaveRef.current = debounce(() => {
-      saveCurrentRef.current?.();
+      Promise.resolve(saveCurrentRef.current?.()).catch((err) => {
+        console.warn("autosave: failed to persist current project:", err);
+      });
     }, MANIFEST_AUTOSAVE_MS);
   }
   useEffect(() => {
