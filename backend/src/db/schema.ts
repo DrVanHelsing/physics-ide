@@ -1,4 +1,4 @@
-import { pgTable, text, jsonb, bigserial, uuid, timestamp, boolean, unique } from "drizzle-orm/pg-core";
+import { pgTable, text, jsonb, bigserial, uuid, timestamp, boolean, unique, bigint, primaryKey, index, foreignKey } from "drizzle-orm/pg-core";
 
 /** Admin-adjustable switches — first row: account_cap = 200 (spec §3.1). */
 export const settings = pgTable("settings", {
@@ -113,3 +113,46 @@ export const invites = pgTable("invites", {
   acceptedBy: uuid("accepted_by"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+/** Cloud copies of local-first projects (spec §6.3). id is CLIENT-minted; pk is (owner, id). */
+export const projects = pgTable(
+  "projects",
+  {
+    id: text("id").notNull(),
+    ownerId: uuid("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    goal: text("goal").notNull(),
+    projectType: text("project_type").notNull(),
+    manifest: jsonb("manifest").notNull(),
+    /** The manifest's own updatedAt (epoch ms) — the most-recent-wins key (spec §15.2). */
+    clientUpdatedAt: bigint("client_updated_at", { mode: "number" }).notNull(),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.ownerId, t.id] })],
+);
+
+/** Append-only history: overwritten heads, conflict losers, restore snapshots (spec §6.3/§8.1). */
+export const projectVersions = pgTable(
+  "project_versions",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    ownerId: uuid("owner_id").notNull(),
+    projectId: text("project_id").notNull(),
+    manifest: jsonb("manifest").notNull(),
+    clientUpdatedAt: bigint("client_updated_at", { mode: "number" }).notNull(),
+    savedBy: uuid("saved_by").notNull(),
+    reason: text("reason").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("project_versions_owner_project_idx").on(t.ownerId, t.projectId),
+    foreignKey({
+      columns: [t.ownerId, t.projectId],
+      foreignColumns: [projects.ownerId, projects.id],
+    }).onDelete("cascade"),
+  ],
+);
