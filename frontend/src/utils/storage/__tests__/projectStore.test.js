@@ -11,6 +11,8 @@ import {
   deleteProject,
   exportProjectJson,
   importProjectFromText,
+  onProjectSaved,
+  onProjectDeleted,
   _resetAllProjectStorageForTests,
 } from "../projectStore";
 import { createManifest } from "../../manifest/factory";
@@ -142,5 +144,29 @@ describe("saveProject timestamp preservation (sync)", () => {
     const reloaded = await loadProject(m.id);
     expect(reloaded.updatedAt).toBe(99999);
     expect(reloaded.title).toBe("From cloud");
+  });
+});
+
+describe("project store listeners", () => {
+  test("onProjectSaved fires after successful saves with the stamped manifest; unsubscribe works", async () => {
+    const seen = [];
+    const un = onProjectSaved((m, opts) => seen.push([m.id, m.updatedAt, opts?.preserveTimestamp === true]));
+    const m1 = createManifest({ goal: "physics" });
+    const saved = await saveProject(m1);
+    expect(seen).toHaveLength(1);
+    expect(seen[0][0]).toBe(m1.id);
+    expect(seen[0][1]).toBe(saved.updatedAt);
+    un();
+    await saveProject(saved);
+    expect(seen).toHaveLength(1);
+  });
+
+  test("onProjectDeleted fires with the id after removal; unsubscribe works", async () => {
+    const saved = await saveProject(createManifest({ goal: "physics" }));
+    const seen = [];
+    const un = onProjectDeleted((id) => seen.push(id));
+    await deleteProject(saved.id);
+    expect(seen).toEqual([saved.id]);
+    un();
   });
 });

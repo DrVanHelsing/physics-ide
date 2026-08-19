@@ -38,6 +38,20 @@ const runStore = localforage.createInstance({
   storeName: "runs",
 });
 
+/* ── Change listeners (sync wiring; Plan 4) ─────────────────── */
+const saveListeners = new Set();
+const deleteListeners = new Set();
+
+export function onProjectSaved(fn) {
+  saveListeners.add(fn);
+  return () => saveListeners.delete(fn);
+}
+
+export function onProjectDeleted(fn) {
+  deleteListeners.add(fn);
+  return () => deleteListeners.delete(fn);
+}
+
 /* ── List management ──────────────────────────────────────── */
 
 function summarize(manifest) {
@@ -97,6 +111,13 @@ export async function saveProject(manifest, opts = {}) {
     : { ...manifest, updatedAt: Date.now() };
   await projectStore.setItem(MANIFEST_PREFIX + stamped.id, stamped);
   await upsertSummary(stamped);
+  for (const fn of saveListeners) {
+    try {
+      fn(stamped, opts);
+    } catch {
+      /* listeners never break saves */
+    }
+  }
   return stamped;
 }
 
@@ -107,6 +128,13 @@ export async function deleteProject(id) {
   // Clean up associated dataset and run blobs.
   await pruneStoreByPrefix(datasetStore, `dataset:`, (key) => key.includes(`:${id}:`) || keyOwnedByProject(key, id));
   await pruneStoreByPrefix(runStore, `run:`, (key) => keyOwnedByProject(key, id));
+  for (const fn of deleteListeners) {
+    try {
+      fn(id);
+    } catch {
+      /* same */
+    }
+  }
 }
 
 function keyOwnedByProject(_key, _projectId) {

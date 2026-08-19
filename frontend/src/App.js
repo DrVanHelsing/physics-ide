@@ -7,6 +7,7 @@
 import React from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import SyncProvider           from "./sync/SyncProvider";
 import { ThemeProvider }      from "./contexts/ThemeContext";
 import { SimulationProvider } from "./contexts/SimulationContext";
 import { ProjectProvider }    from "./contexts/ProjectContext";
@@ -35,37 +36,39 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <ThemeProvider>
-          <SimulationProvider>
-            <ProjectProvider>
-              <DebugProvider>
-                <TraceProvider>
-                  <ErrorBoundary>
-                    <Routes>
-                      <Route path="/" element={<IDELayout />} />
-                      <Route path="/auth/signup" element={<SignUpPage />} />
-                      <Route path="/auth/signin" element={<SignInPage />} />
-                      <Route path="/auth/check-email" element={<CheckEmailPage />} />
-                      <Route path="/auth/confirm" element={<ConfirmPage />} />
-                      <Route path="/auth/forgot" element={<ForgotPage />} />
-                      <Route path="/auth/reset" element={<ResetPage />} />
-                      <Route path="/profile" element={<ProfilePage />} />
-                      <Route path="/admin" element={<AdminConsole />} />
-                      <Route path="/classes" element={<ClassesHome />} />
-                      <Route path="/classes/:id" element={<AssignmentsStub />} />
-                      <Route path="/classes/:id/people" element={<PeopleTab />} />
-                      <Route path="/classes/:id/settings" element={<SettingsTab />} />
-                      <Route path="/join" element={<JoinClassPage />} />
-                      <Route path="/join/invite" element={<InviteLandingPage />} />
-                      <Route path="/join/:code" element={<JoinClassPage />} />
-                      <Route path="*" element={<Navigate to="/" replace />} />
-                    </Routes>
-                  </ErrorBoundary>
-                </TraceProvider>
-              </DebugProvider>
-            </ProjectProvider>
-          </SimulationProvider>
-        </ThemeProvider>
+        <SyncProvider>
+          <ThemeProvider>
+            <SimulationProvider>
+              <ProjectProvider>
+                <DebugProvider>
+                  <TraceProvider>
+                    <ErrorBoundary>
+                      <Routes>
+                        <Route path="/" element={<IDELayout />} />
+                        <Route path="/auth/signup" element={<SignUpPage />} />
+                        <Route path="/auth/signin" element={<SignInPage />} />
+                        <Route path="/auth/check-email" element={<CheckEmailPage />} />
+                        <Route path="/auth/confirm" element={<ConfirmPage />} />
+                        <Route path="/auth/forgot" element={<ForgotPage />} />
+                        <Route path="/auth/reset" element={<ResetPage />} />
+                        <Route path="/profile" element={<ProfilePage />} />
+                        <Route path="/admin" element={<AdminConsole />} />
+                        <Route path="/classes" element={<ClassesHome />} />
+                        <Route path="/classes/:id" element={<AssignmentsStub />} />
+                        <Route path="/classes/:id/people" element={<PeopleTab />} />
+                        <Route path="/classes/:id/settings" element={<SettingsTab />} />
+                        <Route path="/join" element={<JoinClassPage />} />
+                        <Route path="/join/invite" element={<InviteLandingPage />} />
+                        <Route path="/join/:code" element={<JoinClassPage />} />
+                        <Route path="*" element={<Navigate to="/" replace />} />
+                      </Routes>
+                    </ErrorBoundary>
+                  </TraceProvider>
+                </DebugProvider>
+              </ProjectProvider>
+            </SimulationProvider>
+          </ThemeProvider>
+        </SyncProvider>
       </BrowserRouter>
     </QueryClientProvider>
   );
