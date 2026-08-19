@@ -45,3 +45,8 @@ export const GLOWSCRIPT_HOST_ID = "glowscript-host";
    signed in. Read synchronously by ProjectContext's bootstrap so the legacy
    v1 resurrection doesn't race a signed-in first cloud pull. */
 export const SIGNED_IN_HINT_KEY = "pide_signed_in_hint";
+
+// ── Welcome screen ────────────────────────────────────────────────────────
+/* localStorage key: stamped once the visitor has seen (or skipped) the welcome
+   screen, so "/" never redirects them again. */
+export const WELCOME_SEEN_KEY = "pide_welcome_seen";
