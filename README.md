@@ -66,6 +66,14 @@ My classes), students join by code, link, QR, or email invite, and the People ta
 roster (waiting-list approval, co-teachers, teaching assistants, invites). Invite emails land in
 the admin console's pretend inbox like everything else.
 
+Signed-in work now syncs: projects save to your computer first (always), then quietly to your
+account — the status chip in the status bar tells the truth (`Synced` / `Waiting for connection`).
+Most-recent-edit-wins across machines, with the losing version kept in the project's server-side
+history (last 20 versions). Guests stay fully local; at first sign-in the app offers to bring
+guest projects into the account. Caps: 100 projects per account, 400 KB per project.
+First-time visitors land on `/welcome` — an animated tour of the IDE with three doors: use it
+as a guest, create an account, or sign in. Returning visitors go straight to the IDE.
+
 ```bash
 npm run test           # all workspace test suites (Vitest)
 npm run check:blocks   # verify block registry has no duplicates
