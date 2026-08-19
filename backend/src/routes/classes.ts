@@ -72,7 +72,7 @@ export function classRoutes(app: FastifyInstance): void {
       classes: rows.map((c) => {
         const m = byId.get(c.id)!;
         return {
-          ...toClassSummary(c, m.role, m.role === "teacher"),
+          ...toClassSummary(c, m.role, m.role === "teacher" && m.status === "active"),
           myStatus: m.status,
         };
       }),
@@ -91,7 +91,7 @@ export function classRoutes(app: FastifyInstance): void {
       .where(and(eq(classMembers.classId, id), eq(classMembers.status, "active")));
     return {
       class: {
-        ...toClassSummary(c, m.role, m.role === "teacher"),
+        ...toClassSummary(c, m.role, m.role === "teacher" && m.status === "active"),
         myStatus: m.status,
         activeMembers: count,
       },
@@ -117,6 +117,7 @@ export function classRoutes(app: FastifyInstance): void {
     if (parsed.data.name !== undefined) patch.name = parsed.data.name;
     if (parsed.data.subjectLabel !== undefined) patch.subjectLabel = parsed.data.subjectLabel;
     if (parsed.data.joinMode !== undefined) patch.joinMode = parsed.data.joinMode;
+    if (Object.keys(patch).length === 0) return { class: toClassSummary(c, "teacher", true) };
     const updated = await app.db.transaction(async (tx) => {
       const [row] = await tx.update(classes).set(patch).where(eq(classes.id, id)).returning();
       await logEvent(tx, "class.updated", req.user!.id, { classId: id, patch });

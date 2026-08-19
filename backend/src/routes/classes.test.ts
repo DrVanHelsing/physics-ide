@@ -186,3 +186,69 @@ describe("settings, code regeneration, archive", () => {
     expect(un.statusCode).toBe(200);
   });
 });
+
+describe("PATCH edge case and join-code visibility by role+status", () => {
+  test("PATCH with an empty body returns 200 unchanged, not a 500", async () => {
+    const [before] = await testDb.select().from(classes).where(eq(classes.id, classId));
+    const res = await app.inject({
+      method: "PATCH",
+      url: `/api/classes/${classId}`,
+      cookies: { pide_session: teacherCookie },
+      payload: {},
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().class.name).toBe(before.name);
+    expect(res.json().class.joinMode).toBe(before.joinMode);
+    expect(res.json().class.joinCode).toBe(before.joinCode);
+  });
+
+  test("PATCH with unknown keys also returns 200 unchanged, not a 500", async () => {
+    const [before] = await testDb.select().from(classes).where(eq(classes.id, classId));
+    const res = await app.inject({
+      method: "PATCH",
+      url: `/api/classes/${classId}`,
+      cookies: { pide_session: teacherCookie },
+      payload: { foo: 1 },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().class.name).toBe(before.name);
+  });
+
+  test("an active student member sees their role but not the join code", async () => {
+    const [kid] = await testDb.select().from(users).where(eq(users.email, "kid@example.com"));
+    await testDb.insert(classMembers).values({ classId, userId: kid.id, role: "student", status: "active" });
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/classes/${classId}`,
+      cookies: { pide_session: studentCookie },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().class.myRole).toBe("student");
+    expect(res.json().class.joinCode).toBeUndefined();
+  });
+
+  test("a waiting teacher-role member does not see the join code", async () => {
+    const [pending] = await testDb
+      .insert(users)
+      .values({
+        name: "pending",
+        email: "pending@example.com",
+        passwordHash: await argon2.hash("a-long-password", { type: argon2.argon2id }),
+        emailConfirmedAt: new Date(),
+        consentAt: new Date(),
+      })
+      .returning();
+    await testDb
+      .insert(classMembers)
+      .values({ classId, userId: pending.id, role: "teacher", status: "waiting" });
+    const pendingCookie = await signin("pending@example.com");
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/classes/${classId}`,
+      cookies: { pide_session: pendingCookie },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().class.myRole).toBe("teacher");
+    expect(res.json().class.joinCode).toBeUndefined();
+  });
+});
