@@ -214,3 +214,48 @@ describe("cap, emails, health", () => {
     expect(typeof res.json().emailsLogged).toBe("number");
   });
 });
+
+describe("classes list", () => {
+  test("admin sees every class with size and teacher names; read-only", async () => {
+    const [t] = await testDb
+      .insert(users)
+      .values({
+        name: "List Teacher",
+        email: "listteach@example.com",
+        passwordHash: await argon2.hash("a-long-password", { type: argon2.argon2id }),
+        isTeacher: true,
+        emailConfirmedAt: new Date(),
+        consentAt: new Date(),
+      })
+      .returning();
+    const signinRes = await app.inject({
+      method: "POST",
+      url: "/api/auth/signin",
+      payload: { email: "listteach@example.com", password: "a-long-password" },
+    });
+    const tCookie = signinRes.cookies.find((c) => c.name === "pide_session")!.value;
+    await app.inject({
+      method: "POST",
+      url: "/api/classes",
+      cookies: { pide_session: tCookie },
+      payload: { name: "Admin Visible Class" },
+    });
+
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/admin/classes",
+      cookies: { pide_session: adminCookie },
+    });
+    expect(res.statusCode).toBe(200);
+    const list = res.json().classes as Array<{
+      name: string;
+      activeMembers: number;
+      teachers: string[];
+    }>;
+    const row = list.find((c) => c.name === "Admin Visible Class");
+    expect(row).toBeDefined();
+    expect(row!.activeMembers).toBe(1);
+    expect(row!.teachers).toContain("List Teacher");
+    void t;
+  });
+});
