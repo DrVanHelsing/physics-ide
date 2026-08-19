@@ -4336,3 +4336,59 @@ mark.help-search-highlight {
   font-size: 12px;
 }
 .admin-health { list-style: none; padding: 0; font-size: 14px; display: flex; flex-direction: column; gap: 6px; }
+
+/* ---- Classes (Plan 3) ---- */
+.classes-page { min-height: 100vh; background: var(--bg-base); color: var(--text); }
+.classes-header {
+  padding: 18px 24px 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-surface);
+}
+.classes-header h1 { font-size: 18px; color: var(--text-bright); margin: 10px 0 12px; }
+.classes-body { padding: 20px 24px; display: flex; flex-direction: column; gap: 14px; max-width: 1000px; }
+.classes-actions { display: flex; gap: 8px; }
+.classes-newform { max-width: 420px; border: 1px solid var(--border); border-radius: 6px; padding: 14px; }
+.classes-wall { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.class-card {
+  display: block;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px;
+  color: var(--text);
+  text-decoration: none;
+}
+.class-card:hover { background: var(--bg-card-hover); }
+.class-card-name { color: var(--text-bright); font-size: 15px; }
+.class-card-label { color: var(--text-dim); font-size: 12px; margin-top: 2px; }
+.class-card-meta { color: var(--text-muted); font-size: 11px; margin-top: 8px; }
+.class-card--archived { opacity: 0.7; }
+.classes-archived summary { cursor: pointer; color: var(--text-dim); font-size: 13px; margin: 6px 0; }
+.class-archived-badge {
+  margin-left: 8px;
+  font-size: 10px;
+  color: var(--yellow);
+  border: 1px solid var(--yellow);
+  border-radius: 3px;
+  padding: 0 4px;
+  vertical-align: middle;
+}
+.join-panel { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
+.join-code-big {
+  font-family: Consolas, monospace;
+  font-size: 28px;
+  letter-spacing: 0.08em;
+  color: var(--text-bright);
+  border: 1px dashed var(--border-hl);
+  border-radius: 6px;
+  padding: 10px 16px;
+}
+.join-qr { background: #fff; padding: 8px; border-radius: 6px; }
+.roster-badge {
+  font-size: 10px;
+  border: 1px solid var(--border-hl);
+  border-radius: 3px;
+  padding: 0 4px;
+  margin-left: 6px;
+  color: var(--text-dim);
+}
