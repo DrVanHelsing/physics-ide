@@ -1,5 +1,5 @@
 import type { FastifyError, FastifyInstance } from "fastify";
-import { and, eq, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { projects, projectVersions, users } from "../db/schema.js";
 import { requireUser } from "../auth/guards.js";
@@ -272,5 +272,93 @@ export function projectRoutes(app: FastifyInstance): void {
     });
     void reply;
     return { ok: true };
+  });
+
+  app.get("/api/projects/:id/versions", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const heads = await app.db
+      .select()
+      .from(projects)
+      .where(and(eq(projects.ownerId, req.user!.id), eq(projects.id, id)));
+    if (!heads[0]) return reply.code(404).send({ error: "No such project." });
+    const rows = await app.db
+      .select()
+      .from(projectVersions)
+      .where(and(eq(projectVersions.ownerId, req.user!.id), eq(projectVersions.projectId, id)))
+      .orderBy(desc(projectVersions.id));
+    return {
+      versions: rows.map((v) => ({
+        versionId: v.id,
+        clientUpdatedAt: v.clientUpdatedAt,
+        reason: v.reason,
+        savedAt: v.createdAt.toISOString(),
+      })),
+    };
+  });
+
+  app.post("/api/projects/:id/versions/:versionId/restore", async (req, reply) => {
+    const { id, versionId } = req.params as { id: string; versionId: string };
+    const vid = Number(versionId);
+    if (!Number.isInteger(vid)) return reply.code(404).send({ error: "No such version." });
+    const now = Date.now();
+    // A discriminated result distinguishes "no such version" (404) from "refused by
+    // the cap" (403) — reviving a tombstoned head re-adds a live project, so it must
+    // be checked against the same cap as PUT's tombstone-revive path (isAtCap).
+    const result = await app.db.transaction(async (tx) => {
+      const heads = await tx
+        .select()
+        .from(projects)
+        .where(and(eq(projects.ownerId, req.user!.id), eq(projects.id, id)))
+        .for("update");
+      const head = heads[0];
+      if (!head) return { kind: "not-found" as const };
+      const versions = await tx
+        .select()
+        .from(projectVersions)
+        .where(
+          and(
+            eq(projectVersions.id, vid),
+            eq(projectVersions.ownerId, req.user!.id),
+            eq(projectVersions.projectId, id),
+          ),
+        );
+      const version = versions[0];
+      if (!version) return { kind: "not-found" as const };
+
+      if (head.deletedAt && (await isAtCap(tx, req.user!.id))) {
+        // Restoring a live project never touches the cap; reviving a tombstoned
+        // one does, same as PUT's revive path.
+        return { kind: "cap" as const };
+      }
+
+      await tx.insert(projectVersions).values({
+        ownerId: req.user!.id,
+        projectId: id,
+        manifest: head.manifest,
+        clientUpdatedAt: head.clientUpdatedAt,
+        savedBy: req.user!.id,
+        reason: "restore",
+      });
+      const restored: Record<string, unknown> = {
+        ...(version.manifest as Record<string, unknown>),
+        updatedAt: now,
+      };
+      await tx
+        .update(projects)
+        .set({
+          manifest: restored,
+          clientUpdatedAt: now,
+          title: (restored.title as string) ?? head.title,
+          deletedAt: null,
+          updatedAt: new Date(),
+        })
+        .where(and(eq(projects.ownerId, req.user!.id), eq(projects.id, id)));
+      await logEvent(tx, "project.restored", req.user!.id, { projectId: id, versionId: vid });
+      return { kind: "restored" as const };
+    });
+    if (result.kind === "not-found") return reply.code(404).send({ error: "No such version." });
+    if (result.kind === "cap") return reply.code(403).send({ error: CAP_ERROR });
+    await pruneVersions(app.db, req.user!.id, id);
+    return { ok: true, clientUpdatedAt: now };
   });
 }
