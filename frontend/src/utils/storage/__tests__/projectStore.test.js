@@ -128,3 +128,19 @@ describe("projectStore export / import", () => {
     await expect(importProjectFromText("[]")).rejects.toThrow();
   });
 });
+
+describe("saveProject timestamp preservation (sync)", () => {
+  test("default stamps now; preserveTimestamp keeps the manifest's own updatedAt", async () => {
+    const m = createManifest({ goal: "physics" });
+    m.updatedAt = 12345;
+    const stamped = await saveProject(m);
+    expect(stamped.updatedAt).toBeGreaterThan(12345);
+
+    const pulled = { ...stamped, updatedAt: 99999, title: "From cloud" };
+    const preserved = await saveProject(pulled, { preserveTimestamp: true });
+    expect(preserved.updatedAt).toBe(99999);
+    const reloaded = await loadProject(m.id);
+    expect(reloaded.updatedAt).toBe(99999);
+    expect(reloaded.title).toBe("From cloud");
+  });
+});
