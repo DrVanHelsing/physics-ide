@@ -61,6 +61,11 @@ npm run dev        # API on :4000 + app on :3000
 
 Accounts are live in local dev: sign up from the start menu (student or teacher), and manage people, the 200-account cap, and the pretend email inbox from the admin console (sign in as the seeded admin — dev default password `admin-dev-password`, override with `ADMIN_EMAIL` / `ADMIN_NAME` / `ADMIN_PASSWORD` env vars before running the seed). No real email is sent in local dev; every message lands in the admin console's Emails tab.
 
+Classrooms are live too: teacher accounts create classes from **My classes** (account chip →
+My classes), students join by code, link, QR, or email invite, and the People tab manages the
+roster (waiting-list approval, co-teachers, teaching assistants, invites). Invite emails land in
+the admin console's pretend inbox like everything else.
+
 ```bash
 npm run test           # all workspace test suites (Vitest)
 npm run check:blocks   # verify block registry has no duplicates
