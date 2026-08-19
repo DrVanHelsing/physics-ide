@@ -7,6 +7,7 @@ import { authRoutes } from "./routes/auth.js";
 import { adminRoutes } from "./routes/admin.js";
 import { classRoutes } from "./routes/classes.js";
 import { memberRoutes } from "./routes/members.js";
+import { inviteRoutes } from "./routes/invites.js";
 
 export interface AppDeps {
   db: Db;
@@ -39,6 +40,7 @@ export function buildApp(deps: AppDeps): FastifyInstance {
   app.register(adminRoutes);
   app.register(classRoutes);
   app.register(memberRoutes);
+  app.register(inviteRoutes);
 
   return app;
 }

@@ -43,3 +43,33 @@ Time:  ${p.time}
 Review it in the admin console: ${p.consoleUrl}`,
   };
 }
+
+export function classInvite(p: {
+  className: string;
+  inviterName: string;
+  joinUrl: string;
+  role: "student" | "ta" | "teacher";
+}) {
+  const subject =
+    p.role === "ta"
+      ? `You're invited to assist ${p.className} — Physics IDE`
+      : `You're invited to ${p.className} — Physics IDE`;
+  const roleLine =
+    p.role === "student"
+      ? `${p.inviterName} has invited you to join their class.`
+      : p.role === "ta"
+        ? `${p.inviterName} has invited you to be a teaching assistant.`
+        : `${p.inviterName} has invited you to co-teach their class.`;
+  return {
+    subject,
+    text: `Hi,
+
+${roleLine}
+
+Class: ${p.className}
+
+Join here: ${p.joinUrl}
+
+If you don't have an account yet, the link will walk you through signing up first.`,
+  };
+}
