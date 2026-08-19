@@ -47,8 +47,16 @@ export function shouldDropLocalCopy({ meta, manifest, pendingIds }) {
  * the signout request still goes out promptly (leaving the session alive on a
  * shared machine is the worse failure). Anything that didn't make it is kept
  * on disk by shouldDropLocalCopy above.
+ *
+ * `Promise.race` cannot cancel the losing drain, so on timeout it keeps running
+ * DETACHED. That is safe only because of the engine's epoch: `reset()` (which
+ * this sign-out path and SyncProvider both run on the account transition) bumps
+ * it, and the detached loop stops before dispatching anything further — so no
+ * request of the departing user's can land under the next user's cookie.
+ * `ownerId` is the departing user's id, snapshotted by the caller before the
+ * signout request, so nothing depends on who is signed in later.
  */
-export async function flushPendingSyncBeforeSignOut(timeoutMs = SIGN_OUT_FLUSH_TIMEOUT_MS) {
+export async function flushPendingSyncBeforeSignOut(ownerId, timeoutMs = SIGN_OUT_FLUSH_TIMEOUT_MS) {
   let timer = null;
   try {
     const engine = await getGlobalSyncEngine();
@@ -58,7 +66,7 @@ export async function flushPendingSyncBeforeSignOut(timeoutMs = SIGN_OUT_FLUSH_T
         resolve();
       }, timeoutMs);
     });
-    await Promise.race([engine.drainPending(), bound]);
+    await Promise.race([engine.drainPending(ownerId), bound]);
   } catch (err) {
     console.warn("sign-out: final sync push failed; work stays on this computer", err);
   } finally {

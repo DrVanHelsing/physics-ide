@@ -53,7 +53,10 @@ export function useSignout() {
     mutationFn: async () => {
       // Push anything still parked while the session cookie is valid — after
       // the request below it would 401. Never throws, never blocks sign-out.
-      await flushPendingSyncBeforeSignOut();
+      // The departing user's id is snapshotted HERE so the flush stamps meta
+      // for them, not for whoever signs in next.
+      const departingId = qc.getQueryData(ME_KEY)?.id ?? null;
+      await flushPendingSyncBeforeSignOut(departingId);
       return api("/api/auth/signout", { method: "POST", body: {} });
     },
     onSuccess: async () => {
