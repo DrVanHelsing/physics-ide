@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { JoinByCodeInputSchema } from "@physics-ide/shared";
 import { classes, classMembers, users } from "../db/schema.js";
 import { requireConfirmed } from "../auth/guards.js";
@@ -25,20 +25,29 @@ export function memberRoutes(app: FastifyInstance): void {
     if (existing) return reply.code(409).send({ error: "You're already in this class." });
 
     const status = c.joinMode === "approval" ? "waiting" : "active";
-    await app.db.transaction(async (tx) => {
-      await tx.insert(classMembers).values({
-        classId: c.id,
-        userId: req.user!.id,
-        role: "student",
-        status,
+    try {
+      await app.db.transaction(async (tx) => {
+        await tx.insert(classMembers).values({
+          classId: c.id,
+          userId: req.user!.id,
+          role: "student",
+          status,
+        });
+        await logEvent(
+          tx,
+          status === "active" ? "class.joined" : "class.join_requested",
+          req.user!.id,
+          { classId: c.id },
+        );
       });
-      await logEvent(
-        tx,
-        status === "active" ? "class.joined" : "class.join_requested",
-        req.user!.id,
-        { classId: c.id },
-      );
-    });
+    } catch (err) {
+      // check-then-insert is TOCTOU under concurrent joins; the unique
+      // (classId, userId) constraint is the real guard against a double join.
+      if (pgErrorCode(err) === "23505") {
+        return reply.code(409).send({ error: "You're already in this class." });
+      }
+      throw err;
+    }
     return { ok: true, classId: c.id, className: c.name, status };
   });
 
@@ -108,29 +117,52 @@ export function memberRoutes(app: FastifyInstance): void {
       if (await sendClassAuthError(reply, err)) return;
       throw err;
     }
-    const target = await getMembership(app.db, id, userId);
-    if (!target) return reply.code(404).send({ error: "Not a member of this class." });
-    if (target.role === "teacher") {
-      const teachers = await app.db
-        .select()
-        .from(classMembers)
-        .where(
-          and(
-            eq(classMembers.classId, id),
-            eq(classMembers.role, "teacher"),
-            eq(classMembers.status, "active"),
-          ),
-        );
-      if (teachers.length <= 1) {
+    try {
+      await app.db.transaction(async (tx) => {
+        // Lock the class row so two concurrent removals in this class serialize
+        // instead of both reading the active-teacher count before either deletes.
+        await tx.execute(sql`SELECT id FROM classes WHERE id = ${id} FOR UPDATE`);
+        const [target] = await tx
+          .select()
+          .from(classMembers)
+          .where(and(eq(classMembers.classId, id), eq(classMembers.userId, userId)));
+        if (!target) throw new MemberNotFound();
+        if (target.role === "teacher" && target.status === "active") {
+          const teachers = await tx
+            .select()
+            .from(classMembers)
+            .where(
+              and(
+                eq(classMembers.classId, id),
+                eq(classMembers.role, "teacher"),
+                eq(classMembers.status, "active"),
+              ),
+            );
+          if (teachers.length <= 1) throw new LastTeacher();
+        }
+        await tx
+          .delete(classMembers)
+          .where(and(eq(classMembers.classId, id), eq(classMembers.userId, userId)));
+        await logEvent(tx, "member.removed", req.user!.id, { classId: id, subject: userId });
+      });
+    } catch (err) {
+      if (err instanceof MemberNotFound) {
+        return reply.code(404).send({ error: "Not a member of this class." });
+      }
+      if (err instanceof LastTeacher) {
         return reply.code(400).send({ error: "A class must keep at least one teacher." });
       }
+      throw err;
     }
-    await app.db.transaction(async (tx) => {
-      await tx
-        .delete(classMembers)
-        .where(and(eq(classMembers.classId, id), eq(classMembers.userId, userId)));
-      await logEvent(tx, "member.removed", req.user!.id, { classId: id, subject: userId });
-    });
     return { ok: true };
   });
+}
+
+class MemberNotFound extends Error {}
+class LastTeacher extends Error {}
+
+/** drizzle 0.44 may wrap driver errors; the pg code then lives on .cause. */
+function pgErrorCode(err: unknown): string | undefined {
+  const e = err as { code?: string; cause?: { code?: string } };
+  return e.code ?? e.cause?.code;
 }
