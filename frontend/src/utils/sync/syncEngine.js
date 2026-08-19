@@ -82,7 +82,14 @@ export function createSyncEngine({ api, store, meta, now = () => Date.now() }) {
       await pushProject(id);
       if (!online) return;
     }
-    setStatus({ state: pending.size === 0 ? "synced" : online ? "error" : "offline" });
+    // Empty `ids` skips the loop entirely, so re-check `online` here too —
+    // otherwise draining an empty queue while offline would falsely claim
+    // "synced" (the early return above never gets a chance to fire).
+    if (!online) {
+      setStatus({ state: "offline" });
+      return;
+    }
+    setStatus({ state: pending.size === 0 ? "synced" : "error" });
   }
 
   async function adoptLocalProject(id, ownerId) {
@@ -117,6 +124,12 @@ export function createSyncEngine({ api, store, meta, now = () => Date.now() }) {
       ({ projects: remoteList } = await api("/api/projects"));
       localList = await store.listProjects();
       metaAll = await meta.listSyncMeta();
+      // A malformed response (missing `projects`) must end reconcile on the
+      // normal "error" status path, not reject with an uncaught TypeError —
+      // keep the shape check inside the same try as the fetch it validates.
+      if (!Array.isArray(remoteList)) {
+        throw new Error("malformed /api/projects response: missing projects array");
+      }
     } catch {
       setStatus({ state: "error" });
       return;
@@ -125,6 +138,13 @@ export function createSyncEngine({ api, store, meta, now = () => Date.now() }) {
     const remoteById = new Map(remoteList.map((r) => [r.id, r]));
     const localById = new Map(localList.map((l) => [l.id, l]));
     let failures = 0;
+    // An empty local index alongside populated sync meta is indistinguishable
+    // from "the local project index is corrupt" — treat that combination as
+    // suspect and skip delete-inference this pass (pulls/imports still run
+    // normally). A later reconcile with a healthy local list resumes
+    // inference; genuine local deletes still propagate immediately via
+    // deleteRemoteProject's own wiring, independent of reconcile.
+    const suspectEmptyLocalIndex = localList.length === 0 && Object.keys(metaAll).length > 0;
 
     for (const r of remoteList) {
       try {
@@ -147,11 +167,14 @@ export function createSyncEngine({ api, store, meta, now = () => Date.now() }) {
           continue;
         }
         if (!local) {
-          if (metaAll[r.id]) {
+          if (metaAll[r.id] && !suspectEmptyLocalIndex) {
             // Known to us before, absent now: it was deleted locally.
             // Propagate the delete instead of re-importing it.
             await deleteOne(r.id);
           } else {
+            // No meta (never seen before), OR the local index looks suspect
+            // (corruption reads the same as "deleted everything" — don't
+            // infer a mass delete from it, just re-pull/import instead).
             const { project } = await api(`/api/projects/${r.id}`);
             await store.saveProject(project.manifest, { preserveTimestamp: true });
             await meta.setSyncMeta(r.id, {
