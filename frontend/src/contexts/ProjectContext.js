@@ -22,6 +22,8 @@ import {
   loadProject,
   saveProject,
   deleteProject,
+  onProjectSaved,
+  onProjectDeleted,
 } from "../utils/storage/projectStore";
 import { readLegacyV1, migrate, LEGACY_V1_KEY } from "../utils/manifest/migrate";
 import { createManifest } from "../utils/manifest/factory";
@@ -85,6 +87,24 @@ export function ProjectProvider({ children }) {
       cancelled = true;
     };
   }, []);
+
+  /* Sync pulls save and delete straight through projectStore, bypassing this
+     provider — subscribe so the start-menu list follows, and close a project
+     that was tombstoned remotely while open. */
+  useEffect(() => {
+    const unsubSaved = onProjectSaved(() => {
+      refreshList();
+    });
+    const unsubDeleted = onProjectDeleted((id) => {
+      refreshList();
+      setActiveProjectId((cur) => (cur === id ? null : cur));
+      setActiveManifest((cur) => (cur && cur.id === id ? null : cur));
+    });
+    return () => {
+      unsubSaved();
+      unsubDeleted();
+    };
+  }, [refreshList]);
 
   const persistActive = useCallback(
     async (next) => {
