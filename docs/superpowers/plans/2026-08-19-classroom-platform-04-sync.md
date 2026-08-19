@@ -1920,12 +1920,13 @@ git commit -m "feat(frontend): guest-project import offer at first sign-in; lega
 > guest. Spec §14's screen list gains this screen by that directive. Copy stays honest (Plan-2
 > precedent): nothing is promised that isn't shipped — assignments are described as "on the way".
 
-**Behavioral contract:** the IDE stays at `/`. A gate wrapping `/` redirects to `/welcome` ONLY
-when ALL of: no `WELCOME_SEEN_KEY` in localStorage, no `SIGNED_IN_HINT_KEY`, and zero local
-projects. Returning guests with work, and signed-in users, are never hijacked. A guest with
-projects but no seen-flag (pre-existing user) is grandfathered: the gate stamps the flag and
-shows the IDE. All three CTA buttons stamp the seen-flag. `/welcome` stays directly reachable
-forever. **No new dependencies** — animation is CSS keyframes + one IntersectionObserver + one
+**Behavioral contract:** the IDE stays at `/`. A gate wrapping `/` redirects any NOT-signed-in
+visitor to `/welcome` once per browser session: the three CTA buttons stamp a sessionStorage
+pass (`WELCOME_PASSED_SESSION_KEY`), so "/" renders the IDE for the rest of that session; a new
+session lands on `/welcome` again. Signed-in visitors (SIGNED_IN_HINT_KEY) always skip it.
+(v2 per user directive 2026-08-19 — replaced the first-visit-only gate; the localStorage
+seen-flag and project-count grandfather are gone.) `/welcome` stays directly reachable forever.
+**No new dependencies** — animation is CSS keyframes + one IntersectionObserver + one
 requestAnimationFrame canvas; `prefers-reduced-motion` disables the decorative motion.
 
 **Files:**
@@ -1936,8 +1937,8 @@ requestAnimationFrame canvas; `prefers-reduced-motion` disables the decorative m
 
 **Interfaces:**
 - Consumes: `SIGNED_IN_HINT_KEY` (Task 9), `listProjects` (projectStore).
-- Produces: `WELCOME_SEEN_KEY = "pide_welcome_seen"` in constants; pure
-  `shouldShowWelcome({seenFlag, signedInHint, projectCount})` exported from WelcomeGate;
+- Produces: `WELCOME_PASSED_SESSION_KEY = "pide_welcome_passed"` in constants; pure
+  `shouldShowWelcome({signedInHint, sessionPassed})` exported from WelcomeGate;
   routes `/welcome` → `<WelcomePage/>` and `/` → `<WelcomeGate><IDELayout/></WelcomeGate>`.
 
 - [ ] **Step 1: The gate (pure logic test-first)**
@@ -2344,7 +2345,7 @@ git commit -m "docs: project sync in quickstart (local-first, status chip, histo
 ## Completion criteria (what Plan 5 may assume)
 
 - `projects` + `project_versions` tables (migration 0003, both DBs); `PUT/GET/LIST/DELETE /api/projects*` with most-recent-wins, archived losers, tombstones, 100-project/400 KB/20-version caps; version list + restore.
-- `saveProject(manifest, {preserveTimestamp})`, `onProjectSaved`/`onProjectDeleted`, the `sync-meta` store, `debounce`, `MANIFEST_AUTOSAVE_MS`, `SIGNED_IN_HINT_KEY`, `WELCOME_SEEN_KEY`, `createSyncEngine`/`getGlobalSyncEngine`, `SyncProvider`, `SyncChip`, `GuestImportPrompt`, `WelcomeGate`/`WelcomePage`/`GravityPlayground` — all at the named paths.
-- `/welcome` is the first screen for brand-new visitors only (no seen-flag, no session hint, no local projects); everyone else lands in the IDE at `/` untouched.
+- `saveProject(manifest, {preserveTimestamp})`, `onProjectSaved`/`onProjectDeleted`, the `sync-meta` store, `debounce`, `MANIFEST_AUTOSAVE_MS`, `SIGNED_IN_HINT_KEY`, `WELCOME_PASSED_SESSION_KEY`, `createSyncEngine`/`getGlobalSyncEngine`, `SyncProvider`, `SyncChip`, `GuestImportPrompt`, `WelcomeGate`/`WelcomePage`/`GravityPlayground` — all at the named paths.
+- `/welcome` is the first screen of each browser session for visitors who are not signed in (no `WELCOME_PASSED_SESSION_KEY` session pass, no `SIGNED_IN_HINT_KEY`); signed-in visitors and anyone who already passed through this session land in the IDE at `/` untouched.
 - Manifests reach the server fresh (3 s debounced autosave); a signed-in device converges on focus/online/sign-in; guests remain fully local; the legacy blob no longer races the first cloud pull.
 - Assignments (Plan 5) can reference a `projects.id` per (owner) for starter-project snapshots and submissions.
