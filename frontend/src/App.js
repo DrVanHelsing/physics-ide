@@ -15,6 +15,8 @@ import { DebugProvider }      from "./contexts/DebugContext";
 import { TraceProvider }      from "./contexts/TraceContext";
 import ErrorBoundary          from "./components/common/ErrorBoundary";
 import IDELayout              from "./components/layout/IDELayout";
+import WelcomeGate            from "./welcome/WelcomeGate";
+import WelcomePage            from "./welcome/WelcomePage";
 import SignUpPage             from "./components/auth/SignUpPage";
 import SignInPage             from "./components/auth/SignInPage";
 import CheckEmailPage         from "./components/auth/CheckEmailPage";
@@ -44,7 +46,8 @@ function App() {
                   <TraceProvider>
                     <ErrorBoundary>
                       <Routes>
-                        <Route path="/" element={<IDELayout />} />
+                        <Route path="/" element={<WelcomeGate><IDELayout /></WelcomeGate>} />
+                        <Route path="/welcome" element={<WelcomePage />} />
                         <Route path="/auth/signup" element={<SignUpPage />} />
                         <Route path="/auth/signin" element={<SignInPage />} />
                         <Route path="/auth/check-email" element={<CheckEmailPage />} />
