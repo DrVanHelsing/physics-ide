@@ -11,23 +11,17 @@ export default function ConfirmPage() {
   const posted = useRef(false);
 
   useEffect(() => {
-    let cancelled = false;
+    if (posted.current) return;
+    posted.current = true;
     (async () => {
-      if (posted.current) return;
-      posted.current = true;
       try {
         await api("/api/auth/confirm", { method: "POST", body: { token } });
-        if (!cancelled) setState("done");
+        setState("done");
       } catch (err) {
-        if (!cancelled) {
-          setState("failed");
-          setMessage(err.message);
-        }
+        setState("failed");
+        setMessage(err.message);
       }
     })();
-    return () => {
-      cancelled = true;
-    };
   }, [token]);
 
   return (

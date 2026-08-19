@@ -4,7 +4,7 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import * as schema from "../db/schema.js";
 import { emails } from "../db/schema.js";
 import { createDevMailer } from "./mailer.js";
-import { confirmEmail, resetEmail, teacherSignupAlert } from "./templates.js";
+import { confirmEmail, resetEmail, teacherSignupAlert, classInvite } from "./templates.js";
 
 const TEST_URL = "postgres://postgres:physics@localhost:5433/physics_ide_test";
 const pool = new pg.Pool({ connectionString: TEST_URL });
@@ -61,5 +61,17 @@ describe("templates", () => {
     for (const needle of ["New Teacher", "t@example.com", "2026-08-18 18:00", "http://x/admin"]) {
       expect(m.text).toContain(needle);
     }
+  });
+
+  test("class invite sanitizes CRLF in a teacher-supplied class name to a single-line subject", () => {
+    const m = classInvite({
+      className: "Physics 101\r\nX-Injected: 1",
+      inviterName: "Ms. Chen",
+      joinUrl: "http://x/join/invite?token=abc",
+      role: "student",
+    });
+    expect(m.subject).not.toMatch(/[\r\n]/);
+    expect(m.subject).toBe("You're invited to Physics 101 X-Injected: 1 — Physics IDE");
+    expect(m.text).toContain("Class: Physics 101 X-Injected: 1");
   });
 });

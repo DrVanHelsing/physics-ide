@@ -104,6 +104,8 @@ The classroom backend ships local-first. These obligations were accepted during 
 - [ ] Make `ADMIN_PASSWORD` mandatory at seed time in production (the seed currently only warns on the dev default).
 - [ ] @fastify/rate-limit's store is in-memory per instance — pin the service to max 1 instance or accept multiplied limits.
 - [ ] Before real email: per-email-address throttle on `/api/auth/forgot` (mail-bomb shape) and wrap the mailer send so a mail failure cannot become a user-existence oracle.
+- [ ] Throttle class-join code guessing, invite batches (50 real emails/request today), and class creation before the site is public.
+- [ ] Note: member removal revokes invites for the member's registered email only — invites sent to other addresses survive (token possession admits; mitigate with teacher-visible revoke + code regenerate).
 
 ## What does NOT belong here
 

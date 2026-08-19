@@ -50,10 +50,13 @@ export function classInvite(p: {
   joinUrl: string;
   role: "student" | "ta" | "teacher";
 }) {
+  // Class names are teacher-supplied free text; a CRLF inside one could inject a
+  // fake header into an email client that parses raw headers from the subject line.
+  const className = p.className.replace(/[\r\n]+/g, " ");
   const subject =
     p.role === "ta"
-      ? `You're invited to assist ${p.className} — Physics IDE`
-      : `You're invited to ${p.className} — Physics IDE`;
+      ? `You're invited to assist ${className} — Physics IDE`
+      : `You're invited to ${className} — Physics IDE`;
   const roleLine =
     p.role === "student"
       ? `${p.inviterName} has invited you to join their class.`
@@ -66,7 +69,7 @@ export function classInvite(p: {
 
 ${roleLine}
 
-Class: ${p.className}
+Class: ${className}
 
 Join here: ${p.joinUrl}
 
