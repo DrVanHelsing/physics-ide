@@ -184,7 +184,7 @@ export default function SyncProvider({ children }) {
     const onFocus = () => engineRef.current?.reconcile(me.id);
     const onOnline = () => {
       engineRef.current?.setOnline(true);
-      engineRef.current?.drainPending();
+      engineRef.current?.drainPending(me.id); // explicit owner: never a live singleton
       engineRef.current?.reconcile(me.id);
     };
     const onOffline = () => engineRef.current?.setOnline(false);

@@ -617,3 +617,78 @@ describe("residual fix: an interrupted sign-out cleanup can't tombstone the clou
     expect(w.remote.get("p-orphan").deleted).toBe(true);
   });
 });
+
+/* Residual round 2, CRITICAL: Promise.race cannot cancel the drain it loses,
+   so the sign-out flush's drain keeps running DETACHED past its 4 s bound. The
+   session cookie is the authority — anything it dispatches after the next user
+   signs in lands on the server under THAT user. reset() bumps an epoch, and
+   every continuation checks it before dispatching. */
+describe("residual fix: detached work can never dispatch across an account transition", () => {
+  test("a drain hung mid-PUT stops dead at reset(): no further api calls, writes or status", async () => {
+    const w = fakeWorld();
+    w.local.set("p-a", m("p-a", 2000));
+    w.local.set("p-b", m("p-b", 3000));
+    let release = () => {};
+    const gate = new Promise((r) => {
+      release = r;
+    });
+    let puts = 0;
+    const realApi = w.api;
+    w.api = vi.fn(async (path, opts = {}) => {
+      if (opts.method === "PUT") {
+        puts += 1;
+        if (puts === 1) await gate; // the first PUT hangs, exactly like a dead link
+      }
+      return realApi(path, opts);
+    });
+    const eng = createSyncEngine({ ...w, now: () => 5 });
+    eng.setOnline(false);
+    await eng.pushProject("p-a", "u-A");
+    await eng.pushProject("p-b", "u-A");
+    eng.setOnline(true);
+
+    const detached = eng.drainPending("u-A"); // the flush's drain; hangs inside PUT p-a
+    await Promise.resolve();
+    await Promise.resolve();
+
+    eng.reset(); // sign-out / next account signs in
+    const callsAtReset = w.api.mock.calls.length;
+    const statusAtReset = eng.getStatus();
+    const seen = [];
+    eng.subscribe((s) => seen.push(s.state));
+
+    release();
+    await detached;
+
+    // The in-flight request can't be recalled, but NOTHING further is dispatched:
+    expect(w.api.mock.calls.length).toBe(callsAtReset);
+    expect(w.remote.has("p-b")).toBe(false); // the second parked id never went out
+    // ...and the stale continuation leaves no trace at all:
+    expect(w.metaMap.has("p-a")).toBe(false); // no bookkeeping written after the account left
+    expect(seen).toEqual([]); // no status writes from a stale epoch
+    expect(eng.getStatus()).toEqual(statusAtReset);
+  });
+
+  test("drainPending stamps the owner it was given, not whoever reconciled last", async () => {
+    const w = fakeWorld();
+    w.local.set("p-a", m("p-a", 2000));
+    const eng = createSyncEngine({ ...w, now: () => 5 });
+    eng.setOnline(false);
+    await eng.pushProject("p-a", "u-A"); // parked under the departing user
+    eng.setOnline(true);
+
+    await eng.reconcile("u-B"); // a different account reconciles in between
+
+    await eng.drainPending("u-A");
+    expect(w.metaMap.get("p-a").ownerId).toBe("u-A");
+    expect(w.remote.get("p-a").clientUpdatedAt).toBe(2000);
+  });
+
+  test("reset() bumps the epoch", async () => {
+    const w = fakeWorld();
+    const eng = createSyncEngine({ ...w, now: () => 5 });
+    const before = eng.getEpoch();
+    eng.reset();
+    expect(eng.getEpoch()).toBe(before + 1);
+  });
+});
