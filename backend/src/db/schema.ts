@@ -1,4 +1,4 @@
-import { pgTable, text, jsonb, bigserial, uuid, timestamp, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, jsonb, bigserial, uuid, timestamp, boolean, unique } from "drizzle-orm/pg-core";
 
 /** Admin-adjustable switches — first row: account_cap = 200 (spec §3.1). */
 export const settings = pgTable("settings", {
@@ -62,5 +62,54 @@ export const emails = pgTable("emails", {
   subject: text("subject").notNull(),
   bodyText: text("body_text").notNull(),
   status: text("status").notNull().default("dev"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Classrooms (spec §4). joinMode: "open" | "approval" | "paused". */
+export const classes = pgTable("classes", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  subjectLabel: text("subject_label"),
+  joinCode: text("join_code").notNull().unique(),
+  joinMode: text("join_mode").notNull().default("open"),
+  archived: boolean("archived").notNull().default(false),
+  createdBy: uuid("created_by")
+    .notNull()
+    .references(() => users.id),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Who is in a class, wearing which hat (spec §2). status: "active" | "waiting". */
+export const classMembers = pgTable(
+  "class_members",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    classId: uuid("class_id")
+      .notNull()
+      .references(() => classes.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    role: text("role").notNull(),
+    status: text("status").notNull().default("active"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [unique("class_members_class_user_uq").on(t.classId, t.userId)],
+);
+
+/** Pending email invites (spec §3.3.1). status: "pending" | "accepted" | "revoked". */
+export const invites = pgTable("invites", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  classId: uuid("class_id")
+    .notNull()
+    .references(() => classes.id, { onDelete: "cascade" }),
+  email: text("email").notNull(),
+  role: text("role").notNull(),
+  tokenHash: text("token_hash").notNull().unique(),
+  status: text("status").notNull().default("pending"),
+  invitedBy: uuid("invited_by")
+    .notNull()
+    .references(() => users.id),
+  acceptedBy: uuid("accepted_by"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
