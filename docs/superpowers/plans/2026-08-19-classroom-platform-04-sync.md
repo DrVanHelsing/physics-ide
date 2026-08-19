@@ -1912,7 +1912,396 @@ git commit -m "feat(frontend): guest-project import offer at first sign-in; lega
 
 ---
 
-### Task 10: Wrap-up — docs and the full sweep
+### Task 10: Frontend — the welcome screen (user-requested 2026-08-19)
+
+> User directive (2026-08-19, mid-execution): the first screen for a brand-new visitor must not
+> be the bare IDE/login — it is an informative, animated, lightly interactive page showcasing
+> the IDE (what it is, what it can do), with three doors: sign in, sign up, or use the IDE as a
+> guest. Spec §14's screen list gains this screen by that directive. Copy stays honest (Plan-2
+> precedent): nothing is promised that isn't shipped — assignments are described as "on the way".
+
+**Behavioral contract:** the IDE stays at `/`. A gate wrapping `/` redirects to `/welcome` ONLY
+when ALL of: no `WELCOME_SEEN_KEY` in localStorage, no `SIGNED_IN_HINT_KEY`, and zero local
+projects. Returning guests with work, and signed-in users, are never hijacked. A guest with
+projects but no seen-flag (pre-existing user) is grandfathered: the gate stamps the flag and
+shows the IDE. All three CTA buttons stamp the seen-flag. `/welcome` stays directly reachable
+forever. **No new dependencies** — animation is CSS keyframes + one IntersectionObserver + one
+requestAnimationFrame canvas; `prefers-reduced-motion` disables the decorative motion.
+
+**Files:**
+- Create: `frontend/src/welcome/WelcomeGate.js`, `frontend/src/welcome/WelcomePage.js`,
+  `frontend/src/welcome/GravityPlayground.js`, `frontend/src/welcome/__tests__/welcomeGate.test.js`
+- Modify: `frontend/src/App.js` (route + gate), `frontend/src/constants/index.js` (append key),
+  `frontend/src/styles.css` (append)
+
+**Interfaces:**
+- Consumes: `SIGNED_IN_HINT_KEY` (Task 9), `listProjects` (projectStore).
+- Produces: `WELCOME_SEEN_KEY = "pide_welcome_seen"` in constants; pure
+  `shouldShowWelcome({seenFlag, signedInHint, projectCount})` exported from WelcomeGate;
+  routes `/welcome` → `<WelcomePage/>` and `/` → `<WelcomeGate><IDELayout/></WelcomeGate>`.
+
+- [ ] **Step 1: The gate (pure logic test-first)**
+
+Create `frontend/src/welcome/__tests__/welcomeGate.test.js`:
+
+```js
+import { describe, test, expect } from "vitest";
+import { shouldShowWelcome } from "../WelcomeGate";
+
+describe("shouldShowWelcome", () => {
+  test("brand-new visitor: no flag, no hint, no projects → welcome", () => {
+    expect(shouldShowWelcome({ seenFlag: false, signedInHint: false, projectCount: 0 })).toBe(true);
+  });
+  test("seen-flag set → IDE, regardless of the rest", () => {
+    expect(shouldShowWelcome({ seenFlag: true, signedInHint: false, projectCount: 0 })).toBe(false);
+  });
+  test("signed-in hint → IDE (never hijack a member)", () => {
+    expect(shouldShowWelcome({ seenFlag: false, signedInHint: true, projectCount: 0 })).toBe(false);
+  });
+  test("existing guest work → IDE (never hijack a guest with projects)", () => {
+    expect(shouldShowWelcome({ seenFlag: false, signedInHint: false, projectCount: 3 })).toBe(false);
+  });
+});
+```
+
+Add to `frontend/src/constants/index.js`:
+
+```js
+/* localStorage key: stamped once the visitor has seen (or skipped) the welcome
+   screen, so "/" never redirects them again. */
+export const WELCOME_SEEN_KEY = "pide_welcome_seen";
+```
+
+Create `frontend/src/welcome/WelcomeGate.js`:
+
+```js
+import React, { useEffect, useState } from "react";
+import { Navigate } from "react-router-dom";
+import { listProjects } from "../utils/storage/projectStore";
+import { SIGNED_IN_HINT_KEY, WELCOME_SEEN_KEY } from "../constants";
+
+/** Pure decision: only brand-new visitors get the welcome screen. */
+export function shouldShowWelcome({ seenFlag, signedInHint, projectCount }) {
+  if (seenFlag || signedInHint) return false;
+  return projectCount === 0;
+}
+
+/**
+ * Wraps "/": brand-new visitors (no seen-flag, no session hint, no local
+ * projects) go to /welcome; everyone else gets the IDE untouched. A guest
+ * who already has projects is grandfathered — stamp the flag, show the IDE.
+ */
+export default function WelcomeGate({ children }) {
+  const seenFlag = !!localStorage.getItem(WELCOME_SEEN_KEY);
+  const signedInHint = !!localStorage.getItem(SIGNED_IN_HINT_KEY);
+  // Sync fast-path: when a flag already decides it, skip the storage read.
+  const [projectCount, setProjectCount] = useState(seenFlag || signedInHint ? 1 : null);
+
+  useEffect(() => {
+    if (projectCount !== null) return;
+    let cancelled = false;
+    listProjects()
+      .then((list) => {
+        if (cancelled) return;
+        if (list.length > 0) localStorage.setItem(WELCOME_SEEN_KEY, "1");
+        setProjectCount(list.length);
+      })
+      .catch(() => {
+        if (!cancelled) setProjectCount(0);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [projectCount]);
+
+  if (projectCount === null) return null; // one IndexedDB read; avoids an IDE flash
+  if (shouldShowWelcome({ seenFlag, signedInHint, projectCount })) {
+    return <Navigate to="/welcome" replace />;
+  }
+  return children;
+}
+```
+
+- [ ] **Step 2: The gravity playground (the "somewhat interactive" part)**
+
+Create `frontend/src/welcome/GravityPlayground.js`:
+
+```js
+import React, { useEffect, useRef, useState } from "react";
+
+const DAMPING = 0.82;
+const COLORS = ["#7dd3fc", "#f9a8d4", "#fcd34d", "#86efac", "#c4b5fd"];
+
+function makeBall(x, y) {
+  return {
+    x,
+    y,
+    vx: (Math.random() - 0.5) * 220,
+    vy: -80 - Math.random() * 120,
+    r: 7 + Math.random() * 7,
+    color: COLORS[Math.floor(Math.random() * COLORS.length)],
+  };
+}
+
+/** A tiny canvas physics toy: drag the slider, click to drop balls. */
+export default function GravityPlayground() {
+  const canvasRef = useRef(null);
+  const ballsRef = useRef([makeBall(80, 40), makeBall(180, 60), makeBall(260, 30)]);
+  const gravityRef = useRef(9.8);
+  const [gravity, setGravity] = useState(9.8);
+  gravityRef.current = gravity;
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext("2d");
+    let raf = 0;
+    let last = performance.now();
+
+    const frame = (t) => {
+      const dt = Math.min((t - last) / 1000, 0.05);
+      last = t;
+      const w = canvas.clientWidth;
+      const h = canvas.clientHeight;
+      if (canvas.width !== w || canvas.height !== h) {
+        canvas.width = w;
+        canvas.height = h;
+      }
+      ctx.clearRect(0, 0, w, h);
+      for (const b of ballsRef.current) {
+        b.vy += gravityRef.current * 60 * dt;
+        b.x += b.vx * dt;
+        b.y += b.vy * dt;
+        if (b.y + b.r > h) { b.y = h - b.r; b.vy = -Math.abs(b.vy) * DAMPING; }
+        if (b.x + b.r > w) { b.x = w - b.r; b.vx = -Math.abs(b.vx) * DAMPING; }
+        if (b.x - b.r < 0) { b.x = b.r; b.vx = Math.abs(b.vx) * DAMPING; }
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+        ctx.fillStyle = b.color;
+        ctx.fill();
+      }
+      raf = requestAnimationFrame(frame);
+    };
+    raf = requestAnimationFrame(frame);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+  const drop = (e) => {
+    const rect = canvasRef.current.getBoundingClientRect();
+    if (ballsRef.current.length >= 40) ballsRef.current.shift();
+    ballsRef.current.push(makeBall(e.clientX - rect.left, e.clientY - rect.top));
+  };
+
+  return (
+    <div className="welcome-playground">
+      <canvas ref={canvasRef} className="welcome-playground__canvas" onPointerDown={drop} />
+      <div className="welcome-playground__controls">
+        <label htmlFor="welcome-gravity">Gravity: {gravity.toFixed(1)} m/s²</label>
+        <input
+          id="welcome-gravity"
+          type="range"
+          min="0"
+          max="30"
+          step="0.1"
+          value={gravity}
+          onChange={(e) => setGravity(Number(e.target.value))}
+        />
+        <span className="welcome-playground__hint">Click anywhere in the box to drop a ball.</span>
+      </div>
+    </div>
+  );
+}
+```
+
+- [ ] **Step 3: The page**
+
+Create `frontend/src/welcome/WelcomePage.js`:
+
+```js
+import React, { useCallback, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import GravityPlayground from "./GravityPlayground";
+import { WELCOME_SEEN_KEY } from "../constants";
+
+const FEATURES = [
+  { icon: "🧩", title: "Blocks or Python", body: "Start with drag-and-drop blocks, flip to real Python whenever you're ready — same project, both views." },
+  { icon: "🪐", title: "Live 3D simulations", body: "VPython scenes render as your code runs: orbits, springs, collisions, projectiles — watch physics happen." },
+  { icon: "📈", title: "Charts & data", body: "Every run captures data you can plot, fit, and analyse — the data-science half of the lab." },
+  { icon: "💾", title: "Yours, offline", body: "Everything saves to your computer first. Wi-Fi dies mid-lesson? Keep working. Sign in and projects follow you to any computer." },
+  { icon: "🏫", title: "Classrooms", body: "Teachers create classes, share a join code or QR, and manage rosters. Assignments and marking are on the way." },
+  { icon: "🕵️", title: "No surveillance", body: "No tracking, no paste detection, no webcam. Just an honest record of how your work grew." },
+];
+
+export default function WelcomePage() {
+  const navigate = useNavigate();
+
+  const go = useCallback(
+    (path) => {
+      localStorage.setItem(WELCOME_SEEN_KEY, "1");
+      navigate(path);
+    },
+    [navigate],
+  );
+
+  useEffect(() => {
+    const els = document.querySelectorAll(".welcome-reveal");
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) if (e.isIntersecting) e.target.classList.add("is-on");
+      },
+      { threshold: 0.15 },
+    );
+    els.forEach((el) => io.observe(el));
+    return () => io.disconnect();
+  }, []);
+
+  return (
+    <div className="welcome">
+      <header className="welcome-hero">
+        <div className="welcome-orbit" aria-hidden="true">
+          <div className="welcome-orbit__sun" />
+          <div className="welcome-orbit__path welcome-orbit__path--a"><i /></div>
+          <div className="welcome-orbit__path welcome-orbit__path--b"><i /></div>
+        </div>
+        <h1>Physics IDE</h1>
+        <p className="welcome-tagline">
+          Build, run, and understand physics — right in your browser.
+        </p>
+        <div className="welcome-cta">
+          <button className="welcome-btn welcome-btn--primary" type="button" onClick={() => go("/")}>
+            Use the IDE — no account needed
+          </button>
+          <button className="welcome-btn" type="button" onClick={() => go("/auth/signup")}>
+            Create an account
+          </button>
+          <button className="welcome-btn" type="button" onClick={() => go("/auth/signin")}>
+            Sign in
+          </button>
+        </div>
+      </header>
+
+      <section className="welcome-features">
+        {FEATURES.map((f) => (
+          <article key={f.title} className="welcome-card welcome-reveal">
+            <span className="welcome-card__icon" aria-hidden="true">{f.icon}</span>
+            <h2>{f.title}</h2>
+            <p>{f.body}</p>
+          </article>
+        ))}
+      </section>
+
+      <section className="welcome-play welcome-reveal">
+        <h2>Feel it work</h2>
+        <p>This little box runs the same idea the IDE does — rules in, motion out.</p>
+        <GravityPlayground />
+      </section>
+
+      <footer className="welcome-foot welcome-reveal">
+        <p>
+          Free for classrooms. Your work saves to your computer first; an account adds sync,
+          classes, and nothing you didn't ask for.
+        </p>
+        <button className="welcome-btn welcome-btn--primary" type="button" onClick={() => go("/")}>
+          Open the IDE
+        </button>
+      </footer>
+    </div>
+  );
+}
+```
+
+- [ ] **Step 4: Route + styles**
+
+In `frontend/src/App.js`: import `WelcomeGate` from `./welcome/WelcomeGate` and `WelcomePage` from `./welcome/WelcomePage`; change the root route to `<Route path="/" element={<WelcomeGate><IDELayout /></WelcomeGate>} />` and add `<Route path="/welcome" element={<WelcomePage />} />` beside the other routes. Touch nothing else.
+
+Append to `frontend/src/styles.css`:
+
+```css
+/* ---- Welcome screen (Plan 4, user-requested) ---- */
+.welcome { min-height: 100vh; overflow-x: hidden; padding: 48px 20px 64px; color: var(--text-bright); }
+.welcome-hero { max-width: 760px; margin: 0 auto; text-align: center; }
+.welcome-hero h1 { font-size: 44px; margin: 18px 0 6px; letter-spacing: 0.5px; }
+.welcome-tagline { color: var(--text-dim); font-size: 17px; margin: 0 0 26px; }
+
+.welcome-orbit { position: relative; width: 150px; height: 150px; margin: 0 auto; }
+.welcome-orbit__sun {
+  position: absolute; top: 50%; left: 50%; width: 26px; height: 26px; margin: -13px;
+  border-radius: 50%; background: var(--yellow);
+  box-shadow: 0 0 24px 4px rgba(250, 204, 21, 0.35);
+}
+.welcome-orbit__path {
+  position: absolute; top: 50%; left: 50%; border: 1px dashed var(--text-dim);
+  border-radius: 50%; opacity: 0.6; animation: welcome-spin linear infinite;
+}
+.welcome-orbit__path--a { width: 90px; height: 90px; margin: -45px; animation-duration: 7s; }
+.welcome-orbit__path--b { width: 146px; height: 146px; margin: -73px; animation-duration: 13s; }
+.welcome-orbit__path i {
+  position: absolute; top: -5px; left: 50%; width: 10px; height: 10px; margin-left: -5px;
+  border-radius: 50%; background: var(--accent-bright); display: block;
+}
+@keyframes welcome-spin { to { transform: rotate(360deg); } }
+
+.welcome-cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.welcome-btn {
+  padding: 10px 18px; font-size: 14px; border-radius: 6px; cursor: pointer;
+  background: var(--bg-surface); color: var(--text-bright);
+  border: 1px solid var(--text-dim); transition: transform 0.12s ease, border-color 0.12s ease;
+}
+.welcome-btn:hover { transform: translateY(-1px); border-color: var(--accent-bright); }
+.welcome-btn--primary { border-color: var(--accent); color: var(--accent-bright); }
+
+.welcome-features {
+  max-width: 980px; margin: 56px auto 0; display: grid; gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+.welcome-card {
+  background: var(--bg-surface); border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px; padding: 18px;
+}
+.welcome-card__icon { font-size: 26px; }
+.welcome-card h2 { font-size: 16px; margin: 10px 0 6px; }
+.welcome-card p { font-size: 13px; color: var(--text-dim); line-height: 1.55; margin: 0; }
+
+.welcome-play { max-width: 760px; margin: 64px auto 0; text-align: center; }
+.welcome-play h2 { font-size: 22px; margin-bottom: 4px; }
+.welcome-play p { color: var(--text-dim); font-size: 14px; margin-top: 0; }
+.welcome-playground { margin-top: 14px; }
+.welcome-playground__canvas {
+  width: 100%; height: 260px; display: block; border-radius: 8px;
+  background: var(--bg-surface); border: 1px solid rgba(255, 255, 255, 0.06);
+  cursor: crosshair; touch-action: none;
+}
+.welcome-playground__controls {
+  display: flex; gap: 12px; align-items: center; justify-content: center;
+  flex-wrap: wrap; margin-top: 10px; font-size: 13px; color: var(--text-dim);
+}
+.welcome-playground__controls input[type="range"] { width: 200px; }
+.welcome-playground__hint { font-size: 12px; opacity: 0.8; }
+
+.welcome-foot { max-width: 640px; margin: 72px auto 0; text-align: center; }
+.welcome-foot p { color: var(--text-dim); font-size: 14px; }
+
+.welcome-reveal { opacity: 0; transform: translateY(14px); transition: opacity 0.5s ease, transform 0.5s ease; }
+.welcome-reveal.is-on { opacity: 1; transform: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .welcome-orbit__path { animation: none; }
+  .welcome-reveal { opacity: 1; transform: none; transition: none; }
+  .welcome-btn { transition: none; }
+}
+```
+
+- [ ] **Step 5: Verify and commit**
+
+```powershell
+npm run test -w frontend
+npm run build -w frontend
+git add frontend/src
+git commit -m "feat(frontend): welcome screen — animated first-visit landing with guest/sign-up/sign-in doors"
+```
+
+---
+
+### Task 11: Wrap-up — docs and the full sweep
 
 **Files:**
 - Modify: `README.md`
@@ -1927,6 +2316,8 @@ account — the status chip in the status bar tells the truth (`Synced` / `Waiti
 Most-recent-edit-wins across machines, with the losing version kept in the project's server-side
 history (last 20 versions). Guests stay fully local; at first sign-in the app offers to bring
 guest projects into the account. Caps: 100 projects per account, 400 KB per project.
+First-time visitors land on `/welcome` — an animated tour of the IDE with three doors: use it
+as a guest, create an account, or sign in. Returning visitors go straight to the IDE.
 ```
 
 - [ ] **Step 2: The full verification sweep**
@@ -1953,6 +2344,7 @@ git commit -m "docs: project sync in quickstart (local-first, status chip, histo
 ## Completion criteria (what Plan 5 may assume)
 
 - `projects` + `project_versions` tables (migration 0003, both DBs); `PUT/GET/LIST/DELETE /api/projects*` with most-recent-wins, archived losers, tombstones, 100-project/400 KB/20-version caps; version list + restore.
-- `saveProject(manifest, {preserveTimestamp})`, `onProjectSaved`/`onProjectDeleted`, the `sync-meta` store, `debounce`, `MANIFEST_AUTOSAVE_MS`, `SIGNED_IN_HINT_KEY`, `createSyncEngine`/`getGlobalSyncEngine`, `SyncProvider`, `SyncChip`, `GuestImportPrompt` — all at the named paths.
+- `saveProject(manifest, {preserveTimestamp})`, `onProjectSaved`/`onProjectDeleted`, the `sync-meta` store, `debounce`, `MANIFEST_AUTOSAVE_MS`, `SIGNED_IN_HINT_KEY`, `WELCOME_SEEN_KEY`, `createSyncEngine`/`getGlobalSyncEngine`, `SyncProvider`, `SyncChip`, `GuestImportPrompt`, `WelcomeGate`/`WelcomePage`/`GravityPlayground` — all at the named paths.
+- `/welcome` is the first screen for brand-new visitors only (no seen-flag, no session hint, no local projects); everyone else lands in the IDE at `/` untouched.
 - Manifests reach the server fresh (3 s debounced autosave); a signed-in device converges on focus/online/sign-in; guests remain fully local; the legacy blob no longer races the first cloud pull.
 - Assignments (Plan 5) can reference a `projects.id` per (owner) for starter-project snapshots and submissions.
