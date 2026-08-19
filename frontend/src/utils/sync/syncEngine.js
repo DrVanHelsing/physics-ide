@@ -26,11 +26,14 @@ export function createSyncEngine({ api, store, meta, now = () => Date.now() }) {
     }
   }
 
-  /* Only a server response carries a sentence worth showing a human — the
-     plan's Caps constraint says the client surfaces it VERBATIM. Transport
-     failures (no `status`) have no server sentence, so they clear it. */
+  /* Only these statuses carry a sentence written FOR a student — the cap,
+     oversize, invalid-shape and not-found refusals the plan's Caps constraint
+     says the client surfaces VERBATIM. A 5xx body is server internals
+     (Postgres text, stack-shaped messages) and must never reach the chip's
+     tooltip; transport failures have no server sentence at all. Both clear it. */
+  const SURFACEABLE_STATUSES = new Set([400, 403, 404, 413]);
   function serverSentence(err) {
-    return typeof err?.status === "number" && typeof err?.message === "string" && err.message
+    return SURFACEABLE_STATUSES.has(err?.status) && typeof err?.message === "string" && err.message
       ? err.message
       : null;
   }
@@ -280,6 +283,12 @@ export function createSyncEngine({ api, store, meta, now = () => Date.now() }) {
     adoptLocalProject,
     deleteRemoteProject,
     getStatus: () => status,
+    /**
+     * Ids parked for retry — i.e. work the server may NOT hold. Sign-out
+     * cleanup reads this before deleting any local copy: a parked project is
+     * unsynced by definition and must stay on disk.
+     */
+    getPendingIds: () => [...pending],
     subscribe: (fn) => {
       listeners.add(fn);
       return () => listeners.delete(fn);

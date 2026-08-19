@@ -550,6 +550,32 @@ describe("final-review fix: server sentences surface verbatim (F5)", () => {
     expect(eng.getStatus()).toMatchObject({ state: "synced", lastError: null });
   });
 
+  test("only 4xx refusals surface: a 413 is verbatim, a 500's body never reaches the chip", async () => {
+    const OVERSIZE = "This project is too large to sync. Export it as a file instead.";
+    const w = fakeWorld();
+    w.local.set("p-1", m("p-1", 2000));
+    let mode = "oversize";
+    const realApi = w.api;
+    w.api = vi.fn(async (path, opts = {}) => {
+      if (opts.method === "PUT") {
+        if (mode === "oversize") throw Object.assign(new Error(OVERSIZE), { status: 413 });
+        throw Object.assign(new Error('duplicate key value violates unique constraint "projects_pkey"'), {
+          status: 500,
+        });
+      }
+      return realApi(path, opts);
+    });
+    const eng = createSyncEngine({ ...w, now: () => 1 });
+
+    await eng.pushProject("p-1", "u-1");
+    expect(eng.getStatus().lastError).toBe(OVERSIZE);
+
+    mode = "server-internals";
+    await eng.pushProject("p-1", "u-1");
+    expect(eng.getStatus().state).toBe("error");
+    expect(eng.getStatus().lastError).toBeNull(); // generic tooltip, no internals
+  });
+
   test("a transport failure carries no server sentence", async () => {
     const w = fakeWorld();
     w.local.set("p-1", m("p-1", 2000));
@@ -561,5 +587,33 @@ describe("final-review fix: server sentences surface verbatim (F5)", () => {
     const eng = createSyncEngine({ ...w, now: () => 1 });
     await eng.pushProject("p-1", "u-1");
     expect(eng.getStatus().lastError).toBeNull();
+  });
+});
+
+/* Residual round, BREAKAGE 2: sign-out cleanup deletes meta BEFORE the local
+   copy. These two tests pin down why that order is the safe one. */
+describe("residual fix: an interrupted sign-out cleanup can't tombstone the cloud", () => {
+  test("the meta-first leftover (local copy, no meta) is never delete-inferred", async () => {
+    const w = fakeWorld();
+    w.local.set("p-orphan", m("p-orphan", 2000, "still here"));
+    w.remote.set("p-orphan", { clientUpdatedAt: 2000, manifest: m("p-orphan", 2000), deleted: false });
+    const eng = createSyncEngine({ ...w, now: () => 9999 });
+    await eng.reconcile("u-A");
+
+    expect(w.calls.some((c) => c.opts.method === "DELETE")).toBe(false);
+    expect(w.remote.get("p-orphan").deleted).toBe(false);
+    expect(w.local.has("p-orphan")).toBe(true);
+  });
+
+  test("the reverse leftover (meta kept, local copy gone) WOULD tombstone the live project", async () => {
+    const w = fakeWorld();
+    w.local.set("p-keep", m("p-keep", 1, "keeps the index non-suspect"));
+    w.metaMap.set("p-orphan", { ownerId: "u-A", remoteUpdatedAt: 2000, lastPushedAt: 1 });
+    w.remote.set("p-orphan", { clientUpdatedAt: 2000, manifest: m("p-orphan", 2000), deleted: false });
+    const eng = createSyncEngine({ ...w, now: () => 9999 });
+    await eng.reconcile("u-A");
+
+    // Documents the hazard the delete order exists to avoid.
+    expect(w.remote.get("p-orphan").deleted).toBe(true);
   });
 });
