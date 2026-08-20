@@ -24,12 +24,7 @@ export default function WelcomeGate({ children }) {
     // Storage blocked: treat it as a fresh guest and show the welcome screen.
   }
   if (shouldShowWelcome({ signedInHint, sessionPassed })) {
-    // React.createElement (not JSX) here: this is the one file in the welcome
-    // module unit-tested directly (see __tests__/welcomeGate.test.js), and
-    // vitest's bundled Vite copy only auto-strips JSX from .jsx/.tsx files —
-    // it doesn't honor this repo's "JSX-in-.js" convention the way the app's
-    // own Vite config does for dev/build. Zero behavior change either way.
-    return React.createElement(Navigate, { to: "/welcome", replace: true });
+    return <Navigate to="/welcome" replace />;
   }
   return children;
 }

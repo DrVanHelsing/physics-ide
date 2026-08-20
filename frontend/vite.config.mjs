@@ -1,7 +1,7 @@
 import { defineConfig, transformWithEsbuild } from "vite";
 import react from "@vitejs/plugin-react";
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [
     {
       // The esbuild.include below narrows Vite's transform to src/*.js (the
@@ -24,6 +24,23 @@ export default defineConfig({
     include: /src\/.*\.js$/,
     exclude: [],
   },
+  // Vitest 4 does NOT run on the Vite above: it bundles its own Vite 8, which
+  // is oxc-based and prints "Both esbuild and oxc options were set. oxc options
+  // will be used and esbuild options will be ignored." vite:oxc defaults to
+  // exclude: /\.js$/, and @vitejs/plugin-react skips Babel outside a refresh
+  // environment — so JSX inside .js files fails to parse in tests while dev and
+  // build stay fine. Mirror the shim in oxc terms, scoped to the test mode so
+  // the app's esbuild path is untouched. Proof: src/test/__tests__/jsxTransform.test.js.
+  ...(mode === "test"
+    ? {
+        oxc: {
+          include: /src\/.*\.js$/,
+          exclude: [],
+          lang: "jsx",
+          jsx: { runtime: "automatic" },
+        },
+      }
+    : {}),
   optimizeDeps: {
     esbuildOptions: { loader: { ".js": "jsx" } },
   },
@@ -44,4 +61,4 @@ export default defineConfig({
     setupFiles: "./src/setupTests.js",
     include: ["src/**/*.test.js"],
   },
-});
+}));
