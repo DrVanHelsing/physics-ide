@@ -1783,8 +1783,16 @@ button {
   flex-shrink: 0;
   transition: background 0.15s;
   z-index: 5;
+  position: relative;
 }
 .dm-resize-handle:hover { background: var(--accent); }
+/* Wider invisible hit area — mirrors .pane-divider::before */
+.dm-resize-handle::before {
+  content: '';
+  position: absolute;
+  top: 0; bottom: 0;
+  left: -4px; right: -4px;
+}
 
 /* ── Blockly panel inner ─────────────────────────────────── */
 .dm-blockly-wrap {
@@ -2970,7 +2978,8 @@ mark.help-search-highlight {
     width: 12px;
     min-width: 12px;
   }
-  .pane-divider::before { left: -6px; right: -6px; }
+  .pane-divider::before,
+  .dm-resize-handle::before { left: -6px; right: -6px; }
 
   .mode-toggle button    { min-height: 32px; }
   .block-search-input    { min-height: 32px; }
