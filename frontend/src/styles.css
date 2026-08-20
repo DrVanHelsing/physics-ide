@@ -1138,16 +1138,16 @@ button {
   display: flex;
   align-items: center;
   gap: 5px;
-  font-size: 11px;
+  font-size: var(--label-fs);
   font-weight: 600;
   text-transform: var(--label-transform);
   letter-spacing: var(--label-tracking);
-  color: var(--text-secondary);
+  color: var(--text);
 }
 .trace-live-dot {
   width: 6px;
   height: 6px;
-  border-radius: 50%;
+  border-radius: var(--radius-pill);
   background: var(--green);
   animation: trace-pulse 2s ease-in-out infinite;
   flex-shrink: 0;
@@ -1171,20 +1171,20 @@ button {
   width: 100%;
 }
 .trace-var-count {
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   color: var(--text-muted);
   background: var(--bg-input, var(--bg-sidebar));
   border: 1px solid var(--border-soft);
-  border-radius: 10px;
+  border-radius: var(--radius-pill);
   padding: 1px 6px;
   white-space: nowrap;
 }
 .trace-icon-btn {
-  font-size: 10px;
+  font-size: var(--fs-xs);
   color: var(--text-muted);
   background: transparent;
   border: 1px solid var(--border-soft);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 2px 6px;
   cursor: pointer;
   transition: color 0.15s, border-color 0.15s;
@@ -1210,11 +1210,11 @@ button {
   cursor: default;
 }
 .trace-clear-btn {
-  font-size: 10px;
+  font-size: var(--fs-xs);
   color: var(--text-muted);
   background: transparent;
   border: 1px solid var(--border-soft);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 2px 6px;
   cursor: pointer;
   transition: color 0.15s, border-color 0.15s;
@@ -1256,8 +1256,8 @@ button {
   flex: 1;
   background: transparent;
   border: none;
-  font-size: 11px;
-  font-family: var(--sans, system-ui, sans-serif);
+  font-size: var(--fs-sm);
+  font-family: var(--font);
   color: var(--text);
   min-width: 0;
 }
@@ -1291,7 +1291,7 @@ button {
 .trace-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 11px;
+  font-size: var(--fs-sm);
   font-family: var(--mono);
   table-layout: fixed;
 }
@@ -1300,7 +1300,7 @@ button {
   top: 0;
   background: var(--bg-titlebar);
   color: var(--text-muted);
-  font-size: 9px;
+  font-size: var(--fs-2xs);
   font-weight: 600;
   text-transform: var(--label-transform);
   letter-spacing: var(--label-tracking);
@@ -1317,7 +1317,7 @@ button {
 .trace-section-row td { padding: 0; }
 .trace-section-label {
   display: block;
-  font-size: 9px;
+  font-size: var(--fs-2xs);
   font-weight: 700;
   text-transform: var(--label-transform);
   letter-spacing: var(--label-tracking);
@@ -1380,8 +1380,8 @@ button {
 
 .trace-varname {
   font-weight: 600;
-  font-size: 11px;
-  color: var(--text-secondary);
+  font-size: var(--fs-sm);
+  color: var(--text);
 }
 
 /* Value + delta in same cell */
@@ -1392,11 +1392,11 @@ button {
 }
 .trace-value {
   color: color-mix(in srgb, var(--accent) 85%, var(--text));
-  font-size: 11px;
+  font-size: var(--fs-md);
   font-variant-numeric: tabular-nums;
 }
 .trace-delta {
-  font-size: 9px;
+  font-size: var(--fs-2xs);
   font-variant-numeric: tabular-nums;
   opacity: 0.85;
 }
@@ -1412,7 +1412,7 @@ button {
 .trace-minmax {
   display: flex;
   gap: 2px;
-  font-size: 9px;
+  font-size: var(--fs-2xs);
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
   margin-top: 1px;
@@ -1424,8 +1424,8 @@ button {
   padding: 20px 12px;
   text-align: center;
   color: var(--text-muted);
-  font-family: var(--sans, system-ui, sans-serif);
-  font-size: 11px;
+  font-family: var(--font);
+  font-size: var(--fs-sm);
   font-style: italic;
 }
 
@@ -1477,12 +1477,12 @@ button {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   font-weight: 700;
   color: var(--red);
   background: color-mix(in srgb, var(--red) 14%, transparent);
   border: 1px solid color-mix(in srgb, var(--red) 40%, transparent);
-  border-radius: 10px;
+  border-radius: var(--radius-pill);
   padding: 1px 6px;
   animation: alert-badge-pulse 1.4s ease-in-out infinite;
 }
@@ -1496,11 +1496,11 @@ button {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   color: var(--accent-blue);
   background: color-mix(in srgb, var(--accent-blue) 12%, transparent);
   border: 1px solid color-mix(in srgb, var(--accent-blue) 35%, transparent);
-  border-radius: 10px;
+  border-radius: var(--radius-pill);
   padding: 1px 6px;
 }
 
@@ -1516,7 +1516,7 @@ button {
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  font-size: 9px;
+  font-size: var(--fs-2xs);
   color: var(--text-muted);
   opacity: 0.75;
   font-variant-numeric: tabular-nums;
@@ -1526,7 +1526,7 @@ button {
   max-width: 48px;
 }
 .trace-snap-diff {
-  font-size: 9px;
+  font-size: var(--fs-2xs);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -1548,7 +1548,7 @@ button {
   border-top: 1px solid var(--border-soft);
 }
 .trace-alert-lbl {
-  font-size: 9px;
+  font-size: var(--fs-2xs);
   font-weight: 700;
   color: var(--text-muted);
   text-transform: var(--label-transform);
@@ -1563,9 +1563,9 @@ button {
 .trace-alert-select {
   background: var(--bg-input, var(--bg-panel));
   border: 1px solid var(--border);
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   color: var(--text);
-  font-size: 11px;
+  font-size: var(--fs-sm);
   font-family: var(--mono);
   padding: 2px 3px;
   cursor: pointer;
@@ -1576,9 +1576,9 @@ button {
   min-width: 0;
   background: var(--bg-input, var(--bg-panel));
   border: 1px solid var(--border);
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   color: var(--text);
-  font-size: 11px;
+  font-size: var(--fs-sm);
   font-family: var(--mono);
   padding: 2px 5px;
 }
@@ -1590,9 +1590,9 @@ button {
   justify-content: center;
   background: transparent;
   border: 1px solid var(--border-soft);
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   color: var(--text-muted);
-  font-size: 10px;
+  font-size: var(--fs-xs);
   cursor: pointer;
   padding: 2px 5px;
   line-height: 1.4;
@@ -1616,7 +1616,7 @@ button {
   display: inline-block;
   width: 7px;
   height: 7px;
-  border-radius: 50%;
+  border-radius: var(--radius-pill);
   background: var(--red);
   flex-shrink: 0;
   animation: recPulse 1.2s ease infinite;
@@ -1648,7 +1648,7 @@ button {
   height: 40px;
   min-height: 40px;
   background: var(--bg-toolbar);
-  border-bottom: 1px solid var(--border-hard);
+  border-bottom: 1px solid var(--border-hl);
   overflow-x: auto;
   overflow-y: hidden;
   user-select: none;
@@ -1671,7 +1671,7 @@ button {
   display: flex;
   align-items: center;
   gap: 5px;
-  font-size: 11px;
+  font-size: var(--fs-sm);
   font-weight: 500;
   color: var(--text-muted);
   opacity: 0.7;
@@ -1683,33 +1683,33 @@ button {
   align-items: center;
   gap: 5px;
   padding: 3px 8px;
-  font-size: 11px;
+  font-size: var(--fs-sm);
   font-weight: 500;
   color: var(--text-muted);
   background: transparent;
   border: 1px solid var(--border-soft);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   white-space: nowrap;
   flex-shrink: 0;
 }
-.dm-exit-btn:hover { color: var(--text-primary); border-color: var(--border-hl); }
+.dm-exit-btn:hover { color: var(--text-bright); border-color: var(--border-hl); }
 
 .dm-ctrl-btn {
   display: inline-flex;
   align-items: center;
   gap: 5px;
   padding: 3px 8px;
-  font-size: 11px;
+  font-size: var(--fs-sm);
   color: var(--text-muted);
   background: transparent;
   border: 1px solid var(--border-soft);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   white-space: nowrap;
   flex-shrink: 0;
 }
-.dm-ctrl-btn:hover:not(:disabled) { color: var(--text-primary); border-color: var(--border-hl); }
+.dm-ctrl-btn:hover:not(:disabled) { color: var(--text-bright); border-color: var(--border-hl); }
 .dm-ctrl-btn:disabled { opacity: 0.35; cursor: default; }
 .dm-ctrl-btn--active { color: var(--accent) !important; border-color: var(--accent) !important; }
 .dm-ctrl-btn--run { color: var(--accent); border-color: var(--accent); }
@@ -1724,13 +1724,13 @@ button {
   display: inline-block;
   width: 7px;
   height: 7px;
-  border-radius: 50%;
+  border-radius: var(--radius-pill);
   background: var(--red);
   flex-shrink: 0;
   animation: recPulse 1.2s ease infinite;
 }
 .dm-rec-count {
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   color: var(--red);
   margin-left: 2px;
 }
@@ -1739,10 +1739,10 @@ button {
   display: inline-flex;
   align-items: center;
   padding: 1px 5px;
-  border-radius: 10px;
+  border-radius: var(--radius-pill);
   background: var(--red);
   color: var(--on-accent);
-  font-size: 9px;
+  font-size: var(--fs-2xs);
   font-weight: 700;
   line-height: 1.4;
 }
@@ -1763,12 +1763,12 @@ button {
   overflow: hidden;
   min-width: 0;
 }
-.dm-panel--blocks  { background: var(--bg-panel); border-right: 1px solid var(--border-hard); }
+.dm-panel--blocks  { background: var(--bg-panel); border-right: 1px solid var(--border-hl); }
 .dm-panel--viewport { flex: 1 1 0; background: var(--bg-app); }
-.dm-panel--trace   { background: var(--bg-panel); border-left: 1px solid var(--border-hard); }
+.dm-panel--trace   { background: var(--bg-panel); border-left: 1px solid var(--border-hl); }
 
 .dm-panel-hint {
-  font-size: 10px;
+  font-size: var(--fs-xs);
   color: var(--text-muted);
   opacity: 0.7;
   overflow: hidden;
@@ -1778,10 +1778,10 @@ button {
 }
 .dm-paused-badge {
   padding: 1px 7px;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   background: var(--yellow);
   color: var(--bg-base);
-  font-size: 9px;
+  font-size: var(--fs-2xs);
   font-weight: 700;
   letter-spacing: 0.04em;
   margin-left: auto;
@@ -1790,7 +1790,7 @@ button {
 /* ── Resize handles ─────────────────────────────────────── */
 .dm-resize-handle {
   width: 8px;
-  background: var(--border-hard);
+  background: var(--border-hl);
   cursor: col-resize;
   flex-shrink: 0;
   transition: background 0.15s;
