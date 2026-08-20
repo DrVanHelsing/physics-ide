@@ -466,11 +466,6 @@ function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, isD
     if (!ws || !Blockly) return;
     const theme = buildBlocklyTheme(Blockly, isDark);
     ws.setTheme(theme);
-
-    // Update grid colour
-    const gridColour = isDark ? "#2a2c40" : "#ddd";
-    const svgGrid = ws.getParentSvg()?.querySelector(".blocklyGridPattern line");
-    if (svgGrid) svgGrid.setAttribute("stroke", gridColour);
   }, [isDark]);
 
   if (loadError) {

@@ -977,9 +977,6 @@ button {
   flex: 1;
   min-height: 300px;
 }
-.glow-host div {
-  background: var(--canvas-bg) !important;
-}
 
 /* Idle viewport */
 .canvas-idle {

@@ -6,10 +6,9 @@
     <meta name="theme-color" content="#1e1e2e" />
     <title>Physics IDE</title>
 
-    <!-- Inter font -->
+    <!-- Fonts are requested by styles.css @import; these preconnects warm the origins -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
     <!-- Blockly core + built-in blocks + English messages -->
     <script src="https://cdn.jsdelivr.net/npm/blockly@11/blockly_compressed.js"></script>
@@ -42,10 +41,6 @@
       };
     </script>
 
-    <style>
-      /* GlowScript injects canvases; make sure they fill the host */
-      .glow-host canvas { display: block; width: 100% !important; height: 100% !important; }
-    </style>
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
