@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useRef } from "react";
 import {
   PlayIcon,
   StopIcon,
@@ -9,65 +9,25 @@ import {
   SunIcon,
   MoonIcon,
   AtomIcon,
-  HomeIcon,
   HelpIcon,
   FileCodeIcon,
   FileBlocksIcon,
   FilePdfIcon,
   ImageIcon,
   CopyIcon,
-  ChevronDownIcon,
   ZoomInIcon,
   ZoomOutIcon,
   PanelRightCloseIcon,
   PanelRightOpenIcon,
   TableIcon,
   BugIcon,
+  SaveIcon,
+  MenuIcon,
 } from "./Icons";
 import { MOD_LABEL } from "../utils/hotkeys";
-
-/* ── Dropdown menu component ─────────────────────────────── */
-function DropdownMenu({ trigger, children, align = "left" }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [open]);
-
-  return (
-    <div className="tb-dropdown" ref={ref}>
-      <button
-        type="button"
-        className="tb-btn tb-btn--dropdown"
-        onClick={() => setOpen((o) => !o)}
-        title="Export options"
-      >
-        {trigger}
-        <ChevronDownIcon size={10} />
-      </button>
-      {open && (
-        <div className={`tb-dropdown-menu ${align === "right" ? "tb-dropdown-menu--right" : ""}`}>
-          {React.Children.map(children, (child) =>
-            child
-              ? React.cloneElement(child, {
-                  onClick: (...args) => {
-                    setOpen(false);
-                    child.props.onClick?.(...args);
-                  },
-                })
-              : null
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
+import DropdownMenu from "./common/DropdownMenu";
+import ProjectTitle from "./layout/ProjectTitle";
+import HeaderAccount from "./auth/HeaderAccount";
 
 /* ── Zoom slider component ───────────────────────────────── */
 function ZoomSlider({ value, onChange, min = 35, max = 200 }) {
@@ -132,6 +92,9 @@ function Toolbar({
   onZoomChange,
   viewportHidden,
   goal = "physics",
+  projectTitle,
+  onRenameProject,
+  onSave,
   children,
 }) {
   /* ── Capability flags driven by the project goal (Phase B.8).
@@ -166,33 +129,25 @@ function Toolbar({
     if (file && onImportProject) onImportProject(file);
   };
   return (
-    <header className="toolbar">
-      {/* ── Brand ── */}
-      <div className="toolbar-logo">
-        <AtomIcon size={18} />
-        <span className="toolbar-logo-text">
-          Physics<span>IDE</span>
+    <header className="app-header">
+      {/* ── Identity: menu · brand · project ── */}
+      <div className="app-header__identity">
+        <button type="button" className="tb-btn tb-btn--nav" onClick={onHome} title="Back to Start Menu">
+          <MenuIcon size={14} />
+          <span className="tb-btn-label">Menu</span>
+        </button>
+        <span className="toolbar-logo" aria-hidden="true">
+          <AtomIcon size={16} />
+          <span className="toolbar-logo-text">Physics<span>IDE</span></span>
         </span>
+        <span className="app-header__sep" />
+        <ProjectTitle title={projectTitle} onRename={onRenameProject} />
       </div>
 
-      <div className="tb-separator" />
-
-      {/* ── Navigation ── */}
-      <button type="button" className="tb-btn tb-btn--nav" onClick={onHome} title="Back to Start Menu">
-        <HomeIcon size={14} />
-        <span className="tb-btn-label">Menu</span>
-      </button>
-      <button type="button" className="tb-btn tb-btn--nav" onClick={onHelp} title="Help & Documentation">
-        <HelpIcon size={14} />
-        <span className="tb-btn-label">Help</span>
-      </button>
-
-      {showSimActions && (
-        <>
-          <div className="tb-separator" />
-
-          {/* ── Simulation controls (physics / hybrid) ── */}
-          <div className="tb-group tb-group--sim">
+      {/* ── Zone 1 — primary: run/stop and the editor mode ── */}
+      <div className="app-header__zone app-header__zone--primary">
+        {showSimActions && (
+          <>
             <button type="button" className="tb-btn tb-btn--run" onClick={onRun} title="Run simulation (Ctrl+Enter)">
               <PlayIcon size={13} />
               <span className="tb-btn-label">Run</span>
@@ -208,192 +163,146 @@ function Toolbar({
               <StopIcon size={13} />
               <span className="tb-btn-label">Stop</span>
             </button>
-          </div>
-        </>
-      )}
-
-      <div className="tb-separator" />
-
-      {/* ── Workspace actions ── */}
-      <button type="button" className="tb-btn tb-btn--subtle" onClick={onReset} title="Reset to blocks mode">
-        <RefreshIcon size={13} />
-        <span className="tb-btn-label">Reset</span>
-      </button>
-      {mode === "blocks" && onClearWorkspace && (
-        <button type="button" className="tb-btn tb-btn--danger" onClick={onClearWorkspace} title="Clear all blocks">
-          <TrashIcon size={13} />
-          <span className="tb-btn-label">Clear</span>
-        </button>
-      )}
-
-      <div className="tb-separator" />
-
-      {/* ── Mode toggle (injected by parent) ── */}
-      {children}
-
-      {/* ── Spacer ── */}
-      <div className="toolbar-spacer" />
-
-      {/* ── Zoom slider ── */}
-      {mode === "blocks" && zoom != null && onZoomChange && (
-        <>
-          <ZoomSlider value={zoom} onChange={onZoomChange} />
-          <div className="tb-separator" />
-        </>
-      )}
-
-      {/* ── Viewport toggle (physics / hybrid) ── */}
-      {showSimActions && onToggleViewport && (
-        <button
-          type="button"
-          className="tb-btn tb-btn--subtle"
-          onClick={onToggleViewport}
-          title={viewportHidden ? "Show 3D viewport" : "Hide 3D viewport"}
-        >
-          {viewportHidden ? <PanelRightOpenIcon size={13} /> : <PanelRightCloseIcon size={13} />}
-          <span className="tb-btn-label">{viewportHidden ? "Show" : "Hide"}</span>
-        </button>
-      )}
-
-      {/* ── Live trace table toggle (physics / hybrid) ── */}
-      {showSimActions && onToggleTrace && (
-        <button
-          type="button"
-          className={`tb-btn tb-btn--subtle${traceVisible ? " tb-btn--active" : ""}`}
-          onClick={onToggleTrace}
-          title={traceVisible ? "Hide live trace table" : "Show live trace table"}
-        >
-          <TableIcon size={13} />
-          <span className="tb-btn-label">Trace</span>
-        </button>
-      )}
-
-      {/* ── Debug Mode button (physics / hybrid) ── */}
-      {showSimActions && onDebugMode && (
-        <button
-          type="button"
-          className="tb-btn tb-btn--subtle"
-          onClick={onDebugMode}
-          title="Open Debug Mode — step-through, breakpoints, recording"
-        >
-          <BugIcon size={13} />
-          <span className="tb-btn-label">Debug</span>
-        </button>
-      )}
-
-      <div className="tb-separator" />
-
-      {/* ── Import button ── */}
-      {onImport && (
-        <>
-          <input
-            ref={importInputRef}
-            type="file"
-            accept=".py,.xml"
-            style={{ display: "none" }}
-            onChange={handleFileChange}
-          />
-          <button
-            type="button"
-            className="tb-btn tb-btn--subtle"
-            onClick={handleImportClick}
-            title="Import a .py or .xml file from a previous session"
-          >
-            <UploadIcon size={13} />
-            <span className="tb-btn-label">Import</span>
-          </button>
-        </>
-      )}
-
-      {/* ── Import Project (.physide.json) ── */}
-      {onImportProject && (
-        <>
-          <input
-            ref={importProjectRef}
-            type="file"
-            accept=".json,.physide.json"
-            style={{ display: "none" }}
-            onChange={handleImportProjectChange}
-          />
-          <button
-            type="button"
-            className="tb-btn tb-btn--subtle"
-            onClick={handleImportProjectClick}
-            title="Import a .physide.json project bundle"
-          >
-            <UploadIcon size={13} />
-            <span className="tb-btn-label">Open…</span>
-          </button>
-        </>
-      )}
-
-      {/* ── Export dropdown ── */}
-      <DropdownMenu
-        trigger={
-          <>
-            <DownloadIcon size={13} />
-            <span className="tb-btn-label">Export</span>
           </>
-        }
-        align="right"
-      >
-        <button type="button" className="tb-dropdown-item" onClick={onExportPy}>
-          <FileCodeIcon size={14} />
-          <span>Export as Python (.py)</span>
+        )}
+        {children}
+      </div>
+
+      {/* ── Zone 2 — view: zoom, panes, debug ── */}
+      <div className="app-header__zone app-header__zone--view">
+        {mode === "blocks" && zoom != null && onZoomChange && (
+          <ZoomSlider value={zoom} onChange={onZoomChange} />
+        )}
+        {showSimActions && onToggleViewport && (
+          <button
+            type="button"
+            className="tb-btn tb-btn--subtle tb-btn--secondary"
+            onClick={onToggleViewport}
+            title={viewportHidden ? "Show 3D viewport" : "Hide 3D viewport"}
+          >
+            {viewportHidden ? <PanelRightOpenIcon size={13} /> : <PanelRightCloseIcon size={13} />}
+            <span className="tb-btn-label">{viewportHidden ? "Show" : "Hide"}</span>
+          </button>
+        )}
+        {showSimActions && onToggleTrace && (
+          <button
+            type="button"
+            className={`tb-btn tb-btn--subtle tb-btn--secondary${traceVisible ? " tb-btn--active" : ""}`}
+            onClick={onToggleTrace}
+            title={traceVisible ? "Hide live trace table" : "Show live trace table"}
+          >
+            <TableIcon size={13} />
+            <span className="tb-btn-label">Trace</span>
+          </button>
+        )}
+        {showSimActions && onDebugMode && (
+          <button
+            type="button"
+            className="tb-btn tb-btn--subtle tb-btn--secondary"
+            onClick={onDebugMode}
+            title="Open Debug Mode — step-through, breakpoints, recording"
+          >
+            <BugIcon size={13} />
+            <span className="tb-btn-label">Debug</span>
+          </button>
+        )}
+      </div>
+
+      {/* ── Zone 3 — file: save, workspace, import/export ── */}
+      <div className="app-header__zone app-header__zone--file">
+        {onSave && (
+          <button type="button" className="tb-btn tb-btn--secondary" onClick={onSave} title={`Save this project (${MOD_LABEL}+S)`}>
+            <SaveIcon size={13} />
+            <span className="tb-btn-label">Save</span>
+          </button>
+        )}
+        <button type="button" className="tb-btn tb-btn--subtle tb-btn--secondary" onClick={onReset} title="Return to the block editor">
+          <RefreshIcon size={13} />
+          <span className="tb-btn-label">Back to Blocks</span>
         </button>
-        <button type="button" className="tb-dropdown-item" onClick={onExportBlocks}>
-          <FileBlocksIcon size={14} />
-          <span>Export Blocks (.xml)</span>
-        </button>
-        <div className="tb-dropdown-divider" />
-        <button type="button" className="tb-dropdown-item" onClick={onExportCodePdf}>
-          <FilePdfIcon size={14} />
-          <span>Code as PDF</span>
-        </button>
-        <button type="button" className="tb-dropdown-item" onClick={onExportBlocksPdf}>
-          <FilePdfIcon size={14} />
-          <span>Blocks as PDF</span>
-        </button>
-        {onExportScreenshot && (
-          <>
-            <div className="tb-dropdown-divider" />
+        {mode === "blocks" && onClearWorkspace && (
+          <button type="button" className="tb-btn tb-btn--danger tb-btn--secondary" onClick={onClearWorkspace} title="Clear all blocks">
+            <TrashIcon size={13} />
+            <span className="tb-btn-label">Clear</span>
+          </button>
+        )}
+
+        <input ref={importInputRef} type="file" accept=".py,.xml" style={{ display: "none" }} onChange={handleFileChange} />
+        <input ref={importProjectRef} type="file" accept=".json,.physide.json" style={{ display: "none" }} onChange={handleImportProjectChange} />
+
+        <DropdownMenu
+          align="right"
+          title="File — import and export"
+          trigger={
+            <>
+              <DownloadIcon size={13} />
+              <span className="tb-btn-label">File</span>
+            </>
+          }
+        >
+          {onImport ? (
+            <button type="button" className="tb-dropdown-item" onClick={handleImportClick}>
+              <UploadIcon size={14} />
+              <span>Import blocks or Python (.py, .xml)</span>
+            </button>
+          ) : null}
+          {onImportProject ? (
+            <button type="button" className="tb-dropdown-item" onClick={handleImportProjectClick}>
+              <UploadIcon size={14} />
+              <span>Open project bundle (.physide.json)</span>
+            </button>
+          ) : null}
+          <div className="tb-dropdown-divider" />
+          <button type="button" className="tb-dropdown-item" onClick={onExportPy}>
+            <FileCodeIcon size={14} />
+            <span>Export as Python (.py)</span>
+          </button>
+          <button type="button" className="tb-dropdown-item" onClick={onExportBlocks}>
+            <FileBlocksIcon size={14} />
+            <span>Export Blocks (.xml)</span>
+          </button>
+          <button type="button" className="tb-dropdown-item" onClick={onExportCodePdf}>
+            <FilePdfIcon size={14} />
+            <span>Code as PDF</span>
+          </button>
+          <button type="button" className="tb-dropdown-item" onClick={onExportBlocksPdf}>
+            <FilePdfIcon size={14} />
+            <span>Blocks as PDF</span>
+          </button>
+          {onExportScreenshot ? (
             <button type="button" className="tb-dropdown-item" onClick={onExportScreenshot}>
               <ImageIcon size={14} />
               <span>Screenshot Viewport (.png)</span>
             </button>
-          </>
-        )}
-        {onCopyCode && (
-          <>
-            <div className="tb-dropdown-divider" />
+          ) : null}
+          {onCopyCode ? (
             <button type="button" className="tb-dropdown-item" onClick={onCopyCode}>
               <CopyIcon size={14} />
               <span>Copy Code to Clipboard</span>
             </button>
-          </>
-        )}
-        {onExportProject && (
-          <>
-            <div className="tb-dropdown-divider" />
+          ) : null}
+          {onExportProject ? (
             <button type="button" className="tb-dropdown-item" onClick={onExportProject}>
               <DownloadIcon size={14} />
               <span>Export Project Bundle (.physide.json)</span>
             </button>
-          </>
-        )}
-      </DropdownMenu>
+          ) : null}
+        </DropdownMenu>
 
-      <div className="tb-separator" />
+        <button type="button" className="tb-btn tb-btn--icon tb-btn--theme" onClick={onToggleTheme}
+                title={isDark ? "Switch to light mode" : "Switch to dark mode"}>
+          {isDark ? <SunIcon size={14} /> : <MoonIcon size={14} />}
+        </button>
+        <button type="button" className="tb-btn tb-btn--nav tb-btn--secondary" onClick={onHelp} title="Help & Documentation">
+          <HelpIcon size={14} />
+          <span className="tb-btn-label">Help</span>
+        </button>
+      </div>
 
-      {/* ── Theme toggle ── */}
-      <button
-        type="button"
-        className="tb-btn tb-btn--icon tb-btn--theme"
-        onClick={onToggleTheme}
-        title={isDark ? "Switch to light mode" : "Switch to dark mode"}
-      >
-        {isDark ? <SunIcon size={14} /> : <MoonIcon size={14} />}
-      </button>
+      {/* ── Account ── */}
+      <div className="app-header__account">
+        <HeaderAccount />
+      </div>
     </header>
   );
 }

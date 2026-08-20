@@ -3,6 +3,11 @@ import React from "react";
 import Toolbar from "../Toolbar";
 import { mountComponent, click, byText, byTitle } from "../../test/renderHelpers";
 
+// HeaderAccount calls useMe() (TanStack Query) and useNavigate() (router) —
+// neither provider is mounted in this suite, so stub it out. Its own
+// behaviour is covered by HeaderAccount's own tests.
+vi.mock("../auth/HeaderAccount", () => ({ default: () => null }));
+
 let mounted = null;
 afterEach(() => {
   mounted?.unmount();
@@ -79,7 +84,7 @@ describe("Toolbar — simulation group", () => {
 describe("Toolbar — workspace group", () => {
   test("Reset is always present; Clear only in blocks mode", () => {
     const { container, h } = render();
-    click(byText(container, "Reset"));
+    click(byText(container, "Back to Blocks"));
     expect(h.onReset).toHaveBeenCalledTimes(1);
     click(byText(container, "Clear"));
     expect(h.onClearWorkspace).toHaveBeenCalledTimes(1);
@@ -134,13 +139,35 @@ describe("Toolbar — file group", () => {
     expect(menu).not.toBeNull();
 
     const items = [...menu.querySelectorAll(".tb-dropdown-item")];
-    expect(items).toHaveLength(7);
-    click(items[0]);
+    expect(items).toHaveLength(9);
+    click(items[2]);
     expect(h.onExportPy).toHaveBeenCalledTimes(1);
     // The menu closes on selection — reopen for the next assertion.
     click(container.querySelector(".tb-btn--dropdown"));
-    click([...container.querySelectorAll(".tb-dropdown-item")][6]);
+    click([...container.querySelectorAll(".tb-dropdown-item")][8]);
     expect(h.onExportProject).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("Toolbar — header identity", () => {
+  test("the project title renders and rename is wired", () => {
+    const onRenameProject = vi.fn();
+    const { container } = render({ projectTitle: "Orbits", onRenameProject });
+    expect(container.querySelector(".project-title").textContent).toBe("Orbits");
+  });
+
+  test("Save is wired when a handler is supplied and absent otherwise", () => {
+    const onSave = vi.fn();
+    const { container } = render({ onSave });
+    click(byText(container, "Save"));
+    expect(onSave).toHaveBeenCalledTimes(1);
+  });
+
+  test("the three action zones are present", () => {
+    const { container } = render();
+    expect(container.querySelector(".app-header__zone--primary")).not.toBeNull();
+    expect(container.querySelector(".app-header__zone--view")).not.toBeNull();
+    expect(container.querySelector(".app-header__zone--file")).not.toBeNull();
   });
 });
 

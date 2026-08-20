@@ -365,16 +365,11 @@ export default function IDELayout() {
       <VariableDialog />
       {showHelp && <HelpPage onClose={() => setShowHelp(false)} />}
 
-      {/* VS Code-style title bar */}
-      <div className="titlebar">
-        <span className="titlebar-text">
-          <strong>Physics IDE</strong> —{" "}
-          {mode === "blocks" ? "Block Editor" : "Code Editor"}
-        </span>
-      </div>
-
       <Toolbar
         goal={goal}
+        projectTitle={proj.activeManifest?.title || ""}
+        onRenameProject={proj.renameProject}
+        onSave={handleSaveProject}
         onRun={sim.handleRun}
         onStop={sim.handleStop}
         onExportPy={exp.handleExportPy}
