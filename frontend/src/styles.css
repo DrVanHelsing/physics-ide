@@ -3038,6 +3038,7 @@ mark.help-search-highlight {
   .mode-toggle button    { min-height: 32px; }
   .block-search-input    { min-height: 32px; }
   .start-project-delete  { min-width: 28px; min-height: 28px; }
+  .project-title         { min-height: 24px; }
 }
 
 /* The dividers are focusable separators now. Plan 1's global :focus-visible

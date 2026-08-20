@@ -335,7 +335,7 @@ try {
   await createProject(page, 'physics.?modelling', { editor: 'code' });
   await screenshot(page, 'A3-physics-blank-code');
   check('Monaco editor rendered', await page.$('div.monaco-editor') !== null);
-  const toolbarText = await page.$eval('.toolbar', el => el.innerText).catch(() => '');
+  const toolbarText = await page.$eval('.app-header', el => el.innerText).catch(() => '');
   check('Toolbar present', toolbarText.length > 0);
 } catch (e) {
   check('A3: Physics blank project (code) created', false, e.message);
@@ -368,7 +368,7 @@ for (const tmplName of physicsTemplates) {
     await delay(3500);
     // Switch to blocks mode if not already there
     await page.evaluate(() => {
-      const btns = [...document.querySelectorAll('.toolbar button, [role="tab"]')];
+      const btns = [...document.querySelectorAll('.app-header button, [role="tab"]')];
       const blocksBtn = btns.find(b => /^blocks$/i.test(b.textContent.trim()));
       if (blocksBtn) blocksBtn.click();
     });
@@ -720,7 +720,7 @@ try {
     return false;
   });
   await delay(2500);
-  const toolbarVisible = await page.$('.toolbar') !== null;
+  const toolbarVisible = await page.$('.app-header') !== null;
   check('Open project: IDE loads', toolbarVisible);
   await goHome(page);
 
@@ -750,7 +750,7 @@ try {
   check('A14: Blockly editor visible in blocks mode', await page.$('.blockly-host') !== null);
   // Click Code tab
   const codeTabClicked = await page.evaluate(() => {
-    const btns = [...document.querySelectorAll('.toolbar button, [role="tab"]')];
+    const btns = [...document.querySelectorAll('.app-header button, [role="tab"]')];
     const codeBtn = btns.find(b => /^code$/i.test(b.textContent.trim()) || /code.?view/i.test(b.textContent));
     if (codeBtn) { codeBtn.click(); return true; }
     return false;
