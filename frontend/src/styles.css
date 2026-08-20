@@ -3037,24 +3037,9 @@ mark.help-search-highlight {
   .help-block-name { border-right: none; border-bottom: 1px solid var(--border); }
 }
 
-/* ═══════════════════════════════════════════════════════════
-   PLATFORM SCREENS — the stated minimum viewport is 1024px.
-   These screens (admin, classes, profile, auth) had zero responsive
-   handling and are the ones most likely to open on a Chromebook.
-   ═══════════════════════════════════════════════════════════ */
 .admin-table-wrap {
   width: 100%;
   overflow-x: auto;
-}
-
-@media (max-width: 1024px) {
-  .admin-header,
-  .admin-body,
-  .classes-header,
-  .classes-body { padding-left: var(--space-4, 16px); padding-right: var(--space-4, 16px); }
-  .classes-wall { grid-template-columns: 1fr; }
-  .admin-tabs   { overflow-x: auto; }
-  .auth-card    { width: min(100%, 420px); }
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -4748,4 +4733,28 @@ mark.help-search-highlight {
   .welcome-orbit__path { animation: none; }
   .welcome-reveal { opacity: 1; transform: none; transition: none; }
   .welcome-btn { transition: none; }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PLATFORM SCREENS — the stated minimum viewport is 1024px.
+   These screens (admin, classes, profile, auth) had zero responsive
+   handling and are the ones most likely to open on a Chromebook.
+
+   Placement note: this block MUST stay after the admin/classes base rules
+   (.admin-header, .admin-body, .classes-header, .classes-body, .classes-wall
+   — see "Admin console (Plan 2)" / "Classes (Plan 3)" further up the file).
+   Those base rules are unconditional (no media query) and equal-specificity,
+   so CSS resolves the conflict by source order — if this block sits above
+   them, they win outright and every rule below except .admin-tabs becomes
+   dead code, even while the media query matches. Keep this at (or below) the
+   end of the file, never above the admin/classes selector definitions.
+   ═══════════════════════════════════════════════════════════ */
+@media (max-width: 1024px) {
+  .admin-header,
+  .admin-body,
+  .classes-header,
+  .classes-body { padding-left: var(--space-4, 16px); padding-right: var(--space-4, 16px); }
+  .classes-wall { grid-template-columns: 1fr; }
+  .admin-tabs   { overflow-x: auto; }
+  .auth-card    { width: min(100%, 420px); }
 }
