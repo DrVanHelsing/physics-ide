@@ -28,10 +28,16 @@ export default function Overlay({
   useEffect(() => {
     openerRef.current = document.activeElement;
     const panel = panelRef.current;
-    const focusable = panel?.querySelector(
-      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-    );
-    (focusable || panel)?.focus?.();
+    // A child with `autoFocus` has already claimed focus by the time this
+    // (passive) effect runs — React applies autoFocus synchronously during
+    // commit. Only fall back to the first focusable descendant when nothing
+    // inside the panel already has focus, so autoFocus keeps winning.
+    if (!panel?.contains(document.activeElement)) {
+      const focusable = panel?.querySelector(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+      );
+      (focusable || panel)?.focus?.();
+    }
 
     const onKey = (e) => {
       if (e.key === "Escape") {

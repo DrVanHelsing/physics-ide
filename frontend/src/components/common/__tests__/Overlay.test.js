@@ -57,4 +57,17 @@ describe("Overlay", () => {
     expect(document.activeElement).toBe(opener);
     opener.remove();
   });
+
+  test("a child with autoFocus keeps focus on mount instead of losing it to an earlier DOM sibling", () => {
+    // Mirrors TracePromoteDialog: a close button precedes the autoFocus'd
+    // label input in DOM order. Overlay must not steal focus back to the
+    // first focusable element when a child has already claimed it.
+    mounted = mountComponent(
+      <Overlay onClose={vi.fn()} label="X">
+        <button type="button">close</button>
+        <input autoFocus placeholder="label" />
+      </Overlay>,
+    );
+    expect(document.activeElement.tagName).toBe("INPUT");
+  });
 });
