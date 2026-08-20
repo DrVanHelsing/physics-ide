@@ -411,7 +411,7 @@ function TraceTable({
               <span className="trace-alert-badge"><ZapIcon size={10} /> {firingCount}</span>
             )}
             {recording && (
-              <span className="trace-alert-badge" style={{ background: "var(--rec-color, #e53e3e)" }}>
+              <span className="trace-alert-badge" style={{ background: "var(--red)" }}>
                 <RecordIcon size={10} /> {recordBuffer.length}
               </span>
             )}
