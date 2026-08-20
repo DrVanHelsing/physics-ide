@@ -754,22 +754,7 @@ button {
 }
 
 /* ── Pane Headers (VS Code tab headers) ───────────────── */
-.pane-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 0 12px;
-  height: var(--pane-header-h);
-  min-height: var(--pane-header-h);
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
-  color: var(--text-muted);
-  background: var(--bg-surface);
-  border-bottom: 1px solid var(--border);
-  user-select: none;
-}
+.pane-header { color: var(--text-dim); }
 .pane-header svg { opacity: 0.7; }
 
 /* VS Code colored tab indicator */
@@ -938,8 +923,8 @@ button {
   white-space: nowrap;
   flex-shrink: 0;
   font-weight: 500;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
+  letter-spacing: var(--label-tracking);
+  text-transform: var(--label-transform);
 }
 .block-search-empty {
   padding: 14px 10px;
@@ -995,8 +980,8 @@ button {
 }
 .pane-header--code-preview {
   background: var(--bg-overlay);
-  font-size: 10px;
-  letter-spacing: 0.6px;
+  font-size: var(--fs-xs);
+  letter-spacing: var(--label-tracking);
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -1037,8 +1022,8 @@ button {
 .canvas-idle-label {
   font-size: 10px;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 1.5px;
+  text-transform: var(--label-transform);
+  letter-spacing: var(--label-tracking);
   color: var(--text-muted);
   margin: 0;
 }
@@ -1059,12 +1044,12 @@ button {
   bottom: 10px;
   z-index: 2;
   pointer-events: none;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-family: var(--mono);
-  color: var(--text-muted);
+  color: var(--text-dim);
   background: color-mix(in srgb, var(--bg-panel) 80%, transparent);
   border: 1px solid var(--border-soft);
-  border-radius: 6px;
+  border-radius: var(--radius);
   padding: 5px 8px;
   opacity: 0.9;
 }
@@ -1155,8 +1140,8 @@ button {
   gap: 5px;
   font-size: 11px;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
+  text-transform: var(--label-transform);
+  letter-spacing: var(--label-tracking);
   color: var(--text-secondary);
 }
 .trace-live-dot {
@@ -1317,8 +1302,8 @@ button {
   color: var(--text-muted);
   font-size: 9px;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.7px;
+  text-transform: var(--label-transform);
+  letter-spacing: var(--label-tracking);
   padding: 3px 6px;
   border-bottom: 1px solid var(--border);
   text-align: left;
@@ -1334,8 +1319,8 @@ button {
   display: block;
   font-size: 9px;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
+  text-transform: var(--label-transform);
+  letter-spacing: var(--label-tracking);
   color: var(--text-muted);
   padding: 5px 8px 2px;
   background: color-mix(in srgb, var(--bg-titlebar) 70%, transparent);
@@ -1566,8 +1551,8 @@ button {
   font-size: 9px;
   font-weight: 700;
   color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  text-transform: var(--label-transform);
+  letter-spacing: var(--label-tracking);
   margin-right: 2px;
   white-space: nowrap;
   overflow: hidden;
@@ -1782,25 +1767,7 @@ button {
 .dm-panel--viewport { flex: 1 1 0; background: var(--bg-app); }
 .dm-panel--trace   { background: var(--bg-panel); border-left: 1px solid var(--border-hard); }
 
-.dm-panel-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  height: 28px;
-  min-height: 28px;
-  background: var(--bg-toolbar);
-  border-bottom: 1px solid var(--border-hard);
-  flex-shrink: 0;
-  user-select: none;
-  overflow: hidden;
-}
-.dm-panel-title {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  white-space: nowrap;
-}
+.dm-panel-header { background: var(--bg-toolbar); border-bottom-color: var(--border-hl); }
 .dm-panel-hint {
   font-size: 10px;
   color: var(--text-muted);
@@ -2035,8 +2002,8 @@ button {
 .start-actions-label {
   font-size: 11px;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
+  text-transform: var(--label-transform);
+  letter-spacing: var(--label-tracking);
   color: var(--text-muted);
   padding: 0 8px 8px;
   margin: 0;
@@ -2146,8 +2113,8 @@ button {
 .start-section-label {
   font-size: 11px;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
+  text-transform: var(--label-transform);
+  letter-spacing: var(--label-tracking);
   color: var(--text-muted);
   margin: 24px 0 12px;
   padding-bottom: 6px;
@@ -2197,8 +2164,8 @@ button {
   display: inline-block;
   font-size: 10px;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  text-transform: var(--label-transform);
+  letter-spacing: var(--label-tracking);
   padding: 1px 6px;
   border-radius: 3px;
   margin-bottom: 4px;
@@ -2239,8 +2206,8 @@ button {
   padding: 8px 0 4px;
   font-size: 10px;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 1px;
+  text-transform: var(--label-transform);
+  letter-spacing: var(--label-tracking);
   color: var(--text-muted);
   user-select: none;
 }
@@ -2457,8 +2424,8 @@ mark.help-search-highlight {
 .help-sidebar-label {
   font-size: 10px;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
+  text-transform: var(--label-transform);
+  letter-spacing: var(--label-tracking);
   color: var(--text-muted);
   padding: 4px 16px 8px;
   margin: 0;
@@ -2677,8 +2644,8 @@ mark.help-search-highlight {
   padding: 8px 12px;
   font-size: 11px;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  text-transform: var(--label-transform);
+  letter-spacing: var(--label-tracking);
   color: var(--text-muted);
   border-bottom: 1px solid var(--border);
 }
@@ -3066,18 +3033,10 @@ mark.help-search-highlight {
 
 /* Header bar */
 .vdialog-header {
-  display: flex;
-  align-items: center;
-  padding: 12px 16px 10px;
-  border-bottom: 1px solid var(--border);
+  height: auto;
+  min-height: var(--panel-header-h);
+  padding: var(--space-3) var(--space-4) var(--space-2);
   background: var(--bg-titlebar);
-}
-
-.vdialog-title {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-bright);
-  letter-spacing: 0.1px;
 }
 
 /* Body */
@@ -3165,8 +3124,8 @@ mark.help-search-highlight {
   gap: 8px;
   font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  letter-spacing: var(--label-tracking);
+  text-transform: var(--label-transform);
   opacity: 0.85;
 }
 .data-panel-meta {
@@ -3420,8 +3379,8 @@ mark.help-search-highlight {
 .ds-uncertainty-label {
   font-family: var(--mono);
   font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  text-transform: var(--label-transform);
+  letter-spacing: var(--label-tracking);
   color: var(--text-muted);
   background: rgba(45, 165, 111, 0.15);
   padding: 1px 6px;
@@ -3707,8 +3666,8 @@ mark.help-search-highlight {
 .start-wizard-field > legend {
   font-size: 12px;
   opacity: 0.75;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  text-transform: var(--label-transform);
+  letter-spacing: var(--label-tracking);
   padding: 0;
 }
 .start-wizard-field input[type="text"],
@@ -4044,8 +4003,8 @@ mark.help-search-highlight {
 .trace-promote-field > span:first-child {
   font-size: 11px;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  text-transform: var(--label-transform);
+  letter-spacing: var(--label-tracking);
   color: var(--fg-muted);
 }
 .trace-promote-hint {
@@ -4159,8 +4118,8 @@ mark.help-search-highlight {
 .ds-saved-traces-label {
   font-size: 10px;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  text-transform: var(--label-transform);
+  letter-spacing: var(--label-tracking);
   color: var(--fg-muted);
   margin: 0 0 6px;
 }
@@ -4373,6 +4332,46 @@ mark.help-search-highlight {
   padding: var(--space-6);
 }
 
+/* ═══════════════════════════════════════════════════════════
+   PRIMITIVES — .panel-header
+   ═══════════════════════════════════════════════════════════ */
+.panel-header,
+.pane-header,
+.dm-panel-header,
+.vdialog-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-3);
+  height: var(--panel-header-h);
+  min-height: var(--panel-header-h);
+  flex-shrink: 0;
+  font-size: var(--label-fs);
+  font-weight: var(--label-weight);
+  text-transform: var(--label-transform);
+  letter-spacing: var(--label-tracking);
+  color: var(--label-color);
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+  user-select: none;
+  overflow: hidden;
+}
+.panel-header--compact,
+.dm-panel-header {
+  height: var(--panel-header-h-compact);
+  min-height: var(--panel-header-h-compact);
+  padding: 0 var(--space-2);
+}
+.panel-header__title,
+.dm-panel-title,
+.vdialog-title {
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+  color: var(--text-bright);
+  letter-spacing: var(--label-tracking);
+  white-space: nowrap;
+}
+
 /* ============================================================
    AUTH & ACCOUNT SCREENS (Plan 2)
    ============================================================ */
@@ -4461,7 +4460,7 @@ mark.help-search-highlight {
 }
 .account-chip-head {
   font-size: 10px;
-  letter-spacing: 0.08em;
+  letter-spacing: var(--label-tracking);
   color: var(--text-muted);
 }
 .account-chip-name { color: var(--text-bright); font-size: 13px; }
