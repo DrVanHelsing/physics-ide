@@ -77,46 +77,58 @@ export default function DebugMode({
 
   /* ── Left resize handle drag ── */
   const startLeftResize = useCallback((e) => {
+    if (e.button != null && e.button !== 0) return;
     e.preventDefault();
     const container = containerRef.current;
     if (!container) return;
-    const onMouseMove = (ev) => {
+    const handle = e.currentTarget;
+    try { handle.setPointerCapture(e.pointerId); } catch { /* not capturable */ }
+    const onMove = (ev) => {
       const rect = container.getBoundingClientRect();
       const pct = Math.min(40, Math.max(12, ((ev.clientX - rect.left) / rect.width) * 100));
       setLeftPct(pct);
     };
-    const onMouseUp = () => {
-      document.removeEventListener("mousemove", onMouseMove);
-      document.removeEventListener("mouseup",   onMouseUp);
+    const onUp = () => {
+      handle.removeEventListener("pointermove", onMove);
+      handle.removeEventListener("pointerup", onUp);
+      handle.removeEventListener("pointercancel", onUp);
       document.body.style.cursor     = "";
       document.body.style.userSelect = "";
+      try { handle.releasePointerCapture(e.pointerId); } catch { /* already released */ }
     };
     document.body.style.cursor     = "col-resize";
     document.body.style.userSelect = "none";
-    document.addEventListener("mousemove", onMouseMove);
-    document.addEventListener("mouseup",   onMouseUp);
+    handle.addEventListener("pointermove", onMove);
+    handle.addEventListener("pointerup", onUp);
+    handle.addEventListener("pointercancel", onUp);
   }, []);
 
   /* ── Right resize handle drag ── */
   const startRightResize = useCallback((e) => {
+    if (e.button != null && e.button !== 0) return;
     e.preventDefault();
     const container = containerRef.current;
     if (!container) return;
-    const onMouseMove = (ev) => {
+    const handle = e.currentTarget;
+    try { handle.setPointerCapture(e.pointerId); } catch { /* not capturable */ }
+    const onMove = (ev) => {
       const rect = container.getBoundingClientRect();
       const pct = Math.min(50, Math.max(18, ((rect.right - ev.clientX) / rect.width) * 100));
       setRightPct(pct);
     };
-    const onMouseUp = () => {
-      document.removeEventListener("mousemove", onMouseMove);
-      document.removeEventListener("mouseup",   onMouseUp);
+    const onUp = () => {
+      handle.removeEventListener("pointermove", onMove);
+      handle.removeEventListener("pointerup", onUp);
+      handle.removeEventListener("pointercancel", onUp);
       document.body.style.cursor     = "";
       document.body.style.userSelect = "";
+      try { handle.releasePointerCapture(e.pointerId); } catch { /* already released */ }
     };
     document.body.style.cursor     = "col-resize";
     document.body.style.userSelect = "none";
-    document.addEventListener("mousemove", onMouseMove);
-    document.addEventListener("mouseup",   onMouseUp);
+    handle.addEventListener("pointermove", onMove);
+    handle.addEventListener("pointerup", onUp);
+    handle.addEventListener("pointercancel", onUp);
   }, []);
 
   /* ── Highlight block when a variable row is clicked ── */
@@ -329,7 +341,10 @@ export default function DebugMode({
         {/* Left resize handle */}
         <div
           className="dm-resize-handle dm-resize-handle--left"
-          onMouseDown={startLeftResize}
+          role="separator"
+          aria-orientation="vertical"
+          tabIndex={0}
+          onPointerDown={startLeftResize}
           title="Drag to resize Blocks panel"
         />
 
@@ -348,7 +363,10 @@ export default function DebugMode({
         {/* Right resize handle */}
         <div
           className="dm-resize-handle dm-resize-handle--right"
-          onMouseDown={startRightResize}
+          role="separator"
+          aria-orientation="vertical"
+          tabIndex={0}
+          onPointerDown={startRightResize}
           title="Drag to resize Trace panel"
         />
 

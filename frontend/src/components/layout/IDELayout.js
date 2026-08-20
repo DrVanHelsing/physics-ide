@@ -43,6 +43,7 @@ import { DS_TEMPLATES } from "../../utils/blockTemplates";
 import { runDsCode, clearCsvCache } from "../../utils/runner/dsRunner";
 import { renderDsChartToElement } from "../../utils/charts/chartSpec";
 import { migrate } from "../../utils/manifest/migrate";
+import { SPLIT_MIN, SPLIT_MAX } from "../../constants";
 
 import { useTheme }              from "../../contexts/ThemeContext";
 import { useSimulationContext }  from "../../contexts/SimulationContext";
@@ -78,7 +79,7 @@ export default function IDELayout() {
   const trc = useTrace();
   const exp = useExport();
   const proj = useProject();
-  const { splitPct, handleDividerMouseDown } = useSplitPane();
+  const { splitPct, handleDividerPointerDown, handleDividerKeyDown } = useSplitPane();
 
   /* ── Simple UI handlers (defined here to avoid extra hook) */
   const handleHelp = useCallback(() => setShowHelp(true), [setShowHelp]);
@@ -469,7 +470,18 @@ export default function IDELayout() {
         </section>
 
         {!viewportHidden && (
-          <div className="pane-divider" onMouseDown={handleDividerMouseDown} />
+          <div
+            className="pane-divider"
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Resize editor and viewport"
+            aria-valuenow={Math.round(splitPct)}
+            aria-valuemin={SPLIT_MIN}
+            aria-valuemax={SPLIT_MAX}
+            tabIndex={0}
+            onPointerDown={handleDividerPointerDown}
+            onKeyDown={handleDividerKeyDown}
+          />
         )}
 
         {/* ── Right pane: DS panel | 3D viewport | hybrid (both stacked) ── */}
