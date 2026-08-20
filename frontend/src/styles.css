@@ -417,21 +417,23 @@ button {
 .tb-btn {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px 8px;
-  font-size: 12px;
-  font-weight: 400;
-  color: var(--text);
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-regular);
+  color: var(--text-dim);
   background: transparent;
-  border: none;
-  border-radius: 4px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: background 0.12s, color 0.12s;
+  transition: background var(--transition-fast), color var(--transition-fast),
+              border-color var(--transition-fast);
   white-space: nowrap;
   line-height: 1;
 }
 .tb-btn:hover {
   background: var(--bg-hover);
+  color: var(--text-bright);
 }
 .tb-btn:active {
   background: var(--bg-active);
@@ -441,38 +443,47 @@ button {
   flex-shrink: 0;
 }
 .tb-btn-label {
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 /* Icon-only buttons */
 .tb-btn--icon {
-  padding: 4px 5px;
+  padding: var(--space-1) 5px;
 }
 
 /* Navigation buttons */
 .tb-btn--nav { color: var(--text-dim); }
 .tb-btn--nav:hover { color: var(--text-bright); }
 
-/* Run (green accent) */
+/* Run — the IDE core's one filled primary action. */
 .tb-btn--run {
-  background: transparent;
-  color: var(--green);
-  font-weight: 500;
+  padding: var(--space-1) var(--space-3);
+  background: var(--btn-primary-bg);
+  border-color: var(--btn-primary-bg);
+  color: var(--on-accent);
+  font-weight: var(--fw-semibold);
 }
 .tb-btn--run:hover {
-  background: color-mix(in srgb, var(--green) 12%, transparent);
+  background: var(--btn-primary-bg-hover);
+  border-color: var(--btn-primary-bg-hover);
+  color: var(--on-accent);
 }
+.tb-btn--run svg { opacity: 1; }
 
-/* Stop */
+/* Stop — destructive weight only while a run is actually stoppable. */
 .tb-btn--stop {
   color: var(--red);
+  border-color: color-mix(in srgb, var(--red) 45%, transparent);
 }
 .tb-btn--stop:hover:not(:disabled) {
   background: color-mix(in srgb, var(--red) 12%, transparent);
+  border-color: var(--red);
+  color: var(--red);
 }
 .tb-btn--stop:disabled,
 .tb-btn--stop.tb-btn--disabled {
   opacity: 0.35;
+  border-color: transparent;
   cursor: not-allowed;
   pointer-events: none;
 }
