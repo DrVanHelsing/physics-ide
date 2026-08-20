@@ -602,10 +602,10 @@ button {
   margin-left: auto;
   font-size: 10px;
   color: var(--text-muted);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--mono);
 }
 .tb-dropdown-item:hover .tb-dropdown-shortcut {
-  color: rgba(255,255,255,0.6);
+  color: color-mix(in srgb, var(--on-accent) 70%, transparent);
 }
 .tb-dropdown-divider {
   height: 1px;
@@ -656,7 +656,7 @@ button {
   color: var(--text-muted);
   min-width: 32px;
   text-align: center;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--mono);
 }
 
 /* ── Mode Toggle (VS Code tab bar style) ──────────────── */
@@ -1874,49 +1874,50 @@ button {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   STATUS BAR (VS Code blue bottom bar)
+   STATUS BAR
    ═══════════════════════════════════════════════════════════ */
 .status-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 12px;
+  padding: 0 var(--space-3);
   height: var(--statusbar-h);
   min-height: var(--statusbar-h);
-  font-size: 12px;
-  color: #ffffff;
+  font-size: var(--fs-sm);
+  color: var(--text-dim);
   background: var(--bg-statusbar);
+  border-top: 1px solid var(--border);
   user-select: none;
   z-index: 50;
 }
 .status-bar span {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  font-size: 12px;
+  gap: var(--space-1);
+  font-size: var(--fs-sm);
 }
 
 .console-bar {
   padding: 0;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   font-family: var(--mono);
-  color: rgba(255,255,255,0.85);
+  color: var(--text);
   background: transparent;
   border: none;
 }
-.console-bar--error { color: #ff9999; }
-.console-bar--success { color: #80ffdb; }
+.console-bar--error { color: var(--red); }
+.console-bar--success { color: var(--green); }
 .console-bar--running {
-  color: #80ffdb;
-  font-weight: 500;
+  color: var(--accent-bright);
+  font-weight: var(--fw-medium);
 }
 
 .status-dot {
   display: inline-block;
   width: 6px;
   height: 6px;
-  border-radius: 50%;
-  background: #80ffdb;
+  border-radius: var(--radius-pill);
+  background: var(--accent-bright);
   flex-shrink: 0;
   animation: statusPulse 1.2s ease infinite;
 }
@@ -4470,7 +4471,7 @@ mark.help-search-highlight {
 }
 .join-panel { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
 .join-code-big {
-  font-family: Consolas, monospace;
+  font-family: var(--mono);
   font-size: 28px;
   letter-spacing: 0.08em;
   color: var(--text-bright);
@@ -4511,7 +4512,7 @@ mark.help-search-highlight {
   padding: 10px 14px;
   font-size: 13px;
   color: var(--text-bright);
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-lg);
 }
 .admin-btn--primary { border-color: var(--accent); color: var(--accent-bright); }
 
@@ -4554,7 +4555,7 @@ mark.help-search-highlight {
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
 }
 .welcome-card {
-  background: var(--bg-surface); border: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--bg-surface); border: 1px solid var(--card-border);
   border-radius: 8px; padding: 18px;
 }
 .welcome-card__icon { display: inline-flex; color: var(--accent-bright); }
@@ -4568,7 +4569,7 @@ mark.help-search-highlight {
 .welcome-playground { margin-top: 14px; }
 .welcome-playground__canvas {
   width: 100%; height: 260px; display: block; border-radius: 8px;
-  background: var(--bg-surface); border: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--bg-surface); border: 1px solid var(--card-border);
   cursor: crosshair; touch-action: none;
 }
 .welcome-playground__controls {
