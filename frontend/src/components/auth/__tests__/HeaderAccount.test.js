@@ -57,7 +57,12 @@ describe("HeaderAccount", () => {
     useSignout.mockReturnValue({ mutateAsync: vi.fn(), isPending: false });
 
     const container = renderAccount();
-    expect(container.querySelector(".tb-btn--account").textContent).toContain("Ada");
+    const trigger = container.querySelector(".tb-btn--account");
+    expect(trigger.textContent).toContain("Ada");
+    // No aria-label override: the accessible name must fall back to the visible
+    // text ("Ada"), not the title ("Signed in as ada@example.com"), which does
+    // not contain it (WCAG 2.5.3 Label in Name).
+    expect(trigger.hasAttribute("aria-label")).toBe(false);
     openMenu(container);
     expect(byText(container, "My classes")).not.toBeNull();
     expect(byText(container, "Profile")).not.toBeNull();
