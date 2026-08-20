@@ -16,7 +16,7 @@
  * and SimulationContext.
  */
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
 import {
   listProjects,
   loadProject,
@@ -37,6 +37,12 @@ export function ProjectProvider({ children }) {
   const [projectList, setProjectList] = useState([]);
   const [loaded, setLoaded] = useState(false);
   const [bootstrapResult, setBootstrapResult] = useState(null);
+  /* Flipped synchronously the instant openProject is called, so the
+     bootstrap restore below (which awaits its own loadProject before it can
+     check state) can tell whether the user has already opened something in
+     the meantime — closures inside the bootstrap effect see stale state, so
+     a ref is the only reliable read here. */
+  const explicitOpenRef = useRef(false);
 
   const refreshList = useCallback(async () => {
     const list = await listProjects();
@@ -89,7 +95,13 @@ export function ProjectProvider({ children }) {
           if (restoredId && list.some((p) => p.id === restoredId)) {
             const restored = await loadProject(restoredId);
             if (cancelled) return;
-            if (restored) {
+            /* The start menu is already visible while this await is in
+               flight (projectList was just set above), so the user can open
+               a different project — or create a new one — before this
+               resolves. That explicit action must win: applying the stale
+               restore on top of it would silently discard what the user
+               just chose. */
+            if (restored && !explicitOpenRef.current) {
               setActiveProjectId(restored.id);
               setActiveManifest(restored);
             }
@@ -139,6 +151,10 @@ export function ProjectProvider({ children }) {
 
   const openProject = useCallback(
     async (id) => {
+      // Flip before the await: this is the earliest point at which an
+      // explicit open is committed, and it must beat a bootstrap restore
+      // that resolves later.
+      explicitOpenRef.current = true;
       const m = await loadProject(id);
       if (!m) return null;
       setActiveProjectId(m.id);
