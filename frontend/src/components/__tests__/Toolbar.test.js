@@ -55,7 +55,7 @@ describe("Toolbar — navigation group", () => {
 describe("Toolbar — simulation group", () => {
   test("Run fires onRun; Stop is disabled while idle", () => {
     const { container, h } = render();
-    click(byText(container, "Run"));
+    click(byTitle(container, "Run simulation (Ctrl+Enter)"));
     expect(h.onRun).toHaveBeenCalledTimes(1);
     expect(byText(container, "Stop").disabled).toBe(true);
   });

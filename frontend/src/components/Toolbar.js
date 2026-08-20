@@ -24,6 +24,7 @@ import {
   TableIcon,
   BugIcon,
 } from "./Icons";
+import { MOD_LABEL } from "../utils/hotkeys";
 
 /* ── Dropdown menu component ─────────────────────────────── */
 function DropdownMenu({ trigger, children, align = "left" }) {
@@ -195,6 +196,7 @@ function Toolbar({
             <button type="button" className="tb-btn tb-btn--run" onClick={onRun} title="Run simulation (Ctrl+Enter)">
               <PlayIcon size={13} />
               <span className="tb-btn-label">Run</span>
+              <kbd className="tb-kbd">{MOD_LABEL}+Enter</kbd>
             </button>
             <button
               type="button"
@@ -338,7 +340,6 @@ function Toolbar({
         <button type="button" className="tb-dropdown-item" onClick={onExportPy}>
           <FileCodeIcon size={14} />
           <span>Export as Python (.py)</span>
-          <span className="tb-dropdown-shortcut">Ctrl+S</span>
         </button>
         <button type="button" className="tb-dropdown-item" onClick={onExportBlocks}>
           <FileBlocksIcon size={14} />
@@ -368,7 +369,6 @@ function Toolbar({
             <button type="button" className="tb-dropdown-item" onClick={onCopyCode}>
               <CopyIcon size={14} />
               <span>Copy Code to Clipboard</span>
-              <span className="tb-dropdown-shortcut">Ctrl+C</span>
             </button>
           </>
         )}

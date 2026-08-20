@@ -442,6 +442,20 @@ button {
   font-size: var(--fs-sm);
 }
 
+/* Shortcut chip shown inline on a toolbar action */
+.tb-kbd {
+  font-family: var(--mono);
+  font-size: var(--fs-2xs, 10px);
+  line-height: 1;
+  padding: 2px 4px;
+  margin-left: 2px;
+  color: var(--text-muted);
+  background: var(--key-bg);
+  border: 1px solid var(--key-border);
+  border-radius: var(--radius-sm, 3px);
+}
+.tb-btn:hover .tb-kbd { color: var(--text-dim); }
+
 /* Icon-only buttons */
 .tb-btn--icon {
   padding: var(--space-1) 5px;

@@ -146,7 +146,7 @@ const SEARCH_INDEX = [
   {
     id: "shortcuts",
     title: "Keyboard Shortcuts",
-    content: "keyboard shortcuts Ctrl+Z undo Ctrl+Y redo Ctrl+A select all Delete Backspace Escape close help run stop space Enter debug F10",
+    content: "keyboard shortcuts Ctrl+Enter run F5 run Escape stop Ctrl+S save Ctrl+Z undo Ctrl+Y redo Ctrl+A select all Delete Backspace Escape close help space Enter debug F10",
   },
 ];
 
@@ -1969,8 +1969,8 @@ angle = clamp(input_angle, -30, 30)`}</Pre>
               <SectionHeader id="export">Export &amp; Share</SectionHeader>
               <p>
                 Physics IDE provides seven export options, all accessible from the{" "}
-                <strong>Export</strong> dropdown in the toolbar (keyboard: <Kbd>Ctrl+S</Kbd> for
-                Python, <Kbd>Ctrl+C</Kbd> for clipboard).
+                <strong>Export</strong> dropdown in the toolbar. Saving your project is
+                separate — <Kbd>Ctrl+S</Kbd> saves, it does not export.
               </p>
               <table className="help-table">
                 <thead><tr><th>Export option</th><th>Format</th><th>Contents</th><th>Best for</th></tr></thead>
@@ -2219,6 +2219,10 @@ angle = clamp(input_angle, -30, 30)`}</Pre>
               <table className="help-table">
                 <thead><tr><th>Where</th><th>Shortcut</th><th>Action</th></tr></thead>
                 <tbody>
+                  <tr><td>Global</td><td><Kbd>Ctrl+Enter</Kbd></td><td>Run the simulation</td></tr>
+                  <tr><td>Global</td><td><Kbd>F5</Kbd></td><td>Run the simulation</td></tr>
+                  <tr><td>Global</td><td><Kbd>Esc</Kbd></td><td>Stop the simulation</td></tr>
+                  <tr><td>Global</td><td><Kbd>Ctrl+S</Kbd></td><td>Save the project</td></tr>
                   <tr><td>Global</td><td><Kbd>Esc</Kbd></td><td>Close Help page</td></tr>
                   <tr><td>Block canvas</td><td><Kbd>Ctrl+Z</Kbd></td><td>Undo last block action</td></tr>
                   <tr><td>Block canvas</td><td><Kbd>Ctrl+Y</Kbd></td><td>Redo</td></tr>
