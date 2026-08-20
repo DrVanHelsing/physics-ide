@@ -3416,7 +3416,7 @@ mark.help-search-highlight {
   font-size: 12px;
 }
 .ds-regression-equation {
-  font-family: "Fira Mono", "Consolas", monospace;
+  font-family: var(--mono);
   font-size: 13px;
   color: var(--text);
   font-weight: 600;
@@ -3432,7 +3432,7 @@ mark.help-search-highlight {
   color: var(--text-muted);
 }
 .ds-regression-r2 {
-  font-family: "Fira Mono", "Consolas", monospace;
+  font-family: var(--mono);
   color: var(--accent-bright);
   font-variant-numeric: tabular-nums;
 }
@@ -3454,7 +3454,7 @@ mark.help-search-highlight {
   gap: 3px;
 }
 .ds-uncertainty-label {
-  font-family: "Fira Mono", "Consolas", monospace;
+  font-family: var(--mono);
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -3465,7 +3465,7 @@ mark.help-search-highlight {
   align-self: flex-start;
 }
 .ds-uncertainty-value {
-  font-family: "Fira Mono", "Consolas", monospace;
+  font-family: var(--mono);
   font-size: 16px;
   font-weight: 700;
   color: var(--text);
