@@ -60,6 +60,7 @@ import { useExport }      from "../../hooks/useExport";
 import { useSplitPane }   from "../../hooks/useSplitPane";
 import { useProject }     from "../../hooks/useProject";
 import { useHotkeys }     from "../../hooks/useHotkeys";
+import { useRunErrorBanner } from "../../hooks/useRunErrorBanner";
 
 export default function IDELayout() {
   /* ── Theme ───────────────────────────────────────────── */
@@ -99,10 +100,10 @@ export default function IDELayout() {
   /* ── Saved trace datasets (for DataPanel sidebar) ─────────── */
   const [savedDatasets, setSavedDatasets] = useState([]);
 
-  /* The last error we showed in the banner, so dismissing it does not
-     immediately re-show the same status string on the next render. */
-  const [dismissedError, setDismissedError] = useState(null);
-  const bannerText = status.type === "error" && status.text !== dismissedError ? status.text : null;
+  /* ── Run-error banner: latches independently of `status` (a shared
+     single-slot bulletin every other status write overwrites) so it
+     actually persists — see useRunErrorBanner.js. ── */
+  const [bannerText, dismissBanner] = useRunErrorBanner(status, sim.running);
 
   const goal = proj.activeManifest?.goal || "physics";
   const isDataGoal   = goal === "datascience";
@@ -488,7 +489,7 @@ export default function IDELayout() {
         {/* ── Right pane: DS panel | 3D viewport | hybrid (both stacked) ── */}
         {isDataGoal ? (
           <section className={`canvas-pane${viewportHidden ? " canvas-pane--hidden" : ""}`}>
-            <RunErrorBanner text={bannerText} onDismiss={() => setDismissedError(status.text)} />
+            <RunErrorBanner text={bannerText} onDismiss={dismissBanner} />
             <DataPanel
               goal={goal}
               datasetCount={proj.activeManifest?.datasets?.length || 0}
@@ -506,7 +507,7 @@ export default function IDELayout() {
               <div className="pane-header pane-header--viewport">
                 <GlobeIcon size={14} /> 3D Viewport
               </div>
-              <RunErrorBanner text={bannerText} onDismiss={() => setDismissedError(status.text)} />
+              <RunErrorBanner text={bannerText} onDismiss={dismissBanner} />
               <GlowCanvas running={running} />
             </div>
             <div className="hybrid-datapanel">
@@ -525,7 +526,7 @@ export default function IDELayout() {
             <div className="pane-header pane-header--viewport">
               <GlobeIcon size={14} /> 3D Viewport
             </div>
-            <RunErrorBanner text={bannerText} onDismiss={() => setDismissedError(status.text)} />
+            <RunErrorBanner text={bannerText} onDismiss={dismissBanner} />
             <GlowCanvas running={running} />
           </section>
         )}
