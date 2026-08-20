@@ -54,6 +54,7 @@ import { useTrace }       from "../../hooks/useTrace";
 import { useExport }      from "../../hooks/useExport";
 import { useSplitPane }   from "../../hooks/useSplitPane";
 import { useProject }     from "../../hooks/useProject";
+import { useHotkeys }     from "../../hooks/useHotkeys";
 
 export default function IDELayout() {
   /* ── Theme ───────────────────────────────────────────── */
@@ -63,7 +64,7 @@ export default function IDELayout() {
   const {
     showStart, setShowStart,
     showHelp,  setShowHelp,
-    status,
+    status,   setStatus,
     paused,
     workspaceRef,
     setPythonCode,
@@ -167,6 +168,31 @@ export default function IDELayout() {
   /* ── Trace promote dialog ─────────────────────────────────── */
   const [showTraceDialog, setShowTraceDialog] = useState(false);
   const pendingBufferRef = useRef(null);
+
+  /* ── Global hotkeys ────────────────────────────────────────
+     Disabled whenever another surface owns the keyboard: the start menu,
+     Help, Debug Mode (its own handler lives at DebugMode.js:162-179), the
+     trace-promote dialog and the chart overlay. */
+  const handleSaveProject = useCallback(async () => {
+    try {
+      const saved = await proj.saveCurrent();
+      setStatus(
+        saved
+          ? { text: `Saved “${saved.title}”`, type: "success" }
+          : { text: "Nothing to save yet", type: "" },
+      );
+    } catch (err) {
+      console.warn("Save failed:", err);
+      setStatus({ text: "Could not save — your work is still on this computer", type: "error" });
+    }
+  }, [proj, setStatus]);
+
+  useHotkeys({
+    enabled: !showStart && !showHelp && !dbg.debugMode && !showTraceDialog && !chartDataset,
+    onRun: sim.handleRun,
+    onStop: sim.running ? sim.handleStop : undefined,
+    onSave: handleSaveProject,
+  });
 
   const handleSaveAsDataset = useCallback((recordBuffer) => {
     if (!recordBuffer || recordBuffer.length === 0) return;
