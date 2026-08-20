@@ -49,7 +49,10 @@ describe("migrate", () => {
     const m = migrate({ pythonCode: "only code" });
     expect(isManifest(m)).toBe(true);
     expect(m.source.python).toBe("only code");
-    expect(m.workspace.xml).toBe("");
+    // No workspaceXml in the legacy state and preferredEditor defaults to
+    // "blocks" here, so this recovers as a blank physics project — which
+    // factory.js now seeds with the simulation frame like any other.
+    expect(m.workspace.xml).toContain('type="sim_start_block"');
   });
 
   test("throws on unrecognized shapes", () => {
