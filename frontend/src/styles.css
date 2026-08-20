@@ -4228,6 +4228,7 @@ mark.help-search-highlight {
 .admin-btn,
 .welcome-btn,
 .account-chip-btn,
+.auth-submit,
 .vdialog-btn {
   display: inline-flex;
   align-items: center;
@@ -4253,6 +4254,7 @@ mark.help-search-highlight {
 .admin-btn:hover:not(:disabled),
 .welcome-btn:hover:not(:disabled),
 .account-chip-btn:hover:not(:disabled),
+.auth-submit:hover:not(:disabled),
 .vdialog-btn:hover:not(:disabled) {
   background: var(--btn-bg-hover);
   border-color: var(--border-hl);
@@ -4262,6 +4264,7 @@ mark.help-search-highlight {
 .admin-btn:disabled,
 .welcome-btn:disabled,
 .account-chip-btn:disabled,
+.auth-submit:disabled,
 .vdialog-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
@@ -4444,7 +4447,7 @@ mark.help-search-highlight {
   display: flex;
   background: var(--card-bg);
 }
-.account-chip-btn:hover { background: var(--card-bg-hover); }
+.account-chip-btn:hover:not(:disabled) { background: var(--card-bg-hover); }
 
 /* ---- Admin console (Plan 2) ---- */
 .admin-page { min-height: 100vh; background: var(--bg-base); color: var(--text); }
@@ -4469,7 +4472,7 @@ mark.help-search-highlight {
 .admin-cap { display: flex; align-items: center; gap: 10px; font-size: 14px; }
 .admin-cap-input { width: 90px; }
 .admin-btn { background: var(--card-bg); }
-.admin-btn:hover { background: var(--card-bg-hover); }
+.admin-btn:hover:not(:disabled) { background: var(--card-bg-hover); }
 .admin-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .admin-table th {
   text-align: left;
