@@ -408,15 +408,10 @@ export default function IDELayout() {
         />
       </Toolbar>
 
-      <div className="main-layout">
+      <div className="main-layout" style={{ "--split": `${splitPct}%` }}>
         {/* ── Editor pane ── */}
         <section
-          className="editor-pane"
-          style={
-            viewportHidden
-              ? { flex: "1 1 auto", maxWidth: "100%", borderRight: "none" }
-              : { flex: `0 0 ${splitPct}%`, maxWidth: `${splitPct}%` }
-          }
+          className={`editor-pane${viewportHidden ? " editor-pane--full" : ""}`}
         >
           {mode === "blocks" ? (
             <>
@@ -486,10 +481,7 @@ export default function IDELayout() {
 
         {/* ── Right pane: DS panel | 3D viewport | hybrid (both stacked) ── */}
         {isDataGoal ? (
-          <section
-            className="canvas-pane"
-            style={viewportHidden ? { display: "none" } : { flex: "1 1 0", minWidth: 0 }}
-          >
+          <section className={`canvas-pane${viewportHidden ? " canvas-pane--hidden" : ""}`}>
             <DataPanel
               goal={goal}
               datasetCount={proj.activeManifest?.datasets?.length || 0}
@@ -501,8 +493,7 @@ export default function IDELayout() {
           </section>
         ) : isHybridGoal ? (
           <section
-            className="canvas-pane canvas-pane--hybrid"
-            style={viewportHidden ? { display: "none" } : { flex: "1 1 0", minWidth: 0 }}
+            className={`canvas-pane canvas-pane--hybrid${viewportHidden ? " canvas-pane--hidden" : ""}`}
           >
             <div className="hybrid-viewport">
               <div className="pane-header pane-header--viewport">
@@ -522,10 +513,7 @@ export default function IDELayout() {
             </div>
           </section>
         ) : (
-          <section
-            className="canvas-pane"
-            style={viewportHidden ? { display: "none" } : { flex: "1 1 0", minWidth: 0 }}
-          >
+          <section className={`canvas-pane${viewportHidden ? " canvas-pane--hidden" : ""}`}>
             <div className="pane-header pane-header--viewport">
               <GlobeIcon size={14} /> 3D Viewport
             </div>

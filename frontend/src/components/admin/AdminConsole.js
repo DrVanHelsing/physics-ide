@@ -95,49 +95,51 @@ function PeopleTab() {
         onChange={(e) => setQ(e.target.value)}
       />
       {act.error ? <div className="auth-error">{act.error.message}</div> : null}
-      <table className="admin-table">
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Email</th>
-            <th>Kind</th>
-            <th>Status</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {(usersQuery.data?.users ?? []).map((u) => (
-            <tr key={u.id}>
-              <td>{u.name}</td>
-              <td>{u.email}</td>
-              <td>{u.role === "admin" ? "admin" : u.isTeacher ? "teacher" : "student"}</td>
-              <td>
-                {u.active ? "active" : "deactivated"}
-                {!u.emailConfirmed ? " · unconfirmed" : ""}
-              </td>
-              <td className="admin-actions">
-                {u.active ? (
-                  <button className="admin-btn" type="button" onClick={() => act.mutate({ id: u.id, action: "deactivate" })}>
-                    Deactivate
-                  </button>
-                ) : (
-                  <button className="admin-btn" type="button" onClick={() => act.mutate({ id: u.id, action: "reactivate" })}>
-                    Reactivate
-                  </button>
-                )}
-                {!u.emailConfirmed ? (
-                  <button className="admin-btn" type="button" onClick={() => act.mutate({ id: u.id, action: "resend-confirmation" })}>
-                    Resend confirmation
-                  </button>
-                ) : null}
-                <button className="admin-btn" type="button" onClick={() => act.mutate({ id: u.id, action: "send-reset" })}>
-                  Send reset
-                </button>
-              </td>
+      <div className="admin-table-wrap">
+        <table className="admin-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Kind</th>
+              <th>Status</th>
+              <th>Actions</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {(usersQuery.data?.users ?? []).map((u) => (
+              <tr key={u.id}>
+                <td>{u.name}</td>
+                <td>{u.email}</td>
+                <td>{u.role === "admin" ? "admin" : u.isTeacher ? "teacher" : "student"}</td>
+                <td>
+                  {u.active ? "active" : "deactivated"}
+                  {!u.emailConfirmed ? " · unconfirmed" : ""}
+                </td>
+                <td className="admin-actions">
+                  {u.active ? (
+                    <button className="admin-btn" type="button" onClick={() => act.mutate({ id: u.id, action: "deactivate" })}>
+                      Deactivate
+                    </button>
+                  ) : (
+                    <button className="admin-btn" type="button" onClick={() => act.mutate({ id: u.id, action: "reactivate" })}>
+                      Reactivate
+                    </button>
+                  )}
+                  {!u.emailConfirmed ? (
+                    <button className="admin-btn" type="button" onClick={() => act.mutate({ id: u.id, action: "resend-confirmation" })}>
+                      Resend confirmation
+                    </button>
+                  ) : null}
+                  <button className="admin-btn" type="button" onClick={() => act.mutate({ id: u.id, action: "send-reset" })}>
+                    Send reset
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -153,33 +155,35 @@ function EmailsTab() {
       <p className="auth-text auth-text--dim">
         The pretend inbox: every email the system would have sent, exactly as it would look.
       </p>
-      <table className="admin-table">
-        <thead>
-          <tr>
-            <th>When</th>
-            <th>To</th>
-            <th>Subject</th>
-          </tr>
-        </thead>
-        <tbody>
-          {(emailsQuery.data?.emails ?? []).map((m) => (
-            <React.Fragment key={m.id}>
-              <tr className="admin-mail-row" onClick={() => setOpenId(openId === m.id ? null : m.id)}>
-                <td>{new Date(m.createdAt).toLocaleString()}</td>
-                <td>{m.toEmail}</td>
-                <td>{m.subject}</td>
-              </tr>
-              {openId === m.id ? (
-                <tr>
-                  <td colSpan="3">
-                    <pre className="admin-mail-body">{m.bodyText}</pre>
-                  </td>
+      <div className="admin-table-wrap">
+        <table className="admin-table">
+          <thead>
+            <tr>
+              <th>When</th>
+              <th>To</th>
+              <th>Subject</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(emailsQuery.data?.emails ?? []).map((m) => (
+              <React.Fragment key={m.id}>
+                <tr className="admin-mail-row" onClick={() => setOpenId(openId === m.id ? null : m.id)}>
+                  <td>{new Date(m.createdAt).toLocaleString()}</td>
+                  <td>{m.toEmail}</td>
+                  <td>{m.subject}</td>
                 </tr>
-              ) : null}
-            </React.Fragment>
-          ))}
-        </tbody>
-      </table>
+                {openId === m.id ? (
+                  <tr>
+                    <td colSpan="3">
+                      <pre className="admin-mail-body">{m.bodyText}</pre>
+                    </td>
+                  </tr>
+                ) : null}
+              </React.Fragment>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -194,31 +198,33 @@ function ClassesTab() {
       <p className="auth-text auth-text--dim">
         Every class on the site — visibility, not management.
       </p>
-      <table className="admin-table">
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Teachers</th>
-            <th>Members</th>
-            <th>Joining</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {(classesQuery.data?.classes ?? []).map((c) => (
-            <tr key={c.id}>
-              <td>
-                {c.name}
-                {c.subjectLabel ? ` · ${c.subjectLabel}` : ""}
-              </td>
-              <td>{c.teachers.join(", ")}</td>
-              <td>{c.activeMembers}</td>
-              <td>{c.joinMode}</td>
-              <td>{c.archived ? "archived" : "active"}</td>
+      <div className="admin-table-wrap">
+        <table className="admin-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Teachers</th>
+              <th>Members</th>
+              <th>Joining</th>
+              <th>Status</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {(classesQuery.data?.classes ?? []).map((c) => (
+              <tr key={c.id}>
+                <td>
+                  {c.name}
+                  {c.subjectLabel ? ` · ${c.subjectLabel}` : ""}
+                </td>
+                <td>{c.teachers.join(", ")}</td>
+                <td>{c.activeMembers}</td>
+                <td>{c.joinMode}</td>
+                <td>{c.archived ? "archived" : "active"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
