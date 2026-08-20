@@ -40,6 +40,7 @@ export default function DropdownMenu({
         className={triggerClassName}
         onClick={() => setOpen((o) => !o)}
         title={title}
+        aria-label={title}
         aria-haspopup="menu"
         aria-expanded={open}
       >

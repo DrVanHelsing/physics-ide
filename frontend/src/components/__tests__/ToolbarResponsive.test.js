@@ -1,0 +1,87 @@
+import { describe, test, expect, vi, afterEach, beforeEach } from "vitest";
+import React from "react";
+import Toolbar, { HEADER_STAGE1_QUERY, HEADER_STAGE2_QUERY } from "../Toolbar";
+import { mountComponent, click, byText } from "../../test/renderHelpers";
+
+vi.mock("../auth/HeaderAccount", () => ({ default: () => null }));
+
+let mounted = null;
+const realMatchMedia = globalThis.matchMedia;
+
+/** Make exactly the listed queries match. */
+function setViewport(...matching) {
+  globalThis.matchMedia = (query) => ({
+    matches: matching.includes(query),
+    media: query,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  });
+}
+
+beforeEach(() => setViewport());
+afterEach(() => {
+  mounted?.unmount();
+  mounted = null;
+  globalThis.matchMedia = realMatchMedia;
+});
+
+function render(props = {}) {
+  mounted = mountComponent(
+    <Toolbar goal="physics" mode="blocks" running={false} isDark zoom={90}
+             onZoomChange={vi.fn()} onToggleViewport={vi.fn()} onDebugMode={vi.fn()}
+             onReset={vi.fn()} onClearWorkspace={vi.fn()} onHelp={vi.fn()} {...props} />,
+  );
+  return mounted;
+}
+
+describe("header collapse — wide (no query matches)", () => {
+  test("everything is inline and there is no overflow menu", () => {
+    const { container } = render();
+    expect(container.querySelector(".tb-zoom")).not.toBeNull();
+    expect(byText(container, "Debug")).not.toBeNull();
+    expect(container.querySelector(".tb-btn--overflow")).toBeNull();
+    expect(container.querySelector(".app-header--stage1")).toBeNull();
+  });
+});
+
+describe("header collapse — stage 1 (<= 1280px)", () => {
+  test("the zoom slider goes and the header is marked compact", () => {
+    setViewport(HEADER_STAGE1_QUERY);
+    const { container } = render();
+    expect(container.querySelector(".tb-zoom")).toBeNull();
+    expect(container.querySelector(".app-header--stage1")).not.toBeNull();
+    // Controls are still directly clickable — only their labels are CSS-hidden.
+    expect(byText(container, "Debug")).not.toBeNull();
+    expect(container.querySelector(".tb-btn--overflow")).toBeNull();
+  });
+});
+
+describe("header collapse — stage 2 (<= 1120px)", () => {
+  test("secondary controls move into the overflow menu and stay reachable", () => {
+    setViewport(HEADER_STAGE1_QUERY, HEADER_STAGE2_QUERY);
+    const onDebugMode = vi.fn();
+    const { container } = render({ onDebugMode });
+
+    expect(byText(container, "Debug")).toBeNull();
+    const trigger = container.querySelector(".tb-btn--overflow");
+    expect(trigger).not.toBeNull();
+    click(trigger);
+
+    const menu = container.querySelector(".tb-dropdown-menu");
+    for (const label of ["Debug", "Hide 3D viewport", "Back to Blocks", "Clear", "Help"]) {
+      expect(menu.textContent).toContain(label);
+    }
+    click([...menu.querySelectorAll(".tb-dropdown-item")].find((b) => b.textContent.includes("Debug")));
+    expect(onDebugMode).toHaveBeenCalledTimes(1);
+  });
+
+  test("Run, Stop, Save, File and the project title never collapse", () => {
+    setViewport(HEADER_STAGE1_QUERY, HEADER_STAGE2_QUERY);
+    const { container } = render({ onSave: vi.fn(), projectTitle: "Orbits" });
+    expect(byText(container, "Run")).not.toBeNull();
+    expect(byText(container, "Stop")).not.toBeNull();
+    expect(byText(container, "Save")).not.toBeNull();
+    expect(byText(container, "File")).not.toBeNull();
+    expect(container.querySelector(".project-title")).not.toBeNull();
+  });
+});
