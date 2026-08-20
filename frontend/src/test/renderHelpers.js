@@ -34,6 +34,14 @@ export function click(el) {
   });
 }
 
+/** Dispatch a bubbling mousedown inside act() — what dialogs listen for on the backdrop. */
+export function mouseDown(el) {
+  if (!el) throw new Error("mouseDown(): element not found");
+  act(() => {
+    el.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+  });
+}
+
 /** Dispatch a bubbling keydown inside act(). */
 export function keyDown(el, init) {
   act(() => {
