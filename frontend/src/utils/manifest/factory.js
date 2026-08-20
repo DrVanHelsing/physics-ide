@@ -29,6 +29,20 @@ const DS_STARTER_XML = `<xml xmlns="https://developers.google.com/blockly/xml">
   </block>
 </xml>`;
 
+/* A blank physics project opens on the frame every simulation needs, so the
+   first thing a student sees is a place to put blocks rather than an empty
+   grid and a trashcan. Mirrors DS_STARTER_XML above. */
+const PHYSICS_STARTER_XML = `<xml xmlns="https://developers.google.com/blockly/xml">
+  <block type="sim_start_block" x="40" y="40">
+    <field name="TITLE">My Simulation</field>
+    <next>
+      <block type="sim_end_block">
+        <field name="MSG">Simulation complete.</field>
+      </block>
+    </next>
+  </block>
+</xml>`;
+
 function generateId(prefix = "p") {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
     return `${prefix}-${crypto.randomUUID()}`;
@@ -65,10 +79,11 @@ export function createManifest({
       ? title
       : defaultTitle(goal);
 
-  const defaultXml =
-    (goal === "datascience" || goal === "hybrid") && !workspaceXml
-      ? DS_STARTER_XML
-      : (workspaceXml || "");
+  const isCodeFirst = projectType === "code_blank" || preferredEditor === "code";
+  let defaultXml = workspaceXml || "";
+  if (!workspaceXml && !isCodeFirst) {
+    defaultXml = goal === "datascience" || goal === "hybrid" ? DS_STARTER_XML : PHYSICS_STARTER_XML;
+  }
 
   return {
     schemaVersion: SCHEMA_VERSION,

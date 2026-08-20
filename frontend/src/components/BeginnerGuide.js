@@ -3,8 +3,8 @@ import { XIcon, GraduationCapIcon } from "./Icons";
 
 const TIPS = {
   physics: [
-    { id: "ph-run",   text: "Press ▶︎ Run in the toolbar to start your simulation." },
-    { id: "ph-var",   text: "Use the Variable blocks to create objects like balls and springs." },
+    { id: "ph-run",   text: "Press Run in the toolbar to start your simulation." },
+    { id: "ph-var",   text: "Open the Objects drawer to add balls, boxes and springs to your scene." },
     { id: "ph-trace", text: "Click Record in the Variables panel to capture data while simulating." },
   ],
   datascience: [

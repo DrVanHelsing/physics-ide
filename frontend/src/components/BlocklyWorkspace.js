@@ -260,6 +260,16 @@ function disableOrphanedBlocks(workspace, goal) {
   return changed;
 }
 
+/* Scaffold, not content — a freshly seeded project must still read as "empty"
+   even though its frame is already on the canvas (factory.js's
+   PHYSICS_STARTER_XML / DS_STARTER_XML). Keep this set in sync with those
+   two constants. */
+const FRAME_BLOCK_TYPES = new Set(["sim_start_block", "sim_end_block", "ds_start_block"]);
+
+function countContentBlocks(workspace) {
+  return workspace.getAllBlocks(false).filter((b) => !FRAME_BLOCK_TYPES.has(b.type)).length;
+}
+
 function resizeBlocklyWorkspace(Blockly, workspace) {
   if (!workspace) return;
   if (typeof Blockly?.svgResize === "function") {
@@ -271,7 +281,7 @@ function resizeBlocklyWorkspace(Blockly, workspace) {
   }
 }
 
-function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, isDark, goal = "physics" }) {
+function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, onBlockCountChange, isDark, goal = "physics" }) {
   const hostRef = useRef(null);
   const workspaceRef = useRef(null);
   const [loadError, setLoadError] = useState("");
@@ -283,6 +293,8 @@ function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, isD
   onReadyRef.current = onWorkspaceReady;
   onChangeRef.current = onWorkspaceChange;
   goalRef.current = goal;
+  const onCountRef = useRef(onBlockCountChange);
+  onCountRef.current = onBlockCountChange;
 
   /* ── One-time workspace setup ──────────────────────────── */
   useEffect(() => {
@@ -375,6 +387,7 @@ function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, isD
         const xmlText = Blockly.Xml.domToText(dom);
         const code = generatePythonFromWorkspace(workspace);
         onChangeRef.current(xmlText, code);
+        onCountRef.current?.(countContentBlocks(workspace));
       } catch (err) {
         console.warn("Workspace change listener error:", err);
       }
@@ -383,6 +396,7 @@ function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, isD
 
     normalizeSimulationStructure(workspace);
     disableOrphanedBlocks(workspace, goalRef.current);
+    onCountRef.current?.(countContentBlocks(workspace));
 
     /* ── Custom constant popup: intercept __NEW__ on physics_const_block ── */
     const constListener = (event) => {

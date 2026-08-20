@@ -21,6 +21,7 @@
 import React, { useCallback, useRef, useState } from "react";
 
 import BlocklyWorkspace, { ReadOnlyBlockly } from "../BlocklyWorkspace";
+import BlocklyEmptyState from "../BlocklyEmptyState";
 import CodeEditor   from "../CodeEditor";
 import GlowCanvas   from "../GlowCanvas";
 import Toolbar      from "../Toolbar";
@@ -100,6 +101,10 @@ export default function IDELayout() {
   /* ── Saved trace datasets (for DataPanel sidebar) ─────────── */
   const [savedDatasets, setSavedDatasets] = useState([]);
 
+  /* ── Blank-canvas empty state: null = not measured yet, so the
+     overlay never flashes before Blockly reports its first count. ── */
+  const [blockCount, setBlockCount] = useState(null);
+
   /* ── Run-error banner: latches independently of `status` (a shared
      single-slot bulletin every other status write overwrites) so it
      actually persists — see useRunErrorBanner.js. ── */
@@ -154,6 +159,23 @@ export default function IDELayout() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [sim, isDataGoal, workspaceRef]
   );
+
+  const handleInsertStarterBlock = useCallback((blockXml) => {
+    const ws = workspaceRef.current;
+    const Blockly = window.Blockly;
+    if (!ws || !Blockly) return;
+    try {
+      const dom = Blockly.utils.xml.textToDom(
+        `<xml xmlns="https://developers.google.com/blockly/xml">${blockXml}</xml>`,
+      );
+      Blockly.Xml.domToWorkspace(dom, ws);
+      /* normalizeSimulationStructure (BlocklyWorkspace.js:196-232) adopts the
+         new top-level block into the sim_start SETUP slot on the next change
+         event, which is exactly where a beginner wants it. */
+    } catch (err) {
+      console.warn("Could not insert starter block:", err);
+    }
+  }, [workspaceRef]);
 
   /* ── Chart overlay (Phase A spike) ── */
   const [chartDataset, setChartDataset] = useState(null);
@@ -433,14 +455,28 @@ export default function IDELayout() {
               {isReadOnlyView ? (
                 <ReadOnlyBlockly xml={workspaceXml} isDark={isDark} />
               ) : (
-                <BlocklyWorkspace
-                  key={`ws-${workspaceReloadKey}`}
-                  initialXml={workspaceXml}
-                  onWorkspaceReady={sim.handleWorkspaceReady}
-                  onWorkspaceChange={handleWorkspaceChange}
-                  isDark={isDark}
-                  goal={goal}
-                />
+                <div className="blockly-stage">
+                  <BlocklyWorkspace
+                    key={`ws-${workspaceReloadKey}`}
+                    initialXml={workspaceXml}
+                    onWorkspaceReady={sim.handleWorkspaceReady}
+                    onWorkspaceChange={handleWorkspaceChange}
+                    onBlockCountChange={setBlockCount}
+                    isDark={isDark}
+                    goal={goal}
+                  />
+                  {/* blockCount is the non-frame count BlocklyWorkspace reports via
+                     countContentBlocks (Step 3) — a freshly seeded blank physics
+                     project already carries sim_start_block + sim_end_block but
+                     still reads 0 here, so the overlay renders directly over them. */}
+                  {blockCount === 0 && (
+                    <BlocklyEmptyState
+                      goal={goal}
+                      onInsert={handleInsertStarterBlock}
+                      checkpointState={proj.activeManifest?.checkpointState}
+                    />
+                  )}
+                </div>
               )}
             </>
           ) : (

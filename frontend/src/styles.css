@@ -4844,3 +4844,52 @@ mark.help-search-highlight {
   .admin-tabs   { overflow-x: auto; }
   .auth-card    { width: min(100%, 420px); }
 }
+
+/* ── Empty block canvas ── */
+.blockly-stage { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.blockly-empty {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  /* Stop short of the toolbox rail (.blocklyToolboxDiv is a hardcoded 180px
+     above) — Blockly's toolbox stacks above this layer regardless of
+     z-index, so content centered under inset:0 renders clipped behind it. */
+  left: 180px;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;   /* dragging from the flyout must still work */
+  padding: var(--space-4, 16px);
+}
+.blockly-empty__inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3, 12px);
+  max-width: 460px;
+  text-align: center;
+}
+.blockly-empty__lead {
+  margin: 0;
+  font-size: var(--fs-md, 13px);
+  color: var(--text-dim);
+}
+.blockly-empty__chips { display: flex; flex-wrap: wrap; gap: var(--space-2, 8px); justify-content: center; }
+.blockly-empty__chip {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  font-size: var(--fs-sm, 12px);
+  color: var(--text);
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius, 6px);
+  cursor: pointer;
+  transition: background var(--transition), border-color var(--transition);
+}
+.blockly-empty__chip:hover { background: var(--card-bg-hover); border-color: var(--card-border-hover); }
+.blockly-empty .beginner-guide { pointer-events: auto; }
