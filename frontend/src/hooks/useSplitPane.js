@@ -6,6 +6,7 @@
  */
 import { useCallback, useEffect } from "react";
 import { useSimulationContext } from "../contexts/SimulationContext";
+import { SPLIT_MIN, SPLIT_MAX, SPLIT_DEFAULT } from "../constants";
 
 export function useSplitPane() {
   const { splitPct, setSplitPct, viewportHidden, workspaceRef } = useSimulationContext();
@@ -23,32 +24,52 @@ export function useSplitPane() {
     });
   }, [splitPct, viewportHidden, workspaceRef]);
 
-  /* ── Mouse-drag col-resize handler ────────────────────── */
-  const handleDividerMouseDown = useCallback(
+  /* ── Pointer-drag resize ──────────────────────────────────
+     Pointer Events (not mouse events) so a stylus or finger can resize the
+     panes on a tablet; setPointerCapture keeps the drag alive when the
+     pointer leaves the 5px handle. */
+  const handleDividerPointerDown = useCallback(
     (e) => {
+      if (e.button != null && e.button !== 0) return;
       e.preventDefault();
-      const container = e.currentTarget.parentElement; // .main-layout flex row
+      const handle = e.currentTarget;
+      const container = handle.parentElement; // .main-layout flex row
+      try { handle.setPointerCapture(e.pointerId); } catch { /* not capturable */ }
 
-      const onMouseMove = (ev) => {
+      const onMove = (ev) => {
         const rect = container.getBoundingClientRect();
-        const pct  = Math.min(85, Math.max(15, ((ev.clientX - rect.left) / rect.width) * 100));
-        setSplitPct(pct);
+        setSplitPct(
+          Math.min(SPLIT_MAX, Math.max(SPLIT_MIN, ((ev.clientX - rect.left) / rect.width) * 100)),
+        );
       };
-
-      const onMouseUp = () => {
-        document.removeEventListener("mousemove", onMouseMove);
-        document.removeEventListener("mouseup",   onMouseUp);
-        document.body.style.cursor     = "";
+      const onUp = () => {
+        handle.removeEventListener("pointermove", onMove);
+        handle.removeEventListener("pointerup", onUp);
+        handle.removeEventListener("pointercancel", onUp);
+        document.body.style.cursor = "";
         document.body.style.userSelect = "";
+        try { handle.releasePointerCapture(e.pointerId); } catch { /* already released */ }
       };
 
-      document.body.style.cursor     = "col-resize";
+      document.body.style.cursor = "col-resize";
       document.body.style.userSelect = "none";
-      document.addEventListener("mousemove", onMouseMove);
-      document.addEventListener("mouseup",   onMouseUp);
+      handle.addEventListener("pointermove", onMove);
+      handle.addEventListener("pointerup", onUp);
+      handle.addEventListener("pointercancel", onUp);
     },
-    [setSplitPct]
+    [setSplitPct],
   );
 
-  return { splitPct, handleDividerMouseDown };
+  /* Keyboard resize — the divider is a real focusable separator. */
+  const handleDividerKeyDown = useCallback(
+    (e) => {
+      const step = e.shiftKey ? 10 : 2;
+      if (e.key === "ArrowLeft")  { e.preventDefault(); setSplitPct((p) => Math.max(SPLIT_MIN, p - step)); }
+      if (e.key === "ArrowRight") { e.preventDefault(); setSplitPct((p) => Math.min(SPLIT_MAX, p + step)); }
+      if (e.key === "Home")       { e.preventDefault(); setSplitPct(SPLIT_DEFAULT); }
+    },
+    [setSplitPct],
+  );
+
+  return { splitPct, handleDividerPointerDown, handleDividerKeyDown };
 }
