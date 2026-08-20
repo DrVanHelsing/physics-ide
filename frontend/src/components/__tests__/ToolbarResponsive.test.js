@@ -65,6 +65,8 @@ describe("header collapse — stage 2 (<= 1120px)", () => {
     expect(byText(container, "Debug")).toBeNull();
     const trigger = container.querySelector(".tb-btn--overflow");
     expect(trigger).not.toBeNull();
+    // Icon-only trigger — no visible text to fall back on, so it needs its own name.
+    expect(trigger.getAttribute("aria-label")).toBe("More actions");
     click(trigger);
 
     const menu = container.querySelector(".tb-dropdown-menu");

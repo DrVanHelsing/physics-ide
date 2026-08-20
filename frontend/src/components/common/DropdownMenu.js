@@ -2,15 +2,23 @@ import React, { useEffect, useRef, useState } from "react";
 import { ChevronDownIcon } from "../Icons";
 
 /**
- * Click-to-open menu shared by the header's File and account menus.
+ * Click-to-open menu shared by the header's File, account and overflow menus.
  * Lifted verbatim from Toolbar.js so there is exactly one implementation.
  * Children are cloned so selecting an item always closes the menu.
+ *
+ * `title` becomes the trigger's tooltip only. It is deliberately NOT reused
+ * as `aria-label` — the account trigger's title ("Signed in as a@b.com")
+ * does not contain its visible label (the user's name), so defaulting
+ * aria-label to title there would break WCAG 2.5.3 Label in Name. Pass
+ * `triggerAriaLabel` explicitly on callers (like the icon-only overflow
+ * trigger) that have no visible text of their own to fall back on.
  */
 export default function DropdownMenu({
   trigger,
   children,
   align = "left",
   title,
+  triggerAriaLabel,
   triggerClassName = "tb-btn tb-btn--dropdown",
   chevron = true,
 }) {
@@ -40,7 +48,7 @@ export default function DropdownMenu({
         className={triggerClassName}
         onClick={() => setOpen((o) => !o)}
         title={title}
-        aria-label={title}
+        aria-label={triggerAriaLabel}
         aria-haspopup="menu"
         aria-expanded={open}
       >

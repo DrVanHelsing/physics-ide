@@ -249,6 +249,7 @@ function Toolbar({
           <DropdownMenu
             align="right"
             title="More actions"
+            triggerAriaLabel="More actions"
             triggerClassName="tb-btn tb-btn--subtle tb-btn--overflow"
             chevron={false}
             trigger={<MoreHorizontalIcon size={16} />}
