@@ -249,7 +249,7 @@ function Toolbar({
           title={viewportHidden ? "Show 3D viewport" : "Hide 3D viewport"}
         >
           {viewportHidden ? <PanelRightOpenIcon size={13} /> : <PanelRightCloseIcon size={13} />}
-          <span className="tb-btn-label">{viewportHidden ? "Viewport" : "Viewport"}</span>
+          <span className="tb-btn-label">{viewportHidden ? "Show" : "Hide"}</span>
         </button>
       )}
 

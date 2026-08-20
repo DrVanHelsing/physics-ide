@@ -15,3 +15,21 @@ if (typeof globalThis.TextDecoder === "undefined") {
 if (typeof globalThis.TextEncoder === "undefined") {
   globalThis.TextEncoder = TextEncoder;
 }
+
+/**
+ * jsdom does not implement matchMedia. The IDE's responsive toolbar collapse
+ * reads it, so stub a never-matching, fully-shaped MediaQueryList. Tests that
+ * care about a breakpoint override window.matchMedia themselves.
+ */
+if (typeof globalThis.matchMedia !== "function") {
+  globalThis.matchMedia = (query) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    addListener: () => {},
+    removeListener: () => {},
+    dispatchEvent: () => false,
+  });
+}
