@@ -8,6 +8,13 @@
 export const STORAGE_KEY       = "physics-lab-state-v1";
 export const THEME_STORAGE_KEY = "physics-ide-theme";
 
+/* Layout preferences — restored on reload so a lab machine keeps its arrangement. */
+export const LAYOUT_SPLIT_KEY           = "pide_layout_split";
+export const LAYOUT_VIEWPORT_HIDDEN_KEY = "pide_layout_viewport_hidden";
+export const LAYOUT_ZOOM_KEY            = "pide_layout_zoom";
+/* Id of the last project the student had open, so a reload returns them to it. */
+export const LAST_PROJECT_KEY           = "pide_last_project";
+
 // ── Default values ────────────────────────────────────────────────────────
 export const DEFAULT_PYTHON_CODE =
   "# Build your model in blocks, or write VPython here.\n";

@@ -186,6 +186,21 @@ export function useProject() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [proj.loaded]);
 
+  /* A bootstrap-restored project should open straight into the IDE — the
+     start menu is for choosing, not for re-choosing what was already open.
+     Runs at most once, after the bootstrap settles. */
+  const restoreAppliedRef = useRef(false);
+  useEffect(() => {
+    if (!proj.loaded || restoreAppliedRef.current) return;
+    if (proj.bootstrapResult?.kind !== "existing") return;
+    const m = proj.activeManifest;
+    if (!m) return;
+    restoreAppliedRef.current = true;
+    applyManifestToWorkingState(m);
+    sim.setShowStart(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [proj.loaded, proj.bootstrapResult, proj.activeManifest]);
+
   const addRunAndDataset = useCallback(
     async (runSnapshot, datasetDescriptor) => {
       if (!proj.activeManifest) return null;
@@ -213,6 +228,7 @@ export function useProject() {
     createNew,
     saveCurrent,
     removeProject: proj.removeProject,
+    closeProject: proj.closeProject,
     refreshList: proj.refreshList,
     applyManifestToWorkingState,
     captureWorkingStateInto,
