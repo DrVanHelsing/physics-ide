@@ -74,6 +74,17 @@ guest projects into the account. Caps: 100 projects per account, 400 KB per proj
 First-time visitors land on `/welcome` — an animated tour of the IDE with three doors: use it
 as a guest, create an account, or sign in. Returning visitors go straight to the IDE.
 
+The interface runs on one design-token system shared by the IDE and the classroom screens:
+`--space-*` (4px ramp), `--fs-*` (type scale), three radii (`--radius-sm` 4px controls,
+`--radius` 6px cards and panels, `--radius-lg` 10px dialogs), motion, elevation and a
+`--label-*` group that gives every small header the same sentence-case voice. Colour is
+semantic — `#007acc` now exists only as the two `--accent` definitions and every accent
+surface derives from it — so the debug, trace and data-science regions finally follow the
+light theme. Three primitives (`.btn`, `.card`, `.panel-header`) are shared by both halves
+via selector aliases, there is one global `:focus-visible` ring, and Run is a filled primary.
+When adding CSS: use the tokens, never a raw hex below the theme blocks, and never
+`rgba(255,255,255,…)` — reach for `var(--card-border)` or a `color-mix()` on a token.
+
 ```bash
 npm run test           # all workspace test suites (Vitest)
 npm run check:blocks   # verify block registry has no duplicates
