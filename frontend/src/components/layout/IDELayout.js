@@ -82,6 +82,10 @@ export default function IDELayout() {
 
   /* ── Simple UI handlers (defined here to avoid extra hook) */
   const handleHelp = useCallback(() => setShowHelp(true), [setShowHelp]);
+  const handleGoHome = useCallback(() => {
+    sim.handleHome();
+    proj.closeProject();
+  }, [sim, proj]);
 
   /* ── DS panel outputs ────────────────────────────────────── */
   const [dsOutputs, setDsOutputs] = useState([]);
@@ -384,7 +388,7 @@ export default function IDELayout() {
         onReset={sim.handleResetToBlocks}
         onClearWorkspace={sim.handleClearWorkspace}
         onToggleTheme={toggleTheme}
-        onHome={sim.handleHome}
+        onHome={handleGoHome}
         onHelp={handleHelp}
         isDark={isDark}
         running={running}

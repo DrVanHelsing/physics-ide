@@ -27,7 +27,7 @@ import {
 } from "../utils/storage/projectStore";
 import { readLegacyV1, migrate, LEGACY_V1_KEY } from "../utils/manifest/migrate";
 import { createManifest } from "../utils/manifest/factory";
-import { SIGNED_IN_HINT_KEY } from "../constants";
+import { SIGNED_IN_HINT_KEY, LAST_PROJECT_KEY } from "../constants";
 
 const ProjectContext = createContext(null);
 
@@ -76,6 +76,24 @@ export function ProjectProvider({ children }) {
           }
         } else {
           setProjectList(list);
+          /* Reopen whatever was open last, if it still exists. Guarded on the
+             list we just read, so a deleted or cloud-tombstoned project can
+             never resurrect itself — and only reached when the list is
+             non-empty, so it cannot race the legacy-v1 resurrection above. */
+          let restoredId = null;
+          try {
+            restoredId = localStorage.getItem(LAST_PROJECT_KEY);
+          } catch {
+            // Storage blocked — start at the menu.
+          }
+          if (restoredId && list.some((p) => p.id === restoredId)) {
+            const restored = await loadProject(restoredId);
+            if (cancelled) return;
+            if (restored) {
+              setActiveProjectId(restored.id);
+              setActiveManifest(restored);
+            }
+          }
           setBootstrapResult({ kind: "existing", count: list.length });
         }
       } catch (err) {
@@ -101,6 +119,7 @@ export function ProjectProvider({ children }) {
       refreshList().catch(() => {});
       setActiveProjectId((cur) => (cur === id ? null : cur));
       setActiveManifest((cur) => (cur && cur.id === id ? null : cur));
+      try { localStorage.removeItem(LAST_PROJECT_KEY); } catch { /* storage blocked */ }
     });
     return () => {
       unsubSaved();
@@ -124,6 +143,7 @@ export function ProjectProvider({ children }) {
       if (!m) return null;
       setActiveProjectId(m.id);
       setActiveManifest(m);
+      try { localStorage.setItem(LAST_PROJECT_KEY, m.id); } catch { /* storage blocked */ }
       return m;
     },
     [],
@@ -132,6 +152,7 @@ export function ProjectProvider({ children }) {
   const closeProject = useCallback(() => {
     setActiveProjectId(null);
     setActiveManifest(null);
+    try { localStorage.removeItem(LAST_PROJECT_KEY); } catch { /* storage blocked */ }
   }, []);
 
   const createAndOpen = useCallback(
@@ -150,6 +171,7 @@ export function ProjectProvider({ children }) {
       if (id === activeProjectId) {
         setActiveProjectId(null);
         setActiveManifest(null);
+        try { localStorage.removeItem(LAST_PROJECT_KEY); } catch { /* storage blocked */ }
       }
       await refreshList();
     },

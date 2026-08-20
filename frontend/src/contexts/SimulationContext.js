@@ -20,6 +20,11 @@ import React, {
 } from "react";
 import { loadState, saveState } from "../utils/storage";
 import { AUTOSAVE_INTERVAL_MS, DEFAULT_PYTHON_CODE, ZOOM_DEFAULT, SPLIT_DEFAULT } from "../constants";
+import useLocalStorage from "../hooks/useLocalStorage";
+import { clampSplit, clampZoom } from "../utils/layoutPrefs";
+import {
+  LAYOUT_SPLIT_KEY, LAYOUT_VIEWPORT_HIDDEN_KEY, LAYOUT_ZOOM_KEY,
+} from "../constants";
 
 const SimulationContext = createContext(null);
 
@@ -39,10 +44,12 @@ export function SimulationProvider({ children }) {
   const [paused,  setPaused]  = useState(false);
   const [status,  setStatus]  = useState({ text: "Ready", type: "" });
 
-  /* ── UI preferences ──────────────────────────────────── */
-  const [blocklyZoom,     setBlocklyZoom]     = useState(ZOOM_DEFAULT);
-  const [splitPct,        setSplitPct]        = useState(SPLIT_DEFAULT);
-  const [viewportHidden,  setViewportHidden]  = useState(false);
+  /* ── UI preferences (persisted — hooks/useLocalStorage) ── */
+  const [storedZoom,   setBlocklyZoom]    = useLocalStorage(LAYOUT_ZOOM_KEY, ZOOM_DEFAULT);
+  const [storedSplit,  setSplitPct]       = useLocalStorage(LAYOUT_SPLIT_KEY, SPLIT_DEFAULT);
+  const [viewportHidden, setViewportHidden] = useLocalStorage(LAYOUT_VIEWPORT_HIDDEN_KEY, false);
+  const blocklyZoom = clampZoom(storedZoom);
+  const splitPct    = clampSplit(storedSplit);
 
   /* ── Live Blockly workspace reference ────────────────── */
   const workspaceRef = useRef(null);
