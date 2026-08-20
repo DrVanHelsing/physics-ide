@@ -32,7 +32,7 @@ import DebugMode    from "../DebugMode";
 import ChartOverlay from "../ChartOverlay";
 import DataPanel    from "../DataPanel";
 import TracePromoteDialog from "../TracePromoteDialog";
-import SyncChip     from "../../sync/SyncChip";
+import SaveState    from "./SaveState";
 import { BlocksIcon, CodeIcon, GlobeIcon } from "../Icons";
 
 import { fromTraceBuffer, toCsvText, serializeDescriptor } from "../../utils/dataset/dataset";
@@ -41,6 +41,7 @@ import { registerDataset } from "../../utils/dataset/datasetRegistry";
 import { generateDsJsFromWorkspace } from "../../utils/blockly/dsGenerator";
 import { DS_TEMPLATES } from "../../utils/blockTemplates";
 import { runDsCode, clearCsvCache } from "../../utils/runner/dsRunner";
+import { GLOWSCRIPT_VERSION } from "../../utils/runner/glowRunner";
 import { renderDsChartToElement } from "../../utils/charts/chartSpec";
 import { migrate } from "../../utils/manifest/migrate";
 import { SPLIT_MIN, SPLIT_MAX } from "../../constants";
@@ -517,16 +518,18 @@ export default function IDELayout() {
         )}
       </div>
 
-      {/* ── Status bar ── */}
+      {/* ── Status bar — quiet: project · save state · run status ── */}
       <div className="status-bar">
+        <span className="status-bar__project" title={proj.activeManifest?.title || ""}>
+          {proj.activeManifest?.title || "No project open"}
+        </span>
+        <SaveState updatedAt={proj.activeManifest?.updatedAt} />
+        <span className="status-bar__spacer" />
         <span className={running ? "console-bar console-bar--running" : statusClass}>
           {running && <span className="status-dot" />}
           {status.text}
         </span>
-        <SyncChip />
-        <span>
-          Mode: {mode === "blocks" ? "Blocks" : isCustom ? "Code View Only" : "Code"} | VPython 3.2
-        </span>
+        <span className="status-bar__engine">VPython {GLOWSCRIPT_VERSION}</span>
       </div>
 
       {chartDataset && <ChartOverlay dataset={chartDataset} onClose={handleCloseChart} {...analyseProps} />}
