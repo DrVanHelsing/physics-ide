@@ -36,11 +36,15 @@ export function useSplitPane() {
       const container = handle.parentElement; // .main-layout flex row
       try { handle.setPointerCapture(e.pointerId); } catch { /* not capturable */ }
 
+      const vertical =
+        getComputedStyle(container).flexDirection === "column";
+
       const onMove = (ev) => {
         const rect = container.getBoundingClientRect();
-        setSplitPct(
-          Math.min(SPLIT_MAX, Math.max(SPLIT_MIN, ((ev.clientX - rect.left) / rect.width) * 100)),
-        );
+        const pct = vertical
+          ? ((ev.clientY - rect.top) / rect.height) * 100
+          : ((ev.clientX - rect.left) / rect.width) * 100;
+        setSplitPct(Math.min(SPLIT_MAX, Math.max(SPLIT_MIN, pct)));
       };
       const onUp = () => {
         handle.removeEventListener("pointermove", onMove);
@@ -51,7 +55,7 @@ export function useSplitPane() {
         try { handle.releasePointerCapture(e.pointerId); } catch { /* already released */ }
       };
 
-      document.body.style.cursor = "col-resize";
+      document.body.style.cursor = vertical ? "row-resize" : "col-resize";
       document.body.style.userSelect = "none";
       handle.addEventListener("pointermove", onMove);
       handle.addEventListener("pointerup", onUp);

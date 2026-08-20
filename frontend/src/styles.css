@@ -728,21 +728,30 @@ button {
 }
 
 .editor-pane {
-  flex: 1;
+  /* --split is written by IDELayout; the media query below can override it,
+     which an inline style could not. */
+  flex: 0 0 var(--split, 50%);
+  max-width: var(--split, 50%);
   min-width: 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
   border-right: 1px solid var(--border);
 }
+.editor-pane--full {
+  flex: 1 1 auto;
+  max-width: 100%;
+  border-right: none;
+}
 .canvas-pane {
-  flex: 1;
+  flex: 1 1 0;
   min-width: 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
   background: var(--canvas-bg);
 }
+.canvas-pane--hidden { display: none; }
 
 /* ── Drag-to-resize divider ───────────────────────────── */
 .pane-divider {
@@ -2999,12 +3008,22 @@ mark.help-search-highlight {
    RESPONSIVE
    ═══════════════════════════════════════════════════════════ */
 @media (max-width: 800px) {
-  .main-layout { flex-direction: column; }
+  .main-layout { flex-direction: column; --split: auto; }
   .editor-pane {
+    flex: 1 1 auto;
+    max-width: 100%;
     border-right: none;
     border-bottom: 1px solid var(--border);
     max-height: 55vh;
   }
+  .pane-divider {
+    width: auto;
+    min-width: 0;
+    height: 5px;
+    min-height: 5px;
+    cursor: row-resize;
+  }
+  .pane-divider::before { left: 0; right: 0; top: -4px; bottom: -4px; }
   .start-menu { flex-direction: column; }
   .start-sidebar { width: 100%; border-right: none; border-bottom: 1px solid var(--border); }
   .start-grid { grid-template-columns: 1fr; }
@@ -3016,6 +3035,26 @@ mark.help-search-highlight {
   .help-arch-grid { grid-template-columns: 1fr; }
   .help-block-row { grid-template-columns: 1fr; }
   .help-block-name { border-right: none; border-bottom: 1px solid var(--border); }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PLATFORM SCREENS — the stated minimum viewport is 1024px.
+   These screens (admin, classes, profile, auth) had zero responsive
+   handling and are the ones most likely to open on a Chromebook.
+   ═══════════════════════════════════════════════════════════ */
+.admin-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+@media (max-width: 1024px) {
+  .admin-header,
+  .admin-body,
+  .classes-header,
+  .classes-body { padding-left: var(--space-4, 16px); padding-right: var(--space-4, 16px); }
+  .classes-wall { grid-template-columns: 1fr; }
+  .admin-tabs   { overflow-x: auto; }
+  .auth-card    { width: min(100%, 420px); }
 }
 
 /* ═══════════════════════════════════════════════════════════
