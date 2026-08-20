@@ -23,11 +23,19 @@ import {
   BugIcon,
   SaveIcon,
   MenuIcon,
+  MoreHorizontalIcon,
 } from "./Icons";
 import { MOD_LABEL } from "../utils/hotkeys";
 import DropdownMenu from "./common/DropdownMenu";
 import ProjectTitle from "./layout/ProjectTitle";
 import HeaderAccount from "./auth/HeaderAccount";
+import { useMediaQuery } from "../hooks/useMediaQuery";
+
+/* Thresholds chosen against the 1024px floor so stage 2 is active *at* the
+   floor, not below it. Exported so the tests, this component and the CSS
+   in styles.css all agree on one number. */
+export const HEADER_STAGE1_QUERY = "(max-width: 1280px)";
+export const HEADER_STAGE2_QUERY = "(max-width: 1120px)";
 
 /* ── Zoom slider component ───────────────────────────────── */
 function ZoomSlider({ value, onChange, min = 35, max = 200 }) {
@@ -102,6 +110,8 @@ function Toolbar({
      Physics and Hybrid show simulation controls; pure Data Science does
      not. Phase C will populate DS-specific actions in this same slot. */
   const showSimActions = goal === "physics" || goal === "hybrid";
+  const stage1 = useMediaQuery(HEADER_STAGE1_QUERY);
+  const stage2 = useMediaQuery(HEADER_STAGE2_QUERY);
   const importInputRef = useRef(null);
   const importProjectRef = useRef(null);
 
@@ -128,8 +138,55 @@ function Toolbar({
     const file = e.target.files[0];
     if (file && onImportProject) onImportProject(file);
   };
+
+  /* Controls that survive on a projector as menu items rather than buttons.
+     Run, Stop, Save, File, the theme toggle, the project title and the mode
+     toggle are NEVER collapsed — they are the reason the header exists. */
+  const secondaryActions = [
+    showSimActions && onToggleViewport && {
+      key: "viewport",
+      label: viewportHidden ? "Show 3D viewport" : "Hide 3D viewport",
+      short: viewportHidden ? "Show" : "Hide",
+      icon: viewportHidden ? PanelRightOpenIcon : PanelRightCloseIcon,
+      onClick: onToggleViewport,
+    },
+    // Reserved for Plan 3's docked trace drawer, which supplies onToggleTrace.
+    // Inert until then — the toggle does not render without the handler.
+    showSimActions && onToggleTrace && {
+      key: "trace",
+      label: traceVisible ? "Hide live trace table" : "Show live trace table",
+      short: "Trace",
+      icon: TableIcon,
+      onClick: onToggleTrace,
+      active: traceVisible,
+    },
+    showSimActions && onDebugMode && {
+      key: "debug",
+      label: "Open Debug Mode — step-through, breakpoints, recording",
+      short: "Debug",
+      icon: BugIcon,
+      onClick: onDebugMode,
+    },
+    onReset && {
+      key: "reset",
+      label: "Return to the block editor",
+      short: "Back to Blocks",
+      icon: RefreshIcon,
+      onClick: onReset,
+    },
+    mode === "blocks" && onClearWorkspace && {
+      key: "clear",
+      label: "Clear all blocks",
+      short: "Clear",
+      icon: TrashIcon,
+      onClick: onClearWorkspace,
+      danger: true,
+    },
+    onHelp && { key: "help", label: "Help & Documentation", short: "Help", icon: HelpIcon, onClick: onHelp },
+  ].filter(Boolean);
+
   return (
-    <header className="app-header">
+    <header className={`app-header${stage1 ? " app-header--stage1" : ""}${stage2 ? " app-header--stage2" : ""}`}>
       {/* ── Identity: menu · brand · project ── */}
       <div className="app-header__identity">
         <button type="button" className="tb-btn tb-btn--nav" onClick={onHome} title="Back to Start Menu">
@@ -151,7 +208,9 @@ function Toolbar({
             <button type="button" className="tb-btn tb-btn--run" onClick={onRun} title="Run simulation (Ctrl+Enter)">
               <PlayIcon size={13} />
               <span className="tb-btn-label">Run</span>
-              <kbd className="tb-kbd">{MOD_LABEL}+Enter</kbd>
+              {/* The shortcut chip is decorative — the title attribute already states
+                 it. Drop it at stage 2, where the bar is at its tightest. */}
+              {!stage2 && <kbd className="tb-kbd">{MOD_LABEL}+Enter</kbd>}
             </button>
             <button
               type="button"
@@ -168,43 +227,40 @@ function Toolbar({
         {children}
       </div>
 
-      {/* ── Zone 2 — view: zoom, panes, debug ── */}
+      {/* ── Zone 2 — view: zoom, panes, debug and the collapsible controls ── */}
       <div className="app-header__zone app-header__zone--view">
-        {mode === "blocks" && zoom != null && onZoomChange && (
+        {mode === "blocks" && zoom != null && onZoomChange && !stage1 && (
           <ZoomSlider value={zoom} onChange={onZoomChange} />
         )}
-        {showSimActions && onToggleViewport && (
-          <button
-            type="button"
-            className="tb-btn tb-btn--subtle tb-btn--secondary"
-            onClick={onToggleViewport}
-            title={viewportHidden ? "Show 3D viewport" : "Hide 3D viewport"}
+        {!stage2 &&
+          secondaryActions.map((a) => (
+            <button
+              key={a.key}
+              type="button"
+              className={`tb-btn tb-btn--secondary ${a.danger ? "tb-btn--danger" : "tb-btn--subtle"}${a.active ? " tb-btn--active" : ""}`}
+              onClick={a.onClick}
+              title={a.label}
+            >
+              <a.icon size={13} />
+              <span className="tb-btn-label">{a.short}</span>
+            </button>
+          ))}
+        {stage2 && (
+          <DropdownMenu
+            align="right"
+            title="More actions"
+            triggerClassName="tb-btn tb-btn--subtle tb-btn--overflow"
+            chevron={false}
+            trigger={<MoreHorizontalIcon size={16} />}
           >
-            {viewportHidden ? <PanelRightOpenIcon size={13} /> : <PanelRightCloseIcon size={13} />}
-            <span className="tb-btn-label">{viewportHidden ? "Show" : "Hide"}</span>
-          </button>
-        )}
-        {showSimActions && onToggleTrace && (
-          <button
-            type="button"
-            className={`tb-btn tb-btn--subtle tb-btn--secondary${traceVisible ? " tb-btn--active" : ""}`}
-            onClick={onToggleTrace}
-            title={traceVisible ? "Hide live trace table" : "Show live trace table"}
-          >
-            <TableIcon size={13} />
-            <span className="tb-btn-label">Trace</span>
-          </button>
-        )}
-        {showSimActions && onDebugMode && (
-          <button
-            type="button"
-            className="tb-btn tb-btn--subtle tb-btn--secondary"
-            onClick={onDebugMode}
-            title="Open Debug Mode — step-through, breakpoints, recording"
-          >
-            <BugIcon size={13} />
-            <span className="tb-btn-label">Debug</span>
-          </button>
+            {secondaryActions.map((a) => (
+              <button key={a.key} type="button" className="tb-dropdown-item" onClick={a.onClick}>
+                <a.icon size={14} />
+                <span>{a.short}</span>
+                <span className="tb-dropdown-shortcut">{a.label}</span>
+              </button>
+            ))}
+          </DropdownMenu>
         )}
       </div>
 
@@ -214,16 +270,6 @@ function Toolbar({
           <button type="button" className="tb-btn tb-btn--secondary" onClick={onSave} title={`Save this project (${MOD_LABEL}+S)`}>
             <SaveIcon size={13} />
             <span className="tb-btn-label">Save</span>
-          </button>
-        )}
-        <button type="button" className="tb-btn tb-btn--subtle tb-btn--secondary" onClick={onReset} title="Return to the block editor">
-          <RefreshIcon size={13} />
-          <span className="tb-btn-label">Back to Blocks</span>
-        </button>
-        {mode === "blocks" && onClearWorkspace && (
-          <button type="button" className="tb-btn tb-btn--danger tb-btn--secondary" onClick={onClearWorkspace} title="Clear all blocks">
-            <TrashIcon size={13} />
-            <span className="tb-btn-label">Clear</span>
           </button>
         )}
 
@@ -292,10 +338,6 @@ function Toolbar({
         <button type="button" className="tb-btn tb-btn--icon tb-btn--theme" onClick={onToggleTheme}
                 title={isDark ? "Switch to light mode" : "Switch to dark mode"}>
           {isDark ? <SunIcon size={14} /> : <MoonIcon size={14} />}
-        </button>
-        <button type="button" className="tb-btn tb-btn--nav tb-btn--secondary" onClick={onHelp} title="Help & Documentation">
-          <HelpIcon size={14} />
-          <span className="tb-btn-label">Help</span>
         </button>
       </div>
 
