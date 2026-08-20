@@ -320,6 +320,26 @@ button {
   font-family: var(--font);
 }
 
+/* ── Focus ───────────────────────────────────────────────────
+   ONE ring for the whole product, at zero specificity so any
+   component rule can still override it deliberately. Keyboard
+   only — :focus-visible never fires on a mouse click. */
+:where(
+  a[href],
+  button,
+  input,
+  select,
+  textarea,
+  summary,
+  [role="button"],
+  [role="tab"],
+  [tabindex]:not([tabindex="-1"])
+):focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: inherit;
+}
+
 /* ═══════════════════════════════════════════════════════════
    TITLE BAR (VS Code style window chrome)
    ═══════════════════════════════════════════════════════════ */
@@ -607,7 +627,6 @@ button {
   height: 3px;
   background: var(--border);
   border-radius: 2px;
-  outline: none;
   cursor: pointer;
 }
 .tb-zoom-slider::-webkit-slider-thumb {
@@ -813,7 +832,6 @@ button {
   flex: 1;
   background: transparent;
   border: none;
-  outline: none;
   font-size: 11.5px;
   color: var(--text);
   font-family: var(--font);
@@ -1246,7 +1264,6 @@ button {
   flex: 1;
   background: transparent;
   border: none;
-  outline: none;
   font-size: 11px;
   font-family: var(--sans, system-ui, sans-serif);
   color: var(--text);
@@ -1572,7 +1589,6 @@ button {
   font-size: 11px;
   font-family: var(--mono);
   padding: 2px 5px;
-  outline: none;
 }
 .trace-alert-input:focus  { border-color: var(--accent); }
 .trace-alert-save,
@@ -2367,7 +2383,6 @@ button {
   width: 100%;
   background: transparent;
   border: none;
-  outline: none;
   padding: 6px 26px 6px 26px;
   font-size: 11.5px;
   color: var(--text);
@@ -2832,7 +2847,6 @@ mark.help-search-highlight {
   color: var(--text);
   resize: none;
 }
-.text-fallback:focus { outline: none; }
 
 /* ═══════════════════════════════════════════════════════════
    SCROLLBARS (VS Code style)
@@ -3100,7 +3114,6 @@ mark.help-search-highlight {
   background: var(--bg-input);
   border: 1px solid var(--border);
   border-radius: 4px;
-  outline: none;
   caret-color: var(--accent);
   transition: border-color 0.15s;
 }
@@ -3167,10 +3180,6 @@ mark.help-search-highlight {
 .vdialog-btn--ok:hover {
   background: var(--accent-bright);
   border-color: var(--accent-bright);
-}
-.vdialog-btn--ok:focus {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
 }
 
 /* ── DataPanel (Phase B.9 scaffold) ───────────────────────── */
@@ -4098,7 +4107,6 @@ mark.help-search-highlight {
   box-sizing: border-box;
 }
 .trace-promote-input:focus {
-  outline: none;
   border-color: var(--accent);
 }
 .trace-promote-time-row {
