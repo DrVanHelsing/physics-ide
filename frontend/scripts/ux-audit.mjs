@@ -375,15 +375,17 @@ record('C.5 Consistency', 'Mode toggle active state',
   modeToggleActiveStyle ? `active class present, bg: ${modeToggleActiveStyle.bg}` : 'active state not detected',
   modeToggleActiveStyle ? 'PASS' : 'INFO');
 
-// Toolbar separator consistency
+// Header separator consistency — the flat .tb-separator rules between button
+// groups were replaced by zone gaps plus one .app-header__sep divider between
+// the brand and the project title.
 const separatorCount = await page.evaluate(() =>
-  document.querySelectorAll('.tb-separator').length
+  document.querySelectorAll('.app-header__sep').length
 );
-record('C.5 Consistency', 'Toolbar separators', `${separatorCount} separator(s)`, 'INFO');
+record('C.5 Consistency', 'Header separators', `${separatorCount} separator(s)`, 'INFO');
 
 // Check for undo/redo buttons visibility (MakeCode has them top-level)
 const hasUndoRedo = await page.evaluate(() => {
-  const btns = [...document.querySelectorAll('button, .toolbar button')];
+  const btns = [...document.querySelectorAll('button, .app-header button')];
   return btns.some(b => /undo|redo/i.test(b.title || b.textContent || b.ariaLabel || ''));
 });
 record('C.5 Consistency', 'Undo/Redo visibility',
@@ -538,7 +540,7 @@ await createPhysicsProject();
 const comparisonData = await page.evaluate(() => {
   const runBtn = document.querySelector('.tb-btn--run');
   const runRect = runBtn?.getBoundingClientRect();
-  const toolbarHeight = document.querySelector('.toolbar')?.getBoundingClientRect().height;
+  const toolbarHeight = document.querySelector('.app-header')?.getBoundingClientRect().height;
   const blockLabelSize = (() => {
     const texts = [...document.querySelectorAll('.blocklyText')];
     const sizes = texts.map(t => parseFloat(getComputedStyle(t).fontSize || '0')).filter(s => s > 0);

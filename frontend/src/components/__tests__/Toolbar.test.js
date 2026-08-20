@@ -5,7 +5,7 @@ import { mountComponent, click, byText, byTitle } from "../../test/renderHelpers
 
 // HeaderAccount calls useMe() (TanStack Query) and useNavigate() (router) —
 // neither provider is mounted in this suite, so stub it out. Its own
-// behaviour is covered by HeaderAccount's own tests.
+// behaviour is covered by components/auth/__tests__/HeaderAccount.test.js.
 vi.mock("../auth/HeaderAccount", () => ({ default: () => null }));
 
 let mounted = null;
