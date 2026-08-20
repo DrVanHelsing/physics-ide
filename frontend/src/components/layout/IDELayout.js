@@ -33,7 +33,10 @@ import ChartOverlay from "../ChartOverlay";
 import DataPanel    from "../DataPanel";
 import TracePromoteDialog from "../TracePromoteDialog";
 import SaveState    from "./SaveState";
+import RunErrorBanner from "./RunErrorBanner";
 import { BlocksIcon, CodeIcon, GlobeIcon } from "../Icons";
+
+import * as dialogService from "../../utils/export/dialogService";
 
 import { fromTraceBuffer, toCsvText, serializeDescriptor } from "../../utils/dataset/dataset";
 import { saveDataset } from "../../hooks/useDataset";
@@ -95,6 +98,11 @@ export default function IDELayout() {
 
   /* ── Saved trace datasets (for DataPanel sidebar) ─────────── */
   const [savedDatasets, setSavedDatasets] = useState([]);
+
+  /* The last error we showed in the banner, so dismissing it does not
+     immediately re-show the same status string on the next render. */
+  const [dismissedError, setDismissedError] = useState(null);
+  const bannerText = status.type === "error" && status.text !== dismissedError ? status.text : null;
 
   const goal = proj.activeManifest?.goal || "physics";
   const isDataGoal   = goal === "datascience";
@@ -271,7 +279,9 @@ export default function IDELayout() {
       });
     } catch (err) {
       console.warn("Import failed:", err);
-      alert(`Could not import: ${err.message}`);
+      await dialogService.alert(
+        `Could not open that file.\n\n${err.message}\n\nCheck that it is a .physide.json project bundle exported from Physics IDE.`,
+      );
     }
   }, [proj]);
 
@@ -478,6 +488,7 @@ export default function IDELayout() {
         {/* ── Right pane: DS panel | 3D viewport | hybrid (both stacked) ── */}
         {isDataGoal ? (
           <section className={`canvas-pane${viewportHidden ? " canvas-pane--hidden" : ""}`}>
+            <RunErrorBanner text={bannerText} onDismiss={() => setDismissedError(status.text)} />
             <DataPanel
               goal={goal}
               datasetCount={proj.activeManifest?.datasets?.length || 0}
@@ -495,6 +506,7 @@ export default function IDELayout() {
               <div className="pane-header pane-header--viewport">
                 <GlobeIcon size={14} /> 3D Viewport
               </div>
+              <RunErrorBanner text={bannerText} onDismiss={() => setDismissedError(status.text)} />
               <GlowCanvas running={running} />
             </div>
             <div className="hybrid-datapanel">
@@ -513,6 +525,7 @@ export default function IDELayout() {
             <div className="pane-header pane-header--viewport">
               <GlobeIcon size={14} /> 3D Viewport
             </div>
+            <RunErrorBanner text={bannerText} onDismiss={() => setDismissedError(status.text)} />
             <GlowCanvas running={running} />
           </section>
         )}

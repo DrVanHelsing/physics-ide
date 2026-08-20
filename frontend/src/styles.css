@@ -1934,6 +1934,26 @@ button {
 .console-bar--success { color: var(--green); }
 .console-bar--running { color: var(--accent); font-weight: 500; }
 
+.run-error-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+  padding: var(--space-2, 8px) var(--space-3, 12px);
+  font-size: var(--fs-sm, 12px);
+  color: var(--red);
+  background: color-mix(in srgb, var(--red) 12%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--red) 35%, transparent);
+}
+.run-error-banner__text {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--mono);
+  overflow-wrap: anywhere;
+  max-height: 4.5em;
+  overflow-y: auto;
+}
+.run-error-banner svg { flex-shrink: 0; }
+
 .status-dot {
   display: inline-block;
   width: 6px;
@@ -3085,6 +3105,27 @@ mark.help-search-highlight {
 .admin-table-wrap {
   width: 100%;
   overflow-x: auto;
+}
+
+/* ── Shared modal wrapper — declared before the per-dialog overlay
+   classes below (VariableDialog, ChartOverlay, TracePromoteDialog) so
+   their own z-index/background/blur overrides still win the cascade. ── */
+.overlay-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--overlay-bg);
+  backdrop-filter: blur(var(--overlay-blur));
+}
+.overlay-panel {
+  max-width: min(96vw, 1100px);
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  outline: none;
 }
 
 /* ═══════════════════════════════════════════════════════════

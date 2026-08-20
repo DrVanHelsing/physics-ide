@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import Overlay from "./common/Overlay";
 import { registerDialogService } from "../utils/export/dialogService";
 
 /**
@@ -66,8 +67,7 @@ function VariableDialog() {
   };
 
   const handleKeyDown = (e) => {
-    if (e.key === "Enter")  handleOk();
-    if (e.key === "Escape") handleCancel();
+    if (e.key === "Enter") handleOk();
   };
 
   /* ── Derive a clean title from the Blockly message ───────── */
@@ -78,18 +78,13 @@ function VariableDialog() {
     : "Notice";
 
   return (
-    <div
+    <Overlay
+      onClose={handleCancel}
+      label={title}
       className="vdialog-overlay"
-      onMouseDown={state.type !== "alert" ? handleCancel : undefined}
-      role="dialog"
-      aria-modal="true"
-      aria-label={title}
+      dismissOnBackdrop={state.type !== "alert"}
     >
-      <div
-        className="vdialog"
-        onMouseDown={(e) => e.stopPropagation()}
-        onKeyDown={handleKeyDown}
-      >
+      <div className="vdialog" onKeyDown={handleKeyDown}>
         {/* Header */}
         <div className="vdialog-header">
           <span className="vdialog-title">{title}</span>
@@ -139,7 +134,7 @@ function VariableDialog() {
           </button>
         </div>
       </div>
-    </div>
+    </Overlay>
   );
 }
 

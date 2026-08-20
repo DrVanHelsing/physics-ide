@@ -6,6 +6,7 @@
  * for now this is the minimum needed to validate trace -> dataset -> chart.
  */
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import Overlay from "./common/Overlay";
 import { XIcon, DownloadIcon } from "./Icons";
 import { renderChart } from "../utils/charts/plotRender";
 import { numericColumns } from "../utils/dataset/dataset";
@@ -112,90 +113,88 @@ export default function ChartOverlay({ dataset, onClose, onAnalyse }) {
   const columnNames = dataset.columns.map((c) => c.name);
 
   return (
-    <div className="chart-overlay">
-      <div className="chart-overlay-inner">
-        <div className="chart-overlay-header">
-          <div className="chart-overlay-title">
-            <strong>{title}</strong>
-            <span className="chart-overlay-meta">
-              {dataset.rowCount} row{dataset.rowCount !== 1 ? "s" : ""} · {dataset.columns.length} columns ·{" "}
-              {dataset.provenance}
-            </span>
-          </div>
-          <div className="chart-overlay-header-actions">
-            {onAnalyse && (
-              <button
-                className="chart-overlay-analyse"
-                onClick={onAnalyse}
-                title="Load the paired analysis for this run"
-              >
-                Analyse this run →
-              </button>
-            )}
-            <button className="chart-overlay-close" onClick={onClose} title="Close">
-              <XIcon size={14} />
+    <Overlay onClose={onClose} label={`Chart — ${title}`} className="chart-overlay" panelClassName="chart-overlay-inner">
+      <div className="chart-overlay-header">
+        <div className="chart-overlay-title">
+          <strong>{title}</strong>
+          <span className="chart-overlay-meta">
+            {dataset.rowCount} row{dataset.rowCount !== 1 ? "s" : ""} · {dataset.columns.length} columns ·{" "}
+            {dataset.provenance}
+          </span>
+        </div>
+        <div className="chart-overlay-header-actions">
+          {onAnalyse && (
+            <button
+              className="chart-overlay-analyse"
+              onClick={onAnalyse}
+              title="Load the paired analysis for this run"
+            >
+              Analyse this run →
             </button>
-          </div>
-        </div>
-
-        <div className="chart-overlay-controls">
-          <label>
-            Type
-            <select value={chartType} onChange={(e) => setChartType(e.target.value)}>
-              <option value="line">Line</option>
-              <option value="scatter">Scatter</option>
-            </select>
-          </label>
-          <label>
-            X
-            <select
-              value={encodings.x || ""}
-              onChange={(e) => setEncodings((s) => ({ ...s, x: e.target.value }))}
-            >
-              {columnNames.map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Y
-            <select
-              value={encodings.y || ""}
-              onChange={(e) => setEncodings((s) => ({ ...s, y: e.target.value }))}
-            >
-              {columnNames.map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="chart-overlay-title-input">
-            Title
-            <input value={title} onChange={(e) => setTitle(e.target.value)} />
-          </label>
-          <div className="chart-overlay-spacer" />
-          <button
-            className="chart-overlay-action"
-            onClick={() => {
-              const svg = containerRef.current?.querySelector("svg");
-              if (svg) downloadSvg(svg, `${title.replace(/\s+/g, "_")}.svg`);
-            }}
-          >
-            <DownloadIcon size={12} /> SVG
-          </button>
-          <button
-            className="chart-overlay-action"
-            onClick={() => downloadPng(containerRef.current, `${title.replace(/\s+/g, "_")}.png`)}
-          >
-            <DownloadIcon size={12} /> PNG
+          )}
+          <button className="chart-overlay-close" onClick={onClose} title="Close">
+            <XIcon size={14} />
           </button>
         </div>
-
-        <div ref={containerRef} className="chart-overlay-canvas" />
       </div>
-    </div>
+
+      <div className="chart-overlay-controls">
+        <label>
+          Type
+          <select value={chartType} onChange={(e) => setChartType(e.target.value)}>
+            <option value="line">Line</option>
+            <option value="scatter">Scatter</option>
+          </select>
+        </label>
+        <label>
+          X
+          <select
+            value={encodings.x || ""}
+            onChange={(e) => setEncodings((s) => ({ ...s, x: e.target.value }))}
+          >
+            {columnNames.map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Y
+          <select
+            value={encodings.y || ""}
+            onChange={(e) => setEncodings((s) => ({ ...s, y: e.target.value }))}
+          >
+            {columnNames.map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="chart-overlay-title-input">
+          Title
+          <input value={title} onChange={(e) => setTitle(e.target.value)} />
+        </label>
+        <div className="chart-overlay-spacer" />
+        <button
+          className="chart-overlay-action"
+          onClick={() => {
+            const svg = containerRef.current?.querySelector("svg");
+            if (svg) downloadSvg(svg, `${title.replace(/\s+/g, "_")}.svg`);
+          }}
+        >
+          <DownloadIcon size={12} /> SVG
+        </button>
+        <button
+          className="chart-overlay-action"
+          onClick={() => downloadPng(containerRef.current, `${title.replace(/\s+/g, "_")}.png`)}
+        >
+          <DownloadIcon size={12} /> PNG
+        </button>
+      </div>
+
+      <div ref={containerRef} className="chart-overlay-canvas" />
+    </Overlay>
   );
 }
