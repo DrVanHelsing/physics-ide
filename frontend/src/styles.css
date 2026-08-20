@@ -4342,6 +4342,7 @@ mark.help-search-highlight {
 .start-card,
 .class-card,
 .welcome-card,
+.auth-card,
 .classes-newform {
   background: var(--card-bg);
   border: 1px solid var(--card-border);
