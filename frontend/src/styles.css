@@ -3143,39 +3143,7 @@ mark.help-search-highlight {
 }
 
 /* Buttons */
-.vdialog-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 6px 18px;
-  font-size: 12px;
-  font-weight: 500;
-  border-radius: 4px;
-  border: 1px solid transparent;
-  cursor: pointer;
-  transition: background 0.12s, border-color 0.12s;
-  min-width: 68px;
-}
-
-.vdialog-btn--cancel {
-  background: transparent;
-  border-color: var(--border-hl);
-  color: var(--text-dim);
-}
-.vdialog-btn--cancel:hover {
-  background: var(--bg-hover);
-  color: var(--text);
-}
-
-.vdialog-btn--ok {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--on-accent);
-}
-.vdialog-btn--ok:hover {
-  background: var(--accent-bright);
-  border-color: var(--accent-bright);
-}
+.vdialog-btn { min-width: 68px; }
 
 /* ── DataPanel (Phase B.9 scaffold) ───────────────────────── */
 .data-panel {
@@ -4251,6 +4219,123 @@ mark.help-search-highlight {
 }
 .beginner-guide-dismiss:hover { color: var(--fg); }
 
+/* ═══════════════════════════════════════════════════════════
+   PRIMITIVES — .btn
+   The IDE core and the platform screens share these. Legacy
+   class names are comma-appended aliases so no markup changes.
+   ═══════════════════════════════════════════════════════════ */
+.btn,
+.admin-btn,
+.welcome-btn,
+.account-chip-btn,
+.vdialog-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--control-h);
+  padding: var(--btn-pad);
+  font-family: var(--font);
+  font-size: var(--btn-fs);
+  font-weight: var(--fw-medium);
+  line-height: 1;
+  color: var(--text);
+  background: var(--btn-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background var(--transition), border-color var(--transition),
+              color var(--transition);
+}
+.btn:hover:not(:disabled),
+.admin-btn:hover:not(:disabled),
+.welcome-btn:hover:not(:disabled),
+.account-chip-btn:hover:not(:disabled),
+.vdialog-btn:hover:not(:disabled) {
+  background: var(--btn-bg-hover);
+  border-color: var(--border-hl);
+  color: var(--text-bright);
+}
+.btn:disabled,
+.admin-btn:disabled,
+.welcome-btn:disabled,
+.account-chip-btn:disabled,
+.vdialog-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* One filled primary for the whole product. */
+.btn--primary,
+.admin-btn--primary,
+.welcome-btn--primary,
+.account-chip-btn--primary,
+.auth-submit,
+.vdialog-btn--ok {
+  background: var(--btn-primary-bg);
+  border: 1px solid var(--btn-primary-bg);
+  color: var(--on-accent);
+  font-weight: var(--fw-semibold);
+}
+.btn--primary:hover:not(:disabled),
+.admin-btn--primary:hover:not(:disabled),
+.welcome-btn--primary:hover:not(:disabled),
+.account-chip-btn--primary:hover:not(:disabled),
+.auth-submit:hover:not(:disabled),
+.vdialog-btn--ok:hover:not(:disabled) {
+  background: var(--btn-primary-bg-hover);
+  border-color: var(--btn-primary-bg-hover);
+  color: var(--on-accent);
+}
+
+.btn--ghost,
+.vdialog-btn--cancel {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-dim);
+}
+.btn--ghost:hover:not(:disabled),
+.vdialog-btn--cancel:hover:not(:disabled) {
+  background: var(--bg-hover);
+  border-color: transparent;
+  color: var(--text);
+}
+
+.btn--danger {
+  background: transparent;
+  border-color: color-mix(in srgb, var(--red) 45%, transparent);
+  color: var(--red);
+}
+.btn--danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--red) 12%, transparent);
+  border-color: var(--red);
+  color: var(--red);
+}
+
+.btn--sm,
+.admin-btn,
+.account-chip-btn {
+  min-height: var(--control-h-sm);
+  padding: var(--btn-pad-sm);
+  font-size: var(--fs-xs);
+}
+.btn--lg,
+.welcome-btn,
+.auth-submit {
+  min-height: var(--control-h-lg);
+  padding: var(--btn-pad-lg);
+  font-size: var(--fs-lg);
+}
+.btn--block,
+.auth-submit {
+  width: 100%;
+}
+
+/* .account-chip-btn is a left-aligned nav row, not a centred button. */
+.account-chip-btn { justify-content: flex-start; text-align: left; }
+
 /* ============================================================
    AUTH & ACCOUNT SCREENS (Plan 2)
    ============================================================ */
@@ -4327,16 +4412,7 @@ mark.help-search-highlight {
   border-radius: 4px;
   padding: 8px 10px;
 }
-.auth-submit {
-  background: var(--accent);
-  border: none;
-  border-radius: 4px;
-  color: var(--on-accent);
-  padding: 10px;
-  font-size: 14px;
-  cursor: pointer;
-}
-.auth-submit:disabled { opacity: 0.6; cursor: default; }
+.auth-submit { margin-top: var(--space-1); }
 .auth-footer { margin-top: 16px; font-size: 12px; color: var(--text-dim); }
 .auth-footer a { color: var(--accent-bright); }
 .auth-text { color: var(--text); font-size: 14px; line-height: 1.5; }
@@ -4365,19 +4441,10 @@ mark.help-search-highlight {
   padding: 0 4px;
 }
 .account-chip-btn {
-  display: block;
-  text-align: left;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  color: var(--text);
-  padding: 6px 8px;
-  font-size: 12px;
-  cursor: pointer;
-  text-decoration: none;
+  display: flex;
+  background: var(--card-bg);
 }
-.account-chip-btn:hover { background: var(--bg-card-hover); }
-.account-chip-btn--primary { border-color: var(--accent); color: var(--accent-bright); }
+.account-chip-btn:hover { background: var(--card-bg-hover); }
 
 /* ---- Admin console (Plan 2) ---- */
 .admin-page { min-height: 100vh; background: var(--bg-base); color: var(--text); }
@@ -4401,16 +4468,8 @@ mark.help-search-highlight {
 .admin-body { padding: 20px 24px; display: flex; flex-direction: column; gap: 14px; max-width: 1000px; }
 .admin-cap { display: flex; align-items: center; gap: 10px; font-size: 14px; }
 .admin-cap-input { width: 90px; }
-.admin-btn {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  color: var(--text);
-  padding: 4px 8px;
-  font-size: 12px;
-  cursor: pointer;
-}
-.admin-btn:hover { background: var(--bg-card-hover); }
+.admin-btn { background: var(--card-bg); }
+.admin-btn:hover { background: var(--card-bg-hover); }
 .admin-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .admin-table th {
   text-align: left;
@@ -4514,8 +4573,6 @@ mark.help-search-highlight {
   color: var(--text-bright);
   box-shadow: var(--shadow-lg);
 }
-.admin-btn--primary { border-color: var(--accent); color: var(--accent-bright); }
-
 /* ---- Welcome screen (Plan 4, user-requested) ---- */
 .welcome { min-height: 100vh; overflow-x: hidden; padding: 48px 20px 64px; color: var(--text-bright); }
 .welcome-hero { max-width: 760px; margin: 0 auto; text-align: center; }
@@ -4542,13 +4599,17 @@ mark.help-search-highlight {
 
 .welcome-cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
 .welcome-btn {
-  padding: 10px 18px; font-size: 14px; border-radius: 6px; cursor: pointer;
-  background: var(--bg-surface); color: var(--text-bright);
-  border: 1px solid var(--text-dim); transition: transform 0.12s ease, border-color 0.12s ease;
+  background: var(--bg-surface);
+  border-color: var(--border-hl);
+  transition: transform var(--transition), background var(--transition),
+              border-color var(--transition), color var(--transition);
 }
-.welcome-btn:hover { transform: translateY(-1px); border-color: var(--accent-bright); }
-.welcome-btn--primary { border-color: var(--accent); color: var(--accent-bright); }
-.welcome-btn--small { padding: 5px 12px; font-size: 12px; border-radius: 5px; }
+.welcome-btn:hover { transform: translateY(-1px); }
+.welcome-btn--small {
+  min-height: var(--control-h-sm);
+  padding: var(--btn-pad-sm);
+  font-size: var(--fs-sm);
+}
 
 .welcome-features {
   max-width: 980px; margin: 56px auto 0; display: grid; gap: 16px;
