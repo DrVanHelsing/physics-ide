@@ -19,15 +19,20 @@ let codeTraceEntries = [];
 // do not need updating.
 export { instrumentPythonForDebug };
 
+/** The GlowScript release the six pinned URLs below belong to. Exported so the
+ *  status bar cannot drift from what actually loads (IDELayout.js used to
+ *  hardcode "VPython 3.2" with nothing keeping the two in step). */
+export const GLOWSCRIPT_VERSION = "3.2";
+
 const GLOWSCRIPT_SCRIPTS = {
   jquery: "https://cdn.jsdelivr.net/npm/jquery@2.1.4/dist/jquery.min.js",
   jqueryTextChange:
     "https://www.glowscript.org/lib/jquery/IDE/jquery.textchange.custom.js",
   jqueryUi:
     "https://www.glowscript.org/lib/jquery/IDE/jquery-ui.custom.min.js",
-  glow: "https://www.glowscript.org/package/glow.3.2.min.js",
-  compiler: "https://www.glowscript.org/package/RScompiler.3.2.min.js",
-  run: "https://www.glowscript.org/package/RSrun.3.2.min.js",
+  glow: `https://www.glowscript.org/package/glow.${GLOWSCRIPT_VERSION}.min.js`,
+  compiler: `https://www.glowscript.org/package/RScompiler.${GLOWSCRIPT_VERSION}.min.js`,
+  run: `https://www.glowscript.org/package/RSrun.${GLOWSCRIPT_VERSION}.min.js`,
 };
 
 function normalizeScriptUrl(url) {

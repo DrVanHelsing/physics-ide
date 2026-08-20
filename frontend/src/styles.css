@@ -82,7 +82,7 @@
   --toolbar-h:     38px;
   --header-h:      44px;
   --titlebar-h:    30px;
-  --statusbar-h:   22px;
+  --statusbar-h:   26px;
   --activitybar-w: 48px;
   --sidebar-w:     0px;
   --panel-header-h:         36px;
@@ -107,7 +107,6 @@
   --bg-overlay:    #1e1e1e;
   --bg-titlebar:   #323233;
   --bg-activitybar:#333333;
-  --bg-statusbar:  var(--bg-surface);
   --bg-panel:      rgba(30, 30, 30, 0.94);
   --bg-input:      #3c3c3c;
   --bg-hover:      rgba(255, 255, 255, 0.05);
@@ -190,22 +189,11 @@
   --btn-primary-bg-hover: var(--accent-bright);
 
   /* ── DEPRECATED alias tokens — do NOT use in new rules. ──────────────
-     Canonical names: --bg-base, --bg-surface, --border-soft→--card-border,
-     --border-hard→--border-hl, --text-bright, --text, --text-dim, --red,
-     --mono, --font. Consumers are concentrated in the .dm-* / .trace-*
-     rules and are rewritten across Tasks 3, 8 and 9; the block is deleted
-     in Tranche 2 once the count reaches zero. ─────────────────────── */
-  --bg-app:         #1e1e1e;              /* DataPanel, ChartOverlay, DebugMode bg  */
+     Canonical names: --mono, --red. --bg-toolbar and --bg-sidebar have no
+     canonical replacement yet — out of scope for this cleanup pass. ── */
   --bg-toolbar:     #252526;              /* DebugMode top bar / panel headers      */
   --bg-sidebar:     #252526;              /* TraceTable search bar background       */
-  --border-soft:    rgba(255,255,255,0.07); /* softer edge used in subtle borders   */
-  --border-hard:    #505050;              /* stronger edge = --border-hl            */
-  --text-primary:   #e8e8e8;              /* DebugMode hover label = --text-bright  */
-  --text-secondary: #cccccc;              /* TraceTable / DebugMode labels = --text */
-  --fg:             #cccccc;              /* Catppuccin-style alias = --text        */
-  --fg-muted:       #9d9d9d;              /* Catppuccin-style alias = --text-dim    */
   --font-mono:      var(--mono);          /* normalises var(--font-mono) references */
-  --sans:           var(--font);          /* normalises var(--sans) references      */
   --error:          #f44747;              /* form validation colour = --red         */
 
   color-scheme: dark;
@@ -281,17 +269,9 @@
 
   /* ── DEPRECATED alias tokens — light-mode counterparts. See the dark
      block above. ───────────────────────────────────────────────────── */
-  --bg-app:         #ffffff;
   --bg-toolbar:     #f3f3f3;
   --bg-sidebar:     #f3f3f3;
-  --border-soft:    rgba(0,0,0,0.08);
-  --border-hard:    #c8c8c8;
-  --text-primary:   #1e1e1e;
-  --text-secondary: #333333;
-  --fg:             #333333;
-  --fg-muted:       #616161;
   --font-mono:      var(--mono);
-  --sans:           var(--font);
   --error:          #cd3131;
 
   color-scheme: light;
@@ -1095,7 +1075,7 @@ button {
   font-family: var(--mono);
   color: var(--text-dim);
   background: color-mix(in srgb, var(--bg-panel) 80%, transparent);
-  border: 1px solid var(--border-soft);
+  border: 1px solid var(--card-border);
   border-radius: var(--radius);
   padding: 5px 8px;
   opacity: 0.9;
@@ -1221,7 +1201,7 @@ button {
   font-size: var(--fs-2xs);
   color: var(--text-muted);
   background: var(--bg-input, var(--bg-sidebar));
-  border: 1px solid var(--border-soft);
+  border: 1px solid var(--card-border);
   border-radius: var(--radius-pill);
   padding: 1px 6px;
   white-space: nowrap;
@@ -1230,7 +1210,7 @@ button {
   font-size: var(--fs-xs);
   color: var(--text-muted);
   background: transparent;
-  border: 1px solid var(--border-soft);
+  border: 1px solid var(--card-border);
   border-radius: var(--radius-sm);
   padding: 2px 6px;
   cursor: pointer;
@@ -1260,7 +1240,7 @@ button {
   font-size: var(--fs-xs);
   color: var(--text-muted);
   background: transparent;
-  border: 1px solid var(--border-soft);
+  border: 1px solid var(--card-border);
   border-radius: var(--radius-sm);
   padding: 2px 6px;
   cursor: pointer;
@@ -1290,7 +1270,7 @@ button {
   gap: 6px;
   padding: 4px 8px;
   background: var(--bg-sidebar);
-  border-bottom: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--card-border);
   flex-shrink: 0;
 }
 .trace-search-icon {
@@ -1587,7 +1567,7 @@ button {
   align-items: center;
   gap: 4px;
   padding: 5px 8px;
-  border-top: 1px solid var(--border-soft);
+  border-top: 1px solid var(--card-border);
 }
 .trace-alert-lbl {
   font-size: var(--fs-2xs);
@@ -1631,7 +1611,7 @@ button {
   align-items: center;
   justify-content: center;
   background: transparent;
-  border: 1px solid var(--border-soft);
+  border: 1px solid var(--card-border);
   border-radius: var(--radius-sm);
   color: var(--text-muted);
   font-size: var(--fs-xs);
@@ -1677,7 +1657,7 @@ button {
   z-index: 200;
   display: flex;
   flex-direction: column;
-  background: var(--bg-app);
+  background: var(--bg-base);
   overflow: hidden;
 }
 
@@ -1729,7 +1709,7 @@ button {
   font-weight: 500;
   color: var(--text-muted);
   background: transparent;
-  border: 1px solid var(--border-soft);
+  border: 1px solid var(--card-border);
   border-radius: var(--radius-sm);
   cursor: pointer;
   white-space: nowrap;
@@ -1745,7 +1725,7 @@ button {
   font-size: var(--fs-sm);
   color: var(--text-muted);
   background: transparent;
-  border: 1px solid var(--border-soft);
+  border: 1px solid var(--card-border);
   border-radius: var(--radius-sm);
   cursor: pointer;
   white-space: nowrap;
@@ -1806,7 +1786,7 @@ button {
   min-width: 0;
 }
 .dm-panel--blocks  { background: var(--bg-panel); border-right: 1px solid var(--border-hl); }
-.dm-panel--viewport { flex: 1 1 0; background: var(--bg-app); }
+.dm-panel--viewport { flex: 1 1 0; background: var(--bg-base); }
 .dm-panel--trace   { background: var(--bg-panel); border-left: 1px solid var(--border-hl); }
 
 .dm-panel-hint {
@@ -1880,7 +1860,7 @@ button {
   flex: 1 1 0;
   width: 100%;
   overflow: hidden;
-  background: var(--bg-app);
+  background: var(--bg-base);
   min-height: 0;
 }
 
@@ -1902,13 +1882,13 @@ button {
 .status-bar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 0 var(--space-3);
+  gap: var(--space-3, 12px);
+  padding: 0 var(--space-3, 12px);
   height: var(--statusbar-h);
   min-height: var(--statusbar-h);
-  font-size: var(--fs-sm);
+  font-size: var(--fs-xs, 11px);
   color: var(--text-dim);
-  background: var(--bg-statusbar);
+  background: var(--bg-surface);
   border-top: 1px solid var(--border);
   user-select: none;
   z-index: 50;
@@ -1916,24 +1896,30 @@ button {
 .status-bar span {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-1);
-  font-size: var(--fs-sm);
+  gap: 4px;
+  font-size: var(--fs-xs, 11px);
 }
+.status-bar__project {
+  max-width: 28ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+}
+.status-bar__spacer { flex: 1; }
+.status-bar__engine { color: var(--text-muted); font-family: var(--mono); }
 
 .console-bar {
   padding: 0;
-  font-size: var(--fs-sm);
+  font-size: var(--fs-xs, 11px);
   font-family: var(--mono);
-  color: var(--text);
+  color: var(--text-dim);
   background: transparent;
   border: none;
 }
-.console-bar--error { color: var(--red); }
+.console-bar--error   { color: var(--red); }
 .console-bar--success { color: var(--green); }
-.console-bar--running {
-  color: var(--accent-bright);
-  font-weight: var(--fw-medium);
-}
+.console-bar--running { color: var(--accent); font-weight: 500; }
 
 .status-dot {
   display: inline-block;
@@ -3194,7 +3180,7 @@ mark.help-search-highlight {
   flex-direction: column;
   flex: 1 1 0;    /* fill the flex parent (canvas-pane or hybrid-datapanel) */
   min-height: 0;  /* allow flex item to shrink — required for inner scroll */
-  background: var(--bg-app);
+  background: var(--bg-base);
   color: var(--text);
   overflow: hidden;
 }
@@ -3644,7 +3630,7 @@ mark.help-search-highlight {
 .start-project-row {
   display: flex;
   align-items: stretch;
-  background: var(--bg-app);
+  background: var(--bg-base);
   border: 1px solid var(--border);
   border-radius: 6px;
   overflow: hidden;
@@ -3705,7 +3691,7 @@ mark.help-search-highlight {
 }
 
 .start-wizard {
-  background: var(--bg-app);
+  background: var(--bg-base);
   border: 1px solid var(--border);
   border-left: 3px solid var(--card-accent, var(--accent));
   border-radius: 8px;
@@ -3908,7 +3894,7 @@ mark.help-search-highlight {
   padding: 24px;
 }
 .chart-overlay-inner {
-  background: var(--bg-app);
+  background: var(--bg-base);
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -4068,12 +4054,12 @@ mark.help-search-highlight {
 .trace-promote-close {
   background: none;
   border: none;
-  color: var(--fg-muted);
+  color: var(--text-dim);
   cursor: pointer;
   padding: 2px;
   display: flex;
 }
-.trace-promote-close:hover { color: var(--fg); }
+.trace-promote-close:hover { color: var(--text); }
 .trace-promote-body {
   padding: 14px 16px;
   overflow-y: auto;
@@ -4086,14 +4072,14 @@ mark.help-search-highlight {
   flex-direction: column;
   gap: 6px;
   font-size: 12px;
-  color: var(--fg-muted);
+  color: var(--text-dim);
 }
 .trace-promote-field > span:first-child {
   font-size: 11px;
   font-weight: 600;
   text-transform: var(--label-transform);
   letter-spacing: var(--label-tracking);
-  color: var(--fg-muted);
+  color: var(--text-dim);
 }
 .trace-promote-hint {
   font-weight: 400;
@@ -4106,7 +4092,7 @@ mark.help-search-highlight {
   background: var(--bg-input);
   border: 1px solid var(--border);
   border-radius: 5px;
-  color: var(--fg);
+  color: var(--text);
   font-size: 13px;
   padding: 6px 10px;
   width: 100%;
@@ -4124,14 +4110,14 @@ mark.help-search-highlight {
   align-items: center;
   gap: 5px;
   font-size: 12px;
-  color: var(--fg-muted);
+  color: var(--text-dim);
 }
 .trace-promote-time-input {
   width: 70px;
   background: var(--bg-input);
   border: 1px solid var(--border);
   border-radius: 4px;
-  color: var(--fg);
+  color: var(--text);
   font-size: 12px;
   padding: 4px 6px;
   text-align: right;
@@ -4157,11 +4143,11 @@ mark.help-search-highlight {
 .trace-promote-var-name {
   font-size: 12px;
   font-family: var(--font-mono);
-  color: var(--fg);
+  color: var(--text);
 }
 .trace-promote-rows-hint {
   font-size: 10px;
-  color: var(--fg-muted);
+  color: var(--text-dim);
   margin: 0;
 }
 .trace-promote-footer {
@@ -4176,12 +4162,12 @@ mark.help-search-highlight {
   background: none;
   border: 1px solid var(--border);
   border-radius: 5px;
-  color: var(--fg-muted);
+  color: var(--text-dim);
   font-size: 12px;
   padding: 5px 14px;
   cursor: pointer;
 }
-.trace-promote-cancel:hover { border-color: var(--border-hl); color: var(--fg); }
+.trace-promote-cancel:hover { border-color: var(--border-hl); color: var(--text); }
 .trace-promote-confirm {
   display: flex;
   align-items: center;
@@ -4208,7 +4194,7 @@ mark.help-search-highlight {
   font-weight: 700;
   text-transform: var(--label-transform);
   letter-spacing: var(--label-tracking);
-  color: var(--fg-muted);
+  color: var(--text-dim);
   margin: 0 0 6px;
 }
 .ds-saved-trace-row {
@@ -4217,7 +4203,7 @@ mark.help-search-highlight {
   gap: 6px;
   padding: 4px 0;
   font-size: 12px;
-  color: var(--fg);
+  color: var(--text);
 }
 .ds-saved-trace-name {
   flex: 1;
@@ -4230,7 +4216,7 @@ mark.help-search-highlight {
 }
 .ds-saved-trace-meta {
   font-size: 10px;
-  color: var(--fg-muted);
+  color: var(--text-dim);
   white-space: nowrap;
 }
 
@@ -4243,24 +4229,24 @@ mark.help-search-highlight {
   background: color-mix(in srgb, var(--accent) 10%, transparent);
   border-bottom: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
   font-size: 12px;
-  color: var(--fg);
+  color: var(--text);
 }
 .beginner-guide-text { flex: 1; }
 .beginner-guide-counter {
   font-size: 10px;
-  color: var(--fg-muted);
+  color: var(--text-dim);
   white-space: nowrap;
 }
 .beginner-guide-dismiss {
   background: none;
   border: none;
-  color: var(--fg-muted);
+  color: var(--text-dim);
   cursor: pointer;
   display: flex;
   padding: 2px;
   flex-shrink: 0;
 }
-.beginner-guide-dismiss:hover { color: var(--fg); }
+.beginner-guide-dismiss:hover { color: var(--text); }
 
 /* ═══════════════════════════════════════════════════════════
    PRIMITIVES — .btn

@@ -23,6 +23,7 @@ import React, { useMemo, useRef, useState } from "react";
 import { EXAMPLES } from "../utils/precodedExamples";
 import { BLOCK_TEMPLATES, DS_TEMPLATES, HYBRID_TOPICS } from "../utils/blockTemplates";
 import { DEFAULT_PYTHON_CODE } from "../constants";
+import { relativeTime } from "../utils/relativeTime";
 import AccountChip from "./auth/AccountChip";
 import {
   RocketIcon,
@@ -157,17 +158,6 @@ function buildManifestSpec({ goal, title, startPath, templateId, editor, hybridE
   }
 
   return spec;
-}
-
-/* ── Format relative time for the project list ───────────── */
-
-function relativeTime(ms) {
-  if (!ms) return "";
-  const delta = Date.now() - ms;
-  if (delta < 60_000) return "just now";
-  if (delta < 3_600_000) return `${Math.round(delta / 60_000)} min ago`;
-  if (delta < 86_400_000) return `${Math.round(delta / 3_600_000)} h ago`;
-  return new Date(ms).toLocaleDateString();
 }
 
 /* ── Component ───────────────────────────────────────────── */
