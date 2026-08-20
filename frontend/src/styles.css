@@ -1767,7 +1767,6 @@ button {
 .dm-panel--viewport { flex: 1 1 0; background: var(--bg-app); }
 .dm-panel--trace   { background: var(--bg-panel); border-left: 1px solid var(--border-hard); }
 
-.dm-panel-header { background: var(--bg-toolbar); border-bottom-color: var(--border-hl); }
 .dm-panel-hint {
   font-size: 10px;
   color: var(--text-muted);
@@ -3029,14 +3028,6 @@ mark.help-search-highlight {
 @keyframes vdialog-slide-in {
   from { opacity: 0; transform: translateY(-12px) scale(0.97); }
   to   { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-/* Header bar */
-.vdialog-header {
-  height: auto;
-  min-height: var(--panel-header-h);
-  padding: var(--space-3) var(--space-4) var(--space-2);
-  background: var(--bg-titlebar);
 }
 
 /* Body */
@@ -4370,6 +4361,16 @@ mark.help-search-highlight {
   color: var(--text-bright);
   letter-spacing: var(--label-tracking);
   white-space: nowrap;
+}
+
+/* Legacy variants — position matters: these must follow the base group
+   above to override it at equal specificity. */
+.dm-panel-header { background: var(--bg-toolbar); border-bottom-color: var(--border-hl); }
+.vdialog-header {
+  height: auto;
+  min-height: var(--panel-header-h);
+  padding: var(--space-3) var(--space-4) var(--space-2);
+  background: var(--bg-titlebar);
 }
 
 /* ============================================================
