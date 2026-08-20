@@ -80,6 +80,7 @@
 
   /* ── Chrome heights ────────────────────────────────────── */
   --toolbar-h:     38px;
+  --header-h:      44px;
   --titlebar-h:    30px;
   --statusbar-h:   22px;
   --activitybar-w: 48px;
@@ -337,30 +338,87 @@ button {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   TITLE BAR (VS Code style window chrome)
+   APP HEADER — one 44px bar replacing the fake titlebar and the
+   flat toolbar. Identity on the left, three action zones, account
+   on the right. Reclaims 30px and kills the triple mode label.
    ═══════════════════════════════════════════════════════════ */
-.titlebar {
+.app-header {
   display: flex;
   align-items: center;
-  justify-content: center;
-  height: var(--titlebar-h);
+  gap: var(--space-2, 8px);
+  padding: 0 var(--space-2, 8px);
+  height: var(--header-h);
+  min-height: var(--header-h);
   background: var(--bg-titlebar);
   border-bottom: 1px solid var(--border);
+  z-index: 50;
   user-select: none;
-  -webkit-app-region: drag;
-  position: relative;
-  z-index: 100;
 }
-.titlebar-text {
-  font-size: 12px;
-  font-weight: 400;
-  color: var(--text-dim);
-  letter-spacing: 0;
+.app-header__identity {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1, 4px);
+  min-width: 0;
+  flex: 0 1 auto;
 }
-.titlebar-text strong {
-  color: var(--text);
-  font-weight: 600;
+.app-header__zone {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
 }
+/* The primary zone takes the slack, so Run sits near the optical centre. */
+.app-header__zone--primary { flex: 1 1 auto; justify-content: center; }
+.app-header__zone--view    { margin-left: auto; }
+.app-header__account       { flex: 0 0 auto; margin-left: var(--space-1, 4px); }
+.app-header__sep {
+  width: 1px;
+  height: 18px;
+  background: var(--border);
+  opacity: 0.6;
+  margin: 0 var(--space-1, 4px);
+  flex-shrink: 0;
+}
+
+/* ── The open project's name ── */
+.project-title {
+  max-width: 26ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--fs-md, 13px);
+  font-weight: 500;
+  color: var(--text-bright);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius, 4px);
+  padding: 3px 6px;
+  cursor: text;
+}
+.project-title:hover { background: var(--bg-hover); border-color: var(--border); }
+.project-title--empty { color: var(--text-muted); font-style: italic; cursor: default; }
+.project-title--empty:hover { background: transparent; border-color: transparent; }
+.project-title-input {
+  width: 26ch;
+  font: inherit;
+  font-size: var(--fs-md, 13px);
+  font-weight: 500;
+  color: var(--text-bright);
+  background: var(--bg-input);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius, 4px);
+  padding: 3px 6px;
+}
+
+/* Run is already the filled primary (Plan 1 Task 6). Its shortcut chip just
+   needs to sit on that fill instead of on the bar. */
+.tb-btn--run .tb-kbd {
+  color: var(--on-accent);
+  background: color-mix(in srgb, var(--on-accent) 14%, transparent);
+  border-color: color-mix(in srgb, var(--on-accent) 22%, transparent);
+}
+.tb-btn--account { color: var(--text-dim); max-width: 18ch; }
+.tb-btn--account .tb-btn-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ═══════════════════════════════════════════════════════════
    APP SHELL (VS Code layout)
@@ -376,19 +434,6 @@ button {
 /* ═══════════════════════════════════════════════════════════
    TOOLBAR (VS Code Menu Bar style)
    ═══════════════════════════════════════════════════════════ */
-.toolbar {
-  display: flex;
-  gap: 2px;
-  align-items: center;
-  padding: 0 8px;
-  height: var(--toolbar-h);
-  min-height: var(--toolbar-h);
-  background: var(--bg-titlebar);
-  border-bottom: 1px solid var(--border);
-  z-index: 50;
-  user-select: none;
-}
-
 .toolbar-logo {
   display: flex;
   align-items: center;

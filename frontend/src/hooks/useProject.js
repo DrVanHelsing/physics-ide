@@ -201,6 +201,19 @@ export function useProject() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [proj.loaded, proj.bootstrapResult, proj.activeManifest]);
 
+  const renameProject = useCallback(
+    async (title) => {
+      const next = String(title || "").trim().slice(0, 120);
+      if (!proj.activeManifest) return null;
+      if (!next || next === proj.activeManifest.title) return null;
+      /* Capture first: a rename is an edit, so it carries whatever the student
+         has typed since the last autosave rather than dropping it. */
+      const base = captureWorkingStateInto(proj.activeManifest);
+      return proj.persistActive({ ...base, title: next, updatedAt: Date.now() });
+    },
+    [captureWorkingStateInto, proj],
+  );
+
   const addRunAndDataset = useCallback(
     async (runSnapshot, datasetDescriptor) => {
       if (!proj.activeManifest) return null;
@@ -227,6 +240,7 @@ export function useProject() {
     selectProject,
     createNew,
     saveCurrent,
+    renameProject,
     removeProject: proj.removeProject,
     closeProject: proj.closeProject,
     refreshList: proj.refreshList,

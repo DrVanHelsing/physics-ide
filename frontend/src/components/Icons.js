@@ -289,4 +289,12 @@ export const AlertTriangleIcon = ({ size } = {}) => (
   <svg {...sz(size)}><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
 );
 
+export const UserIcon = ({ size } = {}) => (
+  <svg {...sz(size)}><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+);
+
+export const MenuIcon = ({ size } = {}) => (
+  <svg {...sz(size)}><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+);
+
 
