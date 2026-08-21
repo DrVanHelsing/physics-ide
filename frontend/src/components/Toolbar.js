@@ -205,7 +205,7 @@ function Toolbar({
       <div className="app-header__zone app-header__zone--primary">
         {showSimActions && (
           <>
-            <button type="button" className="tb-btn tb-btn--run" onClick={onRun} title="Run simulation (Ctrl+Enter)">
+            <button type="button" className="tb-btn tb-btn--run" onClick={onRun} title={`Run simulation (${MOD_LABEL}+Enter)`}>
               <PlayIcon size={13} />
               <span className="tb-btn-label">Run</span>
               {/* The shortcut chip is decorative — the title attribute already states
@@ -268,7 +268,7 @@ function Toolbar({
       {/* ── Zone 3 — file: save, workspace, import/export ── */}
       <div className="app-header__zone app-header__zone--file">
         {onSave && (
-          <button type="button" className="tb-btn tb-btn--secondary" onClick={onSave} title={`Save this project (${MOD_LABEL}+S)`}>
+          <button type="button" className="tb-btn tb-btn--secondary tb-btn--save" onClick={onSave} title={`Save this project (${MOD_LABEL}+S)`}>
             <SaveIcon size={13} />
             <span className="tb-btn-label">Save</span>
           </button>

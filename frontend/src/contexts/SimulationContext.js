@@ -58,6 +58,14 @@ export function SimulationProvider({ children }) {
   /* ── Live Blockly workspace reference ────────────────── */
   const workspaceRef = useRef(null);
 
+  /* Bumped by every teardown path (Stop, Reset, Home, debug enter/exit — see
+     useSimulation's endRun) so a stale in-flight run's settle can tell it no
+     longer owns the screen. Lives here, not inside useSimulation, so useDebug
+     — which reaches simulation state straight from this context rather than
+     through that hook — shares the exact same counter instead of bumping a
+     separate one. */
+  const runGenerationRef = useRef(0);
+
   /* ── Auto-save (every 2 s) ───────────────────────────── */
   const stateRef = useRef({ mode, pythonCode, workspaceXml });
   stateRef.current = { mode, pythonCode, workspaceXml };
@@ -99,6 +107,8 @@ export function SimulationProvider({ children }) {
     viewportHidden, setViewportHidden,
     /* stable workspace ref */
     workspaceRef,
+    /* shared run-teardown generation counter (see useSimulation's endRun) */
+    runGenerationRef,
   };
 
   return (

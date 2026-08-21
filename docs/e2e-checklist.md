@@ -23,7 +23,7 @@ Screenshots: `frontend/e2e/*.png` — **untracked build artifacts** (`.gitignore
 at any depth). They are documentation you regenerate, not fixtures you commit; a UI change does not
 "invalidate" anything in git. Note that `scripts/e2e-test.mjs` resolves its output to
 `frontend/e2e/`, while older runs left artifacts at the repository root `e2e/`.
-UX report: `docs/ux-audit.md`
+UX report: `frontend/docs/ux-audit.md`
 
 ---
 
@@ -371,7 +371,7 @@ UX report: `docs/ux-audit.md`
 
 ## Part C — UX Quality Audit
 
-> Run `node scripts/ux-audit.mjs` and review `docs/ux-audit.md` for details.
+> Run `node scripts/ux-audit.mjs` and review `frontend/docs/ux-audit.md` for details.
 
 ### C.1 · Colour Contrast (WCAG AA)
 | # | Element | Auto | Result | Contrast Ratio | Notes |
@@ -484,7 +484,7 @@ UX report: `docs/ux-audit.md`
 
 > Fill in after running `node scripts/ux-audit.mjs`
 
-See `docs/ux-audit.md` for full findings.
+See `frontend/docs/ux-audit.md` for full findings.
 
 ---
 

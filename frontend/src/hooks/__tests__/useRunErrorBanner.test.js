@@ -10,8 +10,8 @@ import { mountComponent, click } from "../../test/renderHelpers";
  * one piece of state logic. This harness calls the actual production hook
  * (no reimplemented logic) and exposes just enough DOM to assert on.
  */
-function Harness({ status, running }) {
-  const [bannerText, dismiss] = useRunErrorBanner(status, running);
+function Harness({ status, running, sessionKey }) {
+  const [bannerText, dismiss] = useRunErrorBanner(status, running, sessionKey);
   return (
     <div>
       <p className="banner-text">{bannerText ?? ""}</p>
@@ -54,5 +54,19 @@ describe("useRunErrorBanner", () => {
     mounted = mountComponent(<Harness status={{ type: "error", text: "First error" }} running={false} />);
     mounted.rerender(<Harness status={{ type: "error", text: "Second error" }} running={false} />);
     expect(mounted.container.querySelector(".banner-text").textContent).toBe("Second error");
+  });
+
+  test("clears when the session key changes — an error belongs to one project's run", () => {
+    mounted = mountComponent(
+      <Harness status={{ type: "error", text: "Boom" }} running={false} sessionKey="project-a" />,
+    );
+    expect(mounted.container.querySelector(".banner-text").textContent).toBe("Boom");
+
+    // Navigating to a different project (or back to the start menu and into
+    // another one) must not carry the previous project's error along.
+    mounted.rerender(
+      <Harness status={{ type: "error", text: "Boom" }} running={false} sessionKey="project-b" />,
+    );
+    expect(mounted.container.querySelector(".banner-text").textContent).toBe("");
   });
 });

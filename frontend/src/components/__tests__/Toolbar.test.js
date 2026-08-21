@@ -1,7 +1,7 @@
 import { describe, test, expect, vi, afterEach } from "vitest";
 import React from "react";
 import Toolbar from "../Toolbar";
-import { mountComponent, click, byText, byTitle } from "../../test/renderHelpers";
+import { mountComponent, click, byText, byTitle, keyDown } from "../../test/renderHelpers";
 
 // HeaderAccount calls useMe() (TanStack Query) and useNavigate() (router) —
 // neither provider is mounted in this suite, so stub it out. Its own
@@ -140,12 +140,35 @@ describe("Toolbar — file group", () => {
 
     const items = [...menu.querySelectorAll(".tb-dropdown-item")];
     expect(items).toHaveLength(9);
+    // Every item is exposed to assistive tech as a menu item of the
+    // role="menu" container above it.
+    expect(items.every((it) => it.getAttribute("role") === "menuitem")).toBe(true);
     click(items[2]);
     expect(h.onExportPy).toHaveBeenCalledTimes(1);
     // The menu closes on selection — reopen for the next assertion.
     click(container.querySelector(".tb-btn--dropdown"));
     click([...container.querySelectorAll(".tb-dropdown-item")][8]);
     expect(h.onExportProject).toHaveBeenCalledTimes(1);
+  });
+
+  test("Escape closes the dropdown without reaching the window-level hotkey listener", () => {
+    const { container } = render();
+    click(container.querySelector(".tb-btn--dropdown"));
+    expect(container.querySelector(".tb-dropdown-menu")).not.toBeNull();
+
+    // useHotkeys binds bare Escape to "stop" on window — if the dropdown's
+    // own Escape handler doesn't stop propagation, closing the menu would
+    // also fire this listener and kill a running simulation.
+    const windowKeydown = vi.fn();
+    window.addEventListener("keydown", windowKeydown);
+    try {
+      keyDown(document, { key: "Escape" });
+    } finally {
+      window.removeEventListener("keydown", windowKeydown);
+    }
+
+    expect(container.querySelector(".tb-dropdown-menu")).toBeNull();
+    expect(windowKeydown).not.toHaveBeenCalled();
   });
 });
 

@@ -31,7 +31,13 @@ export default function DropdownMenu({
       if (ref.current && !ref.current.contains(e.target)) setOpen(false);
     };
     const onKey = (e) => {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key === "Escape") {
+        // Without this, Escape bubbles to useHotkeys' window listener, which
+        // matches bare Escape to "stop" — closing this menu would silently
+        // kill a running simulation. Same fix as Overlay.js.
+        e.stopPropagation();
+        setOpen(false);
+      }
     };
     document.addEventListener("mousedown", onDown);
     document.addEventListener("keydown", onKey);
@@ -63,6 +69,7 @@ export default function DropdownMenu({
           {React.Children.map(children, (child) =>
             child
               ? React.cloneElement(child, {
+                  role: "menuitem",
                   onClick: (...args) => {
                     setOpen(false);
                     child.props.onClick?.(...args);

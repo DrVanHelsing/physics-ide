@@ -401,8 +401,10 @@ button {
 .tb-btn--account .tb-btn-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Stage 1 (<= 1280px): secondary controls become icons. Primary controls,
-   the project title and the account label keep their words. */
-.app-header--stage1 .tb-btn--secondary .tb-btn-label { display: none; }
+   the project title and the account label keep their words. Save carries
+   .tb-btn--secondary too but is never collapsed here — it loses its label
+   only at stage 2 (below), where the tighter, zone-scoped rule applies. */
+.app-header--stage1 .tb-btn--secondary:not(.tb-btn--save) .tb-btn-label { display: none; }
 .app-header--stage1 .tb-btn--secondary { padding: 5px 7px; }
 .app-header--stage1 .project-title,
 .app-header--stage1 .project-title-input { max-width: 18ch; width: 18ch; }

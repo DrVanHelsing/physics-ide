@@ -26,7 +26,6 @@ import {
   onProjectDeleted,
 } from "../utils/storage/projectStore";
 import { readLegacyV1, migrate, LEGACY_V1_KEY } from "../utils/manifest/migrate";
-import { createManifest } from "../utils/manifest/factory";
 import { SIGNED_IN_HINT_KEY, LAST_PROJECT_KEY } from "../constants";
 
 const ProjectContext = createContext(null);
@@ -178,16 +177,6 @@ export function ProjectProvider({ children }) {
     try { localStorage.removeItem(LAST_PROJECT_KEY); } catch { /* storage blocked */ }
   }, []);
 
-  const createAndOpen = useCallback(
-    async (spec = {}) => {
-      const manifest = createManifest(spec);
-      const saved = await persistActive(manifest);
-      setActiveProjectId(saved.id);
-      return saved;
-    },
-    [persistActive],
-  );
-
   const removeProject = useCallback(
     async (id) => {
       await deleteProject(id);
@@ -212,7 +201,6 @@ export function ProjectProvider({ children }) {
     openProject,
     noteExplicitOpen,
     closeProject,
-    createAndOpen,
     removeProject,
     persistActive,
     legacyKey: LEGACY_V1_KEY,
