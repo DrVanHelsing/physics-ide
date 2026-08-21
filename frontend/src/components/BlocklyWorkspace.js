@@ -9,6 +9,7 @@ import {
 import { SearchIcon, XIcon, MaximizeIcon } from "./Icons";
 import * as dialogService from "../utils/export/dialogService";
 import { buildToolboxXml } from "../utils/blockly/toolbox";
+import { getBlocklyTheme, gridColourFor } from "../utils/blockly/blocklyTheme";
 
 /* ── Block search bar component ────────────────────────── */
 function BlockSearch({ workspaceRef }) {
@@ -146,57 +147,6 @@ function BlockSearch({ workspaceRef }) {
     </div>
   );
 }
-/* ── Dark / Light Blockly themes ─────────────────────────── */
-function buildBlocklyTheme(Blockly, isDark) {
-  if (isDark) {
-    return Blockly.Theme.defineTheme("physics-dark", {
-      name: "physics-dark",
-      base: Blockly.Themes.Classic,
-      componentStyles: {
-        workspaceBackgroundColour: "#1e1e1e",  // --bg-base dark
-        toolboxBackgroundColour: "#252526",    // --bg-surface dark
-        toolboxForegroundColour: "#cccccc",    // --text dark
-        flyoutBackgroundColour: "#1e1e1e",     // --bg-base dark
-        flyoutForegroundColour: "#cccccc",     // --text dark
-        flyoutOpacity: 0.98,
-        scrollbarColour: "#505050",            // --border-hl dark
-        scrollbarOpacity: 0.55,
-        insertionMarkerColour: "#569cd6",      // --accent-blue dark
-        insertionMarkerOpacity: 0.5,
-        cursorColour: "#007acc",               // --accent dark
-      },
-      fontStyle: {
-        family: "'Inter', 'Segoe UI', system-ui, sans-serif",
-        weight: "500",
-        size: 11,
-      },
-    });
-  }
-
-  return Blockly.Theme.defineTheme("physics-light", {
-    name: "physics-light",
-    base: Blockly.Themes.Classic,
-    componentStyles: {
-      workspaceBackgroundColour: "#ffffff",   // --bg-base light
-      toolboxBackgroundColour: "#f3f3f3",     // --bg-surface light
-      toolboxForegroundColour: "#333333",     // --text light
-      flyoutBackgroundColour: "#f3f3f3",      // --bg-surface light
-      flyoutForegroundColour: "#333333",      // --text light
-      flyoutOpacity: 0.98,
-      scrollbarColour: "#c8c8c8",             // --border-hl light
-      scrollbarOpacity: 0.55,
-      insertionMarkerColour: "#0451a5",       // --accent-blue light
-      insertionMarkerOpacity: 0.5,
-      cursorColour: "#007acc",                // --accent light
-    },
-    fontStyle: {
-      family: "'Inter', 'Segoe UI', system-ui, sans-serif",
-      weight: "500",
-      size: 11,
-    },
-  });
-}
-
 function normalizeSimulationStructure(workspace) {
   if (!workspace) return false;
 
@@ -346,9 +296,11 @@ function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, onB
   const onChangeRef = useRef(onWorkspaceChange);
   const initialXmlRef = useRef(initialXml);
   const goalRef = useRef(goal);
+  const isDarkRef = useRef(isDark);
   onReadyRef.current = onWorkspaceReady;
   onChangeRef.current = onWorkspaceChange;
   goalRef.current = goal;
+  isDarkRef.current = isDark;
   const onCountRef = useRef(onBlockCountChange);
   onCountRef.current = onBlockCountChange;
   const onScaleRef = useRef(onScaleChange);
@@ -359,7 +311,7 @@ function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, onB
   useEffect(() => {
     defineCustomBlocksAndGenerator(Blockly);
 
-    const theme = buildBlocklyTheme(Blockly, true);
+    const theme = getBlocklyTheme(isDarkRef.current);
 
     // Blockly v11 uses a callback-based dialog API. Route through our
     // dialogService so the custom VariableDialog component handles these.
@@ -390,7 +342,7 @@ function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, onB
         trashcan: true,
         scrollbars: true,
         sounds: false,
-        grid: { spacing: 25, length: 3, colour: "#3c3c3c", snap: true },
+        grid: { spacing: 25, length: 3, colour: gridColourFor(isDarkRef.current), snap: true },
         zoom: {
           controls: false,
           wheel: true,
@@ -545,7 +497,7 @@ function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, onB
   useEffect(() => {
     const ws = workspaceRef.current;
     if (!ws) return;
-    const theme = buildBlocklyTheme(Blockly, isDark);
+    const theme = getBlocklyTheme(isDark);
     ws.setTheme(theme);
   }, [isDark]);
 
@@ -574,7 +526,7 @@ function ReadOnlyBlockly({ xml, isDark, breakpoints, onBlockClick, executingBloc
     const dots = bpDotsRef.current;
 
     defineCustomBlocksAndGenerator(Blockly);
-    const theme = buildBlocklyTheme(Blockly, isDark);
+    const theme = getBlocklyTheme(isDark);
 
     const ws = Blockly.inject(hostRef.current, {
       readOnly: true,
@@ -582,7 +534,7 @@ function ReadOnlyBlockly({ xml, isDark, breakpoints, onBlockClick, executingBloc
       scrollbars: true,
       renderer: "zelos",
       sounds: false,
-      grid: { spacing: 25, length: 3, colour: isDark ? "#2a2c40" : "#ddd", snap: false },
+      grid: { spacing: 25, length: 3, colour: gridColourFor(isDark), snap: false },
       zoom: { controls: false, wheel: true, startScale: 0.65, maxScale: 2, minScale: 0.15, scaleSpeed: 1.1 },
       media: "/blockly-media/",
     });
@@ -639,7 +591,7 @@ function ReadOnlyBlockly({ xml, isDark, breakpoints, onBlockClick, executingBloc
   useEffect(() => {
     const ws = wsRef.current;
     if (!ws) return;
-    const theme = buildBlocklyTheme(Blockly, isDark);
+    const theme = getBlocklyTheme(isDark);
     ws.setTheme(theme);
   }, [isDark]);
 
