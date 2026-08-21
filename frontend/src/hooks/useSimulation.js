@@ -5,7 +5,7 @@
  * change, workspace callbacks, start-menu selection, etc.) from the three
  * contexts.  All handlers are memoised with useCallback.
  */
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import {
   runPython,
   stopPython,
@@ -40,6 +40,16 @@ export function useSimulation() {
   const { debugMode, breakpointsRef } = useDebugContext();
   const { setTraceData } = useTraceContext();
 
+  /* Bumped at the top of every handleRun/handleStop/handleResetToBlocks call.
+     handleRun captures the value at its own start and re-checks it after
+     every await: runPython's own activeRunToken guard only protects its
+     internal DOM/iframe work and resolves a superseded call SILENTLY AS
+     SUCCESS, so without this a slow, superseded run's `catch`/`finally`
+     could still land after a newer run (or an explicit Stop) already owns
+     the screen — clearing `booting`/`running` out from under it and
+     reopening the exact blank-rectangle window this state exists to close. */
+  const runGenerationRef = useRef(0);
+
   /* ── Generate Python from current Blockly workspace ──── */
   const syncFromBlocks = useCallback(() => {
     if (!workspaceRef.current) return pythonCode;
@@ -52,6 +62,7 @@ export function useSimulation() {
 
   /* ── Run ─────────────────────────────────────────────── */
   const handleRun = useCallback(async () => {
+    const generation = ++runGenerationRef.current;
     const code = mode === "text" ? pythonCode : syncFromBlocks();
     setStatus({ text: "Starting simulation…", type: "" });
     setRunning(true);
@@ -61,6 +72,10 @@ export function useSimulation() {
     try {
       stopPython(GLOWSCRIPT_HOST_ID);
       await runPython(code, GLOWSCRIPT_HOST_ID);
+      // A newer run (or an explicit Stop/Reset) has since bumped the
+      // generation — this call is stale, so its "success" must not reopen
+      // state a later action already owns.
+      if (generation !== runGenerationRef.current) return;
       syncBreakpointsToIframe(breakpointsRef.current);
       setStatus({
         text: debugMode ? "Debug simulation started" : "Simulation started",
@@ -68,15 +83,17 @@ export function useSimulation() {
       });
     } catch (err) {
       console.error(err);
+      if (generation !== runGenerationRef.current) return;
       setRunning(false);
       setStatus({ text: err.message || "Runtime error", type: "error" });
     } finally {
-      setBooting(false);
+      if (generation === runGenerationRef.current) setBooting(false);
     }
   }, [mode, pythonCode, syncFromBlocks, debugMode, breakpointsRef, setRunning, setBooting, setPaused, setStatus, setTraceData]);
 
   /* ── Stop ────────────────────────────────────────────── */
   const handleStop = useCallback(() => {
+    runGenerationRef.current += 1; // any in-flight handleRun is now stale
     stopPython(GLOWSCRIPT_HOST_ID);
     setRunning(false);
     setBooting(false);
@@ -85,6 +102,7 @@ export function useSimulation() {
 
   /* ── Reset to blocks mode ────────────────────────────── */
   const handleResetToBlocks = useCallback(() => {
+    runGenerationRef.current += 1; // any in-flight handleRun is now stale
     stopPython(GLOWSCRIPT_HOST_ID);
     setRunning(false);
     setBooting(false);

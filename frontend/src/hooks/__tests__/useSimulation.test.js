@@ -167,4 +167,113 @@ describe("useSimulation — booting phase", () => {
     expect(latestCtx.booting).toBe(false);
     expect(latestCtx.running).toBe(false);
   });
+
+  test("a superseded run's late resolution cannot clear a newer run's booting state or overwrite its status", async () => {
+    // Run is never disabled while booting (no gating on the button or the
+    // hotkey), so an ordinary double Run-click starts a second handleRun
+    // while the first is still awaiting a slow runPython. glowRunner's own
+    // activeRunToken guard resolves a superseded call SILENTLY AS SUCCESS
+    // (no throw) — without a React-level generation guard, that stale
+    // resolution's own `finally` would clear `booting` while the newer run
+    // is still in flight, reopening the exact blank-rectangle window this
+    // whole feature exists to close.
+    const runA = deferred();
+    const runB = deferred();
+    runPython.mockReturnValueOnce(runA.promise).mockReturnValueOnce(runB.promise);
+    mounted = mountComponent(<Wrapped />);
+
+    // Run A starts.
+    act(() => {
+      latestSim.handleRun();
+    });
+    expect(latestCtx.booting).toBe(true);
+
+    // Run B starts before A has resolved — A is now stale/superseded.
+    act(() => {
+      latestSim.handleRun();
+    });
+    expect(latestCtx.booting).toBe(true);
+    expect(latestCtx.status.text).toBe("Starting simulation…");
+
+    // A (the stale run) resolves first. Its own "success" must not reach
+    // through and clear `booting` or stomp the status B still owns.
+    runA.resolve();
+    await act(async () => {
+      await flush();
+    });
+    expect(latestCtx.booting).toBe(true);
+    expect(latestCtx.status.text).toBe("Starting simulation…");
+    expect(latestCtx.status.type).toBe("");
+
+    // B (the current run) resolves — only now does booting actually clear.
+    runB.resolve();
+    await act(async () => {
+      await flush();
+    });
+    expect(latestCtx.booting).toBe(false);
+    expect(latestCtx.running).toBe(true);
+    expect(latestCtx.status.type).toBe("success");
+  });
+
+  test("a superseded run's late rejection cannot clear a newer run's booting state or overwrite its status", async () => {
+    const runA = deferred();
+    const runB = deferred();
+    runPython.mockReturnValueOnce(runA.promise).mockReturnValueOnce(runB.promise);
+    mounted = mountComponent(<Wrapped />);
+
+    act(() => {
+      latestSim.handleRun();
+    });
+    act(() => {
+      latestSim.handleRun();
+    });
+    expect(latestCtx.booting).toBe(true);
+
+    // A (stale) fails. Its catch must not clear booting, flip running back
+    // to false, or overwrite the status B still owns.
+    runA.reject(new Error("Execution error: stale failure"));
+    await act(async () => {
+      await flush();
+    });
+    expect(latestCtx.booting).toBe(true);
+    expect(latestCtx.running).toBe(true);
+    expect(latestCtx.status.text).toBe("Starting simulation…");
+
+    // B (current) succeeds afterward.
+    runB.resolve();
+    await act(async () => {
+      await flush();
+    });
+    expect(latestCtx.booting).toBe(false);
+    expect(latestCtx.running).toBe(true);
+    expect(latestCtx.status.type).toBe("success");
+  });
+
+  test("Stop bumps the generation, so a stale in-flight run cannot resurrect state after an explicit Stop", async () => {
+    const run = deferred();
+    runPython.mockReturnValueOnce(run.promise);
+    mounted = mountComponent(<Wrapped />);
+
+    act(() => {
+      latestSim.handleRun();
+    });
+    expect(latestCtx.booting).toBe(true);
+
+    act(() => {
+      latestSim.handleStop();
+    });
+    expect(latestCtx.running).toBe(false);
+    expect(latestCtx.booting).toBe(false);
+    expect(latestCtx.status.text).toBe("Simulation stopped");
+
+    // The stopped run's promise finally resolves — it must not reopen
+    // running/booting or overwrite the "Simulation stopped" status.
+    run.resolve();
+    await act(async () => {
+      await flush();
+    });
+    expect(latestCtx.running).toBe(false);
+    expect(latestCtx.booting).toBe(false);
+    expect(latestCtx.status.text).toBe("Simulation stopped");
+  });
 });
