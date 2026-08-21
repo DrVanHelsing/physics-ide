@@ -1,10 +1,43 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
+import { applyRuntimeTheme, resizeRuntimeCanvas } from "../utils/runner/glowRunner";
+import { useTheme } from "../contexts/ThemeContext";
 
 function GlowCanvas({ running }) {
+  const viewportRef = useRef(null);
+  const { isDark } = useTheme();
+
+  /* Keep the drawing buffer matched to the box, at the display's pixel ratio.
+     Debounced ~100ms so a divider drag is one reallocation, not sixty. */
+  useEffect(() => {
+    const el = viewportRef.current;
+    if (!el || typeof ResizeObserver !== "function") return undefined;
+    let timer = null;
+    const ro = new ResizeObserver((entries) => {
+      const box = entries[0]?.contentRect;
+      if (!box) return;
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        timer = null;
+        resizeRuntimeCanvas(box.width, box.height);
+      }, 100);
+    });
+    ro.observe(el);
+    return () => {
+      if (timer) clearTimeout(timer);
+      ro.disconnect();
+    };
+  }, []);
+
+  /* Theme the LIVE frame — no reload, so a mid-run toggle keeps the run. */
+  useEffect(() => {
+    if (!running) return;
+    applyRuntimeTheme(isDark);
+  }, [isDark, running]);
+
   return (
     <div className="canvas-wrap">
       {/* ── 3D viewport ── */}
-      <div className="canvas-viewport">
+      <div className="canvas-viewport" ref={viewportRef}>
         {!running && (
           <div className="canvas-idle">
             <div className="canvas-idle-inner">
@@ -45,5 +78,3 @@ function GlowCanvas({ running }) {
 }
 
 export default GlowCanvas;
-
-
