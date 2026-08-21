@@ -1,20 +1,20 @@
-# IDE Modernization — Plan 3: Deeper Mechanics
+# IDE Modernization — Plan 4: Deeper Mechanics
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Tranche 3 of the IDE deep review delivered: the block palette becomes part of the design system, and the debugger stops lying. Colour stops being sixteen toolbox hex literals plus twelve raw Blockly hue integers and becomes one module with AA-clean fills mirrored as `--cat-*` custom properties. The toolbox stops shipping blocks that exist in no drawer and drawers that exist in no registry — enforced in CI, both directions. Debug stops being a separate world a student escapes into and becomes a mode of the shell: a docked trace table beside the normal viewport, step/record folded into the toolbar the student already knows. And every place the debugger currently asserts something false — a Pause that flips before the runtime stops, a breakpoint that can be set on a block that can never fire, an error that surfaces as `Execution error: Runtime error: …` with 300 characters of compiled JavaScript — is made truthful. Two dependency approvals land here: Blockly is bundled and pinned, and GlowScript is self-hosted, which finally makes `docs/product-contract.md:101` ("runs fully offline after first load") true.
+**Goal:** Tranche 3 of the IDE deep review delivered as mechanics: the toolbox stops shipping blocks that exist in no drawer and drawers that exist in no registry — enforced in CI, both directions — and the debugger stops lying. Debug stops being a separate world a student escapes into and becomes a mode of the shell: a docked trace table beside the normal viewport, step/record folded into the header the student already knows. And every place the debugger currently asserts something false — a Pause that flips before the runtime stops, a breakpoint that can be set on a block that can never fire, an error that surfaces as `Execution error: Runtime error: …` with 300 characters of compiled JavaScript — is made truthful. (The palette, theme, rail, and all three dependency bundlings shipped in Plan 3 — this plan consumes them.)
 
-**Architecture:** A new pure module `frontend/src/utils/blockly/blockPalette.js` becomes the single source for every category colour in the product. The toolbox XML interpolates its `fill` into `colour=` attributes; the Blockly theme builds `blockStyles` from the same table and every block definition swaps `colour: <hue integer>` for `style: "<category>_blocks"`; `styles.css` mirrors the table as 26 `--cat-*` custom properties (kept in sync by a pure test that reads the stylesheet), which the pane-header accents, help-page tags, start-menu badges and landing-page particles then consume. The block registry is re-categorised so its 19 block-bearing categories are exactly the toolbox's 19 block-bearing categories — the Data Science drawer splits into the ten pipeline sub-drawers the registry already modelled and never used — and `check-block-registry.mjs` is extended to enforce that correspondence in both directions. Blockly stops arriving as four `<script>` tags on `window` and arrives as `frontend/src/utils/blockly/blocklyLib.js`, one bundled ES module the sixteen `window.Blockly` sites import — fourteen that exist today plus the two Plan 2 adds. GlowScript's six runtime scripts move from `glowscript.org` + jsDelivr into `frontend/public/vendor/glowscript/`. On the debug side, `DebugMode.js` is deleted outright: its trace column becomes the already-written-but-unused `.debug-drawer` docked beside `GlowCanvas`, its control group becomes a debug group inside the existing `Toolbar`, and the ~38 parallel `.dm-*` CSS rules go with it. The runtime gains a `__phpause` acknowledgement message, a breakable-id publication, pre-`eval` breakpoint seeding, per-iteration stepping, and a pure `describeRunError` helper under `utils/`.
+**Architecture:** The block registry is re-categorised so its 19 block-bearing categories are exactly the toolbox's 19 block-bearing categories — the Data Science drawer splits into the ten pipeline sub-drawers the registry already modelled and never used — and `check-block-registry.mjs` is extended to enforce that correspondence in both directions. Downstream colour consumers (pane-header accents, help-page tags, start-menu badges, landing-page particles) start reading the `--cat-*` custom properties Plan 3 put in `styles/tokens.css`. On the debug side, `DebugMode.js` is deleted outright: its trace column becomes the already-written-but-unused `.debug-drawer` docked beside `GlowCanvas`, its control group fills the reserved `trace`/`debug` slots in Plan 3's `visibleControls()`, and the ~38 parallel `.dm-*` CSS rules go with it (one-file surgery on `styles/debug.css`). The runtime gains a `__phpause` acknowledgement message, a breakable-id publication, pre-`eval` breakpoint seeding, per-iteration stepping, and a pure `describeRunError` helper under `utils/`. Colour, theme, rail and bundling are Plan 3's — consumed here through `blockPalette.js`, `blocklyTheme.js` and `blocklyLib.js`.
 
-**Tech Stack:** React 18 + Vite, plain JavaScript frontend, Vitest 4. **Two new dependencies, both explicitly approved by the product owner and scoped below: `blockly@11.2.2` (pinned EXACT) and six vendored GlowScript/jQuery files served from `frontend/public/`.** Nothing else. No state library, no CSS framework, no preprocessor, no type-coercion engine (`docs/product-contract.md:39` rules it out), no websockets.
+**Tech Stack:** React 18 + Vite, plain JavaScript frontend, Vitest 4. **No new dependencies — the approved bundles (`blockly@11.2.2`, `monaco-editor@0.45.0`, six vendored GlowScript/jQuery files) landed in Plan 3.** No state library, no CSS framework, no preprocessor, no type-coercion engine (`docs/product-contract.md:39` rules it out), no websockets.
 
 **Spec:** [docs/superpowers/reviews/2026-08-19-ide-deep-review.md](../reviews/2026-08-19-ide-deep-review.md) — "Suggested modernization roadmap → Tranche 3 — Deeper mechanics", plus the proposal tables in *Block Toolbox & Blocks* and *Debug Experience* that carry the evidence, and open questions 3, 4, 5 and 6 (all four now answered — see Global Constraints). Contract references: [docs/product-contract.md](../../product-contract.md) §36 (hat blocks + disable-orphans), §39 (minimal type system), §90 (Walkthrough Mode), §101 (offline after first load), §107 (no non-CDN origins after first load).
 
-**Depends on:** [Plan 1 — Visual Foundation](2026-08-20-ide-modernization-01-visual-foundation.md) (the `--space-*`/`--fs-*`/`--radius-*`/`--label-*` token system, the `.btn`/`.card`/`.panel-header` primitives and the `:focus-visible` ring this plan builds on) and [Plan 2 — Interaction Upgrades](2026-08-20-ide-modernization-02-interaction-upgrades.md) (the zoned 44px header this plan adds a debug group to, and the `renderHelpers.js` component-test harness it extends). **Both land first; nothing here may start before they do.**
+**Depends on:** [Plan 1 — Visual Foundation](2026-08-20-ide-modernization-01-visual-foundation.md) (the `--space-*`/`--fs-*`/`--radius-*`/`--label-*` token system, the `.btn`/`.card`/`.panel-header` primitives and the `:focus-visible` ring this plan builds on), [Plan 2 — Interaction Upgrades](2026-08-20-ide-modernization-02-interaction-upgrades.md) (the zoned 44px header and the `renderHelpers.js` component-test harness), and [Plan 3 — MakeCode Overhaul](2026-08-21-ide-modernization-03-makecode-overhaul.md) (the bundled Blockly/Monaco, the vendored GlowScript, the palette/theme/rail, the split stylesheet, and the reserved header slots this plan's debug group fills — see the consumed-interface table below). **All three land first; nothing here may start before they do.**
 
 **Citation convention — read this before cutting any range.** Every line number in this plan was re-verified against `feature/classroom-platform` at `771bc1e` and supersedes the review's, which were taken at `10f8a9d`. But `771bc1e` is *before Tranche 2 runs*, and Plan 2 rewrites, wholesale, several of the files this plan edits most invasively. Plan 2 established the convention "cite selectors in `styles.css`, not line numbers"; this plan extends it to JavaScript:
 
-> **Every line number in this plan is a PRE-TRANCHE-2 locator.** It is there to identify *which* code is meant — never to be cut blindly by offset. At implementation time, re-resolve it by **selector, function name, component name, prop name or JSX element**. The files Plan 2 moves or rewrites, and where the offsets will therefore be wrong: `IDELayout.js` (Tasks 3, 4, 7, 10, 11, 12, 13, 14, 15, 16), `Toolbar.js` (Tasks 7 and 9 replace the entire returned tree), `GlowCanvas.js` (Tasks 14, 15, 16), `useSimulation.js` (Task 16 rewrites `handleRun`), `useDebug.js`, `BlocklyWorkspace.js` (Task 13), `glowRunner.js` (Tasks 8, 14, 15), `styles.css` (Plan 1 and Plan 2 both), `vite.config.mjs` (Plan 2 Task 1). Where this plan cites `styles.css:NNN` it means "the rule with that selector", exactly as Plans 1 and 2 do.
+> **Every line number in this plan is a PRE-TRANCHE-2 locator.** It is there to identify *which* code is meant — never to be cut blindly by offset. At implementation time, re-resolve it by **selector, function name, component name, prop name or JSX element**. The files Plan 2 moves or rewrites, and where the offsets will therefore be wrong: `IDELayout.js` (Tasks 3, 4, 7, 10, 11, 12, 13, 14, 15, 16), `Toolbar.js` (Tasks 7 and 9 replace the entire returned tree), `GlowCanvas.js` (Tasks 14, 15, 16), `useSimulation.js` (Task 16 rewrites `handleRun`), `useDebug.js`, `BlocklyWorkspace.js` (Task 13), `glowRunner.js` (Tasks 8, 14, 15), `styles.css` (Plan 1 and Plan 2 both), `vite.config.mjs` (Plan 2 Task 1). Where this plan cites `styles.css:NNN` it means "the rule with that selector", exactly as Plans 1 and 2 do — and since Plan 3's split, that rule lives in one of the eleven `styles/*.css` files (debug work: `debug.css`/`workspace.css`). Plan 3 additionally rewrote `Toolbar.js`'s render tree (`visibleControls`), `BlocklyWorkspace.js`'s theme/inject region, and `CodeEditor.js`'s loader — re-resolve citations into those files against the post-Plan-3 shapes named in the consumed-interface table below.
 
 ## Consumed interface from Tranche 2 (Interaction Upgrades)
 
@@ -35,13 +35,31 @@ Plan 2's completion criteria names what it hands to this tranche. These are the 
 | **Task 16** — the rewritten `handleRun` | `useSimulation.js`'s `handleRun` now sets `booting` around `await runPython(code, GLOWSCRIPT_HOST_ID)`. Tasks 13, 14 and 16 below edit *that* function — find it by name — and add the third `opts` argument (`{ breakpoints, watch }`) to the call it already makes. |
 | **Task 3** — the save handler | `handleSaveProject` in `IDELayout.js` (Ctrl+S and the header Save button both call it). Task 17's `<Toolbar>` prop list adds the debug props beside it without touching it. |
 
+## Consumed interface from Plan 3 (MakeCode Overhaul)
+
+Plan 3 lands first. These are the post-Plan-3 shapes this plan's tasks edit:
+
+| Consumed from Plan 3 | The shape this plan edits |
+|---|---|
+| **Task 1** — the CSS split | `frontend/src/styles.css` is an `@import` manifest over `styles/{tokens,base,chrome,workspace,viewport,debug,pages,datapanel,primitives,platform,responsive}.css`. "styles.css: the rule with selector X" now means "the split file carrying that selector" — debug work lives in `debug.css` and `workspace.css`. |
+| **Task 2** — `blocklyLib.js` | `frontend/src/utils/blockly/blocklyLib.js` default-exports the bundled namespace (`Blockly.Python` attached). No `window.Blockly` remains; new code imports the module. |
+| **Task 5** — `blockPalette.js` v2 | The palette API Tasks 5/7/8 consume, plus `brightFor` and `STYLE_CATEGORY_ALIASES` (`Starter`/`Scene`) — Task 4's re-categorisation retires both aliases; delete them from `blockPalette.js` when it does. |
+| **Task 6** — `blocklyTheme.js` | `getBlocklyTheme(isDark)` (Zelos-based, palette-driven, cached) and `gridColourFor(isDark)`. The inline `buildBlocklyTheme` in `BlocklyWorkspace.js` is gone. |
+| **Task 8** — the rail | Toolbox categories carry `categorystyle`; rows are decorated with `--cat`/`--cat-bright`; `tokens.css` owns the `--cat-*` block, sync-tested. |
+| **Task 9** — the trashcan | `WorkspaceTrash` + a Blockly delete area own deletion; the stock trashcan is off (`trashcan: false`). Debug decorations must not collide with `.workspace-trash*`. |
+| **Task 10** — `visibleControls()` | `utils/toolbar/visibleControls.js` returns the header's zone lists; **the reserved `trace` and `debug` keys in the `view` zone are the slots Task 17 Step 3 fills** — their visibility rule (hidden while `runState === "idle"`) already ships; supply handlers, do not re-derive visibility in JSX. |
+| **Task 11** — `WorkspaceZoom` | The on-canvas zoom cluster sits bottom-right of the blocks pane; the header zoom slider no longer exists. |
+| **Task 12** — the boot atom | `.canvas-idle--booting` is the boot indicator; `.canvas-booting*` no longer exists — do not cite it. |
+| **Task 13** — run lifecycle | Every import/load path routes through `endRun`; `useRuntimeReady` replaces the twin scene polls; `SimulationContext`'s value is memoised. |
+
+
 ## Global Constraints
 
-- **DEPENDENCY APPROVAL (a) — Bundle Blockly. Product owner, explicit. Scoped exception to the standing no-new-dependencies rule.** `npm i` `blockly@11` pinned EXACT in `frontend/package.json`, imported as a module, CDN `<script>` tags removed from `frontend/index.html`. The pinned version is **`11.2.2`** (the latest 11.x; `latest` on npm is 13.2.1 and is NOT in scope). Rationale of record: `frontend/index.html:15-19` loads Blockly from `cdn.jsdelivr.net` at a floating `@11` with no SRI hash, so a patch release can change block rendering in a classroom mid-term with no review, and a filtered school network renders the headline feature inert (`BlocklyWorkspace.js:290-292` degrades to a bare "Blockly failed to load" panel). This is Task 1 and nothing else in the plan may start before it lands.
-- **DEPENDENCY APPROVAL (b) — Self-host GlowScript. Product owner, explicit. Scoped exception.** Vendor the six files `glowRunner.js` currently pulls from `glowscript.org` and jsDelivr into the repo (`frontend/public/vendor/glowscript/`, exact filenames plus a documented provenance/version note), served locally. This closes the "runs fully offline after first load" promise at `docs/product-contract.md:101`. This is Task 2.
-- **Monaco stays on the CDN this tranche** (`frontend/index.html:22`, `CodeEditor.js:39-47`), because the `<textarea>` fallback at `CodeEditor.js:156-165` already covers the failure. It is named in Deferred below; do not vendor it here, and do not treat the offline smoke test's Monaco failure as a bug.
+- **Blockly bundling: DELIVERED IN PLAN 3 (its Task 2).** `blocklyLib.js` is the sole entry point (`Blockly.Python` attached, media vendored). This plan must not reintroduce `window.Blockly` reads or CDN tags.
+- **GlowScript self-hosting: DELIVERED IN PLAN 3 (its Task 3).** Six files under `frontend/public/vendor/glowscript/` with provenance; `docs/product-contract.md:101` is already true — keep it true.
+- **Monaco: BUNDLED IN PLAN 3 (its Tasks 4 and 14)** — `monaco-editor@0.45.0` exact behind a dynamic import, physics themes from the palette, `<textarea>` fallback intact. Task 14 Step 6 below edits the post-Plan-3 `CodeEditor.js`: the namespace lives on a `monacoRef`, not `window.monaco`.
 - **NO other new dependencies.** `html2canvas`, `jspdf`, `arquero`, `@observablehq/plot`, `localforage` and `qrcode` are already installed and may be used; nothing else may be added. Note `blockly@11.2.2` itself declares one runtime dependency, `jsdom@25.0.1` — the frontend already carries `jsdom@^25.0.1` as a devDependency, so this adds no second copy and no decision.
-- **The block palette is a WHOLESALE REDESIGN** (review open Q4, settled: redesign, not keep-hues). `BLOCK_PALETTE` is the single source for category *and* block colour. The new hue system must (1) clear WCAG AA for every fill against its on-colour, (2) harmonise with Plan 1's toned-down semantic token system, (3) **free RED exclusively for errors and debug highlights**, (4) stay hue-distinguishable for category identity. Students re-learn the colours once; that cost is accepted. The complete palette is specified in Task 3 with verified contrast arithmetic — **worst fill 4.95:1, best 6.10:1, worst white-on-secondary 4.56:1, and no fill anywhere in the 340°–15° hue band.**
+- **The block palette is Plan 3's vivid v2** (review open Q4, settled twice: redesign, then re-saturated at equal AA depth). `BLOCK_PALETTE` remains the single source for category *and* block colour; red stays reserved for errors and debug highlights; AA and the 340°–15° exclusion are test-enforced in Plan 3's suite. The v1 table formerly specified in Task 3 is superseded — cite categories by name and take values from `blockPalette.js`.
 - **Debug is a MODE OF THE SHELL, not a separate world** (review open Q5, settled). `DebugMode.js` is deleted. The docked `TraceTable` sits beside the normal viewport in the already-written `.debug-drawer`; step/record fold into the main `Toolbar`; the parallel `.dm-*` vocabulary is retired. Teachers who built lessons on the full-screen overlay get a strictly better workflow (edit and step without a context switch), and the review's own count of "~25 duplicate CSS rules" is an undercount — it is **38 rules at `styles.css:1531-1761`**, plus 4 Blockly decoration rules at `:839-857` which are kept and renamed.
 - **DELETE the dead beginner-mode metadata** (review open Q6, settled: remove now, git preserves it). `beginnerVisible` on every registry entry, the `beginnerEnabled` option on `getBlocksForGoal`, the manifest field (`manifest/factory.js:47,80`, `manifest/migrate.js:73`) and the two schema rules (`manifest/schema.js:96,120`) all go. **Walkthrough Mode (`docs/product-contract.md:90`) rebuilds this deliberately later** as a guided flow over `BeginnerGuide.js`, not as a visibility filter — it is not blocked by this deletion.
 - **The manifest schema version does NOT change.** Removing `beginnerEnabled` is a *relaxation*: `schema.js` stops requiring the field, `factory.js` stops writing it, `migrate.js` stops adding it. Existing manifests that still carry it stay valid (the validator ignores unknown keys) and are never rewritten. `SCHEMA_VERSION` stays 2 and no migration is authored.
@@ -52,11 +70,10 @@ Plan 2's completion criteria names what it hands to this tranche. These are the 
 
 **Deferred (in the review or adjacent, deliberately NOT here — do not flag as missing):**
 
-- **Monaco vendoring** — approved to stay on the CDN this tranche (see above). The `<textarea>` fallback at `CodeEditor.js:156-165` is the guard; vendoring it needs its own decision and its own ~4 MB of build assets.
 - **Self-hosted Inter / JetBrains Mono** — review open Q(c), still unanswered; Plan 1 deferred it and so does this one. The `@import` at `styles.css:5` stays.
 - **Scene `title` / `caption` surfacing in React chrome** — this is **Tranche 2's** item (`precodedExamples.js:16,21,126,131,225,229` author the text; `glowRunner.js:152-177` clips it). Do not duplicate it here.
 - **Search inserts the block**, wheel-zoom ↔ slider sync, "Fit to blocks", the Advanced-drawer disclosure chevron and `sim_start` pre-placed in blank projects — all **Tranche 2** roadmap items, built there. This plan fixes *why* search dead-ends (the category mismatch, Tasks 4-6) and does not redesign what clicking a result does. The one exception is forced by Task 10: deleting the top-block adoption loop would leave Plan 2's inserted block greyed, so **Task 10 Step 4 makes insertion attach explicitly** — a repair to keep Plan 2's behaviour, not new insertion design.
-- **`.blocklyTreeRow` restyled as a pill with a 20px colour swatch** — the palette this plan lands is the prerequisite; the row redesign is a visual pass that belongs with Tranche 2's toolbox work. This plan styles `.tb-label`, which Plan 1 explicitly handed to Tranche 3. **It does NOT touch `.blocklyTreeIcon`** — Plan 2 Task 13 Step 4 already replaced the blanket `display: none` with a real disclosure chevron scoped to `.blocklyTreeIconClosed` / `.blocklyTreeIconOpen`, and that treatment stands (Task 8, Step 6 records why).
+- **`.blocklyTreeRow` restyled as a colour-swatch pill** — DELIVERED by Plan 3 Task 8 (the MakeCode rail: bright dots, pill rows, filled selection). The `.blocklyTreeIconClosed`/`.blocklyTreeIconOpen` chevron treatment stands. The `.tb-label` straggler Plan 1 handed over remains this plan's Task 8 Step 6.
 - **Viewport camera cluster, ResizeObserver + devicePixelRatio, the screenshot-capture fix, live theme sync into the iframe** — all **Tranche 2** viewport items. Task 2 changes *where* GlowScript loads from and nothing about how it renders. **The one exception is `scene.background` unification**, which Plan 2 Task 14 explicitly handed here ("the per-template hardcoded navies stay for Tranche 3"): Task 2 Step 4 below strips the seven hardcoded navies from `blockTemplates.js` and `precodedExamples.js` so Plan 2's `applyRuntimeTheme` owns the background in both themes. That closes the handoff; it is not deferred again.
 - **A dataframe connection type check.** The review proposed `output: "Frame"` on the DS chain. **This is refuted by the code**: DS blocks are statement blocks that chain through `field_variable` (`ds_filter_eq_block` `args0[1]` is `{type:"field_variable", name:"VAR"}`, `ds_calc_mean_block` and `ds_linear_regression_block` likewise) — there is no value connection between them to type-check. Typing the DS pipeline would need a variable-type mechanism, which is a separate design. Task 9 does the vector chain only, which is real.
 - **`e2e/` screenshot refresh.** 49 checked-in PNGs are invalidated by the palette and the debug re-home. Plan a single refresh commit after the controller's browser pass, exactly as Tranche 2 does — not churned mid-series.
@@ -64,385 +81,24 @@ Plan 2's completion criteria names what it hands to this tranche. These are the 
 
 ---
 
-### Task 1: Bundle Blockly — `blockly@11.2.2`, pinned exact, imported
+### Task 1: MOVED — Bundle Blockly
 
-**Files:**
-
-- Modify: `frontend/package.json`, `frontend/index.html`, `frontend/vite.config.mjs`
-- Create: `frontend/src/utils/blockly/blocklyLib.js`, `frontend/src/utils/blockly/__tests__/blocklyLib.test.js`
-- Modify (import sites): `frontend/src/components/BlocklyWorkspace.js`, `frontend/src/components/layout/IDELayout.js`, `frontend/src/hooks/useSimulation.js`, `frontend/src/hooks/useSplitPane.js`, `frontend/src/utils/blockly/blocklyGenerator.js`, `frontend/src/utils/blockly/dsGenerator.js`, `frontend/src/utils/export/exportUtils.js`
-
-**Interfaces:**
-
-- Produces: `frontend/src/utils/blockly/blocklyLib.js` default-exporting one mutable `Blockly` namespace carrying every `blockly/core` export plus `Blockly.Python` (the `pythonGenerator`), with `blockly/blocks` registered and the English locale set as import side-effects.
-- Consumes: Plan 2 Task 1's `mode === "test"` branch in `frontend/vite.config.mjs` — Step 5 extends that branch rather than creating one.
-- Removes: all **16** `window.Blockly` reads, and the four `<script src="https://cdn.jsdelivr.net/npm/blockly@11/…">` tags at `frontend/index.html:15-19`.
-
-Today `frontend/index.html:15-19` loads four floating `@11` bundles with no SRI, `blockly` is absent from `frontend/package.json`, and **fourteen** sites read `window.Blockly`. `git grep -n "window.Blockly" -- frontend/src` at `771bc1e` returns exactly fourteen lines: `BlocklyWorkspace.js:289,465,497,565`; `useSimulation.js:227,230,231`; `useSplitPane.js:18,19`; `blocklyGenerator.js:2796`; `dsGenerator.js:5`; `exportUtils.js:21,25,26`.
-
-**Plan 2 adds two more before this task runs**, and neither is in that list:
-
-| Site | Added by | Shape |
-|---|---|---|
-| `insertBlock` in `BlocklyWorkspace.js` (beside `openCategory`) | Plan 2 Task 13, Step 1 | `const Blockly = window.Blockly;` + `if (!ws \|\| !Blockly) return false;` |
-| `handleInsertStarterBlock` in `IDELayout.js` (beside `handleWorkspaceChange`) | Plan 2 Task 11, Step 6.2 | `const Blockly = window.Blockly;` + `if (!ws \|\| !Blockly) return;` |
-
-Step 4 deletes the CDN tags, so leaving either one behind makes block-search insertion and the empty-state starter chips **permanently dead** — `window.Blockly` is `undefined`, both guards return early, and nothing reports a failure. **Sixteen sites in total, and Step 7's grep must return nothing.**
-
-- [ ] **Step 1: Install, pinned exact**
-
-```powershell
-npm i -E blockly@11.2.2 -w frontend
-```
-
-Expected: `frontend/package.json` gains `"blockly": "11.2.2"` in `dependencies` (no caret, no tilde — verify by eye). `package-lock.json` updates.
-
-- [ ] **Step 2: Create the single entry point**
-
-Create `frontend/src/utils/blockly/blocklyLib.js`:
-
-```js
-/**
- * blocklyLib — the ONE place Blockly enters this application.
- *
- * Blockly used to arrive as four floating `@11` <script> tags from a CDN
- * (index.html:15-19 before this tranche), which meant a patch release could
- * change block rendering in a classroom mid-term, and a filtered school
- * network rendered the headline feature inert. It is now a pinned-exact npm
- * dependency (blockly@11.2.2) bundled by Vite.
- *
- * Import this module — never `window.Blockly`, which no longer exists.
- */
-import * as BlocklyCore from "blockly/core";
-import * as libraryBlocks from "blockly/blocks";
-import { pythonGenerator } from "blockly/python";
-import * as En from "blockly/msg/en";
-
-BlocklyCore.setLocale(En);
-
-/*
- * ES module namespace objects are sealed, and blocklyGenerator.js reads
- * `Blockly.Python` (getPythonGen, blocklyGenerator.js:32-34). So copy the
- * namespace into a plain object this app owns and hang the generator off it.
- * Every value copied is an object or a class — Blockly never reassigns an
- * export — so the copy stays live: `Blockly.Blocks` is the same object
- * `blockly/blocks` registers into, and `Blockly.Themes` the same registry
- * `defineTheme` writes to.
- */
-const Blockly = Object.assign({}, BlocklyCore, {
-  Python: pythonGenerator,
-  libraryBlocks,
-});
-
-export default Blockly;
-export { pythonGenerator };
-```
-
-Verified against the installed package: `blockly@11.2.2`'s `exports` map provides `./core`, `./blocks`, `./python` and `./msg/*`, and the browser ESM build (`blockly.mjs`, reached through the `import` condition) exports all 141 symbols this app uses — `inject`, `Blocks`, `Xml`, `utils`, `Events`, `Themes`, `Theme`, `dialog`, `svgResize`, `defineBlocksWithJsonArray`, `setLocale`, `serialization`, `common`, `WorkspaceSvg`.
-
-- [ ] **Step 3: Rewrite the sixteen call sites**
-
-> Every line number in this step is a **pre-Tranche-2 locator** (see the citation convention above). Plan 2 Task 13 edits `BlocklyWorkspace.js` and Plan 2 Tasks 3/4/7/10-16 edit `IDELayout.js`, so find each site by the enclosing function name, not by offset.
-
-`frontend/src/components/BlocklyWorkspace.js` — add `import Blockly from "../utils/blockly/blocklyLib";` beside the existing imports at the top, then delete the four local re-reads and their guards:
-
-| Line    | Delete                                                                                                    | Replace with                                                              |
-| ------- | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| 289-293 | `const Blockly = window.Blockly;` + the `if (!Blockly) { setLoadError(…); return undefined; }` guard | *(nothing — Blockly is now a build-time import and cannot be missing)* |
-| 465-466 | `const Blockly = window.Blockly;` and `if (!ws \|\| !Blockly) return;`                                  | `if (!ws) return;`                                                      |
-| 497-498 | `const Blockly = window.Blockly;` and `if (!Blockly \|\| !hostRef.current) return undefined;`           | `if (!hostRef.current) return undefined;`                               |
-| 565-566 | `const Blockly = window.Blockly;` and `if (!ws \|\| !Blockly) return;`                                  | `if (!ws) return;`                                                      |
-| *(no pre-Tranche-2 line — `insertBlock`, added by **Plan 2 Task 13 Step 1** beside `openCategory`)* | `const Blockly = window.Blockly;` and the `\|\| !Blockly` clause of `if (!ws \|\| !Blockly) return false;` | `if (!ws) return false;` |
-
-The `loadError` state and the `.fallback-panel` early-return at `:476-478` also go — `const [loadError, setLoadError] = useState("")` at `:277` and the `if (loadError)` branch. Drop `useState` from the React import only if nothing else uses it (`BlockSearch` does — keep it).
-
-`frontend/src/hooks/useSimulation.js` — add `import Blockly from "../utils/blockly/blocklyLib";` and rewrite `:227-231`:
-
-```js
-          if (workspaceRef.current) {
-            try {
-              workspaceRef.current.clear();
-              const dom = Blockly.utils.xml.textToDom(content);
-              Blockly.Xml.domToWorkspace(dom, workspaceRef.current);
-```
-
-`frontend/src/hooks/useSplitPane.js` — add the import and rewrite `:18-19`:
-
-```js
-      if (typeof Blockly.svgResize === "function") {
-        Blockly.svgResize(workspace);
-```
-
-`frontend/src/utils/blockly/blocklyGenerator.js` — add `import Blockly from "./blocklyLib";` beside the `traceRegistry` import at `:16`, and at `:2796` delete `const Blockly = window.Blockly;` (the surrounding function keeps using the identifier, now the module-level import).
-
-`frontend/src/utils/blockly/dsGenerator.js` — add `import Blockly from "./blocklyLib";` at the top and delete `const Blockly = window.Blockly;` at `:5`, simplifying `resolveVar`:
-
-```js
-function resolveVar(block, fieldName, fallback) {
-  const id = block.getFieldValue(fieldName);
-  if (!id) return fallback;
-  const model = block.workspace ? block.workspace.getVariableById(id) : null;
-  return (model ? model.name : id) || fallback;
-}
-```
-
-`frontend/src/utils/export/exportUtils.js` — add `import Blockly from "../blockly/blocklyLib";` and rewrite `:21-26`:
-
-```js
-  if (!workspace) {
-    …unchanged body of the existing guard, minus the `|| !window.Blockly` clause…
-  }
-  const xmlDom = Blockly.Xml.workspaceToDom(workspace);
-  const xmlText = Blockly.Xml.domToText(xmlDom);
-```
-
-`frontend/src/components/layout/IDELayout.js` — the sixteenth site, and the one easiest to miss because it does not exist at `771bc1e`. **Plan 2 Task 11 Step 6.2** adds `handleInsertStarterBlock` (the handler behind the blank-canvas starter chips) beside `handleWorkspaceChange`. Add `import Blockly from "../../utils/blockly/blocklyLib";` to the file's imports, then delete the local read and its guard clause:
-
-```js
-  const handleInsertStarterBlock = useCallback((blockXml) => {
-    const ws = workspaceRef.current;
-    if (!ws) return;
-    try {
-      const dom = Blockly.utils.xml.textToDom(
-        `<xml xmlns="https://developers.google.com/blockly/xml">${blockXml}</xml>`,
-      );
-      Blockly.Xml.domToWorkspace(dom, ws);
-      …the rest of Plan 2's body, unchanged…
-```
-
-(Task 10 below replaces the comment underneath it — the one promising `normalizeSimulationStructure` will adopt the block into SETUP — with an explicit `appendToSetup` call, because that adoption loop is deleted there.)
-
-- [ ] **Step 4: Strip the CDN tags from `index.html`**
-
-In `frontend/index.html`, delete lines 14-19 entirely:
-
-```html
-    <!-- Blockly core + built-in blocks + English messages -->
-    <script src="https://cdn.jsdelivr.net/npm/blockly@11/blockly_compressed.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/blockly@11/blocks_compressed.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/blockly@11/msg/en.js"></script>
-    <!-- Blockly Python code generator (provides Blockly.Python) -->
-    <script src="https://cdn.jsdelivr.net/npm/blockly@11/python_compressed.js"></script>
-```
-
-Keep the Monaco loader at `:22` (deferred, see Global Constraints). Replace the now-stale comment at `:24-25` with:
-
-```html
-    <!-- GlowScript / VPython 3D engine is loaded dynamically in
-         src/utils/runner/glowRunner.js from /vendor/glowscript/, with AMD
-         temporarily disabled to avoid Monaco loader define() conflicts.
-         Blockly is bundled (src/utils/blockly/blocklyLib.js). -->
-```
-
-- [ ] **Step 5: Make Vitest resolve the browser build**
-
-Blockly's `exports` map routes `./core` through a `node` condition to `core-node.js`, a headless jsdom shim with no named exports. Vitest's jsdom environment must load the same `blockly.mjs` the app bundles or `Blockly.inject` is simply absent. In **`frontend/vite.config.mjs`** — the file is `.mjs`, and **Plan 2 Task 1 Step 3 is what creates the `mode === "test"` branch** (the oxc JSX shim, inserted immediately before `optimizeDeps`) — extend that existing branch by adding the `resolve` key beside the `oxc` key:
-
-```js
-  ...(mode === "test"
-    ? {
-        oxc: {
-          include: /src\/.*\.js$/,
-          exclude: [],
-          lang: "jsx",
-          jsx: { runtime: "automatic" },
-        },
-        // Blockly's package exports map a "node" condition to a headless
-        // jsdom shim (core-node.js) with no named exports. Pin the browser
-        // ESM build so component probes see the same Blockly the app bundles.
-        resolve: { conditions: ["browser", "module", "import", "default"] },
-      }
-    : {}),
-```
-
-- [ ] **Step 6: Probe test (proves the bundle, not the UI)**
-
-This is a pure-module suite, so it lives beside the module it covers, in the `__tests__/` convention the repo already uses. Create `frontend/src/utils/blockly/__tests__/blocklyLib.test.js`:
-
-```js
-import { describe, test, expect } from "vitest";
-import Blockly, { pythonGenerator } from "../blocklyLib";
-
-describe("blocklyLib", () => {
-  test("exposes the core surface this app uses", () => {
-    for (const key of [
-      "inject",
-      "Blocks",
-      "Xml",
-      "utils",
-      "Events",
-      "Themes",
-      "Theme",
-      "dialog",
-      "svgResize",
-      "defineBlocksWithJsonArray",
-    ]) {
-      expect(Blockly[key], `Blockly.${key} missing`).toBeDefined();
-    }
-    expect(typeof Blockly.inject).toBe("function");
-    expect(typeof Blockly.utils.xml.textToDom).toBe("function");
-  });
-
-  test("carries the Python generator as Blockly.Python", () => {
-    expect(Blockly.Python).toBe(pythonGenerator);
-    expect(typeof Blockly.Python.forBlock).toBe("object");
-  });
-
-  test("stock library blocks are registered", () => {
-    expect(Blockly.Blocks.logic_boolean).toBeDefined();
-    expect(Blockly.Blocks.math_number).toBeDefined();
-    expect(Blockly.Blocks.controls_repeat_ext).toBeDefined();
-  });
-
-  test("nothing leaks onto window", () => {
-    expect(window.Blockly).toBeUndefined();
-  });
-});
-```
-
-- [ ] **Step 7: Verify and commit**
-
-```powershell
-npm run test -w frontend
-npm run build -w frontend
-git grep -n "window.Blockly" -- frontend/src
-git grep -n "cdn.jsdelivr.net/npm/blockly" -- frontend
-```
-
-Expected: tests green (4 new); build clean; **both greps return nothing** — including the two sites Plan 2 added, which is what makes this grep the task's real gate rather than a formality. Note the bundle grows by roughly 1.2 MB minified — that is the point of the approval, and it is now versioned, reviewable and cacheable.
-
-```powershell
-git add frontend/package.json frontend/index.html frontend/vite.config.mjs frontend/src package-lock.json
-git commit -m "feat(frontend): bundle blockly@11.2.2 pinned exact — one module entry, no CDN scripts"
-```
+**Moved to Plan 3, Task 2** ([2026-08-21-ide-modernization-03-makecode-overhaul.md](2026-08-21-ide-modernization-03-makecode-overhaul.md)). `blocklyLib.js`, the sixteen rewritten `window.Blockly` sites, the vendored `media/`, and the removed CDN tags all land there. The task number is preserved so this document's cross-references ("nothing may start before Task 1") stay resolvable: read them as "Plan 3 must land first."
 
 ---
 
-### Task 2: Self-host GlowScript — six vendored files, served locally
+### Task 2: One background, not seven — the scene.background handoff
+
+**The vendoring itself moved to Plan 3, Task 3** ([2026-08-21-ide-modernization-03-makecode-overhaul.md](2026-08-21-ide-modernization-03-makecode-overhaul.md)): the six files live in `frontend/public/vendor/glowscript/` with provenance, and the offline smoke test ran in Plan 3's wrap-up. What survives here is this task's Step 4 — the `scene.background` unification Plan 2 Task 14 handed to this tranche. It keeps its original step number so cross-references stay resolvable.
 
 **Files:**
 
-- Create: `frontend/public/vendor/glowscript/` (six `.js` files + `PROVENANCE.md`)
-- Modify: `frontend/src/utils/runner/glowRunner.js`
-- Modify: `frontend/src/utils/blockTemplates.js`, `frontend/src/utils/precodedExamples.js` (Step 4 only)
-- Modify: `frontend/.gitignore` check only (see Step 2)
+- Modify: `frontend/src/utils/blockly/blockTemplates.js`, `frontend/src/utils/precodedExamples.js`
 
 **Interfaces:**
 
-- Produces: `GLOWSCRIPT_SCRIPTS` in `frontend/src/utils/runner/glowRunner.js` pointing at same-origin absolute URLs under `/vendor/glowscript/`.
-- **Preserves: `GLOWSCRIPT_VERSION`**, the `export const GLOWSCRIPT_VERSION = "3.2";` Plan 2 Task 8 Step 4 adds immediately above `GLOWSCRIPT_SCRIPTS`. `IDELayout.js` imports it for the status bar's `VPython {GLOWSCRIPT_VERSION}` readout and Plan 2's `viewportTheme.test.js` asserts `expect(GLOWSCRIPT_VERSION).toBe("3.2")`. Step 3 interpolates it into the vendored filenames instead of hardcoding `3.2` a second time.
-- Produces: `frontend/public/vendor/glowscript/PROVENANCE.md` recording source URL, SHA-256, retrieval date and licence for each file.
-- Closes: `docs/product-contract.md:101` ("runs fully offline after first load") and tightens `:107` ("No HTTP requests to non-CDN origins after first load").
-- Closes: **Plan 2 Task 14's explicit handoff** — "the per-template hardcoded navies stay for Tranche 3" — in Step 4.
-
-Today `frontend/src/utils/runner/glowRunner.js:22-31` pulls six scripts at runtime — five from `www.glowscript.org` (a single non-hardened origin) and one from jsDelivr — into the per-run iframe. Every debug improvement in this plan is bounded by that origin being reachable.
-
-> **Note on the review's citation.** The review writes these as `glowRunner.js:22-31`. The file at `frontend/src/utils/glowRunner.js` is a 15-line re-export shim; the canonical source is `frontend/src/utils/runner/glowRunner.js`, where the line numbers match exactly. Every `glowRunner.js:N` citation in this plan means the `runner/` file.
-
-- [ ] **Step 1: Download the six files and write provenance in one pass**
-
-From the repo root, run:
-
-```powershell
-$dir = "frontend/public/vendor/glowscript"
-New-Item -ItemType Directory -Force $dir | Out-Null
-$files = @(
-  @{ name = "jquery-2.1.4.min.js";          url = "https://cdn.jsdelivr.net/npm/jquery@2.1.4/dist/jquery.min.js";                license = "MIT (jQuery 2.1.4)" },
-  @{ name = "jquery.textchange.custom.js";  url = "https://www.glowscript.org/lib/jquery/IDE/jquery.textchange.custom.js";      license = "MIT (jquery-textchange, GlowScript IDE custom build)" },
-  @{ name = "jquery-ui.custom.min.js";      url = "https://www.glowscript.org/lib/jquery/IDE/jquery-ui.custom.min.js";          license = "MIT (jQuery UI, GlowScript IDE custom build)" },
-  @{ name = "glow.3.2.min.js";              url = "https://www.glowscript.org/package/glow.3.2.min.js";                          license = "MIT (GlowScript 3.2)" },
-  @{ name = "RScompiler.3.2.min.js";        url = "https://www.glowscript.org/package/RScompiler.3.2.min.js";                    license = "MIT (RapydScript-NG compiler, GlowScript 3.2)" },
-  @{ name = "RSrun.3.2.min.js";             url = "https://www.glowscript.org/package/RSrun.3.2.min.js";                        license = "MIT (RapydScript-NG runtime, GlowScript 3.2)" }
-)
-$rows = @()
-foreach ($f in $files) {
-  Invoke-WebRequest -Uri $f.url -OutFile "$dir/$($f.name)" -UseBasicParsing
-  $h = (Get-FileHash "$dir/$($f.name)" -Algorithm SHA256).Hash.ToLower()
-  $kb = [math]::Round((Get-Item "$dir/$($f.name)").Length / 1kb)
-  $rows += "| ``$($f.name)`` | $kb KB | ``$h`` | $($f.license) | <$($f.url)> |"
-}
-$today = Get-Date -Format "yyyy-MM-dd"
-@"
-# Vendored GlowScript / VPython runtime
-
-These six files are the GlowScript 3.2 runtime that ``src/utils/runner/glowRunner.js``
-loads into its per-run iframe. They were served from ``www.glowscript.org`` and jsDelivr
-until 2026-08-20, when they were vendored so the IDE keeps its promise in
-``docs/product-contract.md:101`` — "runs fully offline after first load" — and so a
-filtered school network cannot render the 3-D viewport inert.
-
-**Engine version: GlowScript 3.2 / Web VPython 3.2.** This must stay in step with the
-``GlowScript 3.2 VPython`` header ``buildSource()`` prepends (``glowRunner.js:213``), the
-``version: "3.2"`` compile options (``glowRunner.js:233-240``) and the "VPython 3.2"
-string the status bar renders.
-
-Load order is significant and is enforced by ``ensureGlowScriptLoaded()``
-(``glowRunner.js:80-118``): jQuery, textchange, jQuery UI, glow, compiler, run.
-
-| File | Size | SHA-256 | Licence | Retrieved from |
-|---|---|---|---|---|
-$($rows -join "`n")
-
-Retrieved $today. Do not edit these files. To upgrade, re-run the download block in
-``docs/superpowers/plans/2026-08-20-ide-modernization-03-deeper-mechanics.md`` Task 2
-Step 1 with new URLs, re-record the hashes here, and re-run the offline smoke test.
-"@ | Out-File -Encoding utf8 "$dir/PROVENANCE.md"
-Get-ChildItem $dir | Select-Object Name, Length
-```
-
-Expected: seven files listed — the six `.js` plus `PROVENANCE.md` — with real byte counts and real hashes written into the table. Nothing in the provenance file is left blank.
-
-- [ ] **Step 2: Confirm they will actually ship**
-
-`frontend/public/` does not exist before this task. Vite copies `public/` verbatim into `dist/`. Confirm no ignore rule swallows it:
-
-```powershell
-git check-ignore -v frontend/public/vendor/glowscript/glow.3.2.min.js
-```
-
-Expected: **no output** (exit code 1 — not ignored). If a `*.min.js` rule matches, add `!frontend/public/vendor/**` to `.gitignore` and re-check.
-
-- [ ] **Step 3: Point the runner at them**
-
-> **Locate by symbol, not by offset.** The review and this plan both cite this block as `glowRunner.js:22-31`, which was true at `771bc1e`. **Plan 2 Task 8 Step 4 inserts `export const GLOWSCRIPT_VERSION = "3.2";` and its comment immediately above `GLOWSCRIPT_SCRIPTS`**, shifting everything down — so a literal "replace lines 22-31" after Plan 2 lands would delete the export, break `IDELayout.js`'s status-bar import and fail Plan 2's `viewportTheme.test.js` assertion. **Replace the `GLOWSCRIPT_SCRIPTS` object only, leaving `GLOWSCRIPT_VERSION` and its comment above it exactly as Plan 2 wrote them**, and interpolate the constant rather than re-typing `3.2`:
-
-```js
-/*
- * The GlowScript runtime, vendored under frontend/public/vendor/glowscript/.
- * Self-hosted since 2026-08-20 so the IDE keeps docs/product-contract.md:101
- * ("runs fully offline after first load") and so a filtered school network
- * cannot render the 3-D viewport inert. Provenance, versions and SHA-256s are
- * in that directory's PROVENANCE.md. Load order below is significant.
- *
- * The three versioned filenames interpolate GLOWSCRIPT_VERSION (exported just
- * above, Plan 2 Task 8) so the engine version has exactly one home: the status
- * bar's "VPython 3.2" readout, the compile options and these filenames all
- * move together.
- *
- * Resolved against document.baseURI rather than written as "/vendor/…": these
- * scripts are appended into a document.write()-built about:blank iframe, whose
- * own URL cannot resolve a root-relative path.
- */
-const vendor = (file) =>
-  new URL(`vendor/glowscript/${file}`, document.baseURI).href;
-
-const GLOWSCRIPT_SCRIPTS = {
-  jquery: vendor("jquery-2.1.4.min.js"),
-  jqueryTextChange: vendor("jquery.textchange.custom.js"),
-  jqueryUi: vendor("jquery-ui.custom.min.js"),
-  glow: vendor(`glow.${GLOWSCRIPT_VERSION}.min.js`),
-  compiler: vendor(`RScompiler.${GLOWSCRIPT_VERSION}.min.js`),
-  run: vendor(`RSrun.${GLOWSCRIPT_VERSION}.min.js`),
-};
-```
-
-Nothing else in the file changes — `loadScriptInFrame` (`:43-59`), `hasScriptLoaded` (`:37-41`) and `ensureGlowScriptLoaded` (`:80-118`) all work unaltered against absolute URLs. Confirm the export survived before moving on:
-
-```powershell
-git grep -n "GLOWSCRIPT_VERSION" -- frontend/src
-```
-
-Expected: the `export const` in `glowRunner.js`, the three `vendor(...)` interpolations, the `IDELayout.js` import and status-bar use, and the `viewportTheme.test.js` assertion — **five files' worth of hits, not zero.**
+- Consumes: Plan 2's `applyRuntimeTheme` (now the sole owner of the viewport background).
+- Produces: templates and examples with no hardcoded `scene.background`.
 
 - [ ] **Step 4: One background, not seven — close Plan 2 Task 14's handoff**
 
@@ -470,408 +126,20 @@ Expected: **exactly one hit** — `applyRuntimeTheme` in `glowRunner.js`, which 
 
 Two notes. **(a)** These deletions change the *stored XML* of three block templates, so open all three in the block editor afterwards and confirm nothing else moved — a `python_raw_block` removal must not orphan the statement below it. **(b)** If a template genuinely needs a non-theme background for pedagogical reasons (a starfield scene, say), keep it and add a one-line comment saying why; do not silently leave one behind. Neither of the three does today.
 
-- [ ] **Step 5: The offline smoke test (do this by hand; it is the point of the task)**
+- [ ] **Step 5: Verify and commit**
 
-```powershell
-npm run build -w frontend
-npm run preview -w frontend
-```
+Run the frontend suite, then boot one template from each goal in both themes — the viewport background must follow the theme with no per-template navy overriding it.
 
-In the browser at the preview URL:
-
-1. Open DevTools → **Network** → **Request blocking** (⋮ → "Request blocking" if not visible) and add three patterns: `*://*.glowscript.org/*`, `*://cdn.jsdelivr.net/*`, `*://fonts.googleapis.com/*`. Tick **Enable request blocking**.
-2. Hard-reload (Ctrl+Shift+R).
-3. Start a **Projectile** template and press **Run**.
-
-Expected: the 3-D scene renders, the trace table fills, and the Network panel shows the six GlowScript requests resolving against the preview origin under `/vendor/glowscript/`. Fonts fall back to the system stack (deferred — see Global Constraints). **Monaco fails and the `<textarea>` fallback at `CodeEditor.js:156-165` appears when you switch to Code — that is the documented, accepted state for this tranche, not a bug.** If the scene does not render, read the console: a `Failed to load script:` message names the file that did not vendor.
-
-While you are here, verify Step 4 in the same session: **switch to light mode and run the Projectile, Orbits and Spring templates.** The viewport background must be the light theme's, not navy — that is Plan 2 Task 14's `applyRuntimeTheme` finally owning the background alone. Toggle back to dark mid-run and confirm it follows.
-
-- [ ] **Step 6: Commit**
-
-```powershell
-git add frontend/public frontend/src/utils/runner/glowRunner.js frontend/src/utils/blockTemplates.js frontend/src/utils/precodedExamples.js
-git commit -m "feat(frontend): self-host the GlowScript 3.2 runtime and let the theme own scene.background — the IDE runs offline after first load"
+```bash
+git add -A frontend
+git commit -m "fix(frontend): applyRuntimeTheme owns scene.background — per-template navies stripped (Plan 2 Task 14 handoff closed)"
 ```
 
 ---
 
-### Task 3: `blockPalette.js` — one palette, AA-verified, red reserved
+### Task 3: MOVED — `blockPalette.js`
 
-**Files:**
-
-- Create: `frontend/src/utils/blockly/blockPalette.js`, `frontend/src/utils/blockly/__tests__/blockPalette.test.js`
-
-**Interfaces:**
-
-- Produces: `BLOCK_PALETTE` (26 categories), `CATEGORY_NAMES`, `getCategoryColour(name)`, `styleNameFor(name)`, `cssVarFor(name)`, `paletteCssText()`, `blockStylesFromPalette()`, and the pure colour helpers `relativeLuminance(hex)`, `contrastRatio(hexA, hexB)`, `hueOf(hex)`.
-- Consumes: nothing. **Tasks 5, 7 and 8 all consume this one.**
-
-Today colour lives in three unrelated places: 16 hex literals inside the toolbox XML template string (`toolbox.js:45,76,145,166,186,209,228,243,246,329,330,367,372,386,403,416`), 12 raw Blockly hue integers across 115 `colour:` lines in `blocklyGenerator.js`, and a fourth set of raw hue integers quoted as prose in `HelpPage.js`. The chip a student clicks and the block that comes out of the flyout do not match: Values chips `#7c68c6` but its blocks render `#5b68a6`; Objects chips `#4a90d9` but its blocks render `#5b80a6`; 3D Math chips `#3a7bd5` but its blocks render `#5b68a6`.
-
-**The design.** Twenty-six categories. One family per concept; a *drawer* is a family and its *sub-drawers* are graded steps within it, so "everything teal-through-green is data work" survives even when a student cannot name the tenth step. Every fill is deep enough that white block text clears AA, which also makes the fills correct on the white light-theme workspace (they were never re-tuned for it — old hue 65 `#a0a65b` is nearly invisible there). The Advanced drawer's stock children are deliberately desaturated: they read as "utilities", and Raw Python is a near-neutral grey because raw code has no category. **No fill sits in the 340°–15° hue band — red belongs to errors, breakpoints and the stop state, and to nothing else.**
-
-**The palette.** `fill` is Blockly's `colourPrimary` and the toolbox chip; `secondary` is `colourSecondary` (shadow blocks and inline fields, which also carry white text, so it is held to AA too); `tertiary` is `colourTertiary`, the block outline — tuned so a block still has an edge against the dark `#1e1e1e` workspace, where a 5:1-on-white fill is only 2.7:1 against the background.
-
-| Category                | CSS token                         | Fill (`colourPrimary`) | `colourSecondary` | `colourTertiary` | On-colour   | **White on fill** | White on secondary |
-| ----------------------- | --------------------------------- | ------------------------ | ------------------- | ------------------ | ----------- | ----------------------- | ------------------ |
-| Objects                 | `--cat-objects`                 | `#3770A2`              | `#437AAA`         | `#72ACDF`        | `#FFFFFF` | **5.25:1**        | 4.56:1             |
-| Motion                  | `--cat-motion`                  | `#9C5E1F`              | `#A4682B`         | `#DA9959`        | `#FFFFFF` | **5.21:1**        | 4.57:1             |
-| Values                  | `--cat-values`                  | `#7959C2`              | `#8264C7`         | `#B496FA`        | `#FFFFFF` | **5.22:1**        | 4.57:1             |
-| State                   | `--cat-state`                   | `#A64C8B`              | `#AD5793`         | `#E489C9`        | `#FFFFFF` | **5.21:1**        | 4.60:1             |
-| Control                 | `--cat-control`                 | `#9353A6`              | `#9B5EAE`         | `#CF8FE3`        | `#FFFFFF` | **5.21:1**        | 4.56:1             |
-| Logic                   | `--cat-logic`                   | `#527180`              | `#5C7A89`         | `#8BACBD`        | `#FFFFFF` | **5.21:1**        | 4.57:1             |
-| Math                    | `--cat-math`                    | `#5A66B4`              | `#6570BB`         | `#97A2EF`        | `#FFFFFF` | **5.26:1**        | 4.58:1             |
-| Variables               | `--cat-variables`               | `#846657`              | `#8C6F60`         | `#C0A090`        | `#FFFFFF` | **5.22:1**        | 4.61:1             |
-| Data Science            | `--cat-data-science`            | `#2D7772`              | `#37817C`         | `#62B5AF`        | `#FFFFFF` | **5.26:1**        | 4.57:1             |
-| Advanced                | `--cat-advanced`                | `#656D78`              | `#6E7681`         | `#9FA8B4`        | `#FFFFFF` | **5.23:1**        | 4.59:1             |
-| Load Data               | `--cat-load-data`               | `#3C7789`              | `#457D8E`         | `#72B0C3`        | `#FFFFFF` | **5.01:1**        | 4.59:1             |
-| Explore                 | `--cat-explore`                 | `#2E6B6D`              | `#3D8082`         | `#65B2B5`        | `#FFFFFF` | **6.10:1**        | 4.56:1             |
-| Statistics              | `--cat-statistics`              | `#327C6D`              | `#3A8173`         | `#65B5A5`        | `#FFFFFF` | **4.95:1**        | 4.60:1             |
-| Transforming Data       | `--cat-transforming-data`       | `#2C6E51`              | `#3A8263`         | `#65B693`        | `#FFFFFF` | **6.08:1**        | 4.61:1             |
-| Uncertainty             | `--cat-uncertainty`             | `#377D4E`              | `#408356`         | `#6BB784`        | `#FFFFFF` | **4.99:1**        | 4.57:1             |
-| Analyzing Relationships | `--cat-analyzing-relationships` | `#2F6F35`              | `#3E8445`         | `#69B871`        | `#FFFFFF` | **6.09:1**        | 4.57:1             |
-| Filter & Sort           | `--cat-filter-sort`             | `#417D32`              | `#49833B`         | `#76B766`        | `#FFFFFF` | **4.99:1**        | 4.57:1             |
-| Group & Compare         | `--cat-group-compare`           | `#486C29`              | `#598037`         | `#88B461`        | `#FFFFFF` | **6.08:1**        | 4.60:1             |
-| Charts                  | `--cat-charts`                  | `#647726`              | `#6B7D2F`         | `#9BB057`        | `#FFFFFF` | **4.99:1**        | 4.57:1             |
-| Communicate             | `--cat-communicate`             | `#70621D`              | `#84752A`         | `#B8A753`        | `#FFFFFF` | **6.08:1**        | 4.61:1             |
-| 3D Math                 | `--cat-3d-math`                 | `#6065B1`              | `#6A6FB8`         | `#9CA1EC`        | `#FFFFFF` | **5.26:1**        | 4.59:1             |
-| Raw Python              | `--cat-raw-python`              | `#65676B`              | `#73767A`         | `#A3A7AB`        | `#FFFFFF` | **5.67:1**        | 4.56:1             |
-| Loops                   | `--cat-loops`                   | `#7E5C83`              | `#8D6A92`         | `#C09AC6`        | `#FFFFFF` | **5.61:1**        | 4.56:1             |
-| Text                    | `--cat-text`                    | `#4E6D67`              | `#5C7C76`         | `#8AAEA7`        | `#FFFFFF` | **5.66:1**        | 4.57:1             |
-| Lists                   | `--cat-lists`                   | `#5F6C4C`              | `#6D7A58`         | `#9DAC86`        | `#FFFFFF` | **5.62:1**        | 4.59:1             |
-| Functions               | `--cat-functions`               | `#825B7E`              | `#91698D`         | `#C599C1`        | `#FFFFFF` | **5.60:1**        | 4.56:1             |
-
-**Worst fill 4.95:1 (Statistics), best 6.10:1 (Explore), worst secondary 4.56:1** — every one above the 4.5:1 AA threshold for normal text, against the ten-of-twelve failures the review measured today (hue 65 `#a0a65b` = 2.59:1 across 8 blocks; hue 160 `#5ba68d` = 2.88:1 across 33; hue 120 = 2.98:1; hue 45 = 3.02:1). The test in Step 2 recomputes all of it from the hexes, so the table above is checked, not asserted.
-
-- [ ] **Step 1: Write the failing test**
-
-Create `frontend/src/utils/blockly/__tests__/blockPalette.test.js`:
-
-```js
-import { describe, test, expect } from "vitest";
-import {
-  BLOCK_PALETTE,
-  CATEGORY_NAMES,
-  getCategoryColour,
-  styleNameFor,
-  cssVarFor,
-  paletteCssText,
-  blockStylesFromPalette,
-  relativeLuminance,
-  contrastRatio,
-  hueOf,
-} from "../blockPalette";
-
-const AA = 4.5;
-
-describe("colour helpers", () => {
-  test("relativeLuminance matches the WCAG reference points", () => {
-    expect(relativeLuminance("#FFFFFF")).toBeCloseTo(1, 5);
-    expect(relativeLuminance("#000000")).toBeCloseTo(0, 5);
-    expect(relativeLuminance("#808080")).toBeCloseTo(0.2158, 3);
-  });
-
-  test("contrastRatio is symmetric and matches known pairs", () => {
-    expect(contrastRatio("#FFFFFF", "#000000")).toBeCloseTo(21, 2);
-    expect(contrastRatio("#000000", "#FFFFFF")).toBeCloseTo(21, 2);
-    // The worst offender the review measured on the old palette.
-    expect(contrastRatio("#a0a65b", "#FFFFFF")).toBeCloseTo(2.59, 2);
-  });
-
-  test("hueOf reads the hue angle back out", () => {
-    expect(hueOf("#FF0000")).toBeCloseTo(0, 1);
-    expect(hueOf("#00FF00")).toBeCloseTo(120, 1);
-    expect(hueOf("#0000FF")).toBeCloseTo(240, 1);
-    expect(hueOf("#3770A2")).toBeCloseTo(208, 0);
-  });
-});
-
-describe("BLOCK_PALETTE", () => {
-  test("covers exactly 26 categories with no duplicate fills or style names", () => {
-    expect(CATEGORY_NAMES).toHaveLength(26);
-    expect(new Set(CATEGORY_NAMES).size).toBe(26);
-    const fills = CATEGORY_NAMES.map((n) => BLOCK_PALETTE[n].fill);
-    expect(new Set(fills).size).toBe(26);
-    const styles = CATEGORY_NAMES.map((n) => styleNameFor(n));
-    expect(new Set(styles).size).toBe(26);
-  });
-
-  test("every entry is complete and well-formed", () => {
-    for (const name of CATEGORY_NAMES) {
-      const e = BLOCK_PALETTE[name];
-      for (const key of ["fill", "secondary", "tertiary", "on", "style", "token"]) {
-        expect(e[key], `${name}.${key}`).toBeTruthy();
-      }
-      for (const key of ["fill", "secondary", "tertiary", "on"]) {
-        expect(e[key], `${name}.${key}`).toMatch(/^#[0-9A-F]{6}$/);
-      }
-      expect(e.token).toBe(`--cat-${e.slug}`);
-    }
-  });
-
-  test("EVERY fill clears AA against its on-colour", () => {
-    for (const name of CATEGORY_NAMES) {
-      const { fill, on } = BLOCK_PALETTE[name];
-      expect(contrastRatio(fill, on), `${name} fill ${fill}`).toBeGreaterThanOrEqual(AA);
-    }
-  });
-
-  test("EVERY secondary clears AA too — shadow blocks carry white text", () => {
-    for (const name of CATEGORY_NAMES) {
-      const { secondary, on } = BLOCK_PALETTE[name];
-      expect(contrastRatio(secondary, on), `${name} secondary ${secondary}`).toBeGreaterThanOrEqual(AA);
-    }
-  });
-
-  test("the worst and best fills are the documented ones", () => {
-    const ratios = CATEGORY_NAMES.map((n) =>
-      contrastRatio(BLOCK_PALETTE[n].fill, BLOCK_PALETTE[n].on),
-    );
-    expect(Math.min(...ratios)).toBeCloseTo(4.95, 2);
-    expect(Math.max(...ratios)).toBeCloseTo(6.1, 2);
-  });
-
-  test("every tertiary reads as an edge on the dark workspace", () => {
-    for (const name of CATEGORY_NAMES) {
-      const { tertiary } = BLOCK_PALETTE[name];
-      expect(contrastRatio(tertiary, "#1E1E1E"), `${name} tertiary`).toBeGreaterThanOrEqual(3);
-    }
-  });
-
-  test("RED is reserved — no fill sits in the 340-15 degree band", () => {
-    for (const name of CATEGORY_NAMES) {
-      const h = hueOf(BLOCK_PALETTE[name].fill);
-      const inRedBand = h >= 340 || h <= 15;
-      expect(inRedBand, `${name} fill ${BLOCK_PALETTE[name].fill} is hue ${h}`).toBe(false);
-    }
-  });
-
-  test("getCategoryColour resolves by name and refuses unknowns", () => {
-    expect(getCategoryColour("Objects").fill).toBe("#3770A2");
-    expect(() => getCategoryColour("Nope")).toThrow(/Unknown block category/);
-  });
-
-  test("stock-aligned categories use Blockly's own style names", () => {
-    expect(styleNameFor("Logic")).toBe("logic_blocks");
-    expect(styleNameFor("Math")).toBe("math_blocks");
-    expect(styleNameFor("Variables")).toBe("variable_blocks");
-    expect(styleNameFor("Loops")).toBe("loop_blocks");
-    expect(styleNameFor("Text")).toBe("text_blocks");
-    expect(styleNameFor("Lists")).toBe("list_blocks");
-    expect(styleNameFor("Functions")).toBe("procedure_blocks");
-  });
-
-  test("blockStylesFromPalette produces a Blockly blockStyles map", () => {
-    const styles = blockStylesFromPalette();
-    expect(Object.keys(styles)).toHaveLength(26);
-    expect(styles.objects_blocks).toEqual({
-      colourPrimary: "#3770A2",
-      colourSecondary: "#437AAA",
-      colourTertiary: "#72ACDF",
-    });
-  });
-
-  test("cssVarFor and paletteCssText emit one :root block of 26 tokens", () => {
-    expect(cssVarFor("Data Science")).toBe("var(--cat-data-science)");
-    const css = paletteCssText();
-    expect(css).toMatch(/^:root \{\n/);
-    expect(css.trimEnd().endsWith("}")).toBe(true);
-    for (const name of CATEGORY_NAMES) {
-      const e = BLOCK_PALETTE[name];
-      expect(css).toContain(`  ${e.token}: ${e.fill};`);
-    }
-    expect(css.match(/--cat-/g)).toHaveLength(26);
-  });
-});
-```
-
-- [ ] **Step 2: Run to verify failure**
-
-```powershell
-npm run test -w frontend
-```
-
-Expected: FAIL — `Cannot find module '../blockPalette'`.
-
-- [ ] **Step 3: Implement**
-
-Create `frontend/src/utils/blockly/blockPalette.js`:
-
-```js
-/**
- * blockPalette — the single source for every category colour in the product.
- *
- * Before this module, colour lived in three unrelated places: 16 hex literals
- * inside the toolbox XML template string, 12 raw Blockly hue integers across
- * 115 `colour:` lines in blocklyGenerator.js, and a fourth set quoted as prose
- * in HelpPage.js. The chip a student clicked and the block that came out of
- * the flyout did not match, and 10 of the 12 block hues failed WCAG AA for
- * white block text.
- *
- * Design rules, in priority order:
- *   1. Every `fill` clears 4.5:1 against its `on` colour, and so does every
- *      `secondary` — Blockly paints shadow blocks and inline fields with
- *      colourSecondary and still draws white text on them.
- *   2. `tertiary` is the block outline, tuned to clear 3:1 against the dark
- *      workspace (#1e1e1e), where an AA-on-white fill is only ~2.7:1 against
- *      the background and would otherwise have no edge.
- *   3. RED IS RESERVED for errors, breakpoints and the stop state. No fill
- *      sits in the 340-15 degree hue band. Enforced by test.
- *   4. One family per drawer; sub-drawers are graded steps inside it, so
- *      "everything teal-through-green is data work" survives even when a
- *      student cannot name the tenth step.
- *   5. The Advanced drawer's stock children are deliberately desaturated —
- *      they read as utilities — and Raw Python is near-neutral grey, because
- *      raw code has no category.
- *
- * `style` is the Blockly blockStyle key. The seven categories that also exist
- * in stock Blockly MUST use Blockly's own names (logic_blocks, math_blocks,
- * variable_blocks, loop_blocks, text_blocks, list_blocks, procedure_blocks)
- * or the stock blocks fall back to the Classic theme's colours.
- */
-
-/** @typedef {{fill:string, secondary:string, tertiary:string, on:string, style:string, slug:string, token:string}} PaletteEntry */
-
-function entry(slug, style, fill, secondary, tertiary) {
-  return { slug, style, fill, secondary, tertiary, on: "#FFFFFF", token: `--cat-${slug}` };
-}
-
-/** @type {Record<string, PaletteEntry>} */
-export const BLOCK_PALETTE = {
-  /* ── Primary drawers ─────────────────────────────────────── */
-  "Objects":                 entry("objects", "objects_blocks", "#3770A2", "#437AAA", "#72ACDF"),
-  "Motion":                  entry("motion", "motion_blocks", "#9C5E1F", "#A4682B", "#DA9959"),
-  "Values":                  entry("values", "values_blocks", "#7959C2", "#8264C7", "#B496FA"),
-  "State":                   entry("state", "state_blocks", "#A64C8B", "#AD5793", "#E489C9"),
-  "Control":                 entry("control", "control_blocks", "#9353A6", "#9B5EAE", "#CF8FE3"),
-  "Logic":                   entry("logic", "logic_blocks", "#527180", "#5C7A89", "#8BACBD"),
-  "Math":                    entry("math", "math_blocks", "#5A66B4", "#6570BB", "#97A2EF"),
-  "Variables":               entry("variables", "variable_blocks", "#846657", "#8C6F60", "#C0A090"),
-
-  /* ── Drawer parents (hold sub-categories, no blocks of their own) ── */
-  "Data Science":            entry("data-science", "data_science_blocks", "#2D7772", "#37817C", "#62B5AF"),
-  "Advanced":                entry("advanced", "advanced_blocks", "#656D78", "#6E7681", "#9FA8B4"),
-
-  /* ── Data Science pipeline (teal → green → gold, in stage order) ── */
-  "Load Data":               entry("load-data", "load_data_blocks", "#3C7789", "#457D8E", "#72B0C3"),
-  "Explore":                 entry("explore", "explore_blocks", "#2E6B6D", "#3D8082", "#65B2B5"),
-  "Statistics":              entry("statistics", "statistics_blocks", "#327C6D", "#3A8173", "#65B5A5"),
-  "Transforming Data":       entry("transforming-data", "transforming_data_blocks", "#2C6E51", "#3A8263", "#65B693"),
-  "Uncertainty":             entry("uncertainty", "uncertainty_blocks", "#377D4E", "#408356", "#6BB784"),
-  "Analyzing Relationships": entry("analyzing-relationships", "relationships_blocks", "#2F6F35", "#3E8445", "#69B871"),
-  "Filter & Sort":           entry("filter-sort", "filter_sort_blocks", "#417D32", "#49833B", "#76B766"),
-  "Group & Compare":         entry("group-compare", "group_compare_blocks", "#486C29", "#598037", "#88B461"),
-  "Charts":                  entry("charts", "charts_blocks", "#647726", "#6B7D2F", "#9BB057"),
-  "Communicate":             entry("communicate", "communicate_blocks", "#70621D", "#84752A", "#B8A753"),
-
-  /* ── Advanced drawer children (desaturated on purpose) ───── */
-  "3D Math":                 entry("3d-math", "math3d_blocks", "#6065B1", "#6A6FB8", "#9CA1EC"),
-  "Raw Python":              entry("raw-python", "raw_python_blocks", "#65676B", "#73767A", "#A3A7AB"),
-  "Loops":                   entry("loops", "loop_blocks", "#7E5C83", "#8D6A92", "#C09AC6"),
-  "Text":                    entry("text", "text_blocks", "#4E6D67", "#5C7C76", "#8AAEA7"),
-  "Lists":                   entry("lists", "list_blocks", "#5F6C4C", "#6D7A58", "#9DAC86"),
-  "Functions":               entry("functions", "procedure_blocks", "#825B7E", "#91698D", "#C599C1"),
-};
-
-export const CATEGORY_NAMES = Object.keys(BLOCK_PALETTE);
-
-/** Resolve one category. Throws on an unknown name — a typo must not paint grey. */
-export function getCategoryColour(name) {
-  const e = BLOCK_PALETTE[name];
-  if (!e) throw new Error(`Unknown block category: ${JSON.stringify(name)}`);
-  return e;
-}
-
-export function styleNameFor(name) {
-  return getCategoryColour(name).style;
-}
-
-export function cssVarFor(name) {
-  return `var(${getCategoryColour(name).token})`;
-}
-
-/* ── Pure colour maths (WCAG 2.1 relative luminance) ───────── */
-
-function channels(hex) {
-  const h = String(hex).trim().replace(/^#/, "");
-  if (!/^[0-9a-fA-F]{6}$/.test(h)) throw new Error(`Not a 6-digit hex colour: ${hex}`);
-  return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
-}
-
-export function relativeLuminance(hex) {
-  const [r, g, b] = channels(hex).map((v) => {
-    const c = v / 255;
-    return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
-  });
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-}
-
-export function contrastRatio(hexA, hexB) {
-  const a = relativeLuminance(hexA);
-  const b = relativeLuminance(hexB);
-  const [hi, lo] = a > b ? [a, b] : [b, a];
-  return (hi + 0.05) / (lo + 0.05);
-}
-
-/** Hue angle in degrees, 0-360. Used to prove no fill trespasses on red. */
-export function hueOf(hex) {
-  const [r, g, b] = channels(hex).map((v) => v / 255);
-  const max = Math.max(r, g, b);
-  const min = Math.min(r, g, b);
-  const d = max - min;
-  if (d === 0) return 0;
-  let h;
-  if (max === r) h = ((g - b) / d) % 6;
-  else if (max === g) h = (b - r) / d + 2;
-  else h = (r - g) / d + 4;
-  h *= 60;
-  return h < 0 ? h + 360 : h;
-}
-
-/* ── Consumers ─────────────────────────────────────────────── */
-
-/** Blockly theme `blockStyles`, built from the same table the toolbox uses. */
-export function blockStylesFromPalette() {
-  const out = {};
-  for (const name of CATEGORY_NAMES) {
-    const e = BLOCK_PALETTE[name];
-    out[e.style] = {
-      colourPrimary: e.fill,
-      colourSecondary: e.secondary,
-      colourTertiary: e.tertiary,
-    };
-  }
-  return out;
-}
-
-/**
- * The `:root` block mirrored into styles.css. CSS cannot import JS, so the
- * stylesheet holds a copy and a test asserts it is byte-identical to this
- * output (see __tests__/blockPalette.test.js and Task 8).
- */
-export function paletteCssText() {
-  const lines = CATEGORY_NAMES.map((name) => {
-    const e = BLOCK_PALETTE[name];
-    return `  ${e.token}: ${e.fill};`;
-  });
-  return `:root {\n${lines.join("\n")}\n}\n`;
-}
-```
-
-- [ ] **Step 4: Verify and commit**
-
-```powershell
-npm run test -w frontend
-npm run build -w frontend
-```
-
-Expected: green, 13 new tests. Record the worst/best ratios the test asserts (4.95 / 6.10) — they are the tranche's headline accessibility number.
-
-```powershell
-git add frontend/src/utils/blockly
-git commit -m "feat(frontend): BLOCK_PALETTE — one AA-clean palette for 26 categories, red reserved for errors"
-```
+**Superseded by Plan 3, Task 5** ([2026-08-21-ide-modernization-03-makecode-overhaul.md](2026-08-21-ide-modernization-03-makecode-overhaul.md)): the palette shipped is the vivid v2 revision — the same 26 categories and API, saturation raised at equal AA-verified depth, plus the fenced decorative `bright` variants (`brightFor`, `--cat-<slug>-bright`) and `STYLE_CATEGORY_ALIASES`. Where surviving steps cite v1 hexes (e.g. `#3770A2` for Objects), read the category name — the authoritative value comes from `blockPalette.js`. Tasks 5, 7 and 8 below consume the module exactly as originally planned.
 
 ---
 
@@ -1068,48 +336,7 @@ git commit -m "refactor(frontend): registry to 120 entries in 19 real categories
 
 Three problems in one file. **(a)** Sixteen hex literals hand-picked from three unrelated palettes, none of which matches the blocks inside its own drawer. **(b)** The Data Science category holds 58 blocks under 11 inline labels — the next largest drawer is Objects at 12 — while the nesting the Advanced drawer already demonstrates at `:329` sits unused. **(c)** Three blocks are fully defined in `blocklyGenerator.js` and used by `blockTemplates.js` (`sphere_emissive_block` ×3, `box_opacity_block` ×1, `helix_full_block` ×1) but appear zero times here: a student who deletes the glowing sphere from the orbital template can never get it back.
 
-- [ ] **Step 1: Interpolate the palette into the category colours**
-
-At the top of `frontend/src/utils/blockly/toolbox.js`, extend the import at `:23`:
-
-```js
-import { getBlockEntry } from "./blockRegistry";
-import { BLOCK_PALETTE } from "./blockPalette";
-
-/** Category chip colour, from the one palette the blocks themselves use. */
-const c = (name) => BLOCK_PALETTE[name].fill;
-```
-
-Then replace every `colour="#……"` in `MASTER_TOOLBOX_XML` with the interpolation — the string is already a template literal, so this is a direct substitution:
-
-| Line | Category     | Was                  | Becomes                           |
-| ---- | ------------ | -------------------- | --------------------------------- |
-| 45   | Values       | `colour="#7c68c6"` | `colour="${c("Values")}"`       |
-| 76   | Objects      | `colour="#4a90d9"` | `colour="${c("Objects")}"`      |
-| 145  | Motion       | `colour="#d9a54a"` | `colour="${c("Motion")}"`       |
-| 166  | State        | `colour="#d06030"` | `colour="${c("State")}"`        |
-| 186  | Control      | `colour="#9b59b6"` | `colour="${c("Control")}"`      |
-| 209  | Logic        | `colour="#5b80a5"` | `colour="${c("Logic")}"`        |
-| 228  | Math         | `colour="#5b67a5"` | `colour="${c("Math")}"`         |
-| 243  | Variables    | `colour="#a55b80"` | `colour="${c("Variables")}"`    |
-| 246  | Data Science | `colour="#2da56f"` | `colour="${c("Data Science")}"` |
-| 329  | Advanced     | `colour="#607d8b"` | `colour="${c("Advanced")}"`     |
-| 330  | 3D Math      | `colour="#3a7bd5"` | `colour="${c("3D Math")}"`      |
-| 367  | Raw Python   | `colour="#d35400"` | `colour="${c("Raw Python")}"`   |
-| 372  | Loops        | `colour="#5ba55b"` | `colour="${c("Loops")}"`        |
-| 386  | Text         | `colour="#5ba58c"` | `colour="${c("Text")}"`         |
-| 403  | Lists        | `colour="#745ba5"` | `colour="${c("Lists")}"`        |
-| 416  | Functions    | `colour="#995ba5"` | `colour="${c("Functions")}"`    |
-
-Also update the file header comment (`:1-21`) — its "Design notes" list should gain a line:
-
-```
- *   - Category colour is NOT written here. Every `colour=` attribute is
- *     interpolated from ./blockPalette, which is the same table the Blockly
- *     theme builds its blockStyles from — so the chip a student clicks and
- *     the block that comes out of the flyout are the same colour by
- *     construction, and both clear WCAG AA.
-```
+- [x] **Step 1: MOVED — category colours come from the palette** — absorbed by Plan 3, Task 8, which went further than interpolation: every `<category>` carries `categorystyle="<name>_category"` and the theme's `categoryStyles` own the colour. The steps below must NOT reintroduce `colour="#…"` attributes — new categories added here (the DS pipeline drawers) get `categorystyle` attributes in the same convention, with names from `categoryStyleNameFor`.
 
 - [ ] **Step 2: Add the three template-shipped Objects blocks**
 
@@ -1535,156 +762,18 @@ git commit -m "feat(frontend): check:blocks validates ids AND category names in 
 
 ---
 
-### Task 7: The Blockly theme — styles from the palette, tokens from the live stylesheet
+### Task 7: Debug highlights off the third red
+
+**Steps 1–3 moved to Plan 3** ([2026-08-21-ide-modernization-03-makecode-overhaul.md](2026-08-21-ide-modernization-03-makecode-overhaul.md) — Task 6: `blocklyTheme.js`, Zelos-based, palette-driven, `isDark` fixed at inject; Task 7: the 115 hue integers swapped for style names). What survives is Step 4 — the debug-highlight recolour, which is debugger work. It keeps its original step number so this document's cross-references stay resolvable.
 
 **Files:**
 
-- Modify: `frontend/src/components/BlocklyWorkspace.js`
-- Modify: `frontend/src/utils/blockly/blocklyGenerator.js`
+- Modify: `frontend/src/styles/workspace.css` (the `.dm-bp-block` / `.dm-block-executing` rules — post-split location)
 
 **Interfaces:**
 
-- Consumes: `BLOCK_PALETTE` / `blockStylesFromPalette` (Task 3), `blocklyLib` (Task 1).
-- Produces: `buildBlocklyTheme(isDark)` reading `componentStyles` from live CSS custom properties and `blockStyles` from the palette; every block definition carrying `style:` instead of `colour:`; 13px block text; the correct theme at inject.
-
-Five separate lies get fixed in one pass. **(a)** `blocklyGenerator.js` hardcodes 12 Blockly hue integers across 115 `colour:` lines, 10 of which fail AA. **(b)** `BlocklyWorkspace.js:99-141` hand-copies `#1e1e1e`, `#252526`, `#cccccc`, `#505050`, `#569cd6`, `#007acc` out of `styles.css` — with comments naming the tokens they duplicate — so Plan 1's retheming did not reach the workspace. **(c)** `:115` and `:139` set `size: 11` while the repo's own `ux-audit.mjs:199` asserts a 13px floor for toolbox labels. **(d)** `:297` builds the theme with a hardcoded `true`, so light mode flashes dark on every mount and project open, corrected only afterwards at `:463-474` — while `ReadOnlyBlockly` at `:502` already does it right. **(e)** `sim_end_block` is `colour: 0` = `#a65b5b`, one of three unrelated reds in the product, which is what makes "red means error" unenforceable.
-
-- [ ] **Step 1: Rebuild `buildBlocklyTheme`**
-
-In `frontend/src/components/BlocklyWorkspace.js`, add to the imports:
-
-```js
-import { blockStylesFromPalette } from "../utils/blockly/blockPalette";
-```
-
-Replace the whole of `buildBlocklyTheme` (`:93-142`) with:
-
-```js
-/* ── Blockly theme, built from the live token layer ──────────
-   Every value below used to be a hex literal hand-copied out of styles.css,
-   with a comment naming the token it duplicated. Read the tokens instead, so
-   a theme change in one stylesheet reaches the workspace too. Block and
-   category colour come from ./blockPalette, the same table the toolbox XML
-   interpolates — so the chip and the block match by construction. */
-function tokens(names) {
-  const cs = getComputedStyle(document.documentElement);
-  const out = {};
-  for (const [key, prop] of Object.entries(names)) {
-    out[key] = cs.getPropertyValue(prop).trim();
-  }
-  return out;
-}
-
-function buildBlocklyTheme(Blockly, isDark) {
-  const t = tokens({
-    base: "--bg-base",
-    surface: "--bg-surface",
-    text: "--text",
-    borderHl: "--border-hl",
-    accentBlue: "--accent-blue",
-    accent: "--accent",
-  });
-
-  return Blockly.Theme.defineTheme(isDark ? "physics-dark" : "physics-light", {
-    name: isDark ? "physics-dark" : "physics-light",
-    base: Blockly.Themes.Classic,
-    blockStyles: blockStylesFromPalette(),
-    componentStyles: {
-      workspaceBackgroundColour: t.base,
-      toolboxBackgroundColour: t.surface,
-      toolboxForegroundColour: t.text,
-      flyoutBackgroundColour: t.base,
-      flyoutForegroundColour: t.text,
-      flyoutOpacity: 0.98,
-      scrollbarColour: t.borderHl,
-      scrollbarOpacity: 0.55,
-      insertionMarkerColour: t.accentBlue,
-      insertionMarkerOpacity: 0.5,
-      cursorColour: t.accent,
-    },
-    fontStyle: {
-      family: "'Inter', 'Segoe UI', system-ui, sans-serif",
-      weight: "500",
-      /* 11px was below the repo's own floor: scripts/ux-audit.mjs:199 asserts
-         13px minimum for toolbox category labels, citing MakeCode's 14px. */
-      size: 13,
-    },
-  });
-}
-```
-
-`getComputedStyle(document.documentElement)` resolves whichever theme block `data-theme` currently selects, so the `isDark` argument only names the theme; the values follow the DOM. `ThemeContext.js:24` sets the attribute before React re-renders, so by the time this runs the tokens are already the new ones.
-
-- [ ] **Step 2: Pass `isDark` at inject**
-
-At `BlocklyWorkspace.js:297`, change:
-
-```js
-    const theme = buildBlocklyTheme(Blockly, true);
-```
-
-to read the prop through the ref pattern the file already uses for `goal`. Add beside `goalRef` (`:282`):
-
-```js
-  const isDarkRef = useRef(isDark);
-  isDarkRef.current = isDark;
-```
-
-and at `:297`:
-
-```js
-    const theme = buildBlocklyTheme(Blockly, isDarkRef.current);
-```
-
-The mount effect has `[]` deps, so a ref is required — reading `isDark` directly would be a stale-closure bug the linter is right to flag. The corrective effect at `:463-474` stays: it handles *changes*, this handles the *first* paint.
-
-While in that effect, delete the two dead grid-colour lines at `:471-473` (`const gridColour = …`, the `svgGrid` query and `setAttribute`) — Plan 1 identified them as leftovers, and the grid colour is now `grid: { colour: … }` at inject only.
-
-- [ ] **Step 3: Swap 115 hue integers for style names**
-
-In `frontend/src/utils/blockly/blocklyGenerator.js`, replace every `colour: <integer>,` line in the `defineBlocksWithJsonArray` array with `style: "<name>",`. The mapping is exhaustive — the four `colour: "#……"` lines at `:131,142,792,814` are `field_colour` *defaults*, not block colours, and must NOT be touched.
-
-| Current hue | Blocks                                                                                                                                                                                                                                                                                                                               | New`style:`                                                                |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------- |
-| `120`     | `sim_start_block`                                                                                                                                                                                                                                                                                                                  | `"control_blocks"`                                                         |
-| `0`       | `sim_end_block`                                                                                                                                                                                                                                                                                                                    | `"control_blocks"` — **this is what frees red**                     |
-| `260`     | `rate_block`, `forever_loop_block`, `for_range_block`, `time_step_block`, `if_block`, `if_else_block`, `break_loop_block`, `comment_block`                                                                                                                                                                           | `"control_blocks"`                                                         |
-| `10`      | `python_raw_block`, `python_raw_expr_block`                                                                                                                                                                                                                                                                                      | `"raw_python_blocks"`                                                      |
-| `30`      | `set_colour_var_block`, `set_scalar_block`, `set_attr_expr_block`, `add_attr_expr_block`, `telemetry_update_block`                                                                                                                                                                                                         | `"state_blocks"`                                                           |
-| `30`      | `ds_write_note_block`, `ds_print_result_block`, `ds_compare_results_block`, `ds_state_conclusion_block`, `ds_export_table_block`, `ds_show_python_block`                                                                                                                                                                 | `"communicate_blocks"`                                                     |
-| `30`      | `ds_print_uncertainty_block`                                                                                                                                                                                                                                                                                                       | `"uncertainty_blocks"`                                                     |
-| `45`      | `set_velocity_block`, `update_position_block`, `apply_force_block`, `set_gravity_block`                                                                                                                                                                                                                                      | `"motion_blocks"`                                                          |
-| `45`      | `scene_camera_block`                                                                                                                                                                                                                                                                                                               | `"objects_blocks"`                                                         |
-| `45`      | `ds_identify_type_block`                                                                                                                                                                                                                                                                                                           | `"explore_blocks"`                                                         |
-| `65`      | `ds_filter_eq_block`, `ds_filter_gt_block`, `ds_filter_lt_block`, `ds_sort_asc_block`, `ds_sort_desc_block`, `ds_remove_missing_block`                                                                                                                                                                                   | `"filter_sort_blocks"`                                                     |
-| `65`      | `ds_group_count_block`, `ds_group_mean_block`                                                                                                                                                                                                                                                                                    | `"group_compare_blocks"`                                                   |
-| `160`     | `ds_start_block`, `ds_load_builtin_block`, `ds_load_csv_block`, `ds_load_trace_block`                                                                                                                                                                                                                                        | `"load_data_blocks"`                                                       |
-| `160`     | `ds_show_table_block`, `ds_show_first_n_block`, `ds_show_last_n_block`, `ds_show_column_block`, `ds_count_rows_block`, `ds_count_cols_block`, `ds_list_cols_block`, `ds_count_unique_block`, `ds_show_one_cell_block`                                                                                              | `"explore_blocks"`                                                         |
-| `160`     | `ds_calc_mean_block`, `ds_calc_median_block`, `ds_calc_mode_block`, `ds_calc_min_block`, `ds_calc_max_block`, `ds_calc_range_block`, `ds_calc_sum_block`, `ds_calc_count_block`, `ds_calc_stddev_block`, `ds_all_stats_block`, `ds_compare_columns_block`, `ds_calc_percentile_block`, `ds_calc_iqr_block` | `"statistics_blocks"`                                                      |
-| `160`     | `ds_add_column_transform_block`, `ds_multiply_columns_block`                                                                                                                                                                                                                                                                     | `"transforming_data_blocks"`                                               |
-| `160`     | `ds_calc_std_error_block`, `ds_calc_relative_uncertainty_block`                                                                                                                                                                                                                                                                  | `"uncertainty_blocks"`                                                     |
-| `160`     | `ds_linear_regression_block`, `ds_correlation_block`                                                                                                                                                                                                                                                                             | `"relationships_blocks"`                                                   |
-| `160`     | `rotate_object_block`                                                                                                                                                                                                                                                                                                              | `"motion_blocks"` — it was teal while its four Motion siblings were olive |
-| `200`     | `ds_chart_bar_block`, `ds_chart_line_block`, `ds_chart_scatter_block`, `ds_chart_histogram_block`, `ds_chart_box_block`                                                                                                                                                                                                    | `"charts_blocks"`                                                          |
-| `20`      | `ds_save_chart_block`                                                                                                                                                                                                                                                                                                              | `"charts_blocks"`                                                          |
-| `20`      | `ds_chart_scatter_fit_block`                                                                                                                                                                                                                                                                                                       | `"relationships_blocks"`                                                   |
-| `210`     | `compare_block`, `logic_and_or_block`, `logic_not_block`                                                                                                                                                                                                                                                                       | `"logic_blocks"`                                                           |
-| `210`     | `sphere_block`, `sphere_trail_block`, `sphere_emissive_block`, `box_block`, `box_opacity_block`, `cylinder_block`, `arrow_block`, `helix_block`, `helix_full_block`, `label_block`, `label_full_block`, `local_light_block`, `preset_sphere_block`, `preset_box_block`                                   | `"objects_blocks"`                                                         |
-| `230`     | `vector_block`, `colour_block`, `expr_block`, `get_prop_block`, `get_component_block`, `mag_block`, `norm_block`, `var_read_block`, `define_const_block`                                                                                                                                                           | `"values_blocks"`                                                          |
-| `230`     | `cross_product_block`, `dot_product_block`, `math_trig_block`, `vector_compose_block`, `math_min_block`, `math_max_block`, `math_pow_block`, `math_clamp_block`                                                                                                                                                      | `"math3d_blocks"`                                                          |
-| `230`     | `ds_find_missing_block`, `ds_filter_and_block`, `ds_filter_or_block`                                                                                                                                                                                                                                                           | `"filter_sort_blocks"`                                                     |
-
-That is 115 lines. Cross-check by style: control 10, raw_python 2, state 5, communicate 6, uncertainty 3, motion 5, objects 15, explore 10, logic 3, values 9, math3d 8, filter_sort 9, group_compare 2, charts 6, statistics 13, load_data 4, relationships 3, transforming_data 2 = **115**.
-
-One block is defined outside the JSON array: `physics_const_block` (`Blockly.Blocks["physics_const_block"]` at `:1871`, `init` at `:1872`). Inside its `init`, replace the `this.setColour(230)` call with:
-
-```js
-      this.setStyle("values_blocks");
-```
-
-Stock Blockly blocks need nothing: `logic_boolean`, `math_number`, `math_arithmetic`, `math_constant` and the `controls_*` / `text_*` / `lists_*` / `variables_*` / `procedures_*` families already declare `"style": "logic_blocks"` / `"math_blocks"` / `"loop_blocks"` / `"text_blocks"` / `"list_blocks"` / `"variable_blocks"` / `"procedure_blocks"`, which is precisely why Task 3 pinned those seven names to Blockly's spelling.
-
-Finally, update the file header comment's category list (`:5-12`) to name the real categories: `Advanced` becomes `Raw Python`, and add the Data Science pipeline line.
+- Consumes: Plan 3's palette (`--danger` remains the only permitted red family).
+- Produces: debug decorations that are the workspace's only red.
 
 - [ ] **Step 4: Repoint the debug highlights off the third red**
 
@@ -1711,27 +800,11 @@ Rename the two class names at their only JS sites — `BlocklyWorkspace.js:582,5
 
 - [ ] **Step 5: Verify and commit**
 
-```powershell
-npm run test -w frontend
-npm run build -w frontend
-git grep -nE "colour: [0-9]+" -- frontend/src/utils/blockly/blocklyGenerator.js
-git grep -n "dm-bp-block\|dm-block-executing" -- frontend/src
-git grep -n "size: 11" -- frontend/src/components/BlocklyWorkspace.js
-```
+Run the suite; set a breakpoint and run in both themes — the breakpoint and executing-block outlines must be the only reds on the workspace.
 
-Expected: tests green; build clean; **all three greps return nothing**.
-
-Then look at it — this is the tranche's most visible change and it is not test-verifiable:
-
-```powershell
-npm run start -w frontend
-```
-
-Open a **physics** project, then a **data science** project, then a **hybrid** one, in **both themes**. Confirm: every chip colour equals the colour of the blocks in its flyout; block text is legible at 13px on every fill; the Data Science drawer opens collapsed and reveals ten stages in pipeline order; nothing on the canvas is red except a breakpointed block.
-
-```powershell
-git add frontend/src
-git commit -m "feat(frontend): Blockly theme from the palette and the live token layer — AA fills, 13px labels, correct theme at inject"
+```bash
+git add -A frontend
+git commit -m "fix(frontend): debug highlights are the workspace's only red"
 ```
 
 ---
@@ -1752,66 +825,7 @@ git commit -m "feat(frontend): Blockly theme from the palette and the live token
 - Produces: 26 `--cat-*` custom properties in `styles.css`, kept honest by a test that reads the stylesheet; the three pane-header accents, the eight help-page **category** chips (a new `CategoryTag`, beside the untouched general-purpose `Tag`), the start-menu goal badges and the landing-page particles all sourced from them; `.tb-label` styled.
 - Leaves alone: `Tag` and the six `.help-tag--*` rules (51 non-category uses), and Plan 2 Task 13 Step 4's `.blocklyTreeIcon` chevron.
 
-- [ ] **Step 1: Mirror the palette into the stylesheet**
-
-Because CSS cannot import JavaScript, the stylesheet holds a copy — and a test holds it to account. Insert immediately after the theme-independent primitives block Plan 1 created (before the dark theme block), in `frontend/src/styles.css`:
-
-```css
-/* ═══════════════════════════════════════════════════════════
-   CATEGORY COLOUR — mirrored from src/utils/blockly/blockPalette.js
-   Theme-independent by design: a category is the same colour in both
-   themes, because a student learns "Objects are blue" once. Every fill
-   below clears WCAG AA against #FFFFFF (worst 4.95:1), and none sits in
-   the 340-15 degree hue band — red belongs to errors and breakpoints.
-   DO NOT hand-edit: blockPalette.test.js asserts this block is byte-
-   identical to paletteCssText(). Change the module, then paste.
-   ═══════════════════════════════════════════════════════════ */
-:root {
-  --cat-objects: #3770A2;
-  --cat-motion: #9C5E1F;
-  --cat-values: #7959C2;
-  --cat-state: #A64C8B;
-  --cat-control: #9353A6;
-  --cat-logic: #527180;
-  --cat-math: #5A66B4;
-  --cat-variables: #846657;
-  --cat-data-science: #2D7772;
-  --cat-advanced: #656D78;
-  --cat-load-data: #3C7789;
-  --cat-explore: #2E6B6D;
-  --cat-statistics: #327C6D;
-  --cat-transforming-data: #2C6E51;
-  --cat-uncertainty: #377D4E;
-  --cat-analyzing-relationships: #2F6F35;
-  --cat-filter-sort: #417D32;
-  --cat-group-compare: #486C29;
-  --cat-charts: #647726;
-  --cat-communicate: #70621D;
-  --cat-3d-math: #6065B1;
-  --cat-raw-python: #65676B;
-  --cat-loops: #7E5C83;
-  --cat-text: #4E6D67;
-  --cat-lists: #5F6C4C;
-  --cat-functions: #825B7E;
-}
-```
-
-Append the parity test to `frontend/src/utils/blockly/__tests__/blockPalette.test.js` (add `import { readFileSync } from "node:fs"; import { resolve } from "node:path";` at the top):
-
-```js
-describe("the stylesheet mirror", () => {
-  test("styles.css contains exactly the block paletteCssText() emits", () => {
-    const css = readFileSync(resolve(__dirname, "../../../styles.css"), "utf8");
-    expect(css).toContain(paletteCssText().trimEnd());
-  });
-
-  test("no --cat- token is defined anywhere else", () => {
-    const css = readFileSync(resolve(__dirname, "../../../styles.css"), "utf8");
-    const definitions = css.match(/^\s*--cat-[a-z0-9-]+:/gm) || [];
-    expect(definitions).toHaveLength(26);
-  });
-});
-```
+- [x] **Step 1: MOVED — the palette lives in the stylesheet** — absorbed by Plan 3, Task 8: `styles/tokens.css` carries the full `--cat-*` (and `--cat-*-bright`) block, sync-enforced by `utils/blockly/__tests__/paletteCssSync.test.js`. The steps below consume those variables; do not re-emit them.
 
 - [ ] **Step 2: The three pane-header accents**
 
@@ -4458,104 +3472,9 @@ git commit -m "refactor(frontend): debug is a mode of the shell — docked trace
 
 ---
 
-### Task 18: Split `styles.css` by `@import`
+### Task 18: MOVED — the `styles.css` split
 
-**Files:**
-
-- Create: `frontend/src/styles/tokens.css`, `base.css`, `primitives.css`, `ide-core.css`, `blockly.css`, `debug.css`, `platform.css`
-- Modify: `frontend/src/styles.css`
-- Modify: `frontend/src/utils/blockly/__tests__/blockPalette.test.js`
-
-**Interfaces:**
-
-- Produces: `frontend/src/styles.css` reduced to a header comment and seven `@import` statements, in cascade order.
-- Consumes: nothing.
-
-The file is one 4,496-line global stylesheet whose sections are separated only by comment banners — which is *why* the platform screens read as a detached slab: they were appended wholesale at the end. Vite bundles local `@import` at build time, so this costs no runtime request and adds no dependency. **Do not rewrite anything.** This is a cut-and-paste task; every rule keeps its exact text and its exact relative order.
-
-- [ ] **Step 1: Cut in cascade order**
-
-Move rules into the seven files below, in this order. Boundaries are the existing comment banners; when a banner is ambiguous, the *later* file wins (cascade order is preserved either way because the imports are ordered).
-
-| File                      | Contents                                                                                                                                                                                                                                                                |
-| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `styles/tokens.css`     | The Google Fonts`@import` (it must be first in the *bundle*, so it stays at the very top of this first file), Plan 1's theme-independent `:root` primitives block, the `--cat-*` block from Task 8, and both `[data-theme]` colour blocks                     |
-| `styles/base.css`       | The reset,`html`/`body`/`#root`, the global `:focus-visible` ring, the global scrollbar treatment, `@media (prefers-reduced-motion)`                                                                                                                          |
-| `styles/primitives.css` | `.btn`, `.card`, `.panel-header` and their alias selector lists (Plan 1, Tasks 5-8). `.input`/`.alert`/`.tabs`/`.prose` are NOT primitives yet — Plan 1's Deferred list holds them; if they land later they join this file. |
-| `styles/ide-core.css`   | `.app-shell`, `.titlebar`, `.toolbar` + `.tb-*` + `.tb-chip`, `.main-layout`, `.editor-pane`, `.pane-divider`, `.pane-header*`, `.canvas-*`, `.status-bar`, `.console-bar*`, `.start-*`, `.help-*`, `.vdialog-*`, `.ds-*`, `.chart-*` |
-| `styles/blockly.css`    | Every`.blockly*` override, `.tb-label`, `.block-search*`, `.blockly-host`, and the three block decorations `.bp-block` / `.bp-available` / `.block-executing`                                                                                             |
-| `styles/debug.css`      | `.debug-drawer`, `.debug-drawer-handle`, `.trace-*`                                                                                                                                                                                                               |
-| `styles/platform.css`   | Everything the platform screens own:`.auth-*`, `.admin-*`, `.classes-*`, `.class-*`, `.account-chip-*`, `.welcome-*`, `.guest-import*`, `.join-code*`, `.sync-chip*`                                                                                  |
-
-Then reduce `frontend/src/styles.css` to:
-
-```css
-/**
- * styles.css — the cascade, in order.
- *
- * One 4,496-line file used to hold everything, sections separated only by
- * comment banners — which is why the platform screens read as a detached slab:
- * they were appended wholesale at the end. Vite inlines local @import at build
- * time, so this split costs no runtime request and adds no dependency.
- *
- * Order is the cascade. Do not reorder:
- *   tokens     — custom properties only, no selectors but :root
- *   base       — reset, document, focus ring, scrollbars
- *   primitives — .btn / .card / .panel-header and their aliases
- *   ide-core   — the editor shell
- *   blockly    — overrides of Blockly's own DOM
- *   debug      — the trace drawer
- *   platform   — the classroom screens
- */
-@import "./styles/tokens.css";
-@import "./styles/base.css";
-@import "./styles/primitives.css";
-@import "./styles/ide-core.css";
-@import "./styles/blockly.css";
-@import "./styles/debug.css";
-@import "./styles/platform.css";
-```
-
-- [ ] **Step 2: Repoint the palette parity test**
-
-Task 8's test reads `../../../styles.css`. Point it at the new home:
-
-```js
-    const css = readFileSync(resolve(__dirname, "../../../styles/tokens.css"), "utf8");
-```
-
-in both tests of the `the stylesheet mirror` describe.
-
-- [ ] **Step 3: Prove nothing moved that should not have**
-
-```powershell
-npm run build -w frontend
-```
-
-Then compare the built CSS against the pre-split build. Before starting the task, capture a baseline:
-
-```powershell
-git stash
-npm run build -w frontend
-Get-ChildItem frontend/dist/assets/*.css | ForEach-Object { (Get-Content $_ -Raw) } | Out-File -Encoding utf8 "$env:TEMP/css-before.txt"
-git stash pop
-```
-
-and after:
-
-```powershell
-npm run build -w frontend
-Get-ChildItem frontend/dist/assets/*.css | ForEach-Object { (Get-Content $_ -Raw) } | Out-File -Encoding utf8 "$env:TEMP/css-after.txt"
-Compare-Object (Get-Content "$env:TEMP/css-before.txt") (Get-Content "$env:TEMP/css-after.txt")
-```
-
-Expected: **no output** from `Compare-Object`. Any difference is a rule that changed order or text — find it and put it back. This is the only acceptable verification for a pure-move refactor.
-
-```powershell
-npm run test -w frontend
-git add frontend/src
-git commit -m "refactor(frontend): split styles.css into seven @imported files in cascade order (no rule changes)"
-```
+**Superseded by Plan 3, Task 1** ([2026-08-21-ide-modernization-03-makecode-overhaul.md](2026-08-21-ide-modernization-03-makecode-overhaul.md)), which split the monolith into eleven files behind an `@import` manifest (`tokens`, `base`, `chrome`, `workspace`, `viewport`, `debug`, `pages`, `datapanel`, `primitives`, `platform`, `responsive`) with the dead-CSS sweep folded in. Debug work in this plan edits `styles/debug.css` and `styles/workspace.css`; Task 17's `.dm-*` deletion is one-file surgery on `debug.css`. The palette parity test already lives at its final path (`utils/blockly/__tests__/paletteCssSync.test.js`).
 
 ---
 
