@@ -3,7 +3,7 @@ import { applyRuntimeTheme, resizeRuntimeCanvas, getSceneMeta, getRuntimeScene }
 import { useTheme } from "../contexts/ThemeContext";
 import ViewportControls from "./ViewportControls";
 
-function GlowCanvas({ running, onStatus }) {
+function GlowCanvas({ running, booting, onStatus }) {
   const viewportRef = useRef(null);
   const { isDark } = useTheme();
   const [sceneMeta, setSceneMeta] = useState({ title: "", caption: "" });
@@ -73,7 +73,7 @@ function GlowCanvas({ running, onStatus }) {
     <div className="canvas-wrap">
       {/* ── 3D viewport ── */}
       <div className="canvas-viewport" ref={viewportRef}>
-        {!running && (
+        {(!running || booting) && (
           <div className="canvas-idle">
             <div className="canvas-idle-inner">
               <svg
@@ -95,6 +95,12 @@ function GlowCanvas({ running, onStatus }) {
                 Press <strong>Run</strong> to start the simulation
               </p>
             </div>
+          </div>
+        )}
+        {booting && (
+          <div className="canvas-booting" role="status">
+            <span className="canvas-booting__spinner" aria-hidden="true" />
+            <span className="canvas-booting__label">Starting simulation…</span>
           </div>
         )}
         <div

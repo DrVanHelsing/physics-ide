@@ -43,6 +43,10 @@ export function SimulationProvider({ children }) {
   const [running, setRunning] = useState(false);
   const [paused,  setPaused]  = useState(false);
   const [status,  setStatus]  = useState({ text: "Ready", type: "" });
+  /* True from the moment Run is pressed until the runtime has loaded and
+     compiled. `running` flips immediately (the UI must disable Run), so
+     without this there is no state that means "asked, not yet drawing". */
+  const [booting, setBooting] = useState(false);
 
   /* ── UI preferences (persisted — hooks/useLocalStorage) ── */
   const [storedZoom,   setBlocklyZoom]    = useLocalStorage(LAYOUT_ZOOM_KEY, ZOOM_DEFAULT);
@@ -86,6 +90,7 @@ export function SimulationProvider({ children }) {
     workspaceXml, setWorkspaceXml,
     /* simulation */
     running, setRunning,
+    booting, setBooting,
     paused,  setPaused,
     status,  setStatus,
     /* UI prefs */

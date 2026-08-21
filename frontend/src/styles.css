@@ -4989,3 +4989,34 @@ mark.help-search-highlight {
 }
 .blockly-empty__chip:hover { background: var(--card-bg-hover); border-color: var(--card-border-hover); }
 .blockly-empty .beginner-guide { pointer-events: auto; }
+
+/* ── Boot acknowledgement — the gap between Run and the first frame ── */
+.canvas-booting {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3, 12px);
+  background: color-mix(in srgb, var(--canvas-bg) 82%, transparent);
+  pointer-events: none;
+}
+.canvas-booting__spinner {
+  width: 28px;
+  height: 28px;
+  border: 2px solid var(--border-hl);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: canvas-boot-spin 800ms linear infinite;
+}
+.canvas-booting__label {
+  font-size: var(--fs-md, 13px);
+  color: var(--text-dim);
+}
+@keyframes canvas-boot-spin { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .canvas-booting__spinner { animation: none; border-top-color: var(--accent); }
+}

@@ -47,6 +47,7 @@ export default function DebugMode({
   projectType,
   /* simulation controls */
   running,
+  booting,
   paused,
   onRun,
   onStop,
@@ -355,7 +356,7 @@ export default function DebugMode({
             <span className="dm-panel-title">3D Viewport</span>
             {paused && running && <span className="dm-paused-badge">PAUSED</span>}
           </div>
-          <GlowCanvas running={running} />
+          <GlowCanvas running={running} booting={booting} />
         </div>
 
         {/* Right resize handle */}
