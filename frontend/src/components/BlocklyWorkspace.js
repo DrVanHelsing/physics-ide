@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import Blockly from "../utils/blockly/blocklyLib";
 import {
   defineCustomBlocksAndGenerator,
   generatePythonFromWorkspace,
@@ -60,8 +61,7 @@ function BlockSearch({ workspaceRef }) {
    */
   function insertBlock(item) {
     const ws = workspaceRef.current;
-    const Blockly = window.Blockly;
-    if (!ws || !Blockly) return false;
+    if (!ws) return false;
     try {
       const dom = Blockly.utils.xml.textToDom(
         `<xml xmlns="https://developers.google.com/blockly/xml"><block type="${item.type}"></block></xml>`,
@@ -357,12 +357,6 @@ function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, onB
 
   /* ── One-time workspace setup ──────────────────────────── */
   useEffect(() => {
-    const Blockly = window.Blockly;
-    if (!Blockly) {
-      setLoadError("Blockly failed to load. Check your network / CDN access.");
-      return undefined;
-    }
-
     defineCustomBlocksAndGenerator(Blockly);
 
     const theme = buildBlocklyTheme(Blockly, true);
@@ -387,24 +381,32 @@ function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, onB
       }
     }
 
-    const workspace = Blockly.inject(hostRef.current, {
-      toolbox: buildToolboxXml(goalRef.current),
-      theme,
-      comments: true,
-      trashcan: true,
-      scrollbars: true,
-      sounds: false,
-      grid: { spacing: 25, length: 3, colour: "#3c3c3c", snap: true },
-      zoom: {
-        controls: false,
-        wheel: true,
-        startScale: 0.9,
-        maxScale: 2,
-        minScale: 0.35,
-        scaleSpeed: 1.1,
-      },
-      renderer: "zelos",
-    });
+    let workspace;
+    try {
+      workspace = Blockly.inject(hostRef.current, {
+        toolbox: buildToolboxXml(goalRef.current),
+        theme,
+        comments: true,
+        trashcan: true,
+        scrollbars: true,
+        sounds: false,
+        grid: { spacing: 25, length: 3, colour: "#3c3c3c", snap: true },
+        zoom: {
+          controls: false,
+          wheel: true,
+          startScale: 0.9,
+          maxScale: 2,
+          minScale: 0.35,
+          scaleSpeed: 1.1,
+        },
+        renderer: "zelos",
+        media: "/blockly-media/",
+      });
+    } catch (err) {
+      console.warn("Blockly inject failed:", err);
+      setLoadError("Blockly failed to initialize.");
+      return undefined;
+    }
 
     workspaceRef.current = workspace;
     onReadyRef.current(workspace);
@@ -542,8 +544,7 @@ function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, onB
   /* ── React to theme changes ────────────────────────────── */
   useEffect(() => {
     const ws = workspaceRef.current;
-    const Blockly = window.Blockly;
-    if (!ws || !Blockly) return;
+    if (!ws) return;
     const theme = buildBlocklyTheme(Blockly, isDark);
     ws.setTheme(theme);
   }, [isDark]);
@@ -569,8 +570,7 @@ function ReadOnlyBlockly({ xml, isDark, breakpoints, onBlockClick, executingBloc
   useEffect(() => { onBlockClickRef.current = onBlockClick; }, [onBlockClick]);
 
   useEffect(() => {
-    const Blockly = window.Blockly;
-    if (!Blockly || !hostRef.current) return undefined;
+    if (!hostRef.current) return undefined;
     const dots = bpDotsRef.current;
 
     defineCustomBlocksAndGenerator(Blockly);
@@ -584,6 +584,7 @@ function ReadOnlyBlockly({ xml, isDark, breakpoints, onBlockClick, executingBloc
       sounds: false,
       grid: { spacing: 25, length: 3, colour: isDark ? "#2a2c40" : "#ddd", snap: false },
       zoom: { controls: false, wheel: true, startScale: 0.65, maxScale: 2, minScale: 0.15, scaleSpeed: 1.1 },
+      media: "/blockly-media/",
     });
     wsRef.current = ws;
 
@@ -637,8 +638,7 @@ function ReadOnlyBlockly({ xml, isDark, breakpoints, onBlockClick, executingBloc
 
   useEffect(() => {
     const ws = wsRef.current;
-    const Blockly = window.Blockly;
-    if (!ws || !Blockly) return;
+    if (!ws) return;
     const theme = buildBlocklyTheme(Blockly, isDark);
     ws.setTheme(theme);
   }, [isDark]);

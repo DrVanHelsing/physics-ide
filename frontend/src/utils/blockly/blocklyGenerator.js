@@ -13,6 +13,7 @@
  *   Advanced  – raw Python code/expression
  */
 
+import Blockly from './blocklyLib';
 import { traceRegistry, clearTraceRegistry } from './traceRegistry';
 import { BLOCK_CATALOGUE as REGISTRY_BLOCK_CATALOGUE } from './blockRegistry';
 
@@ -2793,8 +2794,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
    generatePythonFromWorkspace
    ================================================================ */
 export function generatePythonFromWorkspace(workspace) {
-  const Blockly = window.Blockly;
-  if (!workspace || !Blockly) return "# Blockly not available\n";
+  if (!workspace) return "# Blockly not available\n";
 
   const Python = getPythonGen(Blockly);
   if (!Python) return "# Python generator not loaded\n";
