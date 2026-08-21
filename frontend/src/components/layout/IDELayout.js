@@ -75,6 +75,7 @@ export default function IDELayout() {
     paused,
     workspaceRef,
     setPythonCode,
+    setBlocklyZoom,
   } = useSimulationContext();
 
   const { traceData, recordBufferRef } = useTraceContext();
@@ -463,6 +464,7 @@ export default function IDELayout() {
                     onWorkspaceReady={sim.handleWorkspaceReady}
                     onWorkspaceChange={handleWorkspaceChange}
                     onBlockCountChange={setBlockCount}
+                    onScaleChange={setBlocklyZoom}
                     isDark={isDark}
                     goal={goal}
                   />

@@ -979,6 +979,23 @@ button {
   text-align: center;
   font-style: italic;
 }
+.block-search--with-fit { display: flex; align-items: center; gap: 4px; }
+.block-search--with-fit .block-search-bar { flex: 1; min-width: 0; }
+.block-search-fit {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  color: var(--text-dim);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius, 4px);
+  cursor: pointer;
+  transition: color var(--transition), border-color var(--transition);
+}
+.block-search-fit:hover { color: var(--text-bright); border-color: var(--border-hl); }
 
 /* ── Read-only preview styling ───────────────────────────── */
 .blockly-readonly {
@@ -3041,9 +3058,26 @@ mark.help-search-highlight {
 .blocklyMainBackground + .blocklyGridPattern line {
   stroke: var(--border) !important;
 }
+/* Leaf categories have no disclosure state, so their icon slot is noise —
+   but "Advanced" (toolbox.js:329) is collapsible and holds 6 nested
+   categories / 47 blocks behind a row that looks identical to the 9 leaves.
+   Hide the icon only where it means nothing. */
 .blocklyTreeIcon {
   display: none !important;
 }
+.blocklyTreeIcon.blocklyTreeIconClosed,
+.blocklyTreeIcon.blocklyTreeIconOpen {
+  display: inline-block !important;
+  width: 12px !important;
+  height: 12px !important;
+  margin-right: 6px !important;
+  background-image: none !important;
+  border-left: 4px solid var(--text-dim) !important;
+  border-top: 4px solid transparent !important;
+  border-bottom: 4px solid transparent !important;
+  transition: transform 140ms ease !important;
+}
+.blocklyTreeIcon.blocklyTreeIconOpen { transform: rotate(90deg) !important; }
 
 /* Light theme Blockly — use CSS variables for consistency */
 [data-theme="light"] .blocklyToolboxDiv { background: var(--bg-surface) !important; }
