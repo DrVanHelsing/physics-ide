@@ -42,7 +42,7 @@ function blockDomain(type) {
 export const MASTER_TOOLBOX_XML = `
 <xml>
   <!-- ── VALUES (physics) ───────────────────────────────── -->
-  <category name="Values" colour="#7c68c6">
+  <category name="Values" categorystyle="values_category">
     <label text="Define constants" web-class="tb-label"></label>
     <block type="define_const_block">
       <value name="VALUE"><shadow type="math_number"><field name="NUM">1</field></shadow></value>
@@ -73,7 +73,7 @@ export const MASTER_TOOLBOX_XML = `
   </category>
 
   <!-- ── OBJECTS (physics) ──────────────────────────────── -->
-  <category name="Objects" colour="#4a90d9">
+  <category name="Objects" categorystyle="objects_category">
     <label text="Quick create" web-class="tb-label"></label>
     <block type="preset_sphere_block">
       <field name="NAME">ball</field>
@@ -142,7 +142,7 @@ export const MASTER_TOOLBOX_XML = `
   </category>
 
   <!-- ── MOTION (physics) ───────────────────────────────── -->
-  <category name="Motion" colour="#d9a54a">
+  <category name="Motion" categorystyle="motion_category">
     <block type="set_velocity_block">
       <value name="VEL"><shadow type="vector_block"><field name="X">0</field><field name="Y">0</field><field name="Z">0</field></shadow></value>
     </block>
@@ -163,7 +163,7 @@ export const MASTER_TOOLBOX_XML = `
   </category>
 
   <!-- ── STATE (physics) ────────────────────────────────── -->
-  <category name="State" colour="#d06030">
+  <category name="State" categorystyle="state_category">
     <block type="define_const_block">
       <value name="VALUE"><shadow type="math_number"><field name="NUM">1</field></shadow></value>
     </block>
@@ -183,7 +183,7 @@ export const MASTER_TOOLBOX_XML = `
   </category>
 
   <!-- ── CONTROL (shared + simulation anchors) ──────────── -->
-  <category name="Control" colour="#9b59b6">
+  <category name="Control" categorystyle="control_category">
     <label text="Simulation structure" web-class="tb-label"></label>
     <block type="sim_start_block"></block>
     <block type="sim_end_block"></block>
@@ -206,7 +206,7 @@ export const MASTER_TOOLBOX_XML = `
   </category>
 
   <!-- ── LOGIC (shared) ─────────────────────────────────── -->
-  <category name="Logic" colour="#5b80a5">
+  <category name="Logic" categorystyle="logic_category">
     <block type="compare_block">
       <value name="A"><shadow type="var_read_block"><field name="VAR">x</field></shadow></value>
       <value name="B"><shadow type="math_number"><field name="NUM">0</field></shadow></value>
@@ -225,7 +225,7 @@ export const MASTER_TOOLBOX_XML = `
   </category>
 
   <!-- ── MATH (shared) ──────────────────────────────────── -->
-  <category name="Math" colour="#5b67a5">
+  <category name="Math" categorystyle="math_category">
     <block type="math_number"></block>
     <block type="math_arithmetic"></block>
     <block type="math_constant"></block>
@@ -240,10 +240,10 @@ export const MASTER_TOOLBOX_XML = `
     <block type="math_random_float"></block>
   </category>
 
-  <category name="Variables" colour="#a55b80" custom="VARIABLE"></category>
+  <category name="Variables" categorystyle="variables_category" custom="VARIABLE"></category>
 
   <!-- ── DATA SCIENCE (datascience) ─────────────────────── -->
-  <category name="Data Science" colour="#2da56f">
+  <category name="Data Science" categorystyle="data_science_category">
     <label text="Analysis structure" web-class="tb-label"></label>
     <block type="ds_start_block"></block>
     <sep gap="12"></sep>
@@ -326,8 +326,8 @@ export const MASTER_TOOLBOX_XML = `
   </category>
 
   <!-- ── ADVANCED drawer (power-user categories collapse here) ── -->
-  <category name="Advanced" colour="#607d8b" expanded="false">
-    <category name="3D Math" colour="#3a7bd5">
+  <category name="Advanced" categorystyle="advanced_category" expanded="false">
+    <category name="3D Math" categorystyle="3d_math_category">
       <label text="Vectors" web-class="tb-label"></label>
       <block type="vector_compose_block">
         <value name="X"><shadow type="math_number"><field name="NUM">0</field></shadow></value>
@@ -364,12 +364,12 @@ export const MASTER_TOOLBOX_XML = `
       <block type="math_trig_block"></block>
     </category>
 
-    <category name="Raw Python" colour="#d35400">
+    <category name="Raw Python" categorystyle="raw_python_category">
       <block type="python_raw_block"></block>
       <block type="python_raw_expr_block"></block>
     </category>
 
-    <category name="Loops" colour="#5ba55b">
+    <category name="Loops" categorystyle="loops_category">
       <block type="controls_repeat_ext">
         <value name="TIMES"><block type="math_number"><field name="NUM">10</field></block></value>
       </block>
@@ -383,7 +383,7 @@ export const MASTER_TOOLBOX_XML = `
       <block type="controls_flow_statements"></block>
     </category>
 
-    <category name="Text" colour="#5ba58c">
+    <category name="Text" categorystyle="text_category">
       <block type="text"></block>
       <block type="text_join"></block>
       <block type="text_append">
@@ -400,7 +400,7 @@ export const MASTER_TOOLBOX_XML = `
       <block type="text_print"></block>
     </category>
 
-    <category name="Lists" colour="#745ba5">
+    <category name="Lists" categorystyle="lists_category">
       <block type="lists_create_empty"></block>
       <block type="lists_create_with"></block>
       <block type="lists_repeat">
@@ -413,7 +413,7 @@ export const MASTER_TOOLBOX_XML = `
       <block type="lists_setIndex"></block>
     </category>
 
-    <category name="Functions" colour="#995ba5" custom="PROCEDURE"></category>
+    <category name="Functions" categorystyle="functions_category" custom="PROCEDURE"></category>
   </category>
 </xml>`;
 
