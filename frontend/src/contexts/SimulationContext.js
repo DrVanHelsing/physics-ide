@@ -14,6 +14,7 @@
 import React, {
   createContext,
   useContext,
+  useMemo,
   useRef,
   useState,
   useEffect,
@@ -87,29 +88,46 @@ export function SimulationProvider({ children }) {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const value = {
-    /* routing */
-    showStart, setShowStart,
-    showHelp,  setShowHelp,
-    /* editor */
-    mode,         setMode,
-    projectType,  setProjectType,
-    pythonCode,   setPythonCode,
-    workspaceXml, setWorkspaceXml,
-    /* simulation */
-    running, setRunning,
-    booting, setBooting,
-    paused,  setPaused,
-    status,  setStatus,
-    /* UI prefs */
-    blocklyZoom,    setBlocklyZoom,
-    splitPct,       setSplitPct,
-    viewportHidden, setViewportHidden,
-    /* stable workspace ref */
-    workspaceRef,
-    /* shared run-teardown generation counter (see useSimulation's endRun) */
-    runGenerationRef,
-  };
+  /* Every consumer reads this object identity on every render (React context
+     has no selector mechanism), so a fresh literal here would invalidate every
+     consumer on every SimulationProvider re-render regardless of which state
+     actually changed. Memoised on every state value the object carries — the
+     refs (workspaceRef, runGenerationRef) are stable across the provider's
+     lifetime and stay out of the dep list; the useState/useLocalStorage
+     setters are stable too, but are omitted from the deps (kept to exactly
+     the state values) for clarity — the object literal below still returns
+     them, unaffected either way. */
+  const value = useMemo(
+    () => ({
+      /* routing */
+      showStart, setShowStart,
+      showHelp,  setShowHelp,
+      /* editor */
+      mode,         setMode,
+      projectType,  setProjectType,
+      pythonCode,   setPythonCode,
+      workspaceXml, setWorkspaceXml,
+      /* simulation */
+      running, setRunning,
+      booting, setBooting,
+      paused,  setPaused,
+      status,  setStatus,
+      /* UI prefs */
+      blocklyZoom,    setBlocklyZoom,
+      splitPct,       setSplitPct,
+      viewportHidden, setViewportHidden,
+      /* stable workspace ref */
+      workspaceRef,
+      /* shared run-teardown generation counter (see useSimulation's endRun) */
+      runGenerationRef,
+    }),
+    [
+      showStart, showHelp,
+      mode, projectType, pythonCode, workspaceXml,
+      running, booting, paused, status,
+      blocklyZoom, splitPct, viewportHidden,
+    ],
+  );
 
   return (
     <SimulationContext.Provider value={value}>

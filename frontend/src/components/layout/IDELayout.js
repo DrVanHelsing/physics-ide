@@ -305,6 +305,7 @@ export default function IDELayout() {
 
   const handleImportProject = useCallback(async (file) => {
     if (!file) return;
+    sim.handleStop(); // every path that replaces the workspace/project ends the run first (idempotent if nothing is running)
     try {
       const text = await file.text();
       const raw = JSON.parse(text);
@@ -324,7 +325,7 @@ export default function IDELayout() {
         `Could not open that file.\n\n${err.message}\n\nCheck that it is a .physide.json project bundle exported from Physics IDE.`,
       );
     }
-  }, [proj]);
+  }, [proj, sim]);
 
   /* ── Hybrid: offer "Analyse this run →" on the post-promote chart ── */
   const hybridPairing = proj.activeManifest?.hybridPairing;
@@ -355,7 +356,7 @@ export default function IDELayout() {
         <StartMenu
           projectList={proj.projectList}
           loaded={proj.loaded}
-          onOpenProject={(id) => { proj.selectProject(id); }}
+          onOpenProject={(id) => { sim.handleStop(); proj.selectProject(id); }}
           onDeleteProject={(id) => { proj.removeProject(id); }}
           onCreate={(spec) => { proj.createNew(spec); }}
           onImport={(file) => { proj.noteExplicitOpen(); sim.handleImport(file); setShowStart(false); }}

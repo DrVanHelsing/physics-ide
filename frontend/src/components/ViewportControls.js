@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { CrosshairIcon, ScanIcon, FullscreenIcon, CameraIcon } from "./Icons";
 import { getRuntimeWindow, getRuntimeScene, captureRuntimeCanvas } from "../utils/runner/glowRunner";
+import { useRuntimeReady } from "../hooks/useRuntimeReady";
 import { isUniformImageData } from "../utils/image";
 
 /**
@@ -62,20 +63,10 @@ function withScene(fn) {
 }
 
 export default function ViewportControls({ running, hostRef, onStatus }) {
-  const [ready, setReady] = useState(false);
-
-  /* The scene appears a moment after `running` flips — poll briefly rather
-     than reaching into the runtime's load sequence. */
-  useEffect(() => {
-    if (!running) { setReady(false); return undefined; }
-    let tries = 0;
-    const id = setInterval(() => {
-      tries += 1;
-      if (getRuntimeScene()) { setReady(true); clearInterval(id); }
-      else if (tries > 40) clearInterval(id);   // ~6s, then give up quietly
-    }, 150);
-    return () => clearInterval(id);
-  }, [running]);
+  /* The scene appears a moment after `running` flips — poll briefly (via
+     useRuntimeReady, ~6s at its default 40 tries) rather than reaching into
+     the runtime's load sequence. */
+  const ready = useRuntimeReady({ enabled: running });
 
   if (!running) return null;
 

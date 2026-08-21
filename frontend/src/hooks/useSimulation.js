@@ -242,13 +242,12 @@ export function useSimulation() {
      XML loads as `initialXml`. */
   const loadWorkspaceXml = useCallback(
     (xml) => {
-      stopPython(GLOWSCRIPT_HOST_ID);
-      setRunning(false);
+      endRun({ runGenerationRef, setRunning, setBooting, setStatus });
       setProjectType("block_template");
       setWorkspaceXml(xml || "");
       setMode("blocks");
     },
-    [setRunning, setProjectType, setWorkspaceXml, setMode]
+    [runGenerationRef, setRunning, setBooting, setStatus, setProjectType, setWorkspaceXml, setMode]
   );
 
   /* ── Home (back to start menu) ───────────────────────── */
@@ -265,8 +264,7 @@ export function useSimulation() {
       reader.onload = (e) => {
         const content = e.target.result;
         if (file.name.endsWith(".xml")) {
-          stopPython(GLOWSCRIPT_HOST_ID);
-          setRunning(false);
+          endRun({ runGenerationRef, setRunning, setBooting, setStatus });
           setProjectType("custom");
           if (workspaceRef.current) {
             try {
@@ -283,8 +281,7 @@ export function useSimulation() {
           setMode("blocks");
           setStatus({ text: `Imported blocks from ${file.name}`, type: "success" });
         } else if (file.name.endsWith(".py")) {
-          stopPython(GLOWSCRIPT_HOST_ID);
-          setRunning(false);
+          endRun({ runGenerationRef, setRunning, setBooting, setStatus });
           setPythonCode(content);
           setMode("text");
           setProjectType("code_blank");
@@ -297,8 +294,8 @@ export function useSimulation() {
       reader.readAsText(file);
     },
     [
-      setRunning, setProjectType, setWorkspaceXml, setMode, setPythonCode,
-      setStatus, workspaceRef,
+      runGenerationRef, setRunning, setBooting, setProjectType, setWorkspaceXml,
+      setMode, setPythonCode, setStatus, workspaceRef,
     ]
   );
 

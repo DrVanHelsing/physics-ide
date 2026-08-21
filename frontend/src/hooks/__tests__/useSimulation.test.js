@@ -308,3 +308,80 @@ describe("useSimulation — booting phase", () => {
     expect(latestCtx.status.text).toBe("Ready");
   });
 });
+
+describe("useSimulation — every load path ends the run (Task 13)", () => {
+  test("importing an .xml file mid-boot clears booting and bumps the generation, same as handleStop", async () => {
+    // Before Task 13, handleImport's .xml branch hand-rolled
+    // `stopPython(...); setRunning(false);` — it never cleared `booting` or
+    // bumped `runGenerationRef`, so a project imported while a run was still
+    // booting could have a stale in-flight handleRun's finally reach through
+    // afterward and flip `booting` back on. Routing through the same endRun()
+    // handleStop uses closes that gap.
+    const run = deferred();
+    runPython.mockReturnValueOnce(run.promise);
+    mounted = mountComponent(<Wrapped />);
+
+    act(() => {
+      latestSim.handleRun();
+    });
+    expect(latestCtx.booting).toBe(true);
+    const generationBeforeImport = latestCtx.runGenerationRef.current;
+
+    const file = { name: "project.xml" };
+    const OriginalFileReader = global.FileReader;
+    class FakeFileReader {
+      readAsText() {
+        this.result = "<xml></xml>";
+        this.onload?.({ target: this });
+      }
+    }
+    global.FileReader = FakeFileReader;
+    try {
+      act(() => {
+        latestSim.handleImport(file);
+      });
+    } finally {
+      global.FileReader = OriginalFileReader;
+    }
+
+    expect(latestCtx.booting).toBe(false);
+    expect(latestCtx.running).toBe(false);
+    expect(latestCtx.runGenerationRef.current).toBeGreaterThan(generationBeforeImport);
+
+    // The stale run's promise finally resolves — it must not reopen
+    // running/booting now that the import has moved the session on.
+    run.resolve();
+    await act(async () => {
+      await flush();
+    });
+    expect(latestCtx.booting).toBe(false);
+    expect(latestCtx.running).toBe(false);
+  });
+
+  test("loadWorkspaceXml mid-boot clears booting and bumps the generation, same as handleStop", async () => {
+    const run = deferred();
+    runPython.mockReturnValueOnce(run.promise);
+    mounted = mountComponent(<Wrapped />);
+
+    act(() => {
+      latestSim.handleRun();
+    });
+    expect(latestCtx.booting).toBe(true);
+    const generationBeforeLoad = latestCtx.runGenerationRef.current;
+
+    act(() => {
+      latestSim.loadWorkspaceXml("<xml></xml>");
+    });
+
+    expect(latestCtx.booting).toBe(false);
+    expect(latestCtx.running).toBe(false);
+    expect(latestCtx.runGenerationRef.current).toBeGreaterThan(generationBeforeLoad);
+
+    run.resolve();
+    await act(async () => {
+      await flush();
+    });
+    expect(latestCtx.booting).toBe(false);
+    expect(latestCtx.running).toBe(false);
+  });
+});
