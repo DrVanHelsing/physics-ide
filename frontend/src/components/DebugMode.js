@@ -16,6 +16,7 @@ import React, { useState, useRef, useCallback, useEffect } from "react";
 import { ReadOnlyBlockly } from "./BlocklyWorkspace";
 import CodeEditor from "./CodeEditor";
 import TraceTable from "./TraceTable";
+import GlowCanvas from "./GlowCanvas";
 import {
   ArrowLeftIcon,
   DownloadIcon,
@@ -351,13 +352,10 @@ export default function DebugMode({
         {/* Center: 3D viewport */}
         <div className="dm-panel dm-panel--viewport">
           <div className="dm-panel-header">
-            <span className="dm-panel-title">3-D Simulation</span>
+            <span className="dm-panel-title">3D Viewport</span>
             {paused && running && <span className="dm-paused-badge">PAUSED</span>}
           </div>
-          <div
-            id="glowscript-host"
-            className="dm-glowhost"
-          />
+          <GlowCanvas running={running} />
         </div>
 
         {/* Right resize handle */}

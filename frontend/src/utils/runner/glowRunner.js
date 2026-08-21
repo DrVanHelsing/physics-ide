@@ -122,16 +122,53 @@ async function ensureGlowScriptLoaded(frameWindow) {
   }
 }
 
-function createRuntimeFrame(host) {
-  const currentTheme =
+/** The two viewport themes. Deep-space black for dark, clean off-white for light. */
+export const VIEWPORT_THEME = {
+  dark:  { bg: "#040611", text: "#dde4f8", link: "#7db5ff" },
+  light: { bg: "#f2f4f8", text: "#111827", link: "#1d4ed8" },
+};
+
+/** Pure: the runtime frame's stylesheet for a given theme. Injected at frame
+ *  creation and re-injected on every theme toggle, so a running simulation
+ *  rethemes with the panes around it instead of staying in the old theme. */
+export function viewportStyleText({ bg, text, link }) {
+  return `
+      *, *::before, *::after { box-sizing: border-box; }
+      html, body {
+        margin: 0; padding: 0;
+        width: 100%; height: 100%;
+        overflow: hidden;
+        background: ${bg};
+        color: ${text};
+        font-family: system-ui, -apple-system, sans-serif;
+        font-size: 13px;
+      }
+      #glowscript-root { width: 100%; height: 100%; overflow: hidden; background: ${bg}; }
+      #glowscript { width: 100%; height: 100%; background: ${bg}; }
+      #glowscript canvas {
+        display: block !important;
+        width: 100% !important;
+        height: 100% !important;
+        background: ${bg};
+        outline: none;
+        border: none;
+      }
+      #glowscript-root * { color: ${text} !important; }
+      #glowscript a { color: ${link} !important; }
+      div[id="glowscript"] > div { font-family: system-ui, sans-serif !important; font-size: 12px !important; }
+  `;
+}
+
+function currentViewportTheme() {
+  const attr =
     document.documentElement.getAttribute("data-theme") ||
     document.body.getAttribute("data-theme") ||
     "dark";
-  const isLight = currentTheme === "light";
-  /* Deep-space black for dark mode, clean off-white for light */
-  const viewportBg        = isLight ? "#f2f4f8"  : "#040611";
-  const viewportTextColor = isLight ? "#111827"  : "#dde4f8";
-  const linkColor         = isLight ? "#1d4ed8"  : "#7db5ff";
+  return attr === "light" ? VIEWPORT_THEME.light : VIEWPORT_THEME.dark;
+}
+
+function createRuntimeFrame(host) {
+  const theme = currentViewportTheme();
 
   const iframe = document.createElement("iframe");
   iframe.title = "GlowScript Runtime";
@@ -151,44 +188,7 @@ function createRuntimeFrame(host) {
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <style>
-      *, *::before, *::after { box-sizing: border-box; }
-      html, body {
-        margin: 0; padding: 0;
-        width: 100%; height: 100%;
-        overflow: hidden;
-        background: ${viewportBg};
-        color: ${viewportTextColor};
-        font-family: system-ui, -apple-system, sans-serif;
-        font-size: 13px;
-      }
-      #glowscript-root {
-        width: 100%; height: 100%;
-        overflow: hidden;
-        background: ${viewportBg};
-      }
-      #glowscript {
-        width: 100%; height: 100%;
-        background: ${viewportBg};
-      }
-      /* Canvas fills the container without any scaling artefacts */
-      #glowscript canvas {
-        display: block !important;
-        width: 100% !important;
-        height: 100% !important;
-        background: ${viewportBg};
-        outline: none;
-        border: none;
-      }
-      /* Override injected text colours */
-      #glowscript-root * { color: ${viewportTextColor} !important; }
-      #glowscript a { color: ${linkColor} !important; }
-      /* Overlay elements injected by GlowScript (info text etc.) */
-      div[id="glowscript"] > div {
-        font-family: system-ui, sans-serif !important;
-        font-size: 12px !important;
-      }
-    </style>
+    <style id="physide-theme">${viewportStyleText(theme)}</style>
   </head>
   <body>
     <div id="glowscript-root"></div>
@@ -524,5 +524,69 @@ export function stepPython() {
 export function setBreakpoints(bpSet) {
   if (activeFrameWindow) {
     activeFrameWindow.__physide_breakpoints = bpSet instanceof Set ? bpSet : new Set(bpSet);
+  }
+}
+
+/* ── Parent → runtime handles ──────────────────────────────
+   The scene lives in a separate document, so every accessor below is a
+   capability check as much as a getter: nothing is running, the frame was
+   torn down, or GlowScript never finished loading are all normal states,
+   and every caller must be able to render a disabled control instead. */
+
+/** The live runtime frame's window, or null. */
+export function getRuntimeWindow() {
+  return activeFrameWindow || null;
+}
+
+/** The <canvas> GlowScript draws into, or null. */
+export function getRuntimeCanvas() {
+  try {
+    return activeFrameWindow?.document?.querySelector("canvas") || null;
+  } catch {
+    return null;   // cross-document access can throw if the frame was replaced
+  }
+}
+
+/** Re-theme a RUNNING simulation in place. No reload, no lost run. */
+export function applyRuntimeTheme(isDark) {
+  const win = getRuntimeWindow();
+  if (!win) return false;
+  const theme = isDark ? VIEWPORT_THEME.dark : VIEWPORT_THEME.light;
+  try {
+    const styleEl = win.document.getElementById("physide-theme");
+    if (styleEl) styleEl.textContent = viewportStyleText(theme);
+    const scene = win.scene;
+    if (scene && typeof win.vec === "function") {
+      const n = (h) => parseInt(h, 16) / 255;
+      scene.background = win.vec(n(theme.bg.slice(1, 3)), n(theme.bg.slice(3, 5)), n(theme.bg.slice(5, 7)));
+    }
+    return true;
+  } catch (err) {
+    console.warn("Could not retheme the running viewport:", err);
+    return false;
+  }
+}
+
+/** Reallocate the drawing buffer for a new CSS size at the display's pixel
+ *  ratio. Without this the buffer is merely stretched on every divider drag,
+ *  and a 1.25x Chromebook renders every simulation soft. */
+export function resizeRuntimeCanvas(cssWidth, cssHeight, dpr = window.devicePixelRatio || 1) {
+  const win = getRuntimeWindow();
+  const canvas = getRuntimeCanvas();
+  if (!win || !canvas || cssWidth < 1 || cssHeight < 1) return false;
+  try {
+    const scene = win.scene;
+    if (scene && typeof scene.width === "number") {
+      /* Preferred path: GlowScript owns the buffer and reallocates properly. */
+      scene.width = Math.round(cssWidth);
+      scene.height = Math.round(cssHeight);
+    }
+    const ratio = Math.min(dpr, 2);   // cap: a 3x buffer buys nothing here and costs frames
+    canvas.width = Math.round(cssWidth * ratio);
+    canvas.height = Math.round(cssHeight * ratio);
+    return true;
+  } catch (err) {
+    console.warn("Could not resize the runtime canvas:", err);
+    return false;
   }
 }
