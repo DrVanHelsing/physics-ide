@@ -555,6 +555,22 @@ export function getRuntimeCanvas() {
   }
 }
 
+/** The live scene (VPython's `canvas` instance) being rendered into, or null.
+ *  Confirmed live in DevTools: compiled GlowScript 3.2 VPython does NOT expose
+ *  the user's `scene` variable as a window global — it stays a local inside the
+ *  compiled __main__ closure. The runtime's own bookkeeping of "the currently
+ *  active canvas" lives at window.__context.canvas_selected instead, and that
+ *  object has the same forward/up/autoscale/title/caption surface. win.scene is
+ *  checked first in case a future runtime build does expose it directly. */
+export function getRuntimeScene() {
+  const win = getRuntimeWindow();
+  try {
+    return win?.scene || win?.__context?.canvas_selected || null;
+  } catch {
+    return null;
+  }
+}
+
 /** Re-theme a RUNNING simulation in place. No reload, no lost run. */
 export function applyRuntimeTheme(isDark) {
   const win = getRuntimeWindow();
@@ -596,5 +612,49 @@ export function resizeRuntimeCanvas(cssWidth, cssHeight, dpr = window.devicePixe
   } catch (err) {
     console.warn("Could not resize the runtime canvas:", err);
     return false;
+  }
+}
+
+/**
+ * Capture the live 3D scene as a PNG data URL, from the canvas itself rather
+ * than through html2canvas (which can rasterise neither a cross-document
+ * iframe nor WebGL pixels). Runs inside the FRAME's own requestAnimationFrame
+ * so the read happens as close to a draw as the parent can arrange.
+ *
+ * Returns null when nothing is running or the read throws — the caller must
+ * still verify the pixels, because a successful read can be a blank buffer.
+ */
+export function captureRuntimeCanvas() {
+  const win = getRuntimeWindow();
+  const canvas = getRuntimeCanvas();
+  if (!win || !canvas) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    const read = () => {
+      try {
+        resolve(canvas.toDataURL("image/png"));
+      } catch (err) {
+        console.warn("Could not read the runtime canvas:", err);
+        resolve(null);
+      }
+    };
+    try {
+      if (typeof win.requestAnimationFrame === "function") win.requestAnimationFrame(read);
+      else read();
+    } catch {
+      read();
+    }
+  });
+}
+
+/** The scene's authored title and caption, if the program set them.
+ *  precodedExamples.js:16,21 authors both; GlowScript renders them as sibling
+ *  divs that this runtime's overflow:hidden pushes out of view. */
+export function getSceneMeta() {
+  const scene = getRuntimeScene();
+  const clean = (v) => (typeof v === "string" && v.trim() ? v.trim().slice(0, 240) : "");
+  try {
+    return { title: clean(scene?.title), caption: clean(scene?.caption) };
+  } catch {
+    return { title: "", caption: "" };
   }
 }

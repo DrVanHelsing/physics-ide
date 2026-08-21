@@ -34,7 +34,12 @@ function downloadSvg(svgEl, filename) {
 }
 
 async function downloadPng(containerEl, filename) {
-  const html2canvas = window.html2canvas;
+  const bg =
+    getComputedStyle(document.documentElement).getPropertyValue("--bg-base").trim() || "#0a0a0f";
+  const html2canvas =
+    typeof window.html2canvas === "function"
+      ? window.html2canvas
+      : (await import("html2canvas")).default;
   if (!html2canvas) {
     // Fall back to a single-mark SVG -> PNG dataURL via canvas.
     const svg = containerEl.querySelector("svg");
@@ -48,7 +53,7 @@ async function downloadPng(containerEl, filename) {
       canvas.width = svg.viewBox.baseVal.width || svg.clientWidth;
       canvas.height = svg.viewBox.baseVal.height || svg.clientHeight;
       const ctx = canvas.getContext("2d");
-      ctx.fillStyle = "#0a0a0f";
+      ctx.fillStyle = bg;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(img, 0, 0);
       canvas.toBlob((b) => {
@@ -66,7 +71,7 @@ async function downloadPng(containerEl, filename) {
     img.src = url;
     return;
   }
-  const canvas = await html2canvas(containerEl, { backgroundColor: "#0a0a0f", scale: 2 });
+  const canvas = await html2canvas(containerEl, { backgroundColor: bg, scale: 2 });
   canvas.toBlob((b) => {
     const pngUrl = URL.createObjectURL(b);
     const a = document.createElement("a");
