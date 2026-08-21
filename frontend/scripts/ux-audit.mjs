@@ -94,6 +94,34 @@ async function screenshot(name) {
 
 async function goHome() {
   await page.goto(BASE, { waitUntil: 'networkidle0', timeout: 30000 });
+  // A fresh browser profile is a first-time visitor: WelcomeGate.js sends "/"
+  // to "/welcome" until the session-scoped pass is stamped. Click through
+  // once, exactly like a guest choosing "Use the IDE — no account needed";
+  // the pass then lives in sessionStorage for the rest of this run.
+  if (/\/welcome(?:$|[/?#])/.test(page.url())) {
+    await page.evaluate(() => {
+      const btn = [...document.querySelectorAll('.welcome-btn--primary')]
+        .find((b) => /use the ide/i.test(b.textContent));
+      if (btn) btn.click();
+    });
+    await page.waitForFunction(() => !location.pathname.startsWith('/welcome'), { timeout: 8000 }).catch(() => {});
+  }
+  // "State survives a reload" (Task 12) means a plain reload can land the
+  // browser straight back in the last-open project (localStorage's
+  // LAST_PROJECT_KEY) instead of the start menu. Fall back to the header's
+  // own Menu button when the overlay doesn't show up on its own.
+  const sawOverlay = await page
+    .waitForSelector('.start-menu-overlay', { timeout: 5000 })
+    .then(() => true)
+    .catch(() => false);
+  if (!sawOverlay) {
+    await page.evaluate(() => {
+      const btns = [...document.querySelectorAll('.tb-btn--nav')];
+      const m = btns.find((b) => /menu/i.test(b.textContent) || b.title?.includes('Menu'));
+      if (m) m.click();
+    });
+    await page.waitForSelector('.start-menu-overlay', { timeout: 8000 }).catch(() => {});
+  }
   await delay(500);
 }
 

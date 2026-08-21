@@ -109,8 +109,38 @@ async function screenshot(page, name) {
 
 async function goHome(page) {
   await page.goto(BASE, { waitUntil: 'networkidle0', timeout: 30000 });
-  // Wait for start menu overlay (React renders async after localForage loads)
-  await page.waitForSelector('.start-menu-overlay', { timeout: 8000 }).catch(() => {});
+  // A fresh browser profile (every Puppeteer run) is a first-time visitor:
+  // WelcomeGate.js sends "/" to "/welcome" until the session-scoped pass is
+  // stamped. Click through once, exactly like a guest choosing "Use the IDE —
+  // no account needed"; the pass then lives in sessionStorage for the rest of
+  // this run, so later goHome() calls land on "/" directly.
+  if (/\/welcome(?:$|[/?#])/.test(page.url())) {
+    await page.evaluate(() => {
+      const btn = [...document.querySelectorAll('.welcome-btn--primary')]
+        .find((b) => /use the ide/i.test(b.textContent));
+      if (btn) btn.click();
+    });
+    await page.waitForFunction(() => !location.pathname.startsWith('/welcome'), { timeout: 8000 }).catch(() => {});
+  }
+  // Wait for start menu overlay (React renders async after localForage loads).
+  // "State survives a reload" (Task 12) means a plain reload can land the
+  // browser straight back in the last-open project (localStorage's
+  // LAST_PROJECT_KEY) instead of the start menu — real for any returning
+  // visitor, not just this harness. When that happens, use the header's own
+  // Menu button (the product's own way back) rather than assume the overlay
+  // is always what a fresh "/" produces.
+  const sawOverlay = await page
+    .waitForSelector('.start-menu-overlay', { timeout: 8000 })
+    .then(() => true)
+    .catch(() => false);
+  if (!sawOverlay) {
+    await page.evaluate(() => {
+      const btns = [...document.querySelectorAll('.tb-btn--nav')];
+      const m = btns.find((b) => /menu/i.test(b.textContent) || b.title?.includes('Menu'));
+      if (m) m.click();
+    });
+    await page.waitForSelector('.start-menu-overlay', { timeout: 8000 }).catch(() => {});
+  }
   await delay(300);
 }
 
@@ -787,15 +817,15 @@ try {
   check('A15: Clear workspace: workspace text minimised', svgAfterClear.length < 10, `svg text count: ${svgAfterClear.length}`);
   await screenshot(page, 'A15-clear-workspace');
 
-  // Reset
+  // Reset — the header's Reset action was renamed "Back to Blocks" (Task 9)
   const resetClicked = await page.evaluate(() => {
     const btns = [...document.querySelectorAll('.tb-btn')];
-    const r = btns.find(b => /reset/i.test(b.textContent));
+    const r = btns.find(b => /back.?to.?blocks/i.test(b.textContent));
     if (r) { r.click(); return true; }
     return false;
   });
   await delay(1000);
-  check('A15: Reset button clickable', resetClicked);
+  check('A15: "Back to Blocks" button clickable', resetClicked);
 } catch (e) {
   check('A15: Reset & clear', false, e.message);
 }

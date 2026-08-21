@@ -18,8 +18,11 @@ node scripts/e2e-test.mjs          # Automated E2E (Part A + B2 + B)
 node scripts/ux-audit.mjs          # UX audit → docs/ux-audit.md
 ```
 
-Automated results: `e2e/results.json`  
-Screenshots: `e2e/*.png`  
+Automated results: `frontend/e2e/results.json`
+Screenshots: `frontend/e2e/*.png` — **untracked build artifacts** (`.gitignore:23` ignores `e2e/`
+at any depth). They are documentation you regenerate, not fixtures you commit; a UI change does not
+"invalidate" anything in git. Note that `scripts/e2e-test.mjs` resolves its output to
+`frontend/e2e/`, while older runs left artifacts at the repository root `e2e/`.
 UX report: `docs/ux-audit.md`
 
 ---
