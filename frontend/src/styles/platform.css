@@ -1,0 +1,305 @@
+/* ============================================================
+   AUTH & ACCOUNT SCREENS (Plan 2)
+   ============================================================ */
+.auth-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-base);
+  padding: 24px;
+}
+.auth-card {
+  width: 100%;
+  max-width: 420px;
+}
+.auth-brand {
+  font-weight: 700;
+  color: var(--text-bright);
+  text-decoration: none;
+  letter-spacing: 0.02em;
+}
+.auth-brand span { color: var(--accent); }
+.auth-title {
+  margin: 14px 0 18px;
+  font-size: 20px;
+  color: var(--text-bright);
+}
+.auth-form { display: flex; flex-direction: column; gap: 12px; }
+.auth-label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.auth-input {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-bright);
+  padding: 8px 10px;
+  font-size: 14px;
+}
+.auth-input:focus { outline: 1px solid var(--border-focus); }
+.auth-doors { display: flex; gap: 8px; }
+.auth-door {
+  flex: 1;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 8px 10px;
+  cursor: pointer;
+  color: var(--text);
+  font-size: 13px;
+}
+.auth-door--on { border-color: var(--accent); background: var(--accent-dim); }
+.auth-consent {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.auth-error {
+  color: var(--red);
+  font-size: 13px;
+  border: 1px solid var(--red);
+  border-radius: 4px;
+  padding: 8px 10px;
+}
+.auth-submit { margin-top: var(--space-1); }
+.auth-footer { margin-top: 16px; font-size: 12px; color: var(--text-dim); }
+.auth-footer a { color: var(--accent-bright); }
+.auth-text { color: var(--text); font-size: 14px; line-height: 1.5; }
+.auth-text--dim { color: var(--text-muted); font-size: 12px; }
+
+.account-chip {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.account-chip-head {
+  font-size: 10px;
+  letter-spacing: var(--label-tracking);
+  color: var(--text-muted);
+}
+.account-chip-name { color: var(--text-bright); font-size: 13px; }
+.account-chip-badge {
+  margin-left: 6px;
+  font-size: 10px;
+  color: var(--yellow);
+  border: 1px solid var(--yellow);
+  border-radius: 3px;
+  padding: 0 4px;
+}
+/* ---- Admin console (Plan 2) ---- */
+.admin-page { min-height: 100vh; background: var(--bg-base); color: var(--text); }
+.admin-header {
+  padding: 18px 24px 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-surface);
+}
+.admin-header h1 { font-size: 18px; color: var(--text-bright); margin: 10px 0 12px; }
+.admin-tabs { display: flex; gap: 4px; }
+.admin-tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-dim);
+  padding: 8px 14px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.admin-tab--on { color: var(--text-bright); border-bottom-color: var(--accent); }
+.admin-body { padding: 20px 24px; display: flex; flex-direction: column; gap: 14px; max-width: 1000px; }
+.admin-cap { display: flex; align-items: center; gap: 10px; font-size: 14px; }
+.admin-cap-input { width: 90px; }
+.admin-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.admin-table th {
+  text-align: left;
+  color: var(--text-muted);
+  font-weight: 500;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+}
+.admin-table td { padding: 6px 8px; border-bottom: 1px solid var(--border); }
+.admin-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.admin-mail-row { cursor: pointer; }
+.admin-mail-row:hover td { background: var(--bg-hover); }
+.admin-mail-body {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 10px;
+  white-space: pre-wrap;
+  font-size: 12px;
+}
+.admin-health { list-style: none; padding: 0; font-size: 14px; display: flex; flex-direction: column; gap: 6px; }
+
+/* ---- Classes (Plan 3) ---- */
+.classes-page { min-height: 100vh; background: var(--bg-base); color: var(--text); }
+.classes-header {
+  padding: 18px 24px 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-surface);
+}
+.classes-header h1 { font-size: 18px; color: var(--text-bright); margin: 10px 0 12px; }
+.classes-body { padding: 20px 24px; display: flex; flex-direction: column; gap: 14px; max-width: 1000px; }
+.classes-actions { display: flex; gap: 8px; }
+.classes-newform { max-width: 420px; }
+.classes-wall { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.class-card {
+  display: block;
+  color: var(--text);
+  text-decoration: none;
+}
+.class-card-name { color: var(--text-bright); font-size: 15px; }
+.class-card-label { color: var(--text-dim); font-size: 12px; margin-top: 2px; }
+.class-card-meta { color: var(--text-muted); font-size: 11px; margin-top: 8px; }
+.class-card--archived { opacity: 0.7; }
+.classes-archived summary { cursor: pointer; color: var(--text-dim); font-size: 13px; margin: 6px 0; }
+.class-archived-badge {
+  margin-left: 8px;
+  font-size: 10px;
+  color: var(--yellow);
+  border: 1px solid var(--yellow);
+  border-radius: 3px;
+  padding: 0 4px;
+  vertical-align: middle;
+}
+.join-panel { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
+.join-code-big {
+  font-family: var(--mono);
+  font-size: 28px;
+  letter-spacing: 0.08em;
+  color: var(--text-bright);
+  border: 1px dashed var(--border-hl);
+  border-radius: 6px;
+  padding: 10px 16px;
+}
+.join-qr { background: #fff; padding: 8px; border-radius: 6px; }
+/* ---- Sync chip (Plan 4) ---- */
+.sync-chip { font-size: 11px; color: var(--text-dim); margin-right: 14px; }
+.sync-chip--synced { color: var(--green); }
+.sync-chip--syncing { color: var(--accent-bright); }
+.sync-chip--offline { color: var(--yellow); }
+.sync-chip--error { color: var(--red); }
+
+/* ---- Guest import prompt (Plan 4) ---- */
+.guest-import {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 4000;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  background: var(--bg-surface);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: var(--text-bright);
+  box-shadow: var(--shadow-lg);
+}
+/* ---- Welcome screen (Plan 4, user-requested) ---- */
+.welcome { min-height: 100vh; overflow-x: hidden; padding: 48px 20px 64px; color: var(--text-bright); }
+.welcome-hero { max-width: 760px; margin: 0 auto; text-align: center; }
+.welcome-hero h1 { font-size: 44px; margin: 18px 0 6px; letter-spacing: 0.5px; }
+.welcome-tagline { color: var(--text-dim); font-size: 17px; margin: 0 0 26px; }
+
+.welcome-orbit { position: relative; width: 150px; height: 150px; margin: 0 auto; }
+.welcome-orbit__sun {
+  position: absolute; top: 50%; left: 50%; width: 26px; height: 26px; margin: -13px;
+  border-radius: 50%; background: var(--yellow);
+  box-shadow: 0 0 24px 4px color-mix(in srgb, var(--yellow) 35%, transparent);
+}
+.welcome-orbit__path {
+  position: absolute; top: 50%; left: 50%; border: 1px dashed var(--text-dim);
+  border-radius: 50%; opacity: 0.6; animation: welcome-spin linear infinite;
+}
+.welcome-orbit__path--a { width: 90px; height: 90px; margin: -45px; animation-duration: 7s; }
+.welcome-orbit__path--b { width: 146px; height: 146px; margin: -73px; animation-duration: 13s; }
+.welcome-orbit__path i {
+  position: absolute; top: -5px; left: 50%; width: 10px; height: 10px; margin-left: -5px;
+  border-radius: 50%; background: var(--accent-bright); display: block;
+}
+@keyframes welcome-spin { to { transform: rotate(360deg); } }
+
+.welcome-cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.welcome-btn:hover { transform: translateY(-1px); }
+.welcome-btn--small {
+  min-height: var(--control-h-sm);
+  padding: var(--btn-pad-sm);
+  font-size: var(--fs-sm);
+}
+
+.welcome-features {
+  max-width: 980px; margin: 56px auto 0; display: grid; gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+.welcome-card { padding: var(--space-5); }
+.welcome-card__icon { display: inline-flex; color: var(--accent-bright); }
+.welcome-card__icon svg { width: 28px; height: 28px; }
+.welcome-card h2 { font-size: 16px; margin: 10px 0 6px; }
+.welcome-card p { font-size: 13px; color: var(--text-dim); line-height: 1.55; margin: 0; }
+
+.welcome-play { max-width: 760px; margin: 64px auto 0; text-align: center; }
+.welcome-play h2 { font-size: 22px; margin-bottom: 4px; }
+.welcome-play p { color: var(--text-dim); font-size: 14px; margin-top: 0; }
+.welcome-playground { margin-top: 14px; }
+.welcome-playground__canvas {
+  width: 100%; height: 260px; display: block; border-radius: 8px;
+  background: var(--bg-surface); border: 1px solid var(--card-border);
+  cursor: crosshair; touch-action: none;
+}
+.welcome-playground__controls {
+  display: flex; gap: 12px; align-items: center; justify-content: center;
+  flex-wrap: wrap; margin-top: 10px; font-size: 13px; color: var(--text-dim);
+}
+.welcome-playground__controls input[type="range"] { width: 200px; }
+.welcome-playground__hint { font-size: 12px; opacity: 0.8; }
+
+.welcome-foot { max-width: 640px; margin: 72px auto 0; text-align: center; }
+.welcome-foot p { color: var(--text-dim); font-size: 14px; }
+
+.welcome-reveal { opacity: 0; transform: translateY(14px); transition: opacity 0.5s ease, transform 0.5s ease; }
+.welcome-reveal.is-on { opacity: 1; transform: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .welcome-orbit__path { animation: none; }
+  .welcome-reveal { opacity: 1; transform: none; transition: none; }
+  .welcome-btn { transition: none; }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PLATFORM SCREENS — the stated minimum viewport is 1024px.
+   These screens (admin, classes, profile, auth) had zero responsive
+   handling and are the ones most likely to open on a Chromebook.
+
+   Placement note: this block MUST stay after the admin/classes base rules
+   (.admin-header, .admin-body, .classes-header, .classes-body, .classes-wall
+   — see "Admin console (Plan 2)" / "Classes (Plan 3)" further up the file).
+   Those base rules are unconditional (no media query) and equal-specificity,
+   so CSS resolves the conflict by source order — if this block sits above
+   them, they win outright and every rule below except .admin-tabs becomes
+   dead code, even while the media query matches. Keep this at (or below) the
+   end of the file, never above the admin/classes selector definitions.
+   ═══════════════════════════════════════════════════════════ */
+@media (max-width: 1024px) {
+  .admin-header,
+  .admin-body,
+  .classes-header,
+  .classes-body { padding-left: var(--space-4, 16px); padding-right: var(--space-4, 16px); }
+  .classes-wall { grid-template-columns: 1fr; }
+  .admin-tabs   { overflow-x: auto; }
+  .auth-card    { width: min(100%, 420px); }
+}
+

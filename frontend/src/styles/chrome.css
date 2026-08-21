@@ -1,0 +1,493 @@
+/* ═══════════════════════════════════════════════════════════
+   APP HEADER — one 44px bar replacing the fake titlebar and the
+   flat toolbar. Identity on the left, three action zones, account
+   on the right. Reclaims 30px and kills the triple mode label.
+   ═══════════════════════════════════════════════════════════ */
+.app-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+  padding: 0 var(--space-2, 8px);
+  height: var(--header-h);
+  min-height: var(--header-h);
+  background: var(--bg-titlebar);
+  border-bottom: 1px solid var(--border);
+  z-index: 50;
+  user-select: none;
+}
+.app-header__identity {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1, 4px);
+  min-width: 0;
+  flex: 0 1 auto;
+}
+.app-header__zone {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
+}
+/* The primary zone takes the slack, so Run sits near the optical centre. */
+.app-header__zone--primary { flex: 1 1 auto; justify-content: center; }
+.app-header__zone--view    { margin-left: auto; }
+.app-header__account       { flex: 0 0 auto; margin-left: var(--space-1, 4px); }
+.app-header__sep {
+  width: 1px;
+  height: 18px;
+  background: var(--border);
+  opacity: 0.6;
+  margin: 0 var(--space-1, 4px);
+  flex-shrink: 0;
+}
+
+/* ── The open project's name ── */
+.project-title {
+  max-width: 26ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--fs-md, 13px);
+  font-weight: 500;
+  color: var(--text-bright);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius, 4px);
+  padding: 3px 6px;
+  cursor: text;
+}
+.project-title:hover { background: var(--bg-hover); border-color: var(--border); }
+.project-title--empty { color: var(--text-muted); font-style: italic; cursor: default; }
+.project-title--empty:hover { background: transparent; border-color: transparent; }
+.project-title-input {
+  width: 26ch;
+  font: inherit;
+  font-size: var(--fs-md, 13px);
+  font-weight: 500;
+  color: var(--text-bright);
+  background: var(--bg-input);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius, 4px);
+  padding: 3px 6px;
+}
+
+/* Run is already the filled primary (Plan 1 Task 6). Its shortcut chip just
+   needs to sit on that fill instead of on the bar. */
+.tb-btn--run .tb-kbd {
+  color: var(--on-accent);
+  background: color-mix(in srgb, var(--on-accent) 14%, transparent);
+  border-color: color-mix(in srgb, var(--on-accent) 22%, transparent);
+}
+.tb-btn--account { color: var(--text-dim); max-width: 18ch; }
+.tb-btn--account .tb-btn-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Stage 1 (<= 1280px): secondary controls become icons. Primary controls,
+   the project title and the account label keep their words. Save carries
+   .tb-btn--secondary too but is never collapsed here — it loses its label
+   only at stage 2 (below), where the tighter, zone-scoped rule applies. */
+.app-header--stage1 .tb-btn--secondary:not(.tb-btn--save) .tb-btn-label { display: none; }
+.app-header--stage1 .tb-btn--secondary { padding: 5px 7px; }
+.app-header--stage1 .project-title,
+.app-header--stage1 .project-title-input { max-width: 18ch; width: 18ch; }
+.app-header--stage1 .toolbar-logo-text { display: none; }
+
+/* Stage 2 (<= 1120px): the overflow menu carries what no longer fits. */
+.tb-btn--overflow { padding: 5px 7px; }
+.app-header--stage2 .tb-btn--account .tb-btn-label { display: none; }
+.app-header--stage2 .app-header__zone--file .tb-btn--secondary .tb-btn-label { display: none; }
+
+/* ═══════════════════════════════════════════════════════════
+   APP SHELL (VS Code layout)
+   ═══════════════════════════════════════════════════════════ */
+.app-shell {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   TOOLBAR (VS Code Menu Bar style)
+   ═══════════════════════════════════════════════════════════ */
+.toolbar-logo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--accent);
+  padding: 0 8px 0 4px;
+}
+.toolbar-logo-text {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+  color: var(--text-bright);
+}
+.toolbar-logo-text span {
+  color: var(--text-dim);
+  font-weight: 400;
+}
+
+/* ── Toolbar Buttons (VS Code menu-bar items) ─────────── */
+.tb-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-regular);
+  color: var(--text-dim);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast),
+              border-color var(--transition-fast);
+  white-space: nowrap;
+  line-height: 1;
+}
+.tb-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-bright);
+}
+.tb-btn:active {
+  background: var(--bg-active);
+}
+.tb-btn svg {
+  opacity: 0.85;
+  flex-shrink: 0;
+}
+.tb-btn-label {
+  font-size: var(--fs-sm);
+}
+
+/* Shortcut chip shown inline on a toolbar action */
+.tb-kbd {
+  font-family: var(--mono);
+  font-size: var(--fs-2xs, 10px);
+  line-height: 1;
+  padding: 2px 4px;
+  margin-left: 2px;
+  color: var(--text-muted);
+  background: var(--key-bg);
+  border: 1px solid var(--key-border);
+  border-radius: var(--radius-sm, 3px);
+}
+.tb-btn:hover .tb-kbd { color: var(--text-dim); }
+
+/* Icon-only buttons */
+.tb-btn--icon {
+  padding: var(--space-1) 5px;
+}
+
+/* Navigation buttons */
+.tb-btn--nav { color: var(--text-dim); }
+.tb-btn--nav:hover { color: var(--text-bright); }
+
+/* Run — the IDE core's one filled primary action. */
+.tb-btn--run {
+  padding: var(--space-1) var(--space-3);
+  background: var(--btn-primary-bg);
+  border-color: var(--btn-primary-bg);
+  color: var(--on-accent);
+  font-weight: var(--fw-semibold);
+}
+.tb-btn--run:hover {
+  background: var(--btn-primary-bg-hover);
+  border-color: var(--btn-primary-bg-hover);
+  color: var(--on-accent);
+}
+.tb-btn--run svg { opacity: 1; }
+
+/* Stop — destructive weight only while a run is actually stoppable. */
+.tb-btn--stop {
+  color: var(--red);
+  border-color: color-mix(in srgb, var(--red) 45%, transparent);
+}
+.tb-btn--stop:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--red) 12%, transparent);
+  border-color: var(--red);
+  color: var(--red);
+}
+.tb-btn--stop:disabled,
+.tb-btn--stop.tb-btn--disabled {
+  opacity: 0.35;
+  border-color: transparent;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Subtle (reset) */
+.tb-btn--subtle {
+  color: var(--text-dim);
+}
+.tb-btn--subtle:hover {
+  color: var(--text);
+}
+/* Active state — e.g. beginner mode engaged */
+.tb-btn--active {
+  color: var(--accent-blue) !important;
+  background: color-mix(in srgb, var(--accent-blue) 12%, transparent);
+}
+
+/* Danger (clear / trash) */
+.tb-btn--danger {
+  color: var(--text-dim);
+}
+.tb-btn--danger:hover {
+  color: var(--red);
+  background: color-mix(in srgb, var(--red) 8%, transparent);
+}
+
+/* Theme toggle */
+.tb-btn--theme {
+  padding: 4px 6px;
+  color: var(--text-dim);
+}
+.tb-btn--theme:hover { color: var(--yellow); }
+
+/* ── Dropdown Menu ────────────────────────────────────── */
+.tb-dropdown {
+  position: relative;
+  display: inline-flex;
+}
+.tb-btn--dropdown {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text);
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.tb-btn--dropdown:hover {
+  background: var(--bg-hover);
+}
+.tb-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 220px;
+  padding: 4px 0;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-hl);
+  border-radius: 6px;
+  box-shadow: var(--shadow-lg);
+  z-index: 200;
+  animation: tb-dropdown-in 0.1s ease-out;
+}
+.tb-dropdown-menu--right {
+  left: auto;
+  right: 0;
+}
+@keyframes tb-dropdown-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.tb-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 12px;
+  font-size: 12px;
+  color: var(--text);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.1s;
+}
+.tb-dropdown-item:hover {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.tb-dropdown-item:hover svg {
+  opacity: 1;
+}
+.tb-dropdown-item svg {
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+.tb-dropdown-shortcut {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--text-muted);
+  font-family: var(--mono);
+}
+.tb-dropdown-item:hover .tb-dropdown-shortcut {
+  color: color-mix(in srgb, var(--on-accent) 70%, transparent);
+}
+.tb-dropdown-divider {
+  height: 1px;
+  margin: 4px 8px;
+  background: var(--border);
+}
+
+/* ── Zoom Slider ──────────────────────────────────────── */
+.tb-zoom {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 4px;
+}
+.tb-zoom-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 80px;
+  height: 3px;
+  background: var(--border);
+  border-radius: 2px;
+  cursor: pointer;
+}
+.tb-zoom-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: none;
+  transition: transform 0.1s;
+}
+.tb-zoom-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.25);
+}
+.tb-zoom-slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: none;
+}
+.tb-zoom-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  min-width: 32px;
+  text-align: center;
+  font-family: var(--mono);
+}
+
+/* ── Mode Toggle (VS Code tab bar style) ──────────────── */
+.mode-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+}
+.mode-toggle button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-dim);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: color var(--transition), border-color var(--transition);
+}
+.mode-toggle button:hover {
+  color: var(--text);
+}
+.mode-toggle .active {
+  color: var(--text-bright) !important;
+  border-bottom-color: var(--accent) !important;
+  font-weight: 500;
+}
+.mode-toggle .mode-toggle--disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   STATUS BAR
+   ═══════════════════════════════════════════════════════════ */
+.status-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3, 12px);
+  padding: 0 var(--space-3, 12px);
+  height: var(--statusbar-h);
+  min-height: var(--statusbar-h);
+  font-size: var(--fs-xs, 11px);
+  color: var(--text-dim);
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border);
+  user-select: none;
+  z-index: 50;
+}
+.status-bar span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--fs-xs, 11px);
+}
+.status-bar__project {
+  max-width: 28ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+}
+.status-bar__spacer { flex: 1; }
+.status-bar__engine { color: var(--text-muted); font-family: var(--mono); }
+
+.console-bar {
+  padding: 0;
+  font-size: var(--fs-xs, 11px);
+  font-family: var(--mono);
+  color: var(--text-dim);
+  background: transparent;
+  border: none;
+}
+.console-bar--error   { color: var(--red); }
+.console-bar--success { color: var(--green); }
+.console-bar--running { color: var(--accent); font-weight: 500; }
+
+.run-error-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+  padding: var(--space-2, 8px) var(--space-3, 12px);
+  font-size: var(--fs-sm, 12px);
+  color: var(--red);
+  background: color-mix(in srgb, var(--red) 12%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--red) 35%, transparent);
+}
+.run-error-banner__text {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--mono);
+  overflow-wrap: anywhere;
+  max-height: 4.5em;
+  overflow-y: auto;
+}
+.run-error-banner svg { flex-shrink: 0; }
+
+.status-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-bright);
+  flex-shrink: 0;
+  animation: statusPulse 1.2s ease infinite;
+}
+@keyframes statusPulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.3; }
+}
+

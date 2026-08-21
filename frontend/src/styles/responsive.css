@@ -1,0 +1,66 @@
+/* ═══════════════════════════════════════════════════════════
+   COARSE POINTER — "does not break on a tablet".
+   Not full touch support: no gestures, no touch-specific UI. Just targets
+   a finger can actually hit and dividers a finger can actually grab.
+   ═══════════════════════════════════════════════════════════ */
+@media (pointer: coarse) {
+  .tb-btn        { padding: 8px 10px; min-height: 32px; }
+  .tb-btn--icon  { padding: 8px; min-width: 32px; }
+  .tb-dropdown-item { padding: 10px 12px; min-height: 36px; }
+
+  .pane-divider,
+  .dm-resize-handle {
+    width: 12px;
+    min-width: 12px;
+  }
+  .pane-divider::before,
+  .dm-resize-handle::before { left: -6px; right: -6px; }
+
+  .mode-toggle button    { min-height: 32px; }
+  .block-search-input    { min-height: 32px; }
+  .start-project-delete  { min-width: 28px; min-height: 28px; }
+  .project-title         { min-height: 24px; }
+}
+
+/* The dividers are focusable separators now. Plan 1's global :focus-visible
+   ring uses outline-offset, which on a 5px handle draws outside the hit area —
+   pull it inside for these two, using the same tokens. */
+.pane-divider:focus-visible,
+.dm-resize-handle:focus-visible {
+  outline: var(--focus-ring-width, 2px) solid var(--focus-ring-color, var(--accent-bright));
+  outline-offset: calc(-1 * var(--focus-ring-width, 2px));
+}
+
+/* ═══════════════════════════════════════════════════════════
+   RESPONSIVE
+   ═══════════════════════════════════════════════════════════ */
+@media (max-width: 800px) {
+  .main-layout { flex-direction: column; --split: auto; }
+  .editor-pane {
+    flex: 1 1 auto;
+    max-width: 100%;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    max-height: 55vh;
+  }
+  .pane-divider {
+    width: auto;
+    min-width: 0;
+    height: 5px;
+    min-height: 5px;
+    cursor: row-resize;
+  }
+  .pane-divider::before { left: 0; right: 0; top: -4px; bottom: -4px; }
+  .start-menu { flex-direction: column; }
+  .start-sidebar { width: 100%; border-right: none; border-bottom: 1px solid var(--border); }
+  .start-grid { grid-template-columns: 1fr; }
+  .start-content { padding: 24px 16px 40px; }
+
+  .help-shell { width: 98vw; max-height: 96vh; border-radius: 8px; }
+  .help-sidebar { display: none; }
+  .help-content { padding: 0 16px 32px; }
+  .help-arch-grid { grid-template-columns: 1fr; }
+  .help-block-row { grid-template-columns: 1fr; }
+  .help-block-name { border-right: none; border-bottom: 1px solid var(--border); }
+}
+

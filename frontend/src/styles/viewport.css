@@ -1,0 +1,166 @@
+/* ═══════════════════════════════════════════════════════════
+   CANVAS / GLOWSCRIPT
+   ═══════════════════════════════════════════════════════════ */
+.glow-host {
+  width: 100%;
+  flex: 1;
+  min-height: 300px;
+}
+
+/* Idle viewport */
+.canvas-idle {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+  pointer-events: none;
+  background: var(--canvas-bg);
+}
+.canvas-idle-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  max-width: 320px;
+  text-align: center;
+}
+.canvas-idle-atom {
+  width: 48px;
+  height: 48px;
+  color: var(--accent);
+  opacity: 0.35;
+}
+.canvas-idle-label {
+  font-size: var(--label-fs);
+  font-weight: var(--label-weight);
+  text-transform: var(--label-transform);
+  letter-spacing: var(--label-tracking);
+  color: var(--text-dim);
+  margin: 0;
+}
+.canvas-idle-hint {
+  font-size: var(--fs-md);
+  line-height: var(--lh-normal);
+  color: var(--text);
+  margin: 0;
+  text-align: center;
+}
+.canvas-idle-hint strong {
+  color: var(--accent-bright);
+  font-weight: var(--fw-semibold);
+}
+
+.canvas-controls-hint {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  z-index: 2;
+  pointer-events: none;
+  font-size: var(--fs-xs);
+  font-family: var(--mono);
+  color: var(--text-dim);
+  background: color-mix(in srgb, var(--bg-panel) 80%, transparent);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  padding: 5px 8px;
+  opacity: 0.9;
+}
+
+/* ── Viewport camera cluster ── */
+.canvas-controls {
+  position: absolute;
+  top: var(--space-2, 8px);
+  right: var(--space-2, 8px);
+  z-index: 3;
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  background: color-mix(in srgb, var(--bg-surface) 88%, transparent);
+  border: 1px solid var(--border);
+  border-radius: var(--radius, 6px);
+  box-shadow: var(--shadow);
+}
+.canvas-control {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  color: var(--text-dim);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm, 4px);
+  cursor: pointer;
+  transition: color var(--transition), background var(--transition);
+}
+.canvas-control:hover:not(:disabled) { color: var(--text-bright); background: var(--bg-hover); }
+.canvas-control:disabled { opacity: 0.4; cursor: default; }
+@media (pointer: coarse) { .canvas-control { width: 32px; height: 32px; } }
+
+/* ── Authored scene title / caption ── */
+.canvas-caption {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-2, 8px) var(--space-3, 12px);
+  font-size: var(--fs-sm, 12px);
+  color: var(--text-dim);
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border);
+  max-height: 5.5em;
+  overflow-y: auto;
+}
+.canvas-caption strong { color: var(--text); font-weight: 600; }
+
+.canvas-wrap {
+  flex: 1;
+  overflow: hidden;
+  background: var(--canvas-bg);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+/* Viewport always fills remaining space */
+.canvas-viewport {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+/* ── Boot acknowledgement — the gap between Run and the first frame ── */
+.canvas-booting {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3, 12px);
+  background: color-mix(in srgb, var(--canvas-bg) 82%, transparent);
+  pointer-events: none;
+}
+.canvas-booting__spinner {
+  width: 28px;
+  height: 28px;
+  border: 2px solid var(--border-hl);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: canvas-boot-spin 800ms linear infinite;
+}
+.canvas-booting__label {
+  font-size: var(--fs-md, 13px);
+  color: var(--text-dim);
+}
+@keyframes canvas-boot-spin { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .canvas-booting__spinner { animation: none; border-top-color: var(--accent); }
+}
