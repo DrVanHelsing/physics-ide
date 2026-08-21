@@ -571,7 +571,11 @@ export function getRuntimeScene() {
   }
 }
 
-/** Re-theme a RUNNING simulation in place. No reload, no lost run. */
+/** Re-theme a RUNNING simulation in place. No reload, no lost run.
+ *  The background-recolor branch reads the scene via getRuntimeScene() rather
+ *  than win.scene directly — win.scene is never set on the compiled runtime
+ *  (see getRuntimeScene's comment), so this branch was previously dead code
+ *  that always skipped silently. */
 export function applyRuntimeTheme(isDark) {
   const win = getRuntimeWindow();
   if (!win) return false;
@@ -579,7 +583,7 @@ export function applyRuntimeTheme(isDark) {
   try {
     const styleEl = win.document.getElementById("physide-theme");
     if (styleEl) styleEl.textContent = viewportStyleText(theme);
-    const scene = win.scene;
+    const scene = getRuntimeScene();
     if (scene && typeof win.vec === "function") {
       const n = (h) => parseInt(h, 16) / 255;
       scene.background = win.vec(n(theme.bg.slice(1, 3)), n(theme.bg.slice(3, 5)), n(theme.bg.slice(5, 7)));
@@ -593,13 +597,17 @@ export function applyRuntimeTheme(isDark) {
 
 /** Reallocate the drawing buffer for a new CSS size at the display's pixel
  *  ratio. Without this the buffer is merely stretched on every divider drag,
- *  and a 1.25x Chromebook renders every simulation soft. */
+ *  and a 1.25x Chromebook renders every simulation soft.
+ *  The "preferred path" below reads the scene via getRuntimeScene() rather
+ *  than win.scene directly, for the same reason as applyRuntimeTheme: win.scene
+ *  is never set on the compiled runtime, so this branch was previously dead
+ *  and every resize fell through to the manual canvas.width/height path. */
 export function resizeRuntimeCanvas(cssWidth, cssHeight, dpr = window.devicePixelRatio || 1) {
   const win = getRuntimeWindow();
   const canvas = getRuntimeCanvas();
   if (!win || !canvas || cssWidth < 1 || cssHeight < 1) return false;
   try {
-    const scene = win.scene;
+    const scene = getRuntimeScene();
     if (scene && typeof scene.width === "number") {
       /* Preferred path: GlowScript owns the buffer and reallocates properly. */
       scene.width = Math.round(cssWidth);

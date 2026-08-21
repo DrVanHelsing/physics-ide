@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { CrosshairIcon, ScanIcon, FullscreenIcon, CameraIcon } from "./Icons";
 import { getRuntimeWindow, getRuntimeScene, captureRuntimeCanvas } from "../utils/runner/glowRunner";
+import { isUniformImageData } from "../utils/image";
 
 /**
  * Overlay camera cluster. Before this, recovering a camera that had been spun
@@ -17,13 +18,43 @@ import { getRuntimeWindow, getRuntimeScene, captureRuntimeCanvas } from "../util
  * window.__context.canvas_selected instead. forward/up/autoscale read/write
  * and window.vec all behaved as expected once resolved that way.
  */
+/** Resolve a data URL against the 32x32 blank-frame probe (same pattern as
+ *  useExport.js's screenshot verification): returns true only when the pixels
+ *  are not a uniform/blank rectangle. */
+function verifyNonBlank(dataUrl) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const probe = document.createElement("canvas");
+        probe.width = 32;
+        probe.height = 32;
+        const ctx = probe.getContext("2d");
+        ctx.drawImage(img, 0, 0, 32, 32);
+        resolve(!isUniformImageData(ctx.getImageData(0, 0, 32, 32).data));
+      } catch {
+        resolve(false);
+      }
+    };
+    img.onerror = () => resolve(false);
+    img.src = dataUrl;
+  });
+}
+
+/** Runs `fn(scene, win)` only when the scene exists, and reports whether the
+ *  action actually took effect: a thrown error or an explicit `false` return
+ *  from `fn` both count as failure (an undefined return is only treated as
+ *  success where the action genuinely has no partial-capability branch to
+ *  verify — e.g. Fit scene, which has nothing further it could fail to do
+ *  once `scene` exists). This is what keeps a partial-load race — scene
+ *  present but win.vec not yet defined — from reporting success while doing
+ *  nothing (Reset camera hits exactly this race). */
 function withScene(fn) {
   const win = getRuntimeWindow();
   const scene = getRuntimeScene();
   if (!win || !scene) return false;
   try {
-    fn(scene, win);
-    return true;
+    return fn(scene, win) !== false;
   } catch (err) {
     console.warn("Viewport control failed:", err);
     return false;
@@ -57,10 +88,10 @@ export default function ViewportControls({ running, hostRef, onStatus }) {
       label: "Reset camera",
       run: () =>
         withScene((scene, win) => {
-          if (typeof win.vec === "function") {
-            scene.forward = win.vec(0, 0, -1);
-            scene.up = win.vec(0, 1, 0);
-          }
+          if (typeof win.vec !== "function") return false;
+          scene.forward = win.vec(0, 0, -1);
+          scene.up = win.vec(0, 1, 0);
+          return true;
         }),
     },
     {
@@ -88,6 +119,7 @@ export default function ViewportControls({ running, hostRef, onStatus }) {
       run: async () => {
         const url = await captureRuntimeCanvas();
         if (!url) return false;
+        if (!(await verifyNonBlank(url))) return false;
         const w = window.open();
         if (w) w.document.write(`<img src="${url}" alt="Simulation snapshot" style="max-width:100%">`);
         return Boolean(w);
