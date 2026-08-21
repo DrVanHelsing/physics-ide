@@ -10,6 +10,7 @@ import { SearchIcon, XIcon, MaximizeIcon } from "./Icons";
 import * as dialogService from "../utils/export/dialogService";
 import { buildToolboxXml } from "../utils/blockly/toolbox";
 import { getBlocklyTheme, gridColourFor } from "../utils/blockly/blocklyTheme";
+import { BLOCK_PALETTE } from "../utils/blockly/blockPalette";
 
 /* ── Block search bar component ────────────────────────── */
 function BlockSearch({ workspaceRef }) {
@@ -287,6 +288,24 @@ function resizeBlocklyWorkspace(Blockly, workspace) {
   }
 }
 
+/* ── MakeCode rail: stamp each toolbox row's category colour ─────
+   Blockly paints .blocklyTreeSelected from the category style
+   automatically, but the row's own div needs --cat / --cat-bright
+   custom properties for the CSS in workspace.css (dot colour, hover,
+   selected fill) to read. Runs after every inject and after every
+   updateToolbox (goal switch rebuilds the toolbox items). */
+function decorateToolboxRows(workspace) {
+  const toolbox = workspace?.getToolbox?.();
+  if (!toolbox) return;
+  for (const item of toolbox.getToolboxItems()) {
+    const entry = BLOCK_PALETTE[item.getName?.()];
+    const div = item.getDiv?.();
+    if (!entry || !div) continue;
+    div.style.setProperty("--cat", `var(--cat-${entry.slug})`);
+    div.style.setProperty("--cat-bright", `var(--cat-${entry.slug}-bright)`);
+  }
+}
+
 function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, onBlockCountChange, onScaleChange, isDark, goal = "physics" }) {
   const hostRef = useRef(null);
   const workspaceRef = useRef(null);
@@ -362,6 +381,7 @@ function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, onB
 
     workspaceRef.current = workspace;
     onReadyRef.current(workspace);
+    decorateToolboxRows(workspace);
 
     // Restore saved XML
     const xml = initialXmlRef.current;
@@ -487,6 +507,7 @@ function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, onB
     if (!ws) return;
     try {
       ws.updateToolbox(buildToolboxXml(goal));
+      decorateToolboxRows(ws);
       disableOrphanedBlocks(ws, goal);
     } catch (e) {
       console.warn("BlocklyWorkspace: could not rebuild toolbox for goal", goal, e);
@@ -539,6 +560,7 @@ function ReadOnlyBlockly({ xml, isDark, breakpoints, onBlockClick, executingBloc
       media: "/blockly-media/",
     });
     wsRef.current = ws;
+    decorateToolboxRows(ws);
 
     if (xml) {
       try {

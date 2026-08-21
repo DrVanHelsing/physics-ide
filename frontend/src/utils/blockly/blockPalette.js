@@ -282,9 +282,12 @@ function brightFor(name) {
 }
 
 function paletteCssText() {
+  // Each entry's two declaration lines join with a single ";\n  " — no
+  // trailing ";" on the entry itself, so joining entries (and the final
+  // ";" added by the :root wrapper below) never doubles up.
   const vars = CATEGORY_NAMES.map((name) => {
     const entry = BLOCK_PALETTE[name];
-    return `${cssVarFor(name)}: ${entry.fill};\n  ${cssVarFor(name)}-bright: ${entry.bright};`;
+    return `${cssVarFor(name)}: ${entry.fill};\n  ${cssVarFor(name)}-bright: ${entry.bright}`;
   }).join(";\n  ");
   return `:root {\n  ${vars};\n}`;
 }

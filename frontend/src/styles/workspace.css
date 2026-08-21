@@ -293,30 +293,50 @@
   padding: 4px 0 !important;
   width: 180px !important;
 }
+/* MakeCode-style rail rows: a coloured dot (--cat-bright, stamped per-row
+   by decorateToolboxRows in BlocklyWorkspace.js) plus a pill that fills
+   with the category colour (--cat) when selected. */
 .blocklyTreeRow {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
   height: auto !important;
   padding: 5px 10px 5px 14px !important;
   margin: 1px 4px !important;
-  border-radius: 4px !important;
+  border-radius: var(--radius) !important;
   line-height: 1.4 !important;
   transition: background 100ms ease !important;
+}
+.blocklyTreeRow::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--cat-bright, var(--text-dim));
 }
 .blocklyTreeRow:hover {
   background: var(--bg-hover) !important;
 }
 .blocklyTreeSelected {
-  background: var(--accent) !important;
-  border-radius: 4px !important;
+  background: var(--cat, var(--accent)) !important;
+  border-radius: var(--radius) !important;
+}
+/* Same specificity as .blocklyTreeRow:hover (one class + one pseudo-class) —
+   wins the tie by coming later in the source, so hovering the already-
+   selected row keeps its category fill instead of dropping to hover grey. */
+.blocklyTreeSelected:hover {
+  background: var(--cat, var(--accent)) !important;
 }
 .blocklyTreeLabel {
   font-size: 12px !important;
   font-family: var(--font) !important;
-  font-weight: 400 !important;
+  font-weight: 500 !important;
   color: var(--text) !important;
 }
 .blocklyTreeSelected .blocklyTreeLabel {
-  color: var(--on-accent) !important;
-  font-weight: 500 !important;
+  color: #fff !important;
+  font-weight: 600 !important;
 }
 .blocklyTreeSeparator {
   border-bottom: 1px solid var(--border) !important;
