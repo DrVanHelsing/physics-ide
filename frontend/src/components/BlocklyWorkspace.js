@@ -5,7 +5,7 @@ import {
   BLOCK_CATALOGUE,
   customConstantsRegistry,
 } from "../utils/blockly/blocklyGenerator";
-import { SearchIcon, XIcon } from "./Icons";
+import { SearchIcon, XIcon, MaximizeIcon } from "./Icons";
 import * as dialogService from "../utils/export/dialogService";
 import { buildToolboxXml } from "../utils/blockly/toolbox";
 
@@ -52,8 +52,41 @@ function BlockSearch({ workspaceRef }) {
     } catch (e) { /* ignore toolbox API differences */ }
   }
 
+  /**
+   * Create the matched block at the centre of the current view and select it.
+   * Falls back to opening its category — the old behaviour — when the block
+   * cannot be constructed (a registry entry with no generator definition, or a
+   * stock Blockly block that needs flyout context).
+   */
+  function insertBlock(item) {
+    const ws = workspaceRef.current;
+    const Blockly = window.Blockly;
+    if (!ws || !Blockly) return false;
+    try {
+      const dom = Blockly.utils.xml.textToDom(
+        `<xml xmlns="https://developers.google.com/blockly/xml"><block type="${item.type}"></block></xml>`,
+      );
+      const ids = Blockly.Xml.domToWorkspace(dom, ws);
+      const block = ids && ids.length ? ws.getBlockById(ids[ids.length - 1]) : null;
+      if (!block) return false;
+
+      const metrics = ws.getMetricsManager?.().getViewMetrics(true);
+      if (metrics) {
+        const xy = block.getRelativeToSurfaceXY();
+        block.moveBy(
+          metrics.left + metrics.width / 2 - xy.x - 40,
+          metrics.top + metrics.height / 2 - xy.y - 20,
+        );
+      }
+      block.select();
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
   return (
-    <div className="block-search">
+    <div className="block-search block-search--with-fit">
       <div className="block-search-bar">
         <SearchIcon size={12} />
         <input
@@ -70,6 +103,25 @@ function BlockSearch({ workspaceRef }) {
           <button className="block-search-clear" onClick={() => setQuery("")} tabIndex={-1}><XIcon size={10} /></button>
         )}
       </div>
+      <button
+        type="button"
+        className="block-search-fit"
+        title="Fit all blocks on screen"
+        aria-label="Fit all blocks on screen"
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={() => {
+          const ws = workspaceRef.current;
+          if (!ws) return;
+          try {
+            ws.zoomToFit();
+            ws.scrollCenter();
+          } catch (e) {
+            console.warn("Could not fit blocks to view:", e);
+          }
+        }}
+      >
+        <MaximizeIcon size={12} />
+      </button>
       {open && query && (
         <div className="block-search-dropdown">
           {results.length > 0
@@ -77,7 +129,11 @@ function BlockSearch({ workspaceRef }) {
                 <button
                   key={item.type + item.category}
                   className="block-search-item"
-                  onMouseDown={() => { openCategory(item.category); setQuery(""); setOpen(false); }}
+                  onMouseDown={() => {
+                    if (!insertBlock(item)) openCategory(item.category);
+                    setQuery("");
+                    setOpen(false);
+                  }}
                 >
                   <span className="block-search-item-label">{item.label}</span>
                   <span className="block-search-item-cat">{item.category}</span>
@@ -281,7 +337,7 @@ function resizeBlocklyWorkspace(Blockly, workspace) {
   }
 }
 
-function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, onBlockCountChange, isDark, goal = "physics" }) {
+function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, onBlockCountChange, onScaleChange, isDark, goal = "physics" }) {
   const hostRef = useRef(null);
   const workspaceRef = useRef(null);
   const [loadError, setLoadError] = useState("");
@@ -295,6 +351,9 @@ function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, onB
   goalRef.current = goal;
   const onCountRef = useRef(onBlockCountChange);
   onCountRef.current = onBlockCountChange;
+  const onScaleRef = useRef(onScaleChange);
+  onScaleRef.current = onScaleChange;
+  const lastScaleRef = useRef(null);
 
   /* ── One-time workspace setup ──────────────────────────── */
   useEffect(() => {
@@ -365,11 +424,18 @@ function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, onB
     let normalizing = false;
     const listener = (event) => {
       try {
-        if (
-          event.type === Blockly.Events.UI ||
-          event.type === Blockly.Events.VIEWPORT_CHANGE ||
-          event.type === "block_drag"
-        ) {
+        if (event.type === Blockly.Events.VIEWPORT_CHANGE) {
+          /* Wheel zoom is a real zoom — report it so the toolbar readout
+             stops claiming a fixed 90%. Rounded, and compared before
+             emitting, so setScale → VIEWPORT_CHANGE → setScale cannot loop. */
+          const pct = Math.round(workspace.getScale() * 100);
+          if (pct !== lastScaleRef.current) {
+            lastScaleRef.current = pct;
+            onScaleRef.current?.(pct);
+          }
+          return;
+        }
+        if (event.type === Blockly.Events.UI || event.type === "block_drag") {
           return;
         }
 
