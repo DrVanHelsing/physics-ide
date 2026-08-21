@@ -24,15 +24,14 @@ export { instrumentPythonForDebug };
  *  hardcode "VPython 3.2" with nothing keeping the two in step). */
 export const GLOWSCRIPT_VERSION = "3.2";
 
-const GLOWSCRIPT_SCRIPTS = {
-  jquery: "https://cdn.jsdelivr.net/npm/jquery@2.1.4/dist/jquery.min.js",
-  jqueryTextChange:
-    "https://www.glowscript.org/lib/jquery/IDE/jquery.textchange.custom.js",
-  jqueryUi:
-    "https://www.glowscript.org/lib/jquery/IDE/jquery-ui.custom.min.js",
-  glow: `https://www.glowscript.org/package/glow.${GLOWSCRIPT_VERSION}.min.js`,
-  compiler: `https://www.glowscript.org/package/RScompiler.${GLOWSCRIPT_VERSION}.min.js`,
-  run: `https://www.glowscript.org/package/RSrun.${GLOWSCRIPT_VERSION}.min.js`,
+const VENDOR_BASE = "/vendor/glowscript";
+export const GLOWSCRIPT_SCRIPTS = {
+  jquery: `${VENDOR_BASE}/jquery.min.js`,
+  jqueryTextChange: `${VENDOR_BASE}/jquery.textchange.custom.js`,
+  jqueryUi: `${VENDOR_BASE}/jquery-ui.custom.min.js`,
+  glow: `${VENDOR_BASE}/glow.${GLOWSCRIPT_VERSION}.min.js`,
+  compiler: `${VENDOR_BASE}/RScompiler.${GLOWSCRIPT_VERSION}.min.js`,
+  run: `${VENDOR_BASE}/RSrun.${GLOWSCRIPT_VERSION}.min.js`,
 };
 
 function normalizeScriptUrl(url) {
