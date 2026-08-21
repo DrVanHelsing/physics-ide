@@ -442,9 +442,8 @@ export default function IDELayout() {
         onHelp={handleHelp}
         isDark={isDark}
         running={running}
+        booting={sim.booting}
         mode={mode}
-        zoom={blocklyZoom}
-        onZoomChange={sim.handleZoomChange}
         viewportHidden={viewportHidden}
         onToggleViewport={sim.handleToggleViewport}
         onDebugMode={dbg.handleEnterDebug}

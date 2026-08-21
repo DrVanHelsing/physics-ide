@@ -1,14 +1,24 @@
-import { describe, test, expect, vi, afterEach } from "vitest";
+import { describe, test, expect, vi, afterEach, beforeEach } from "vitest";
 import React from "react";
 import Toolbar from "../Toolbar";
 import { mountComponent, click, byText, byTitle, keyDown } from "../../test/renderHelpers";
+import { useMe } from "../../auth/useAuth";
 
 // HeaderAccount calls useMe() (TanStack Query) and useNavigate() (router) —
 // neither provider is mounted in this suite, so stub it out. Its own
 // behaviour is covered by components/auth/__tests__/HeaderAccount.test.js.
 vi.mock("../auth/HeaderAccount", () => ({ default: () => null }));
 
+// Toolbar itself now calls useMe() directly to resolve visibleControls()'s
+// `role`/`isTeacher` axes (Task 10) — same reason, same fix: no
+// QueryClientProvider is mounted in this bare-harness suite, so stub the
+// module HeaderAccount's own suite already stubs the same way.
+vi.mock("../../auth/useAuth", () => ({ useMe: vi.fn() }));
+
 let mounted = null;
+beforeEach(() => {
+  useMe.mockReturnValue({ data: null, isLoading: false });
+});
 afterEach(() => {
   mounted?.unmount();
   mounted = null;
@@ -35,14 +45,13 @@ function handlers() {
     onExportScreenshot: vi.fn(),
     onExportProject: vi.fn(),
     onCopyCode: vi.fn(),
-    onZoomChange: vi.fn(),
   };
 }
 
 function render(props = {}) {
   const h = handlers();
   mounted = mountComponent(
-    <Toolbar goal="physics" mode="blocks" running={false} isDark zoom={90} {...h} {...props} />,
+    <Toolbar goal="physics" mode="blocks" running={false} isDark {...h} {...props} />,
   );
   return { ...mounted, h };
 }
@@ -58,19 +67,28 @@ describe("Toolbar — navigation group", () => {
 });
 
 describe("Toolbar — simulation group", () => {
-  test("Run fires onRun; Stop is disabled while idle", () => {
+  test("Run fires onRun; Stop is absent while idle", () => {
     const { container, h } = render();
     click(byTitle(container, "Run simulation (Ctrl+Enter)"));
     expect(h.onRun).toHaveBeenCalledTimes(1);
-    expect(byText(container, "Stop").disabled).toBe(true);
+    expect(byText(container, "Stop")).toBeNull();
   });
 
-  test("Stop is enabled and wired while running", () => {
+  test("Stop is enabled and wired while running; Run is gone", () => {
     const { container, h } = render({ running: true });
+    expect(byText(container, "Run")).toBeNull();
     const stop = byText(container, "Stop");
     expect(stop.disabled).toBe(false);
     click(stop);
     expect(h.onStop).toHaveBeenCalledTimes(1);
+  });
+
+  test("booting shows both Run (disabled, acknowledged) and Stop", () => {
+    const { container } = render({ booting: true });
+    const run = byTitle(container, "Starting simulation…");
+    expect(run).not.toBeNull();
+    expect(run.disabled).toBe(true);
+    expect(byText(container, "Stop")).not.toBeNull();
   });
 
   test("a data-science project shows no simulation controls", () => {
@@ -78,6 +96,11 @@ describe("Toolbar — simulation group", () => {
     expect(byText(container, "Run")).toBeNull();
     expect(byText(container, "Stop")).toBeNull();
     expect(byText(container, "Debug")).toBeNull();
+  });
+
+  test("a data-science project shows no Run even while running", () => {
+    const { container } = render({ goal: "datascience", running: true });
+    expect(byText(container, "Run")).toBeNull();
   });
 });
 
@@ -97,23 +120,29 @@ describe("Toolbar — workspace group", () => {
 });
 
 describe("Toolbar — view group", () => {
-  test("zoom buttons step by 10 and clamp", () => {
-    const { container, h } = render({ zoom: 90 });
-    click(byTitle(container, "Zoom in"));
-    expect(h.onZoomChange).toHaveBeenLastCalledWith(100);
-    click(byTitle(container, "Zoom out"));
-    expect(h.onZoomChange).toHaveBeenLastCalledWith(80);
+  test("the zoom slider is gone — no configuration renders it", () => {
+    const blocks = render();
+    expect(blocks.container.querySelector(".tb-zoom")).toBeNull();
+    blocks.unmount();
+    mounted = null;
+
+    const code = render({ mode: "text" });
+    expect(code.container.querySelector(".tb-zoom")).toBeNull();
   });
 
-  test("the zoom slider is absent in code mode", () => {
-    const { container } = render({ mode: "text" });
-    expect(container.querySelector(".tb-zoom")).toBeNull();
-  });
-
-  test("viewport and debug toggles are wired", () => {
+  test("viewport toggle is wired", () => {
     const { container, h } = render();
     click(byTitle(container, "Hide 3D viewport"));
     expect(h.onToggleViewport).toHaveBeenCalledTimes(1);
+  });
+
+  test("debug toggle is hidden while idle and wired once a sim is live", () => {
+    const idle = render();
+    expect(byText(idle.container, "Debug")).toBeNull();
+    idle.unmount();
+    mounted = null;
+
+    const { container, h } = render({ running: true });
     click(byTitle(container, "Open Debug Mode — step-through, breakpoints, recording"));
     expect(h.onDebugMode).toHaveBeenCalledTimes(1);
   });
@@ -201,5 +230,19 @@ describe("Toolbar — theme toggle", () => {
     expect(h.onToggleTheme).toHaveBeenCalledTimes(1);
     mounted.rerender(<Toolbar goal="physics" mode="blocks" isDark={false} onToggleTheme={h.onToggleTheme} />);
     expect(byTitle(container, "Switch to dark mode")).not.toBeNull();
+  });
+});
+
+describe("Toolbar — role axis (guest vs. signed-in)", () => {
+  test("renders without crashing for a guest (useMe -> null)", () => {
+    useMe.mockReturnValue({ data: null, isLoading: false });
+    const { container } = render();
+    expect(container.querySelector(".app-header")).not.toBeNull();
+  });
+
+  test("renders without crashing for a signed-in user and a teacher", () => {
+    useMe.mockReturnValue({ data: { role: "user", isTeacher: true }, isLoading: false });
+    const { container } = render();
+    expect(container.querySelector(".app-header")).not.toBeNull();
   });
 });
