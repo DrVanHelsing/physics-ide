@@ -243,6 +243,7 @@ export function useProject() {
     renameProject,
     removeProject: proj.removeProject,
     closeProject: proj.closeProject,
+    noteExplicitOpen: proj.noteExplicitOpen,
     refreshList: proj.refreshList,
     applyManifestToWorkingState,
     captureWorkingStateInto,
