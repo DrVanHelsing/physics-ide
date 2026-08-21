@@ -617,7 +617,41 @@ export function applyRuntimeTheme(isDark) {
  *
  *  Real DPR-sharp rendering needs the runtime itself to scale its GL viewport
  *  by dpr, which stock GlowScript 3.2 does not do. That requires vendoring or
- *  patching the runtime script and is deferred to a later plan. */
+ *  patching the runtime script and is deferred to a later plan.
+ *
+ *  DPR-SHARP SPIKE (tried and reverted, Task 3 Step 7): hypothesis was that
+ *  since GlowScript's GL viewport tracks scene.width/height verbatim (see
+ *  above), setting scene.width/height = cssSize * dpr — instead of cssSize —
+ *  would size the buffer AND the GL viewport together at DPR scale with no
+ *  runtime patch, while `canvas { width/height: 100% !important }` kept the
+ *  element displayed at CSS size. Measured with e2e/hidpi-probe.mjs at
+ *  deviceScaleFactor 2: this DID work for rendering — buffer went from
+ *  715x762 to 1430x1524 (= css * dpr) and glViewport reported [0,0,1430,1524],
+ *  matching the buffer exactly (no render-desync; VERDICT: DPR-SAFE).
+ *
+ *  But mouse interaction broke. GlowScript maps pointer events (drag-rotate,
+ *  wheel-zoom's target point, and scene.mouse.pos/pick) into normalized scene
+ *  coordinates using canvas.width/height — the backing BUFFER — as the
+ *  divisor, not the CSS/clientWidth the events actually arrive in. At dpr=1
+ *  buffer==CSS size so this coincidentally works; once the buffer is 2x CSS
+ *  size, every pointer coordinate lands at HALF its intended normalized
+ *  position. Isolated, repeated measurement (e2e/dpr-pick-only-probe.mjs,
+ *  moving the real mouse to the exact same CSS-pixel canvas position, no
+ *  camera movement in between): scene.mouse.pos at canvas center was
+ *  (-0.025, 0, 0) — i.e. essentially the scene origin, correct — at dpr=1,
+ *  but (-9.01, 9.59, 0) at dpr=2 with the buffer scaled — nowhere near
+ *  center, in a scene with range ≈ 18. Moving the real cursor +100 CSS px
+ *  moved the picked world point by 5.03 world units at dpr=1 but only 2.52 at
+ *  dpr=2 — a ~0.5x sensitivity, the exact factor-of-dpr offset the task brief
+ *  flagged as the bail signal. This would desync drag-rotate, zoom-to-cursor,
+ *  and object picking for every user on a >1 dpr display. REVERTED: the two
+ *  edits (this function's preferred path, and the extra `canvas {}` rule in
+ *  viewportStyleText) were undone; resizeRuntimeCanvas is back to CSS-sized
+ *  scene.width/height. Real DPR-sharp rendering still needs the runtime
+ *  itself patched to scale both its GL viewport AND its pointer-mapping
+ *  divisor by dpr together — sizing the buffer alone from the outside cannot
+ *  fix this, because the same canvas.width the render path wants scaled is
+ *  the same value the input path reads to normalize the cursor. */
 export function resizeRuntimeCanvas(cssWidth, cssHeight, dpr = window.devicePixelRatio || 1) {
   const win = getRuntimeWindow();
   const canvas = getRuntimeCanvas();
@@ -629,7 +663,8 @@ export function resizeRuntimeCanvas(cssWidth, cssHeight, dpr = window.devicePixe
          scene.width/height directly in CSS px with no dpr multiply, so NOT
          touching canvas.width/height here is what keeps the viewport and the
          buffer in sync (see the function comment for the measured failure
-         mode when both were written). */
+         mode when both were written, and for the DPR-sharp spike that was
+         tried and reverted). */
       scene.width = Math.round(cssWidth);
       scene.height = Math.round(cssHeight);
       return true;
