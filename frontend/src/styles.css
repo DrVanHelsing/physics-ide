@@ -1111,22 +1111,69 @@ button {
   opacity: 0.9;
 }
 
+/* ── Viewport camera cluster ── */
+.canvas-controls {
+  position: absolute;
+  top: var(--space-2, 8px);
+  right: var(--space-2, 8px);
+  z-index: 3;
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  background: color-mix(in srgb, var(--bg-surface) 88%, transparent);
+  border: 1px solid var(--border);
+  border-radius: var(--radius, 6px);
+  box-shadow: var(--shadow);
+}
+.canvas-control {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  color: var(--text-dim);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm, 4px);
+  cursor: pointer;
+  transition: color var(--transition), background var(--transition);
+}
+.canvas-control:hover:not(:disabled) { color: var(--text-bright); background: var(--bg-hover); }
+.canvas-control:disabled { opacity: 0.4; cursor: default; }
+@media (pointer: coarse) { .canvas-control { width: 32px; height: 32px; } }
+
+/* ── Authored scene title / caption ── */
+.canvas-caption {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-2, 8px) var(--space-3, 12px);
+  font-size: var(--fs-sm, 12px);
+  color: var(--text-dim);
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border);
+  max-height: 5.5em;
+  overflow-y: auto;
+}
+.canvas-caption strong { color: var(--text); font-weight: 600; }
+
 /* ═══════════════════════════════════════════════════════════
    DEBUG DRAWER — right-side panel that slides in over the
    3D viewport without stealing vertical height from it.
    ═══════════════════════════════════════════════════════════ */
 
-/* canvas-wrap is always a plain flex-row now */
+/* canvas-wrap stacks the viewport above the authored-caption strip */
 .canvas-wrap {
   flex: 1;
   overflow: hidden;
   background: var(--canvas-bg);
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   position: relative;
 }
 
-/* Viewport always fills remaining horizontal space */
+/* Viewport always fills remaining space */
 .canvas-viewport {
   flex: 1;
   min-width: 0;

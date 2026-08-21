@@ -547,7 +547,7 @@ export default function IDELayout() {
                 <GlobeIcon size={14} /> 3D Viewport
               </div>
               <RunErrorBanner text={bannerText} onDismiss={dismissBanner} />
-              <GlowCanvas running={running} />
+              <GlowCanvas running={running} onStatus={setStatus} />
             </div>
             <div className="hybrid-datapanel">
               <DataPanel
@@ -566,7 +566,7 @@ export default function IDELayout() {
               <GlobeIcon size={14} /> 3D Viewport
             </div>
             <RunErrorBanner text={bannerText} onDismiss={dismissBanner} />
-            <GlowCanvas running={running} />
+            <GlowCanvas running={running} onStatus={setStatus} />
           </section>
         )}
       </div>
