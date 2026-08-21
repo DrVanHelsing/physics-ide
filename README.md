@@ -85,6 +85,16 @@ via selector aliases, there is one global `:focus-visible` ring, and Run is a fi
 When adding CSS: use the tokens, never a raw hex below the theme blocks, and never
 `rgba(255,255,255,…)` — reach for `var(--card-border)` or a `color-mix()` on a token.
 
+The IDE shell is one 44px header: the project name is shown and renamed by clicking it, actions
+sit in three zones (run · view · file), and the account menu routes to your classes and profile
+without leaving the editor. Below 1280px the secondary controls become icons and below 1120px they
+move into an overflow menu, so nothing disappears on a projector or a Chromebook — the supported
+floor is a 1024px viewport. Keyboard: **Ctrl+Enter** or **F5** runs, **Esc** stops, **Ctrl+S**
+saves. Layout (split, viewport visibility, zoom) and the project you had open survive a reload.
+A blank physics project opens on a simulation frame with one-click starter blocks; the 3D viewport
+has camera controls (reset · fit · fullscreen · snapshot), reallocates its buffer at your display's
+pixel ratio, and follows the theme without restarting the run.
+
 ```bash
 npm run test           # all workspace test suites (Vitest)
 npm run check:blocks   # verify block registry has no duplicates
@@ -349,8 +359,9 @@ In Debug Mode, press **Record**, run or step through the simulation, press **Sto
 | Context | Shortcut | Action |
 |---|---|---|
 | Global | Ctrl+Enter | Run simulation |
-| Global | Ctrl+S | Export as Python (.py) |
-| Global | Ctrl+C | Copy code to clipboard |
+| Global | F5 | Run simulation |
+| Global | Esc | Stop simulation |
+| Global | Ctrl+S | Save the project |
 | Block canvas | Ctrl+Z / Ctrl+Y | Undo / Redo |
 | Block canvas | Delete / Backspace | Delete selected block |
 | Block canvas | Ctrl+A | Select all blocks |
