@@ -276,4 +276,35 @@ describe("useSimulation — booting phase", () => {
     expect(latestCtx.booting).toBe(false);
     expect(latestCtx.status.text).toBe("Simulation stopped");
   });
+
+  test("Home bumps the generation too, so a stale in-flight run cannot resurrect state after leaving for the start menu", async () => {
+    // handleHome is a teardown path just like Stop/Reset — it must route
+    // through the same endRun() so booting can never stick and a stale
+    // settle can't write into a session that has moved on (T16 guard).
+    const run = deferred();
+    runPython.mockReturnValueOnce(run.promise);
+    mounted = mountComponent(<Wrapped />);
+
+    act(() => {
+      latestSim.handleRun();
+    });
+    expect(latestCtx.booting).toBe(true);
+
+    act(() => {
+      latestSim.handleHome();
+    });
+    expect(latestCtx.running).toBe(false);
+    expect(latestCtx.booting).toBe(false);
+    expect(latestCtx.status.text).toBe("Ready");
+
+    // The stale run's promise finally resolves — it must not reopen
+    // running/booting or overwrite the "Ready" status this session moved on to.
+    run.resolve();
+    await act(async () => {
+      await flush();
+    });
+    expect(latestCtx.running).toBe(false);
+    expect(latestCtx.booting).toBe(false);
+    expect(latestCtx.status.text).toBe("Ready");
+  });
 });

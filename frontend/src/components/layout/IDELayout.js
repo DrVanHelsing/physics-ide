@@ -108,8 +108,10 @@ export default function IDELayout() {
 
   /* ── Run-error banner: latches independently of `status` (a shared
      single-slot bulletin every other status write overwrites) so it
-     actually persists — see useRunErrorBanner.js. ── */
-  const [bannerText, dismissBanner] = useRunErrorBanner(status, sim.running);
+     actually persists — see useRunErrorBanner.js. Keyed on the active
+     project so a latched error never follows the student into a different
+     project once they leave this one. ── */
+  const [bannerText, dismissBanner] = useRunErrorBanner(status, sim.running, proj.activeProjectId);
 
   const goal = proj.activeManifest?.goal || "physics";
   const isDataGoal   = goal === "datascience";
@@ -169,10 +171,25 @@ export default function IDELayout() {
       const dom = Blockly.utils.xml.textToDom(
         `<xml xmlns="https://developers.google.com/blockly/xml">${blockXml}</xml>`,
       );
-      Blockly.Xml.domToWorkspace(dom, ws);
+      const ids = Blockly.Xml.domToWorkspace(dom, ws);
       /* normalizeSimulationStructure (BlocklyWorkspace.js:196-232) adopts the
          new top-level block into the sim_start SETUP slot on the next change
-         event, which is exactly where a beginner wants it. */
+         event, which is exactly where a beginner wants it — but only for a
+         stack block (one with a previousConnection). A value block like the
+         Gravity chip's physics_const_block has none, so appendToSetup no-ops
+         on it and it is left exactly where domToWorkspace dropped it: (0,0),
+         behind the 180px toolbox rail. Recentre on the visible view the same
+         way BlockSearch's insertBlock does (BlocklyWorkspace.js) so it is
+         never an invisible block regardless of whether it ends up adopted. */
+      const block = ids && ids.length ? ws.getBlockById(ids[ids.length - 1]) : null;
+      const metrics = block ? ws.getMetricsManager?.().getViewMetrics(true) : null;
+      if (block && metrics) {
+        const xy = block.getRelativeToSurfaceXY();
+        block.moveBy(
+          metrics.left + metrics.width / 2 - xy.x - 40,
+          metrics.top + metrics.height / 2 - xy.y - 20,
+        );
+      }
     } catch (err) {
       console.warn("Could not insert starter block:", err);
     }
@@ -440,6 +457,12 @@ export default function IDELayout() {
         />
       </Toolbar>
 
+      {/* One banner for the whole shell — not one per canvas-pane variant.
+         A run error must stay visible even when the student hides the pane
+         it used to live inside (.canvas-pane--hidden { display: none }
+         would otherwise take the banner down with it). */}
+      <RunErrorBanner text={bannerText} onDismiss={dismissBanner} />
+
       <div className="main-layout" style={{ "--split": `${splitPct}%` }}>
         {/* ── Editor pane ── */}
         <section
@@ -529,7 +552,6 @@ export default function IDELayout() {
         {/* ── Right pane: DS panel | 3D viewport | hybrid (both stacked) ── */}
         {isDataGoal ? (
           <section className={`canvas-pane${viewportHidden ? " canvas-pane--hidden" : ""}`}>
-            <RunErrorBanner text={bannerText} onDismiss={dismissBanner} />
             <DataPanel
               goal={goal}
               datasetCount={proj.activeManifest?.datasets?.length || 0}
@@ -547,7 +569,6 @@ export default function IDELayout() {
               <div className="pane-header pane-header--viewport">
                 <GlobeIcon size={14} /> 3D Viewport
               </div>
-              <RunErrorBanner text={bannerText} onDismiss={dismissBanner} />
               <GlowCanvas running={running} booting={sim.booting} onStatus={setStatus} />
             </div>
             <div className="hybrid-datapanel">
@@ -566,7 +587,6 @@ export default function IDELayout() {
             <div className="pane-header pane-header--viewport">
               <GlobeIcon size={14} /> 3D Viewport
             </div>
-            <RunErrorBanner text={bannerText} onDismiss={dismissBanner} />
             <GlowCanvas running={running} booting={sim.booting} onStatus={setStatus} />
           </section>
         )}

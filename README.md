@@ -332,7 +332,7 @@ All DS blocks are defined in `src/utils/blockly/blocklyGenerator.js` and their J
 
 ## 7. Export and Import
 
-### Export dropdown (toolbar)
+### File menu (toolbar)
 
 | Item | Shortcut | Output |
 |---|---|---|
@@ -346,7 +346,7 @@ All DS blocks are defined in `src/utils/blockly/blocklyGenerator.js` and their J
 
 ### Import
 
-The **Open...** button in the toolbar accepts `.physide.json` project bundles. The loaded project replaces the current workspace contents after a confirmation prompt.
+The **File** menu in the toolbar has an **Open project bundle** item that accepts `.physide.json` project bundles. The loaded project replaces the current workspace contents after a confirmation prompt.
 
 ### Debug Mode trace export
 

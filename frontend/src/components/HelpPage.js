@@ -504,7 +504,7 @@ export default function HelpPage({ onClose }) {
               <p>
                 Physics IDE <strong>auto-saves</strong> every project to the browser's IndexedDB
                 storage after each change. Your projects are restored when you reopen the app. For
-                portable saves or submissions, use the <strong>Export</strong> dropdown in the
+                portable saves or submissions, use the <strong>File</strong> menu in the
                 toolbar.
               </p>
             </section>
@@ -1969,7 +1969,7 @@ angle = clamp(input_angle, -30, 30)`}</Pre>
               <SectionHeader id="export">Export &amp; Share</SectionHeader>
               <p>
                 Physics IDE provides seven export options, all accessible from the{" "}
-                <strong>Export</strong> dropdown in the toolbar. Saving your project is
+                <strong>File</strong> menu in the toolbar. Saving your project is
                 separate — <Kbd>Ctrl+S</Kbd> saves, it does not export.
               </p>
               <table className="help-table">
@@ -2027,10 +2027,12 @@ angle = clamp(input_angle, -30, 30)`}</Pre>
 
               <h3 className="help-h3">Importing a project</h3>
               <p>
-                Click the <strong>Open...</strong> button in the toolbar to import a{" "}
+                Open the <strong>File</strong> menu in the toolbar and choose{" "}
+                <strong>Open project bundle</strong> to import a{" "}
                 <Code>.physide.json</Code> project bundle. The imported project replaces the current
                 workspace after a confirmation prompt. To restore a <Code>.xml</Code> Blockly
-                workspace file, use the toolbar Import button which accepts both formats.
+                workspace file, use the same menu's <strong>Import blocks or Python</strong> item,
+                which accepts both <Code>.py</Code> and <Code>.xml</Code>.
               </p>
 
               <h3 className="help-h3">Exporting trace data (Debug Mode)</h3>

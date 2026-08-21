@@ -5,11 +5,11 @@
  * Consumes DebugContext + SimulationContext.
  */
 import { useCallback } from "react";
-import { stopPython, pausePython, resumePython, stepPython } from "../utils/runner/glowRunner";
+import { pausePython, resumePython, stepPython } from "../utils/runner/glowRunner";
+import { endRun } from "./useSimulation";
 import { useDebugContext }       from "../contexts/DebugContext";
 import { useSimulationContext }  from "../contexts/SimulationContext";
 import { useTraceContext }       from "../contexts/TraceContext";
-import { GLOWSCRIPT_HOST_ID }   from "../constants";
 
 export function useDebug() {
   const {
@@ -19,27 +19,26 @@ export function useDebug() {
     executingBlockId,
   } = useDebugContext();
 
-  const { setRunning, setPaused, setStatus } = useSimulationContext();
+  const { setRunning, setBooting, setPaused, setStatus, runGenerationRef } = useSimulationContext();
   const { setRecording, recordingRef }       = useTraceContext();
 
+  /* Entering/exiting debug mode is a run teardown like Stop/Reset/Home — it
+     must go through the same endRun so it bumps the shared generation
+     counter and clears `booting` too (T16 guard; see useSimulation.js). */
   const handleEnterDebug = useCallback(() => {
-    stopPython(GLOWSCRIPT_HOST_ID);
-    setRunning(false);
+    endRun({ runGenerationRef, setRunning, setBooting, setStatus }, { text: "Debug Mode", type: "" });
     setPaused(false);
     setDebugMode(true);
-    setStatus({ text: "Debug Mode", type: "" });
-  }, [setRunning, setPaused, setDebugMode, setStatus]);
+  }, [runGenerationRef, setRunning, setBooting, setStatus, setPaused, setDebugMode]);
 
   const handleExitDebug = useCallback(() => {
-      stopPython(GLOWSCRIPT_HOST_ID);
-      setRunning(false);
+      endRun({ runGenerationRef, setRunning, setBooting, setStatus }, { text: "Ready", type: "" });
       setPaused(false);
       setRecording(false);
       recordingRef.current = false;
       setDebugMode(false);
-      setStatus({ text: "Ready", type: "" });
     },
-    [setRunning, setPaused, setRecording, recordingRef, setDebugMode, setStatus]
+    [runGenerationRef, setRunning, setBooting, setStatus, setPaused, setRecording, recordingRef, setDebugMode]
   );
 
   const handlePause = useCallback(() => {
