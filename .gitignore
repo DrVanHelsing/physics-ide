@@ -27,3 +27,6 @@ e2e/
 frontend/dist/
 backend/dist/
 backend/.env
+
+# SDD lane worktrees
+.worktrees/
