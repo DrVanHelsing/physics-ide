@@ -27,6 +27,7 @@ export function useSimulation() {
     pythonCode, setPythonCode,
     workspaceXml, setWorkspaceXml,
     running, setRunning,
+    booting, setBooting,
     setPaused,
     setStatus,
     workspaceRef,
@@ -52,8 +53,9 @@ export function useSimulation() {
   /* ── Run ─────────────────────────────────────────────── */
   const handleRun = useCallback(async () => {
     const code = mode === "text" ? pythonCode : syncFromBlocks();
-    setStatus({ text: "Running...", type: "" });
+    setStatus({ text: "Starting simulation…", type: "" });
     setRunning(true);
+    setBooting(true);
     setPaused(false);
     setTraceData(new Map());
     try {
@@ -68,27 +70,31 @@ export function useSimulation() {
       console.error(err);
       setRunning(false);
       setStatus({ text: err.message || "Runtime error", type: "error" });
+    } finally {
+      setBooting(false);
     }
-  }, [mode, pythonCode, syncFromBlocks, debugMode, breakpointsRef, setRunning, setPaused, setStatus, setTraceData]);
+  }, [mode, pythonCode, syncFromBlocks, debugMode, breakpointsRef, setRunning, setBooting, setPaused, setStatus, setTraceData]);
 
   /* ── Stop ────────────────────────────────────────────── */
   const handleStop = useCallback(() => {
     stopPython(GLOWSCRIPT_HOST_ID);
     setRunning(false);
+    setBooting(false);
     setStatus({ text: "Simulation stopped", type: "" });
-  }, [setRunning, setStatus]);
+  }, [setRunning, setBooting, setStatus]);
 
   /* ── Reset to blocks mode ────────────────────────────── */
   const handleResetToBlocks = useCallback(() => {
     stopPython(GLOWSCRIPT_HOST_ID);
     setRunning(false);
+    setBooting(false);
     setMode("blocks");
     if (workspaceRef.current) {
       const code = generatePythonFromWorkspace(workspaceRef.current);
       setPythonCode(code || DEFAULT_PYTHON_CODE);
     }
     setStatus({ text: "Reset to blocks mode", type: "" });
-  }, [setRunning, setMode, setPythonCode, setStatus, workspaceRef]);
+  }, [setRunning, setBooting, setMode, setPythonCode, setStatus, workspaceRef]);
 
   /* ── Mode toggle ─────────────────────────────────────── */
   const handleModeChange = useCallback(
@@ -272,7 +278,7 @@ export function useSimulation() {
   return {
     /* state (read) */
     mode, pythonCode, workspaceXml, projectType,
-    running, blocklyZoom, viewportHidden,
+    running, booting, blocklyZoom, viewportHidden,
     workspaceRef,
     /* handlers */
     handleRun,
