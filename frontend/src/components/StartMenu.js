@@ -164,6 +164,7 @@ function buildManifestSpec({ goal, title, startPath, templateId, editor, hybridE
 
 export default function StartMenu({
   projectList = [],
+  loaded = true,
   onOpenProject,
   onDeleteProject,
   onCreate,
@@ -350,7 +351,7 @@ export default function StartMenu({
 
               {/* Continue */}
               <p className="start-section-label">Continue</p>
-              {projectList.length > 0 ? (
+              {!loaded ? null : projectList.length > 0 ? (
                 <div className="start-project-list">
                   {projectList.map((p) => (
                     <ProjectRow

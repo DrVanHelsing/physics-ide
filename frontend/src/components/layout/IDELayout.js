@@ -336,6 +336,7 @@ export default function IDELayout() {
       <>
         <StartMenu
           projectList={proj.projectList}
+          loaded={proj.loaded}
           onOpenProject={(id) => { proj.selectProject(id); }}
           onDeleteProject={(id) => { proj.removeProject(id); }}
           onCreate={(spec) => { proj.createNew(spec); }}
