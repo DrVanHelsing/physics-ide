@@ -1,0 +1,313 @@
+/* ═══════════════════════════════════════════════════════════
+   DESIGN TOKENS — theme-independent primitives
+   Space, type, radius, motion, control metrics, focus geometry
+   and the micro-label system. Nothing in this block changes
+   between light and dark; every colour token lives in the two
+   theme blocks below.
+   ═══════════════════════════════════════════════════════════ */
+:root {
+  /* ── Space ramp (4px base) ─────────────────────────────── */
+  --space-0:  0;
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  20px;
+  --space-6:  24px;
+  --space-7:  32px;
+  --space-8:  48px;
+
+  /* ── Type scale ────────────────────────────────────────────
+     Replaces 16 ad-hoc pixel values (216 declarations, incl. the
+     9px / 9.5px / 11.5px / 15px / 17px / 18px / 22px one-offs).  */
+  --fs-2xs:   10px;   /* micro labels, badges                    */
+  --fs-xs:    11px;   /* dense IDE chrome                        */
+  --fs-sm:    12px;   /* labels, secondary UI                    */
+  --fs-md:    13px;   /* body / base — matches html font-size    */
+  --fs-lg:    14px;   /* form controls, prose                    */
+  --fs-xl:    16px;   /* card titles                             */
+  --fs-2xl:   20px;   /* screen titles                           */
+  --fs-3xl:   28px;   /* display (join code)                     */
+  --fs-hero:  44px;   /* welcome hero only                       */
+
+  --lh-tight:  1.25;
+  --lh-normal: 1.5;
+
+  --fw-regular:  400;
+  --fw-medium:   500;
+  --fw-semibold: 600;
+  --fw-bold:     700;
+
+  /* ── Micro-label system ────────────────────────────────────
+     ONE treatment for every small header in the product:
+     sentence case, light tracking, semibold. Replaces the
+     uppercase + 0.5–1.5px letterspaced VS Code pastiche across
+     18 sites. Flip these four values to change all of them.     */
+  --label-transform: none;
+  --label-tracking:  0.02em;
+  --label-weight:    var(--fw-semibold);
+  --label-fs:        var(--fs-sm);
+
+  /* ── Radii — three roles, nothing else ─────────────────── */
+  --radius-sm:   4px;    /* controls: buttons, inputs, chips   */
+  --radius:      6px;    /* cards, panels  (was 4px)           */
+  --radius-lg:   10px;   /* dialogs, overlays  (was 8px)       */
+  --radius-pill: 999px;
+
+  /* ── Motion ────────────────────────────────────────────── */
+  --transition-fast: 100ms ease;
+  --transition:      150ms ease;
+  --transition-slow: 240ms ease;
+
+  /* ── Typography families ───────────────────────────────── */
+  --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --mono: 'JetBrains Mono', 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+
+  /* ── Control metrics (consumed by .btn and .panel-header) ─ */
+  --control-h-sm:  22px;
+  --control-h:     30px;
+  --control-h-lg:  38px;
+  --btn-pad-sm:    3px var(--space-2);
+  --btn-pad:       6px var(--space-3);
+  --btn-pad-lg:    9px var(--space-4);
+  --btn-fs:        var(--fs-sm);
+
+  /* ── Chrome heights ────────────────────────────────────── */
+  --toolbar-h:     38px;
+  --header-h:      44px;
+  --titlebar-h:    30px;
+  --statusbar-h:   26px;
+  --activitybar-w: 48px;
+  --sidebar-w:     0px;
+  --panel-header-h:         36px;
+  --panel-header-h-compact: 30px;
+  --pane-header-h: var(--panel-header-h);
+
+  /* ── Focus geometry (colour is --focus-ring-color, per theme) */
+  --focus-ring-width:  2px;
+  --focus-ring-offset: 2px;
+
+  /* White label on filled accent/danger surfaces — identical in
+     both themes, so it is declared once here. */
+  --on-accent: #ffffff;
+}
+
+/* ── Dark theme (default) — VS Code Dark+ inspired ─────── */
+:root,
+[data-theme="dark"] {
+  /* VS Code core surfaces */
+  --bg-base:       #1e1e1e;
+  --bg-surface:    #252526;
+  --bg-overlay:    #1e1e1e;
+  --bg-titlebar:   #323233;
+  --bg-activitybar:#333333;
+  --bg-panel:      rgba(30, 30, 30, 0.94);
+  --bg-input:      #3c3c3c;
+  --bg-hover:      rgba(255, 255, 255, 0.05);
+  --bg-active:     rgba(255, 255, 255, 0.08);
+
+  /* Borders */
+  --border:        #3c3c3c;
+  --border-hl:     #505050;
+  --border-focus:  var(--accent);
+
+  /* Text hierarchy */
+  --text:          #cccccc;
+  --text-bright:   #e8e8e8;
+  --text-dim:      #9d9d9d;
+  --text-muted:    #6a6a6a;
+
+  /* Accent — VS Code blue */
+  --accent:        #007acc;
+  --accent-bright: #1a8cde;
+  --accent-dim:    color-mix(in srgb, var(--accent) 30%, transparent);
+  --accent-blue:   #569cd6;
+  --accent-green:  #4ec9b0;
+
+  /* Semantic */
+  --green:         #4ec9b0;
+  --red:           #f44747;
+  --yellow:        #cca700;
+  --peach:         #ce9178;
+  --mauve:         #c586c0;
+  --success:       #4ec9b0;
+  --warning:       #cca700;
+  --danger:        #f44747;
+
+  /* Run / Stop */
+  --run-bg:        var(--accent);
+  --run-bg-hover:  #1a8cde;
+  --run-glow:      color-mix(in srgb, var(--accent) 35%, transparent);
+  --stop-bg:       rgba(244, 71, 71, 0.15);
+  --stop-border:   #f44747;
+
+  --canvas-bg:     #0a0a0f;
+
+  /* Glass tokens */
+  --glass-bg:      rgba(30, 30, 30, 0.94);
+  --glass-blur:    24px;
+  --glass-border:  rgba(255, 255, 255, 0.08);
+  --glass-shadow:  0 16px 48px rgba(0, 0, 0, 0.5);
+  --glass-shadow-heavy: 0 24px 80px rgba(0, 0, 0, 0.55);
+  --overlay-bg:    rgba(0, 0, 0, 0.60);
+  --overlay-blur:  6px;
+
+  /* Card layering */
+  --card-bg:       rgba(255, 255, 255, 0.025);
+  --card-bg-hover: rgba(255, 255, 255, 0.05);
+  --card-border:   rgba(255, 255, 255, 0.06);
+  --card-border-hover: rgba(255, 255, 255, 0.12);
+
+  /* Buttons / keys */
+  --btn-bg:        rgba(255, 255, 255, 0.05);
+  --btn-bg-hover:  rgba(255, 255, 255, 0.08);
+  --key-bg:        rgba(255, 255, 255, 0.06);
+  --key-border:    rgba(255, 255, 255, 0.12);
+  --key-shadow:    0 2px 0 rgba(0, 0, 0, 0.3);
+
+  /* Accent badges */
+  --accent-bg:     color-mix(in srgb, var(--accent) 12%, transparent);
+  --accent-border: color-mix(in srgb, var(--accent) 25%, transparent);
+
+  /* Elevation (colour-bearing — theme-specific) */
+  --shadow-sm:     0 1px 3px rgba(0, 0, 0, 0.35);
+  --shadow:        0 2px 8px rgba(0, 0, 0, 0.35);
+  --shadow-lg:     0 8px 40px rgba(0, 0, 0, 0.5);
+
+  /* Derived semantics — declared once; they re-resolve per theme
+     because the tokens they reference are redefined below. */
+  --focus-ring-color:     var(--accent-bright);
+  --label-color:          var(--text-dim);
+  --scrollbar-thumb:      var(--border-hl);
+  --btn-primary-bg:       var(--accent);
+  --btn-primary-bg-hover: var(--accent-bright);
+
+  /* ── DEPRECATED alias tokens — do NOT use in new rules. ──────────────
+     Canonical names: --mono, --red. --bg-toolbar and --bg-sidebar have no
+     canonical replacement yet — out of scope for this cleanup pass. ── */
+  --bg-toolbar:     #252526;              /* DebugMode top bar / panel headers      */
+  --bg-sidebar:     #252526;              /* TraceTable search bar background       */
+  --font-mono:      var(--mono);          /* normalises var(--font-mono) references */
+  --error:          #f44747;              /* form validation colour = --red         */
+
+  color-scheme: dark;
+}
+
+/* ── Light theme ───────────────────────────────────────── */
+[data-theme="light"] {
+  --bg-base:       #ffffff;
+  --bg-surface:    #f3f3f3;
+  --bg-overlay:    #ffffff;
+  --bg-titlebar:   #dddddd;
+  --bg-activitybar:#2c2c2c;
+  --bg-panel:      rgba(255, 255, 255, 0.88);
+  --bg-input:      #ffffff;
+  --bg-hover:      rgba(0, 0, 0, 0.04);
+  --bg-active:     rgba(0, 0, 0, 0.06);
+
+  --border:        #e5e5e5;
+  --border-hl:     #c8c8c8;
+
+  --text:          #333333;
+  --text-bright:   #1e1e1e;
+  --text-dim:      #616161;
+  --text-muted:    #9e9e9e;
+
+  --accent:        #007acc;
+  --accent-bright: #0587d4;
+  --accent-dim:    color-mix(in srgb, var(--accent) 12%, transparent);
+  --accent-blue:   #0451a5;
+  --accent-green:  #098658;
+
+  --green:         #098658;
+  --red:           #cd3131;
+  --yellow:        #795e00;
+  --peach:         #a31515;
+  --mauve:         #af00db;
+  --success:       #098658;
+  --warning:       #795e00;
+  --danger:        #cd3131;
+
+  --run-bg-hover:  #0587d4;
+  --run-glow:      color-mix(in srgb, var(--accent) 20%, transparent);
+  --stop-bg:       rgba(205, 49, 49, 0.1);
+  --stop-border:   #cd3131;
+
+  --canvas-bg:     #f0f0f0;
+
+  --glass-bg:      rgba(255, 255, 255, 0.88);
+  --glass-blur:    20px;
+  --glass-border:  rgba(0, 0, 0, 0.12);
+  --glass-shadow:  0 8px 32px rgba(0, 0, 0, 0.12);
+  --glass-shadow-heavy: 0 16px 64px rgba(0, 0, 0, 0.15);
+  --overlay-bg:    rgba(255, 255, 255, 0.50);
+  --overlay-blur:  8px;
+
+  --card-bg:       rgba(0, 0, 0, 0.02);
+  --card-bg-hover: rgba(0, 0, 0, 0.04);
+  --card-border:   rgba(0, 0, 0, 0.08);
+  --card-border-hover: rgba(0, 0, 0, 0.15);
+
+  --btn-bg:        rgba(0, 0, 0, 0.04);
+  --btn-bg-hover:  rgba(0, 0, 0, 0.06);
+  --key-bg:        rgba(0, 0, 0, 0.04);
+  --key-border:    rgba(0, 0, 0, 0.15);
+  --key-shadow:    0 2px 0 rgba(0, 0, 0, 0.08);
+
+  --accent-bg:     color-mix(in srgb, var(--accent) 8%, transparent);
+  --accent-border: color-mix(in srgb, var(--accent) 20%, transparent);
+
+  --shadow-sm:     0 1px 3px rgba(0, 0, 0, 0.10);
+  --shadow:        0 2px 8px rgba(0, 0, 0, 0.08);
+  --shadow-lg:     0 8px 40px rgba(0, 0, 0, 0.12);
+
+  /* ── DEPRECATED alias tokens — light-mode counterparts. See the dark
+     block above. ───────────────────────────────────────────────────── */
+  --bg-toolbar:     #f3f3f3;
+  --bg-sidebar:     #f3f3f3;
+  --font-mono:      var(--mono);
+  --error:          #cd3131;
+
+  color-scheme: light;
+}
+
+/* ── Reset ─────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body, #root {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  font-family: var(--font);
+  font-size: 13px;
+  background: var(--bg-base);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background 200ms ease, color 200ms ease;
+}
+
+button {
+  font-family: var(--font);
+}
+
+/* ── Focus ───────────────────────────────────────────────────
+   ONE ring for the whole product, at zero specificity so any
+   component rule can still override it deliberately. Keyboard
+   only — :focus-visible never fires on a mouse click. */
+:where(
+  a[href],
+  button,
+  input,
+  select,
+  textarea,
+  summary,
+  [role="button"],
+  [role="tab"],
+  [tabindex]:not([tabindex="-1"])
+):focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: inherit;
+}
+

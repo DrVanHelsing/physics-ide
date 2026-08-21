@@ -1,0 +1,229 @@
+/* ═══════════════════════════════════════════════════════════
+   PRIMITIVES — .btn
+   The IDE core and the platform screens share these. Legacy
+   class names are comma-appended aliases so no markup changes.
+   ═══════════════════════════════════════════════════════════ */
+.btn,
+.admin-btn,
+.welcome-btn,
+.account-chip-btn,
+.auth-submit,
+.vdialog-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--control-h);
+  padding: var(--btn-pad);
+  font-family: var(--font);
+  font-size: var(--btn-fs);
+  font-weight: var(--fw-medium);
+  line-height: 1;
+  color: var(--text);
+  background: var(--btn-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background var(--transition), border-color var(--transition),
+              color var(--transition);
+}
+.btn:hover:not(:disabled),
+.admin-btn:hover:not(:disabled),
+.welcome-btn:hover:not(:disabled),
+.account-chip-btn:hover:not(:disabled),
+.auth-submit:hover:not(:disabled),
+.vdialog-btn:hover:not(:disabled) {
+  background: var(--btn-bg-hover);
+  border-color: var(--border-hl);
+  color: var(--text-bright);
+}
+.btn:disabled,
+.admin-btn:disabled,
+.welcome-btn:disabled,
+.account-chip-btn:disabled,
+.auth-submit:disabled,
+.vdialog-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Legacy base-alias overrides — position matters: they must beat the
+   .btn base group above but lose to the --primary groups below. */
+.account-chip-btn {
+  display: flex;
+  background: var(--card-bg);
+}
+.account-chip-btn:hover:not(:disabled) { background: var(--card-bg-hover); }
+.admin-btn { background: var(--card-bg); }
+.admin-btn:hover:not(:disabled) { background: var(--card-bg-hover); }
+.welcome-btn {
+  background: var(--bg-surface);
+  border-color: var(--border-hl);
+  transition: transform var(--transition), background var(--transition),
+              border-color var(--transition), color var(--transition);
+}
+
+/* One filled primary for the whole product. */
+.btn--primary,
+.admin-btn--primary,
+.welcome-btn--primary,
+.account-chip-btn--primary,
+.auth-submit,
+.vdialog-btn--ok {
+  background: var(--btn-primary-bg);
+  border: 1px solid var(--btn-primary-bg);
+  color: var(--on-accent);
+  font-weight: var(--fw-semibold);
+}
+.btn--primary:hover:not(:disabled),
+.admin-btn--primary:hover:not(:disabled),
+.welcome-btn--primary:hover:not(:disabled),
+.account-chip-btn--primary:hover:not(:disabled),
+.auth-submit:hover:not(:disabled),
+.vdialog-btn--ok:hover:not(:disabled) {
+  background: var(--btn-primary-bg-hover);
+  border-color: var(--btn-primary-bg-hover);
+  color: var(--on-accent);
+}
+
+.btn--ghost,
+.vdialog-btn--cancel {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-dim);
+}
+.btn--ghost:hover:not(:disabled),
+.vdialog-btn--cancel:hover:not(:disabled) {
+  background: var(--bg-hover);
+  border-color: transparent;
+  color: var(--text);
+}
+
+.btn--danger {
+  background: transparent;
+  border-color: color-mix(in srgb, var(--red) 45%, transparent);
+  color: var(--red);
+}
+.btn--danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--red) 12%, transparent);
+  border-color: var(--red);
+  color: var(--red);
+}
+
+.btn--sm,
+.admin-btn,
+.account-chip-btn {
+  min-height: var(--control-h-sm);
+  padding: var(--btn-pad-sm);
+  font-size: var(--fs-xs);
+}
+.btn--lg,
+.welcome-btn,
+.auth-submit {
+  min-height: var(--control-h-lg);
+  padding: var(--btn-pad-lg);
+  font-size: var(--fs-lg);
+}
+.btn--block,
+.auth-submit {
+  width: 100%;
+}
+
+/* .account-chip-btn is a left-aligned nav row, not a centred button. */
+.account-chip-btn { justify-content: flex-start; text-align: left; }
+
+/* ═══════════════════════════════════════════════════════════
+   PRIMITIVES — .card
+   ═══════════════════════════════════════════════════════════ */
+.card,
+.start-card,
+.class-card,
+.welcome-card,
+.auth-card,
+.classes-newform {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  padding: var(--space-4);
+  transition: background var(--transition), border-color var(--transition),
+              box-shadow var(--transition);
+}
+.card--interactive:hover,
+.start-card:hover,
+.class-card:hover {
+  background: var(--card-bg-hover);
+  border-color: var(--card-border-hover);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Opaque surface variant — cards that sit directly on --bg-base
+   and must not read as translucent (auth, welcome, playground). */
+.card--panel,
+.welcome-card,
+.auth-card {
+  background: var(--bg-surface);
+  border-color: var(--card-border);
+}
+.card--lg,
+.auth-card {
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PRIMITIVES — .panel-header
+   ═══════════════════════════════════════════════════════════ */
+.panel-header,
+.pane-header,
+.dm-panel-header,
+.vdialog-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-3);
+  height: var(--panel-header-h);
+  min-height: var(--panel-header-h);
+  flex-shrink: 0;
+  font-size: var(--label-fs);
+  font-weight: var(--label-weight);
+  text-transform: var(--label-transform);
+  letter-spacing: var(--label-tracking);
+  color: var(--label-color);
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+  user-select: none;
+  overflow: hidden;
+}
+.panel-header--compact,
+.dm-panel-header {
+  height: var(--panel-header-h-compact);
+  min-height: var(--panel-header-h-compact);
+  padding: 0 var(--space-2);
+}
+.panel-header__title,
+.dm-panel-title,
+.vdialog-title {
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+  color: var(--text-bright);
+  letter-spacing: var(--label-tracking);
+  white-space: nowrap;
+}
+
+/* Legacy variants — position matters: these must follow the base group
+   above to override it at equal specificity. */
+.dm-panel-header { background: var(--bg-toolbar); border-bottom-color: var(--border-hl); }
+.vdialog-header {
+  height: auto;
+  min-height: var(--panel-header-h);
+  padding: var(--space-3) var(--space-4) var(--space-2);
+  background: var(--bg-titlebar);
+}
+.pane-header--code-preview {
+  background: var(--bg-overlay);
+  font-size: var(--fs-xs);
+  letter-spacing: var(--label-tracking);
+}
+
