@@ -249,6 +249,29 @@ export default function StartMenu({
     return [...codeTemplates, ...blockTemplates];
   }, [wizardGoal]);
 
+  /* The eight physics templates, surfaced on the landing instead of three
+     clicks deep behind the wizard's Template radio. Same shape the wizard
+     uses, so one card component renders both. */
+  const featuredTemplates = useMemo(
+    () => [
+      ...BLOCK_TEMPLATES.map((t) => ({ id: t.id, title: t.title, description: t.description, kind: "blocks" })),
+      ...EXAMPLES.map((e) => ({ id: e.id, title: e.title, description: e.description, kind: "code" })),
+    ],
+    [],
+  );
+
+  const openTemplate = (tpl) => {
+    onCreate?.(
+      buildManifestSpec({
+        goal: "physics",
+        title: "",
+        startPath: "template",
+        templateId: tpl.id,
+        editor: tpl.kind === "code" ? "code" : "blocks",
+      }),
+    );
+  };
+
   return (
     <div className="start-menu-overlay">
       {/* VS Code title bar */}
@@ -326,20 +349,23 @@ export default function StartMenu({
               </div>
 
               {/* Continue */}
-              {projectList.length > 0 && (
-                <>
-                  <p className="start-section-label">Continue</p>
-                  <div className="start-project-list">
-                    {projectList.map((p) => (
-                      <ProjectRow
-                        key={p.id}
-                        project={p}
-                        onOpen={() => onOpenProject?.(p.id)}
-                        onDelete={() => onDeleteProject?.(p.id)}
-                      />
-                    ))}
-                  </div>
-                </>
+              <p className="start-section-label">Continue</p>
+              {projectList.length > 0 ? (
+                <div className="start-project-list">
+                  {projectList.map((p) => (
+                    <ProjectRow
+                      key={p.id}
+                      project={p}
+                      onOpen={() => onOpenProject?.(p.id)}
+                      onDelete={() => onDeleteProject?.(p.id)}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <p className="start-empty">
+                  Nothing saved yet. Pick a goal below to start from scratch, or open a template —
+                  your work is saved on this computer automatically.
+                </p>
               )}
 
               {/* Create New */}
@@ -361,6 +387,31 @@ export default function StartMenu({
                         <span className="start-card-badge start-card-badge--code">{GOAL_BADGE[g.id] || g.id}</span>
                         <h3 className="start-card-title">{g.label}</h3>
                         <p className="start-card-desc">{g.description}</p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Start from a worked example */}
+              <p className="start-section-label">Start from a template</p>
+              <div className="start-grid start-grid--templates">
+                {featuredTemplates.map((tpl) => {
+                  const Icon = CARD_ICONS[tpl.id] || (tpl.kind === "blocks" ? BlocksIcon : CodeIcon);
+                  return (
+                    <button
+                      key={tpl.id}
+                      type="button"
+                      className="start-card start-card--template"
+                      onClick={() => openTemplate(tpl)}
+                    >
+                      <div className="start-card-icon"><Icon size={20} /></div>
+                      <div className="start-card-body">
+                        <span className={`start-card-badge start-card-badge--${tpl.kind}`}>
+                          {tpl.kind === "code" ? "Code" : "Blocks"}
+                        </span>
+                        <h3 className="start-card-title">{tpl.title}</h3>
+                        <p className="start-card-desc">{tpl.description}</p>
                       </div>
                     </button>
                   );
