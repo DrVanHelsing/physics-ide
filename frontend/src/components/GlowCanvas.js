@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
-import { applyRuntimeTheme, resizeRuntimeCanvas, getSceneMeta, getRuntimeScene } from "../utils/runner/glowRunner";
+import { applyRuntimeTheme, resizeRuntimeCanvas, getSceneMeta } from "../utils/runner/glowRunner";
 import { useTheme } from "../contexts/ThemeContext";
+import { useRuntimeReady } from "../hooks/useRuntimeReady";
 import ViewportControls from "./ViewportControls";
 
 function GlowCanvas({ running, booting, onStatus }) {
@@ -42,17 +43,12 @@ function GlowCanvas({ running, booting, onStatus }) {
      render it in React chrome instead of losing it.
      A fixed short delay is not enough: the runtime loads six CDN scripts
      before the scene object exists at all (confirmed live — several seconds,
-     not milliseconds), so this polls the same way ViewportControls waits for
-     the engine, and reads the meta once the scene actually exists. */
+     not milliseconds), so this polls (useRuntimeReady, ~9s at 60 tries) the
+     same way ViewportControls waits for the engine, and reads the meta once
+     the scene actually exists. */
+  useRuntimeReady({ enabled: running, tries: 60, onReady: () => setSceneMeta(getSceneMeta()) });
   useEffect(() => {
-    if (!running) { setSceneMeta({ title: "", caption: "" }); return undefined; }
-    let tries = 0;
-    const id = setInterval(() => {
-      tries += 1;
-      if (getRuntimeScene()) { setSceneMeta(getSceneMeta()); clearInterval(id); }
-      else if (tries > 60) clearInterval(id);   // ~9s, then give up quietly
-    }, 150);
-    return () => clearInterval(id);
+    if (!running) setSceneMeta({ title: "", caption: "" });
   }, [running]);
 
   /* The drag/wheel/pan hint sits permanently over the viewport otherwise.
