@@ -92,8 +92,8 @@ move into an overflow menu, so nothing disappears on a projector or a Chromebook
 floor is a 1024px viewport. Keyboard: **Ctrl+Enter** or **F5** runs, **Esc** stops, **Ctrl+S**
 saves. Layout (split, viewport visibility, zoom) and the project you had open survive a reload.
 A blank physics project opens on a simulation frame with one-click starter blocks; the 3D viewport
-has camera controls (reset · fit · fullscreen · snapshot), reallocates its buffer at your display's
-pixel ratio, and follows the theme without restarting the run.
+has camera controls (reset · fit · fullscreen · snapshot), resizes with its pane, and follows the
+theme without restarting the run.
 
 ```bash
 npm run test           # all workspace test suites (Vitest)

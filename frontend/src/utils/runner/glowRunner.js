@@ -595,13 +595,30 @@ export function applyRuntimeTheme(isDark) {
   }
 }
 
-/** Reallocate the drawing buffer for a new CSS size at the display's pixel
- *  ratio. Without this the buffer is merely stretched on every divider drag,
- *  and a 1.25x Chromebook renders every simulation soft.
- *  The "preferred path" below reads the scene via getRuntimeScene() rather
- *  than win.scene directly, for the same reason as applyRuntimeTheme: win.scene
- *  is never set on the compiled runtime, so this branch was previously dead
- *  and every resize fell through to the manual canvas.width/height path. */
+/** Resize the runtime's drawing surface for a new CSS box size (a divider
+ *  drag, a pane toggle, or the just-started-run kick in runPython()).
+ *
+ *  This is CSS-sized, not DPR-sized, and that is deliberate. GlowScript
+ *  derives its GL viewport from scene.width/scene.height, which it treats as
+ *  CSS pixels — it never multiplies by devicePixelRatio. Confirmed live
+ *  (deviceScaleFactor 2): the previous code set scene.width/height to the CSS
+ *  size (which is what drives the GL viewport) and then ALSO force-wrote
+ *  canvas.width/height to cssSize * dpr. That desynced the two: the buffer
+ *  ended up 2x the CSS size but the GL viewport stayed CSS-sized, so
+ *  GlowScript only ever rendered into one quarter of the buffer — and the
+ *  frame's CSS `width:100% !important` then stretched that quarter back up
+ *  to fill the pane. Net result was strictly worse than a plain CSS-sized
+ *  buffer: soft AND wrong, instead of just soft.
+ *
+ *  So: when the scene is reachable, let it own the buffer (scene.width/height
+ *  in CSS px) and leave canvas.width/height alone entirely — soft-but-correct
+ *  beats desynced. The manual canvas.width/height = css * dpr write survives
+ *  only as the FALLBACK for when no scene is reachable at all, where there is
+ *  no GL viewport to desync from and a higher pixel count is pure upside.
+ *
+ *  Real DPR-sharp rendering needs the runtime itself to scale its GL viewport
+ *  by dpr, which stock GlowScript 3.2 does not do. That requires vendoring or
+ *  patching the runtime script and is deferred to a later plan. */
 export function resizeRuntimeCanvas(cssWidth, cssHeight, dpr = window.devicePixelRatio || 1) {
   const win = getRuntimeWindow();
   const canvas = getRuntimeCanvas();
@@ -609,10 +626,18 @@ export function resizeRuntimeCanvas(cssWidth, cssHeight, dpr = window.devicePixe
   try {
     const scene = getRuntimeScene();
     if (scene && typeof scene.width === "number") {
-      /* Preferred path: GlowScript owns the buffer and reallocates properly. */
+      /* Preferred path: GlowScript owns the buffer. Its GL viewport tracks
+         scene.width/height directly in CSS px with no dpr multiply, so NOT
+         touching canvas.width/height here is what keeps the viewport and the
+         buffer in sync (see the function comment for the measured failure
+         mode when both were written). */
       scene.width = Math.round(cssWidth);
       scene.height = Math.round(cssHeight);
+      return true;
     }
+    /* Fallback: no scene reachable (nothing running, or between frame
+       teardown and the next run), so there is no GL viewport to desync from —
+       size the buffer directly at the display's pixel ratio. */
     const ratio = Math.min(dpr, 2);   // cap: a 3x buffer buys nothing here and costs frames
     canvas.width = Math.round(cssWidth * ratio);
     canvas.height = Math.round(cssHeight * ratio);
