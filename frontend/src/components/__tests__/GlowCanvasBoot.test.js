@@ -23,10 +23,14 @@ describe("GlowCanvas boot state", () => {
     expect(container.querySelector(".canvas-booting")).toBeFalsy();
     expect(container.querySelector(".canvas-booting__spinner")).toBeFalsy();
     expect(container.textContent).toContain("Starting simulation");
+    const status = container.querySelector('[role="status"]');
+    expect(status).toBeTruthy();
+    expect(status.textContent).toContain("Starting simulation");
   });
   test("idle shows the static atom and the Run hint", async () => {
     const { container } = await mountComponent(<GlowCanvas running={false} booting={false} onStatus={() => {}} />);
     expect(container.querySelector(".canvas-idle--booting")).toBeFalsy();
     expect(container.textContent).toContain("Press");
+    expect(container.querySelector('[role="status"]')).toBeFalsy();
   });
 });

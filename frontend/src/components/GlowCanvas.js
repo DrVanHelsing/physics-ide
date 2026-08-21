@@ -95,7 +95,7 @@ function GlowCanvas({ running, booting, onStatus }) {
                 </g>
               </svg>
               <p className="canvas-idle-label">3D Viewport</p>
-              <p className="canvas-idle-hint">
+              <p className="canvas-idle-hint" role={booting ? "status" : undefined}>
                 {booting ? "Starting simulation…" : (<>Press <strong>Run</strong> to start the simulation</>)}
               </p>
             </div>
