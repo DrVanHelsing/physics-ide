@@ -12,9 +12,11 @@ function CodeEditor({
 }) {
   const hostRef    = useRef(null);
   const editorRef  = useRef(null);
+  const monacoRef  = useRef(null);
   const onChangeRef = useRef(onChange);
   const valueRef    = useRef(value);
   const readOnlyRef = useRef(readOnly);
+  const isDarkRef   = useRef(isDark);
   const onToggleBpRef = useRef(onToggleLineBreakpoint);
   const [fallback, setFallback] = useState(false);
   const suppressRef = useRef(false);
@@ -27,64 +29,54 @@ function CodeEditor({
   onChangeRef.current     = onChange;
   valueRef.current        = value;
   readOnlyRef.current     = readOnly;
+  isDarkRef.current       = isDark;
   onToggleBpRef.current   = onToggleLineBreakpoint;
 
   /* ── One-time Monaco bootstrap ───────────────────────────── */
   useEffect(() => {
-    if (!window.require) {
-      setFallback(true);
-      return undefined;
-    }
-
-    window.require.config({
-      paths: {
-        vs: "https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs",
-      },
-    });
-
     let disposed = false;
 
-    window.require(["vs/editor/editor.main"], () => {
-      if (disposed) return;
-      const monaco = window.monaco;
-      if (!monaco || !hostRef.current) {
-        setFallback(true);
-        return;
-      }
+    import("../utils/monaco/monacoLib")
+      .then(({ default: monaco }) => {
+        if (disposed || !hostRef.current) return;
+        monacoRef.current = monaco;
 
-      const editor = monaco.editor.create(hostRef.current, {
-        value: valueRef.current,
-        language: "python",
-        theme: "vs-dark",
-        minimap: { enabled: false },
-        lineNumbers: "on",
-        wordWrap: "on",
-        automaticLayout: true,
-        fontSize: 14,
-        readOnly: readOnlyRef.current,
-        domReadOnly: readOnlyRef.current,
-        /* Enable glyph margin when breakpoint support is active */
-        glyphMargin: !!onToggleBpRef.current,
-      });
-
-      editorRef.current = editor;
-
-      editor.onDidChangeModelContent(() => {
-        if (suppressRef.current) return;
-        onChangeRef.current(editor.getValue());
-      });
-
-      /* ── Glyph-margin / line-number click → toggle breakpoint ── */
-      if (onToggleBpRef.current) {
-        editor.onMouseDown((e) => {
-          const tgt = e.target;
-          /* MouseTargetType: GUTTER_GLYPH_MARGIN = 2, GUTTER_LINE_NUMBERS = 3 */
-          if ((tgt.type === 2 || tgt.type === 3) && tgt.position) {
-            onToggleBpRef.current(tgt.position.lineNumber);
-          }
+        const editor = monaco.editor.create(hostRef.current, {
+          value: valueRef.current,
+          language: "python",
+          theme: isDarkRef.current ? "vs-dark" : "vs",
+          minimap: { enabled: false },
+          lineNumbers: "on",
+          wordWrap: "on",
+          automaticLayout: true,
+          fontSize: 14,
+          readOnly: readOnlyRef.current,
+          domReadOnly: readOnlyRef.current,
+          /* Enable glyph margin when breakpoint support is active */
+          glyphMargin: !!onToggleBpRef.current,
         });
-      }
-    });
+
+        editorRef.current = editor;
+
+        editor.onDidChangeModelContent(() => {
+          if (suppressRef.current) return;
+          onChangeRef.current(editor.getValue());
+        });
+
+        /* ── Glyph-margin / line-number click → toggle breakpoint ── */
+        if (onToggleBpRef.current) {
+          editor.onMouseDown((e) => {
+            const tgt = e.target;
+            /* MouseTargetType: GUTTER_GLYPH_MARGIN = 2, GUTTER_LINE_NUMBERS = 3 */
+            if ((tgt.type === 2 || tgt.type === 3) && tgt.position) {
+              onToggleBpRef.current(tgt.position.lineNumber);
+            }
+          });
+        }
+      })
+      .catch(() => {
+        if (!disposed) setFallback(true);
+      });
 
     return () => {
       disposed = true;
@@ -97,8 +89,8 @@ function CodeEditor({
 
   /* ── React to theme changes ──────────────────────────────── */
   useEffect(() => {
-    if (editorRef.current && window.monaco) {
-      window.monaco.editor.setTheme(isDark ? "vs-dark" : "vs");
+    if (editorRef.current && monacoRef.current) {
+      monacoRef.current.editor.setTheme(isDark ? "vs-dark" : "vs");
     }
   }, [isDark]);
 
@@ -123,10 +115,10 @@ function CodeEditor({
   /* ── Breakpoint glyph-margin decorations ─────────────────── */
   useEffect(() => {
     const editor = editorRef.current;
-    if (!editor || !window.monaco) return;
+    if (!editor || !monacoRef.current) return;
     const decos = breakpointLines
       ? Array.from(breakpointLines).map((line) => ({
-          range: new window.monaco.Range(line, 1, line, 1),
+          range: new monacoRef.current.Range(line, 1, line, 1),
           options: {
             glyphMarginClassName: "dbg-glyph-bp",
             glyphMarginHoverMessage: { value: "Breakpoint — click to remove" },
@@ -139,10 +131,10 @@ function CodeEditor({
   /* ── Executing-line highlight decoration ──────────────────── */
   useEffect(() => {
     const editor = editorRef.current;
-    if (!editor || !window.monaco) return;
+    if (!editor || !monacoRef.current) return;
     const decos = executingLine
       ? [{
-          range: new window.monaco.Range(executingLine, 1, executingLine, 1),
+          range: new monacoRef.current.Range(executingLine, 1, executingLine, 1),
           options: {
             isWholeLine: true,
             className: "dbg-executing-line",
