@@ -482,6 +482,14 @@ export async function runPython(codeString, hostId = "glowscript-host") {
           preview
       );
     }
+
+    /* A freshly started run must render at the display's actual pixel ratio
+       immediately — otherwise GlowScript's default buffer stays soft until
+       the user happens to trigger a resize (e.g. dragging the divider).
+       Goes through the same guarded resizeRuntimeCanvas() path, so a bad
+       measurement here is silently a no-op rather than a thrown error. */
+    const hostRect = host.getBoundingClientRect();
+    resizeRuntimeCanvas(hostRect.width, hostRect.height, window.devicePixelRatio || 1);
   } catch (err) {
     if (host.contains(runtimeFrame) && thisRunToken !== activeRunToken) {
       return;
