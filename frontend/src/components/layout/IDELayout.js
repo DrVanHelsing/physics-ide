@@ -339,7 +339,7 @@ export default function IDELayout() {
           onOpenProject={(id) => { proj.selectProject(id); }}
           onDeleteProject={(id) => { proj.removeProject(id); }}
           onCreate={(spec) => { proj.createNew(spec); }}
-          onImport={(file) => { sim.handleImport(file); setShowStart(false); }}
+          onImport={(file) => { proj.noteExplicitOpen(); sim.handleImport(file); setShowStart(false); }}
           onHelp={handleHelp}
         />
         {showHelp && <HelpPage onClose={() => setShowHelp(false)} />}

@@ -119,4 +119,43 @@ describe("ProjectContext bootstrap restore vs. explicit navigation", () => {
     expect(latestCtx.activeProjectId).toBe("project-B");
     expect(latestCtx.activeManifest?.id).toBe("project-B");
   });
+
+  test("noteExplicitOpen (the import path) also beats the stale bootstrap restore", async () => {
+    const projectA = { id: "project-A", title: "A" };
+
+    localStorage.setItem(LAST_PROJECT_KEY, "project-A");
+
+    listProjects.mockResolvedValue([{ id: "project-A", title: "A", updatedAt: 1 }]);
+
+    const restoreLoad = deferred();
+    loadProject.mockImplementation((id) => {
+      if (id === "project-A") return restoreLoad.promise;
+      return Promise.resolve(null);
+    });
+
+    mounted = mountComponent(
+      React.createElement(ProjectProvider, null, React.createElement(Consumer)),
+    );
+
+    await act(async () => {
+      await flush();
+    });
+    expect(latestCtx.activeProjectId).toBeNull();
+
+    // Mirrors IDELayout's onImport handler: noteExplicitOpen() runs instead
+    // of openProject(), immediately before the import is applied.
+    act(() => {
+      latestCtx.noteExplicitOpen();
+    });
+
+    // The stale bootstrap restore for A finally resolves. It must NOT
+    // override the import that just happened.
+    restoreLoad.resolve(projectA);
+    await act(async () => {
+      await flush();
+    });
+
+    expect(latestCtx.activeProjectId).toBeNull();
+    expect(latestCtx.activeManifest).toBeNull();
+  });
 });

@@ -165,6 +165,13 @@ export function ProjectProvider({ children }) {
     [],
   );
 
+  /* Called by any explicit-navigation path that doesn't go through
+     openProject (e.g. importing a file) — flips the same guard so a
+     bootstrap restore that resolves afterward can't clobber it. */
+  const noteExplicitOpen = useCallback(() => {
+    explicitOpenRef.current = true;
+  }, []);
+
   const closeProject = useCallback(() => {
     setActiveProjectId(null);
     setActiveManifest(null);
@@ -203,6 +210,7 @@ export function ProjectProvider({ children }) {
     bootstrapResult,
     refreshList,
     openProject,
+    noteExplicitOpen,
     closeProject,
     createAndOpen,
     removeProject,
