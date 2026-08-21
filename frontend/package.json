@@ -7,6 +7,7 @@
     "@physics-ide/shared": "*",
     "@tanstack/react-query": "^5.101.4",
     "arquero": "^8.0.3",
+    "blockly": "11.2.2",
     "html2canvas": "^1.4.1",
     "jspdf": "^4.1.0",
     "localforage": "^1.10.0",

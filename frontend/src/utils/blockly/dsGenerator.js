@@ -2,13 +2,9 @@
 // Produces async JS code for dsRunner — separate from the Python generator.
 
 function resolveVar(block, fieldName, fallback) {
-  const Blockly = window.Blockly;
   const id = block.getFieldValue(fieldName);
   if (!id) return fallback;
-  const model =
-    block.workspace && Blockly
-      ? block.workspace.getVariableById(id)
-      : null;
+  const model = block.workspace ? block.workspace.getVariableById(id) : null;
   return (model ? model.name : id) || fallback;
 }
 

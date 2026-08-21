@@ -5,6 +5,7 @@
  * Clamps the split between 15 % and 85 % of the container width.
  */
 import { useCallback, useEffect } from "react";
+import Blockly from "../utils/blockly/blocklyLib";
 import { useSimulationContext } from "../contexts/SimulationContext";
 import { SPLIT_MIN, SPLIT_MAX, SPLIT_DEFAULT } from "../constants";
 
@@ -16,11 +17,7 @@ export function useSplitPane() {
     const workspace = workspaceRef.current;
     if (!workspace) return;
     requestAnimationFrame(() => {
-      if (typeof window.Blockly?.svgResize === "function") {
-        window.Blockly.svgResize(workspace);
-        return;
-      }
-      workspace.resize?.();
+      Blockly.svgResize(workspace);
     });
   }, [splitPct, viewportHidden, workspaceRef]);
 

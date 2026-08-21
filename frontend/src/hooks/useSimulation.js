@@ -6,6 +6,7 @@
  * contexts.  All handlers are memoised with useCallback.
  */
 import { useCallback } from "react";
+import Blockly from "../utils/blockly/blocklyLib";
 import {
   runPython,
   stopPython,
@@ -267,11 +268,11 @@ export function useSimulation() {
           stopPython(GLOWSCRIPT_HOST_ID);
           setRunning(false);
           setProjectType("custom");
-          if (workspaceRef.current && window.Blockly) {
+          if (workspaceRef.current) {
             try {
               workspaceRef.current.clear();
-              const dom = window.Blockly.utils.xml.textToDom(content);
-              window.Blockly.Xml.domToWorkspace(dom, workspaceRef.current);
+              const dom = Blockly.utils.xml.textToDom(content);
+              Blockly.Xml.domToWorkspace(dom, workspaceRef.current);
               const newCode = generatePythonFromWorkspace(workspaceRef.current);
               setPythonCode(newCode || DEFAULT_PYTHON_CODE);
             } catch (err) {

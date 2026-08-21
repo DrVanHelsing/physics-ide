@@ -19,6 +19,7 @@
  *               └─ .status-bar
  */
 import React, { useCallback, useRef, useState } from "react";
+import Blockly from "../../utils/blockly/blocklyLib";
 
 import BlocklyWorkspace, { ReadOnlyBlockly } from "../BlocklyWorkspace";
 import BlocklyEmptyState from "../BlocklyEmptyState";
@@ -165,8 +166,7 @@ export default function IDELayout() {
 
   const handleInsertStarterBlock = useCallback((blockXml) => {
     const ws = workspaceRef.current;
-    const Blockly = window.Blockly;
-    if (!ws || !Blockly) return;
+    if (!ws) return;
     try {
       const dom = Blockly.utils.xml.textToDom(
         `<xml xmlns="https://developers.google.com/blockly/xml">${blockXml}</xml>`,

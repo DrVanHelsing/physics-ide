@@ -1,3 +1,4 @@
+import Blockly from "../blockly/blocklyLib";
 import { generatePythonFromWorkspace } from "../blockly/blocklyGenerator";
 
 function downloadFile(content, fileName, mimeType) {
@@ -18,11 +19,11 @@ export function exportPython(mode, pythonCode, workspace, fileName) {
 }
 
 export function exportBlocks(workspace, fileName) {
-  if (!workspace || !window.Blockly) {
+  if (!workspace) {
     window.alert("No Blockly workspace to export.");
     return;
   }
-  const xmlDom = window.Blockly.Xml.workspaceToDom(workspace);
-  const xmlText = window.Blockly.Xml.domToText(xmlDom);
+  const xmlDom = Blockly.Xml.workspaceToDom(workspace);
+  const xmlText = Blockly.Xml.domToText(xmlDom);
   downloadFile(xmlText, `${fileName || "workspace"}.xml`, "application/xml;charset=utf-8");
 }
