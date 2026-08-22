@@ -153,11 +153,11 @@ The toolbar runs across the top of the screen.
 | Button | Action |
 |---|---|
 | **Debug** | Enter Debug Mode (physics projects) |
-| **Import / Open...** | Import a `.physide.json` project bundle or `.xml` block workspace |
-| **Export** | Open the export dropdown (seven options) |
+| **File** | One dropdown for both import (`.physide.json` project bundle, `.py`/`.xml` block workspace) and the seven export options — see [Section 12](#12-exporting-and-importing-work) |
 | **Theme** | Toggle dark / light theme |
-| **Zoom slider** | Adjust the block canvas zoom level |
 | **Viewport** | Show or hide the 3D Viewport panel |
+
+Block canvas zoom is not a toolbar button — it is the on-canvas +/−/fit cluster docked bottom-right of the Block Editor pane (see [Section 5](#5-block-editor)).
 
 ---
 
@@ -200,7 +200,7 @@ Switch to the **Code** tab to see the VPython code generated from your block sta
 | Delete block | Right-click → Delete, or select + Delete key |
 | Undo / Redo | `Ctrl+Z` / `Ctrl+Y` |
 | Select all | `Ctrl+A` |
-| Zoom canvas | Scroll wheel or zoom slider |
+| Zoom canvas | Scroll wheel, or the +/−/fit cluster docked bottom-right of the canvas (35%–200%, persists across sessions) |
 
 ---
 
@@ -375,12 +375,14 @@ In block projects, add a `telemetry_update_block` from the State category to emi
 
 ## 12. Exporting and Importing Work
 
-### Export dropdown
+### File menu
 
-Click **Export** in the toolbar to access seven export options:
+Click **File** in the toolbar (a dropdown, not a separate Export/Open pair — the two were unified into one menu in Plan 2) to access both import and export options:
 
 | Option | Output | Best for |
 |---|---|---|
+| Import blocks or Python (.py, .xml) | Replaces the current block workspace with an uploaded `.py` or `.xml` file | Restoring a previously exported program |
+| Open project bundle (.physide.json) | Restores the complete project — goal, title, block workspace, and code | Loading a saved project bundle |
 | Export as Python (.py) | `.py` file — current VPython code | Running locally; submitting code |
 | Export Blocks (.xml) | `.xml` file — Blockly workspace | Sharing block programs; backup |
 | Code as PDF | PDF — syntax-highlighted code | Assessment submission |
@@ -398,9 +400,9 @@ Click **Export** in the toolbar to access seven export options:
 
 ### Importing
 
-Click **Open...** in the toolbar to import:
+Both import options live in the same **File** menu described above — there is no separate Open button:
 - A `.physide.json` project bundle — restores the complete project including goal, title, block workspace, and code.
-- A `.xml` Blockly workspace file — replaces the current block workspace.
+- A `.xml` Blockly workspace file (or a `.py` Python file) — replaces the current block workspace.
 
 ---
 

@@ -98,13 +98,13 @@ A step-by-step guided mode for beginners, **selectable at project creation** per
 - Trace-to-dataset → analysis → chart works end-to-end across both hybrid templates.
 - Bundle round-trip works for both JSON and ZIP formats across the four manual flows.
 - v1 → v2 manifest migration succeeds on a legacy save (`physics-lab-state-v1` localStorage key).
-- App deploys to Vercel / Cloudflare Pages and runs fully offline after first load.
+- App deploys to Vercel / Cloudflare Pages and runs fully offline after first load — Blockly (`blockly@11.2.2`), the GlowScript 3.2 runtime, and Monaco (`monaco-editor@0.45.0`) are all bundled or vendored at build time, same-origin, with no CDN dependency for any of the three (Plan 3, the MakeCode overhaul).
 - Cold start under 3 s on the free tier.
 - Trace render smooth at 5 k rows.
 - Arquero ops on 10 k rows under 200 ms (Phase A measured 1.3–4.9 ms — actuals stay well inside this).
 - Plot render of a 10 k-point chart under 500 ms.
 - Project switch (save current + load new) under 200 ms.
-- No HTTP requests to non-CDN origins after first load. Smoke-tested in CI.
+- No HTTP requests to any third-party origin after first load, full stop — the historical "Monaco stays on a CDN" carve-out behind the old "non-CDN origins" wording is gone now that Monaco is bundled alongside Blockly and the vendored GlowScript runtime. The one remaining external request is the Google Fonts `@import` in `styles.css` (self-hosting Inter / JetBrains Mono is a tracked, deliberate deferral — see Plan 3's spec — not an oversight). Smoke-tested in CI.
 
 ---
 
