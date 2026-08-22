@@ -103,7 +103,11 @@ export default function SignUpPage() {
           </span>
         </label>
         {error ? <div className="auth-error">{error}</div> : null}
-        <button className="auth-submit" type="submit" disabled={signup.isPending}>
+        <button
+          className="btn btn--primary btn--lg btn--block"
+          type="submit"
+          disabled={signup.isPending}
+        >
           {signup.isPending ? "Creating…" : "Create account"}
         </button>
       </form>

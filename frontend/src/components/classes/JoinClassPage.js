@@ -82,7 +82,7 @@ export default function JoinClassPage() {
           </label>
           {error ? <div className="auth-error">{error}</div> : null}
           <button
-            className="auth-submit"
+            className="btn btn--primary btn--lg btn--block"
             type="submit"
             disabled={!CLASS_CODE_REGEX.test(normalizeClassCode(code))}
           >
