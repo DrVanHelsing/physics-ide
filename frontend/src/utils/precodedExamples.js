@@ -14,7 +14,6 @@ export const EXAMPLES = [
     "A high-detail ballistic launch scene with launch rail, velocity vector, atmospheric drag, and live telemetry showing speed, height, and range.",
     code: `GlowScript 3.2 VPython
 scene.title = "Projectile Motion"
-scene.background = vector(0.05, 0.08, 0.16)
 scene.range = 18
 scene.forward = vector(-0.35, -0.2, -1)
 scene.center = vector(11, 3.5, 0)
@@ -124,7 +123,6 @@ telemetry.text = telemetry.text + "\\npeak height = " + str(round(max_height,2))
     "A detailed damped oscillator with rail geometry, color-mapped spring tension, and live kinetic/potential energy telemetry.",
     code: `GlowScript 3.2 VPython
 scene.title = "Spring-Mass Oscillator"
-scene.background = vector(0.06, 0.07, 0.14)
 scene.range = 8.5
 scene.center = vector(-0.8, 0, 0)
 scene.forward = vector(-0.25, -0.12, -1)
@@ -223,7 +221,6 @@ while True:
     "Moon orbits Earth while Earth orbits the Sun. Uses velocity-Verlet integration for long-term orbital stability.",
     code: `GlowScript 3.2 VPython
 scene.title = "Sun, Earth & Moon"
-scene.background = vector(0.02, 0.03, 0.09)
 scene.range = 14
 scene.forward = vector(-0.2, -0.3, -1)
 scene.caption = "Three-body gravity: Moon orbits Earth, Earth orbits Sun\\n"
@@ -361,7 +358,6 @@ while True:
 
 # ── Scene ─────────────────────────────────────────────────────────────────────
 scene.title      = "Simple Pendulum"
-scene.background = vector(0.05, 0.05, 0.10)
 scene.range      = 3
 scene.center     = vector(0, -1, 0)
 

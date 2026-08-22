@@ -284,7 +284,6 @@ function normalizeSimulationFlow(blocks) {
 const PROJECTILE_BLOCKS = [
   /* ── Scene setup ────────────────────────────────────────── */
   { type: "sim_start_block", fields: { TITLE: "Projectile Motion" } },
-  { type: "python_raw_block", fields: { CODE: 'scene.background = vector(0.051, 0.086, 0.161)' } },
   { type: "python_raw_block", fields: { CODE: 'scene.range = 18' } },
 
   /* ── Colour constants (template-specific) ─────────────── */
@@ -700,7 +699,6 @@ const PROJECTILE_BLOCKS = [
 const ORBIT_BLOCKS = [
   /* ── Scene setup ────────────────────────────────────────── */
   { type: "sim_start_block", fields: { TITLE: "Sun, Earth \u0026 Moon" } },
-  { type: "python_raw_block", fields: { CODE: 'scene.background = vector(0.020, 0.035, 0.090)' } },
   { type: "python_raw_block", fields: { CODE: 'scene.range = 14' } },
   {
     type: "local_light_block",
@@ -1107,7 +1105,6 @@ const ORBIT_BLOCKS = [
 const SPRING_BLOCKS = [
   /* ── Scene setup ────────────────────────────────────────── */
   { type: "sim_start_block", fields: { TITLE: "Spring-Mass Oscillator" } },
-  { type: "python_raw_block", fields: { CODE: 'scene.background = vector(0.059, 0.071, 0.133)' } },
   { type: "python_raw_block", fields: { CODE: 'scene.range = 8.5' } },
 
   /* ── Colour constants (template-specific) ─────────────── */
