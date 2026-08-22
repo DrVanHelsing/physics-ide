@@ -244,17 +244,19 @@
 .blockly-readonly {
   opacity: 0.88;
 }
-/* Breakpoint red highlight — outline/glow on breakpointed block */
-.dm-bp-block > .blocklyPath {
+/* ── Debug decorations on Blockly blocks ────────────────────
+   Red is reserved for errors and breakpoints (blockPalette.js keeps every
+   category fill out of the 340-15 degree band), so these can finally be the
+   product's own tokens instead of a fourth and fifth hardcoded red. */
+.bp-block > .blocklyPath {
   stroke: var(--red) !important;
   stroke-width: 3px !important;
-  filter: drop-shadow(0 0 7px color-mix(in srgb, var(--red) 85%, transparent)) !important;
+  filter: drop-shadow(0 0 7px color-mix(in srgb, var(--red) 70%, transparent)) !important;
 }
-/* Execution highlight — bright outline/glow on the currently running block */
-.dm-block-executing > .blocklyPath {
+.block-executing > .blocklyPath {
   stroke: var(--yellow) !important;
   stroke-width: 3px !important;
-  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--yellow) 80%, transparent)) !important;
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--yellow) 70%, transparent)) !important;
 }
 
 /* ── Code-editor debug decorations (Monaco) ────────────────── */
