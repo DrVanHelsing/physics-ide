@@ -254,7 +254,7 @@ function Toolbar({
       icon: viewportHidden ? PanelRightOpenIcon : PanelRightCloseIcon,
       onClick: onToggleViewport,
     },
-    // Reserved for Plan 3's docked trace drawer, which supplies onToggleTrace.
+    // Reserved for Plan 4's docked trace drawer, which supplies onToggleTrace.
     // Inert until then — the toggle does not render without the handler.
     trace: onToggleTrace && {
       key: "trace",

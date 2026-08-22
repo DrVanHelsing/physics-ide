@@ -61,7 +61,7 @@ Blockly.Python = pythonGenerator;
  * delete-area geometry. import.meta.env.DEV is false for `vite build` (and
  * therefore for `vite preview`, which is what the offline-smoke and
  * production paths exercise), so this branch is dead code there and never
- * ships — confirmed absent from the built bundle (see task-15-report.md). */
+ * ships — confirmed absent from the built bundle. */
 if (typeof window !== "undefined" && import.meta.env.DEV) {
   window.Blockly = Blockly;
 }
