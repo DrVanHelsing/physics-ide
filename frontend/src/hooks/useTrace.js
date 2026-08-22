@@ -99,7 +99,7 @@ export function useTrace() {
       }
       if (event.data?.type === "__phtr") {
         if (typeof event.data.i === "number") setIteration(event.data.i);
-        traceBatch[event.data.n] = { v: event.data.v, b: event.data.b || "" };
+        traceBatch[event.data.n] = { v: event.data.v, b: event.data.b || "", s: event.data.s || "loop" };
         if (!traceTimer) {
           traceTimer = setTimeout(() => {
             if (typeof window.__physide_trace_cb === "function") {

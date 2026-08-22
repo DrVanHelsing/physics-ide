@@ -28,7 +28,7 @@ import { SimulationProvider, useSimulationContext } from "../../contexts/Simulat
 import { DebugProvider, useDebugContext } from "../../contexts/DebugContext";
 import { TraceProvider, useTraceContext } from "../../contexts/TraceContext";
 import { useTrace } from "../useTrace";
-import { HIGHLIGHT_DURATION_MS } from "../../constants";
+import { HIGHLIGHT_DURATION_MS, TRACE_DEBOUNCE_MS } from "../../constants";
 
 vi.mock("../../utils/runner/glowRunner", () => ({
   pausePython: vi.fn(),
@@ -124,6 +124,47 @@ describe("useTrace — __phpause handling (Task 15)", () => {
     mounted = mountComponent(<Wrapped />);
     postMessage({ type: "__phtr", n: "x", v: "1.5", b: "block-1", i: 12 });
     expect(latestTraceCtx.iteration).toBe(12);
+  });
+});
+
+describe("useTrace — scope survives the message pipeline (Task 16 fix)", () => {
+  /* Task 16's `__phtr` template gained `s:'<scope>'` alongside `n`/`v`/`b`/`i`
+     so TraceContext.updateTrace can tag a Map entry `scope: "setup" | "loop" |
+     "watch"`. That field only reaches TraceContext if useTrace's postMessage
+     handler actually forwards it into the batch it hands `updateTrace` — a
+     seam none of the instrumentor or TraceTable tests exercise, since both
+     construct `entry.scope` by hand rather than going through this pipeline.
+     These dispatch a REAL `message` event (not a direct __physide_trace_cb
+     call) and advance past the debounce, so the whole path — postMessage →
+     debounce batch → updateTrace → TraceContext Map — is proved end to end. */
+  test("a __phtr message carrying s:'setup' lands in TraceContext with that scope", () => {
+    vi.useFakeTimers();
+    mounted = mountComponent(<Wrapped />);
+
+    postMessage({ type: "__phtr", n: "m", v: "2.5", b: "line_2", s: "setup", i: 0 });
+    act(() => { vi.advanceTimersByTime(TRACE_DEBOUNCE_MS); });
+
+    expect(latestTraceCtx.traceData.get("m")?.scope).toBe("setup");
+  });
+
+  test("a __phtr message carrying s:'watch' lands in TraceContext with that scope", () => {
+    vi.useFakeTimers();
+    mounted = mountComponent(<Wrapped />);
+
+    postMessage({ type: "__phtr", n: "0.5*k*x**2", v: "1.25", b: "watch_0", s: "watch", i: 0 });
+    act(() => { vi.advanceTimersByTime(TRACE_DEBOUNCE_MS); });
+
+    expect(latestTraceCtx.traceData.get("0.5*k*x**2")?.scope).toBe("watch");
+  });
+
+  test("a __phtr message with no s at all still defaults to 'loop' (back-compat with block-project checkpoints)", () => {
+    vi.useFakeTimers();
+    mounted = mountComponent(<Wrapped />);
+
+    postMessage({ type: "__phtr", n: "t", v: "0.4", b: "line_9", i: 0 });
+    act(() => { vi.advanceTimersByTime(TRACE_DEBOUNCE_MS); });
+
+    expect(latestTraceCtx.traceData.get("t")?.scope).toBe("loop");
   });
 });
 

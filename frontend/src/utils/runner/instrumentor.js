@@ -57,14 +57,23 @@ const BUILTINS = new Set([
 const ASSIGN_RE = /^(\s*)([a-zA-Z_]\w*)\s*(?:[+\-*/%&|^]|\*\*|\/\/)?=(?!=)/;
 
 /** A watch expression is a single line of Python that must not smuggle in a
- *  statement. Anything with a newline, a leading keyword, or nothing in it is
- *  dropped rather than run. */
+ *  statement. Anything with a newline, a semicolon (which chains further
+ *  statements onto the same line), a leading keyword, an assignment, or
+ *  nothing in it is dropped rather than run. */
 const WATCH_REJECT = /^\s*(?:import|from|def|class|while|for|if|return|del|global|nonlocal|raise|assert|with|pass|break|continue)\b/;
 
 function sanitiseWatch(list) {
   return (Array.isArray(list) ? list : [])
     .map((s) => String(s ?? "").trim())
-    .filter((s) => s.length > 0 && !s.includes("\n") && !WATCH_REJECT.test(s) && !s.includes("="));
+    .filter((s) =>
+      s.length > 0 &&
+      !s.includes("\n") &&
+      !s.includes(";") && // a semicolon chains statements onto one line —
+                          // the single-expression invariant depends on there
+                          // being no way to sequence more than one.
+      !WATCH_REJECT.test(s) &&
+      !s.includes("=")
+    );
 }
 
 /**
