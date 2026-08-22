@@ -50,14 +50,18 @@ const Blockly = Object.assign({}, unwrapDefault(BlocklyModule));
 Blockly.setLocale(unwrapDefault(En));
 Blockly.Python = pythonGenerator;
 
-/* Dev-only test hook: frontend/scripts/e2e-test.mjs programmatically injects
- * Blockly XML into the live workspace to verify each DS block's ground-truth
- * output (Part B2) — real drag-and-drop of ~30 block combinations through
- * the toolbox is not a tractable DOM-only substitute. import.meta.env.DEV is
- * false for `vite build` (and therefore for `vite preview`, which is what
- * the offline-smoke and production paths exercise), so this branch is dead
- * code there and never ships. It is NOT the app's own Blockly instance
- * being "exposed" for product use — nothing in src reads window.Blockly. */
+/* Dev-only test hook — exists SOLELY for frontend/scripts/e2e-test.mjs and
+ * must never be read by product code (nothing under src/ does, and nothing
+ * should start). Controller-authorized (Task 15) as the fallback DOM-only
+ * assertions genuinely can't cover: Part B2 programmatically injects
+ * Blockly XML into the live workspace to verify each DS block's ground-
+ * truth output (real drag-and-drop of ~30 block combinations through the
+ * toolbox is not a tractable substitute), and Suite C3 reads the live
+ * workspace's ComponentManager to introspect the trashcan's registered
+ * delete-area geometry. import.meta.env.DEV is false for `vite build` (and
+ * therefore for `vite preview`, which is what the offline-smoke and
+ * production paths exercise), so this branch is dead code there and never
+ * ships — confirmed absent from the built bundle (see task-15-report.md). */
 if (typeof window !== "undefined" && import.meta.env.DEV) {
   window.Blockly = Blockly;
 }
