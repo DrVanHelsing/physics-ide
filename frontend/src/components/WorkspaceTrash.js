@@ -107,7 +107,7 @@ function WorkspaceTrash({ workspaceRef }) {
     };
   }, [visible, workspaceRef]);
 
-  /* The rail-tint hint (chrome.css) keys off this class on the workspace
+  /* The rail-tint hint (workspace.css) keys off this class on the workspace
      wrapper — our own rendered container's parent. */
   useEffect(() => {
     const wrapper = elRef.current ? elRef.current.parentElement : null;
