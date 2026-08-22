@@ -101,10 +101,22 @@ export const MASTER_TOOLBOX_XML = `
       <value name="TRAIL_COL"><shadow type="colour_block"><field name="MODE">CUSTOM</field><field name="CUSTOM">#ffff00</field></shadow></value>
       <value name="RETAIN"><shadow type="math_number"><field name="NUM">200</field></shadow></value>
     </block>
+    <block type="sphere_emissive_block">
+      <value name="POS"><shadow type="vector_block"><field name="X">0</field><field name="Y">0</field><field name="Z">0</field></shadow></value>
+      <value name="RADIUS"><shadow type="math_number"><field name="NUM">1</field></shadow></value>
+      <value name="COL"><shadow type="colour_block"><field name="MODE">YELLOW</field><field name="CUSTOM">#ffdd55</field></shadow></value>
+      <value name="OPACITY"><shadow type="math_number"><field name="NUM">1</field></shadow></value>
+    </block>
     <block type="box_block">
       <value name="POS"><shadow type="vector_block"><field name="X">0</field><field name="Y">0</field><field name="Z">0</field></shadow></value>
       <value name="SIZE"><shadow type="vector_block"><field name="X">1</field><field name="Y">1</field><field name="Z">1</field></shadow></value>
       <value name="COL"><shadow type="colour_block"><field name="MODE">CUSTOM</field><field name="CUSTOM">#4444ff</field></shadow></value>
+    </block>
+    <block type="box_opacity_block">
+      <value name="POS"><shadow type="vector_block"><field name="X">0</field><field name="Y">0</field><field name="Z">0</field></shadow></value>
+      <value name="SIZE"><shadow type="vector_block"><field name="X">1</field><field name="Y">1</field><field name="Z">1</field></shadow></value>
+      <value name="COL"><shadow type="colour_block"><field name="MODE">CUSTOM</field><field name="CUSTOM">#4444ff</field></shadow></value>
+      <value name="OPACITY"><shadow type="math_number"><field name="NUM">0.4</field></shadow></value>
     </block>
     <block type="cylinder_block">
       <value name="POS"><shadow type="vector_block"><field name="X">0</field><field name="Y">0</field><field name="Z">0</field></shadow></value>
@@ -121,6 +133,14 @@ export const MASTER_TOOLBOX_XML = `
       <value name="POS"><shadow type="vector_block"><field name="X">0</field><field name="Y">0</field><field name="Z">0</field></shadow></value>
       <value name="AXIS"><shadow type="vector_block"><field name="X">1</field><field name="Y">0</field><field name="Z">0</field></shadow></value>
       <value name="RADIUS"><shadow type="math_number"><field name="NUM">0.3</field></shadow></value>
+      <value name="COL"><shadow type="colour_block"><field name="MODE">CUSTOM</field><field name="CUSTOM">#cccccc</field></shadow></value>
+    </block>
+    <block type="helix_full_block">
+      <value name="POS"><shadow type="vector_block"><field name="X">0</field><field name="Y">0</field><field name="Z">0</field></shadow></value>
+      <value name="AXIS"><shadow type="vector_block"><field name="X">1</field><field name="Y">0</field><field name="Z">0</field></shadow></value>
+      <value name="RADIUS"><shadow type="math_number"><field name="NUM">0.3</field></shadow></value>
+      <value name="COILS"><shadow type="math_number"><field name="NUM">10</field></shadow></value>
+      <value name="THICK"><shadow type="math_number"><field name="NUM">0.05</field></shadow></value>
       <value name="COL"><shadow type="colour_block"><field name="MODE">CUSTOM</field><field name="CUSTOM">#cccccc</field></shadow></value>
     </block>
     <block type="label_block">
@@ -242,87 +262,100 @@ export const MASTER_TOOLBOX_XML = `
 
   <category name="Variables" categorystyle="variables_category" custom="VARIABLE"></category>
 
-  <!-- ── DATA SCIENCE (datascience) ─────────────────────── -->
-  <category name="Data Science" categorystyle="data_science_category">
-    <label text="Analysis structure" web-class="tb-label"></label>
-    <block type="ds_start_block"></block>
-    <sep gap="12"></sep>
-    <label text="Load data" web-class="tb-label"></label>
-    <block type="ds_load_builtin_block"></block>
-    <block type="ds_load_csv_block"></block>
-    <block type="ds_load_trace_block"></block>
-    <sep gap="8"></sep>
-    <label text="Explore" web-class="tb-label"></label>
-    <block type="ds_show_table_block"></block>
-    <block type="ds_show_first_n_block"></block>
-    <block type="ds_show_last_n_block"></block>
-    <block type="ds_show_column_block"><field name="COL">species</field></block>
-    <block type="ds_count_rows_block"></block>
-    <block type="ds_count_cols_block"></block>
-    <block type="ds_list_cols_block"></block>
-    <block type="ds_count_unique_block"><field name="COL">species</field></block>
-    <block type="ds_show_one_cell_block"><field name="ROW">0</field><field name="COL">species</field></block>
-    <block type="ds_identify_type_block"><field name="COL">species</field></block>
-    <sep gap="8"></sep>
-    <label text="Statistics" web-class="tb-label"></label>
-    <block type="ds_calc_mean_block"><field name="COL">mass</field></block>
-    <block type="ds_calc_median_block"><field name="COL">mass</field></block>
-    <block type="ds_calc_mode_block"><field name="COL">species</field></block>
-    <block type="ds_calc_min_block"><field name="COL">mass</field></block>
-    <block type="ds_calc_max_block"><field name="COL">mass</field></block>
-    <block type="ds_calc_range_block"><field name="COL">mass</field></block>
-    <block type="ds_calc_sum_block"><field name="COL">mass</field></block>
-    <block type="ds_calc_count_block"><field name="COL">mass</field></block>
-    <block type="ds_calc_stddev_block"><field name="COL">mass</field></block>
-    <block type="ds_all_stats_block"><field name="COL">mass</field></block>
-    <block type="ds_compare_columns_block"><field name="COL_A">bill_length_mm</field><field name="COL_B">bill_depth_mm</field></block>
-    <block type="ds_calc_percentile_block"><field name="COL">mass</field><field name="P">50</field></block>
-    <block type="ds_calc_iqr_block"><field name="COL">mass</field></block>
-    <sep gap="8"></sep>
-    <label text="Transform columns" web-class="tb-label"></label>
-    <block type="ds_add_column_transform_block"><field name="SOURCE_COL">x</field><field name="NEW_NAME">log_x</field><field name="TRANSFORM">log10</field></block>
-    <block type="ds_multiply_columns_block"><field name="COL_A">t</field><field name="COL_B">t</field><field name="NEW_NAME">t_sq</field></block>
-    <sep gap="8"></sep>
-    <label text="Uncertainty" web-class="tb-label"></label>
-    <block type="ds_calc_std_error_block"><field name="COL">mass</field></block>
-    <block type="ds_print_uncertainty_block"><field name="LABEL">measurement</field></block>
-    <block type="ds_calc_relative_uncertainty_block"></block>
-    <sep gap="8"></sep>
-    <label text="Relationships" web-class="tb-label"></label>
-    <block type="ds_linear_regression_block"><field name="X_COL">x</field><field name="Y_COL">y</field></block>
-    <block type="ds_chart_scatter_fit_block"><field name="X_COL">x</field><field name="Y_COL">y</field></block>
-    <block type="ds_correlation_block"><field name="COL_A">x</field><field name="COL_B">y</field></block>
-    <sep gap="8"></sep>
-    <label text="Filter and Sort" web-class="tb-label"></label>
-    <block type="ds_filter_eq_block"><field name="COL">species</field><field name="VALUE">Adelie</field></block>
-    <block type="ds_filter_gt_block"><field name="COL">mass</field><field name="VALUE">3500</field></block>
-    <block type="ds_filter_lt_block"><field name="COL">mass</field><field name="VALUE">3500</field></block>
-    <block type="ds_sort_asc_block"><field name="COL">mass</field></block>
-    <block type="ds_sort_desc_block"><field name="COL">mass</field></block>
-    <block type="ds_remove_missing_block"><field name="COL">mass</field></block>
-    <block type="ds_find_missing_block"><field name="COL">mass</field></block>
-    <block type="ds_filter_and_block"><field name="COL_A">species</field><field name="VAL_A">Adelie</field><field name="COL_B">island</field><field name="VAL_B">Biscoe</field></block>
-    <block type="ds_filter_or_block"><field name="COL_A">species</field><field name="VAL_A">Adelie</field><field name="COL_B">species</field><field name="VAL_B">Chinstrap</field></block>
-    <sep gap="8"></sep>
-    <label text="Group and Compare" web-class="tb-label"></label>
-    <block type="ds_group_count_block"><field name="COL">species</field></block>
-    <block type="ds_group_mean_block"><field name="VALUE_COL">mass</field><field name="GROUP_COL">species</field></block>
-    <sep gap="8"></sep>
-    <label text="Charts" web-class="tb-label"></label>
-    <block type="ds_chart_bar_block"><field name="X_COL">species</field><field name="Y_COL">count</field></block>
-    <block type="ds_chart_line_block"><field name="X_COL">date</field><field name="Y_COL">temperature</field></block>
-    <block type="ds_chart_scatter_block"><field name="X_COL">bill_length_mm</field><field name="Y_COL">body_mass_g</field></block>
-    <block type="ds_chart_histogram_block"><field name="COL">body_mass_g</field></block>
-    <block type="ds_chart_box_block"><field name="VALUE_COL">body_mass_g</field><field name="GROUP_COL">species</field></block>
-    <block type="ds_save_chart_block"><field name="X_COL">species</field><field name="Y_COL">count</field></block>
-    <sep gap="8"></sep>
-    <label text="Communicate" web-class="tb-label"></label>
-    <block type="ds_write_note_block"></block>
-    <block type="ds_print_result_block"></block>
-    <block type="ds_compare_results_block"></block>
-    <block type="ds_state_conclusion_block"></block>
-    <block type="ds_export_table_block"></block>
-    <block type="ds_show_python_block"></block>
+  <!-- ── DATA SCIENCE (datascience) — the analysis pipeline, in order ── -->
+  <category name="Data Science" categorystyle="data_science_category" expanded="false">
+    <category name="Load Data" categorystyle="load_data_category">
+      <label text="Analysis structure" web-class="tb-label"></label>
+      <block type="ds_start_block"></block>
+      <sep gap="12"></sep>
+      <label text="Bring data in" web-class="tb-label"></label>
+      <block type="ds_load_builtin_block"></block>
+      <block type="ds_load_csv_block"></block>
+      <block type="ds_load_trace_block"></block>
+    </category>
+
+    <category name="Explore" categorystyle="explore_category">
+      <block type="ds_show_table_block"></block>
+      <block type="ds_show_first_n_block"></block>
+      <block type="ds_show_last_n_block"></block>
+      <block type="ds_show_column_block"><field name="COL">species</field></block>
+      <block type="ds_count_rows_block"></block>
+      <block type="ds_count_cols_block"></block>
+      <block type="ds_list_cols_block"></block>
+      <block type="ds_count_unique_block"><field name="COL">species</field></block>
+      <block type="ds_show_one_cell_block"><field name="ROW">0</field><field name="COL">species</field></block>
+      <block type="ds_identify_type_block"><field name="COL">species</field></block>
+    </category>
+
+    <category name="Statistics" categorystyle="statistics_category">
+      <block type="ds_calc_mean_block"><field name="COL">mass</field></block>
+      <block type="ds_calc_median_block"><field name="COL">mass</field></block>
+      <block type="ds_calc_mode_block"><field name="COL">species</field></block>
+      <block type="ds_calc_min_block"><field name="COL">mass</field></block>
+      <block type="ds_calc_max_block"><field name="COL">mass</field></block>
+      <block type="ds_calc_range_block"><field name="COL">mass</field></block>
+      <block type="ds_calc_sum_block"><field name="COL">mass</field></block>
+      <block type="ds_calc_count_block"><field name="COL">mass</field></block>
+      <block type="ds_calc_stddev_block"><field name="COL">mass</field></block>
+      <block type="ds_all_stats_block"><field name="COL">mass</field></block>
+      <block type="ds_compare_columns_block"><field name="COL_A">bill_length_mm</field><field name="COL_B">bill_depth_mm</field></block>
+      <block type="ds_calc_percentile_block"><field name="COL">mass</field><field name="P">50</field></block>
+      <block type="ds_calc_iqr_block"><field name="COL">mass</field></block>
+    </category>
+
+    <category name="Transforming Data" categorystyle="transforming_data_category">
+      <block type="ds_add_column_transform_block"><field name="SOURCE_COL">x</field><field name="NEW_NAME">log_x</field><field name="TRANSFORM">log10</field></block>
+      <block type="ds_multiply_columns_block"><field name="COL_A">t</field><field name="COL_B">t</field><field name="NEW_NAME">t_sq</field></block>
+    </category>
+
+    <category name="Uncertainty" categorystyle="uncertainty_category">
+      <block type="ds_calc_std_error_block"><field name="COL">mass</field></block>
+      <block type="ds_print_uncertainty_block"><field name="LABEL">measurement</field></block>
+      <block type="ds_calc_relative_uncertainty_block"></block>
+    </category>
+
+    <category name="Analyzing Relationships" categorystyle="analyzing_relationships_category">
+      <block type="ds_linear_regression_block"><field name="X_COL">x</field><field name="Y_COL">y</field></block>
+      <block type="ds_chart_scatter_fit_block"><field name="X_COL">x</field><field name="Y_COL">y</field></block>
+      <block type="ds_correlation_block"><field name="COL_A">x</field><field name="COL_B">y</field></block>
+    </category>
+
+    <category name="Filter &amp; Sort" categorystyle="filter_sort_category">
+      <block type="ds_filter_eq_block"><field name="COL">species</field><field name="VALUE">Adelie</field></block>
+      <block type="ds_filter_gt_block"><field name="COL">mass</field><field name="VALUE">3500</field></block>
+      <block type="ds_filter_lt_block"><field name="COL">mass</field><field name="VALUE">3500</field></block>
+      <block type="ds_filter_and_block"><field name="COL_A">species</field><field name="VAL_A">Adelie</field><field name="COL_B">island</field><field name="VAL_B">Biscoe</field></block>
+      <block type="ds_filter_or_block"><field name="COL_A">species</field><field name="VAL_A">Adelie</field><field name="COL_B">species</field><field name="VAL_B">Chinstrap</field></block>
+      <sep gap="8"></sep>
+      <block type="ds_sort_asc_block"><field name="COL">mass</field></block>
+      <block type="ds_sort_desc_block"><field name="COL">mass</field></block>
+      <sep gap="8"></sep>
+      <block type="ds_remove_missing_block"><field name="COL">mass</field></block>
+      <block type="ds_find_missing_block"><field name="COL">mass</field></block>
+    </category>
+
+    <category name="Group &amp; Compare" categorystyle="group_compare_category">
+      <block type="ds_group_count_block"><field name="COL">species</field></block>
+      <block type="ds_group_mean_block"><field name="VALUE_COL">mass</field><field name="GROUP_COL">species</field></block>
+    </category>
+
+    <category name="Charts" categorystyle="charts_category">
+      <block type="ds_chart_bar_block"><field name="X_COL">species</field><field name="Y_COL">count</field></block>
+      <block type="ds_chart_line_block"><field name="X_COL">date</field><field name="Y_COL">temperature</field></block>
+      <block type="ds_chart_scatter_block"><field name="X_COL">bill_length_mm</field><field name="Y_COL">body_mass_g</field></block>
+      <block type="ds_chart_histogram_block"><field name="COL">body_mass_g</field></block>
+      <block type="ds_chart_box_block"><field name="VALUE_COL">body_mass_g</field><field name="GROUP_COL">species</field></block>
+      <block type="ds_save_chart_block"><field name="X_COL">species</field><field name="Y_COL">count</field></block>
+    </category>
+
+    <category name="Communicate" categorystyle="communicate_category">
+      <block type="ds_write_note_block"></block>
+      <block type="ds_print_result_block"></block>
+      <block type="ds_compare_results_block"></block>
+      <block type="ds_state_conclusion_block"></block>
+      <block type="ds_export_table_block"></block>
+      <block type="ds_show_python_block"></block>
+    </category>
   </category>
 
   <!-- ── ADVANCED drawer (power-user categories collapse here) ── -->
