@@ -106,6 +106,7 @@ The classroom backend ships local-first. These obligations were accepted during 
 - [ ] Before real email: per-email-address throttle on `/api/auth/forgot` (mail-bomb shape) and wrap the mailer send so a mail failure cannot become a user-existence oracle.
 - [ ] Throttle class-join code guessing, invite batches (50 real emails/request today), and class creation before the site is public.
 - [ ] Note: member removal revokes invites for the member's registered email only — invites sent to other addresses survive (token possession admits; mitigate with teacher-visible revoke + code regenerate).
+- [ ] Set a cacheable `Cache-Control` header (not the static host's `no-cache` default) on `/vendor/**` (the vendored GlowScript runtime) — Task 15's offline smoke test found `vite preview` serves those files `no-cache`, which forces a revalidation round-trip on every simulation Run and breaks a repeat Run offline even with a warm cache; confirm the real host doesn't do the same.
 
 ## What does NOT belong here
 

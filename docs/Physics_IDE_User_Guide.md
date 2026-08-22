@@ -780,7 +780,7 @@ Physics IDE is designed for use in:
 1. Build or open a simulation with specific parameters intentionally left incomplete.
 2. Click **Export Project Bundle (.physide.json)** to download the bundle.
 3. Distribute the `.physide.json` to students.
-4. Students click **Open...** in the toolbar to load the workspace.
+4. Students click **File** in the toolbar → **Open project bundle (.physide.json)** to load the workspace.
 
 ### Assessing student work
 
