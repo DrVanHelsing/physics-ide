@@ -23,6 +23,7 @@ import Blockly from "../../utils/blockly/blocklyLib";
 
 import BlocklyWorkspace, { ReadOnlyBlockly } from "../BlocklyWorkspace";
 import BlocklyEmptyState from "../BlocklyEmptyState";
+import WorkspaceZoom from "../WorkspaceZoom";
 import CodeEditor   from "../CodeEditor";
 import GlowCanvas   from "../GlowCanvas";
 import Toolbar      from "../Toolbar";
@@ -491,6 +492,12 @@ export default function IDELayout() {
                     onScaleChange={setBlocklyZoom}
                     isDark={isDark}
                     goal={goal}
+                    initialZoom={blocklyZoom}
+                  />
+                  <WorkspaceZoom
+                    zoom={blocklyZoom}
+                    onZoomChange={sim.handleZoomChange}
+                    workspaceRef={workspaceRef}
                   />
                   {/* blockCount is the non-frame count BlocklyWorkspace reports via
                      countContentBlocks (Step 3) — a freshly seeded blank physics

@@ -307,7 +307,7 @@ function decorateToolboxRows(workspace) {
   }
 }
 
-function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, onBlockCountChange, onScaleChange, isDark, goal = "physics" }) {
+function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, onBlockCountChange, onScaleChange, isDark, goal = "physics", initialZoom }) {
   const hostRef = useRef(null);
   const workspaceRef = useRef(null);
   const [loadError, setLoadError] = useState("");
@@ -315,6 +315,7 @@ function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, onB
   const onReadyRef = useRef(onWorkspaceReady);
   const onChangeRef = useRef(onWorkspaceChange);
   const initialXmlRef = useRef(initialXml);
+  const initialZoomRef = useRef(initialZoom);
   const goalRef = useRef(goal);
   const isDarkRef = useRef(isDark);
   onReadyRef.current = onWorkspaceReady;
@@ -383,6 +384,13 @@ function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, onB
     workspaceRef.current = workspace;
     onReadyRef.current(workspace);
     decorateToolboxRows(workspace);
+
+    // The inject options above always start at a fixed 90% (startScale: 0.9);
+    // push the localStorage-restored zoom (SimulationContext's blocklyZoom,
+    // fed in as initialZoom) into the freshly-injected workspace so it
+    // actually reaches the canvas. The wheel-sync VIEWPORT_CHANGE listener
+    // below keeps the on-canvas readout honest from here on.
+    workspace.setScale((initialZoomRef.current ?? 90) / 100);
 
     // Restore saved XML
     const xml = initialXmlRef.current;
