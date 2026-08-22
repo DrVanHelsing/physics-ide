@@ -24,6 +24,11 @@ export const RefreshIcon = ({ size } = {}) => (
   <svg {...sz(size)}><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
 );
 
+/* Duplicate resolved (D10, spec §18): the deleted frontend/src/welcome/WelcomeIcons.js
+   also defined a BlocksIcon — two overlapping rounded squares at strokeWidth 1.6. This
+   four-square-grid geometry wins because it is the one already shown by the IDE header,
+   the help page sidebar (HelpPage.js NAV, "Block Editor") and the start wizard; the
+   welcome variant was deleted outright rather than kept as a second export. */
 export const BlocksIcon = ({ size } = {}) => (
   <svg {...sz(size)}><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
 );
@@ -323,4 +328,29 @@ export const CameraIcon = ({ size } = {}) => (
   <svg {...sz(size)}><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
 );
 
+/* Folded in from the deleted frontend/src/welcome/WelcomeIcons.js (D10, spec §18 —
+   one icon module, no second file for a new surface). That module defined six icons;
+   two were duplicates resolved by reuse rather than moved:
+     - BlocksIcon duplicated the grid above — see the resolution comment there.
+     - ClassroomIcon (a mortarboard) duplicated GraduationCapIcon above (:247) with the
+       same geometry — not re-added; WelcomePage imports GraduationCapIcon instead.
+   The remaining four are genuinely new and are moved here rewritten in the house idiom:
+   arrow-function export, {...sz(size)} spread, strokeWidth inherited from `base` (2) —
+   the welcome module's hardcoded stroke weight (1 point 6) and 28px sizing do not
+   carry over; size is a prop now, the whole reason the prop exists. */
+export const OrbitIcon = ({ size } = {}) => (
+  <svg {...sz(size)}><circle cx="12" cy="12" r="3.6"/><ellipse cx="12" cy="12" rx="10" ry="4.3" transform="rotate(-22 12 12)"/></svg>
+);
+
+export const ChartIcon = ({ size } = {}) => (
+  <svg {...sz(size)}><rect x="3.5" y="13" width="4.2" height="7.5" rx="1.2"/><rect x="9.9" y="9" width="4.2" height="11.5" rx="1.2"/><rect x="16.3" y="4.5" width="4.2" height="16" rx="1.2"/></svg>
+);
+
+export const LocalFirstIcon = ({ size } = {}) => (
+  <svg {...sz(size)}><rect x="3" y="4.5" width="18" height="12" rx="2"/><path d="M1.8 19.5h20.4"/><path d="M8.7 10.4l2.2 2.2 4.4-4.4"/></svg>
+);
+
+export const PrivacyIcon = ({ size } = {}) => (
+  <svg {...sz(size)}><path d="M12 2.8 19 5.7v5.6c0 4.3-2.9 7.7-7 9.6-4.1-1.9-7-5.3-7-9.6V5.7l7-2.9Z"/><path d="M8.9 11.9l2.2 2.2 4-4.1"/></svg>
+);
 

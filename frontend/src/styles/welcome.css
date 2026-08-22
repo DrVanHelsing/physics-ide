@@ -49,7 +49,6 @@
 }
 .welcome-card { padding: var(--space-5); }
 .welcome-card__icon { display: inline-flex; color: var(--accent-bright); }
-.welcome-card__icon svg { width: 28px; height: 28px; }
 .welcome-card h2 { font-size: 16px; margin: 10px 0 6px; }
 .welcome-card p { font-size: 13px; color: var(--text-dim); line-height: 1.55; margin: 0; }
 
