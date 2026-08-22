@@ -617,16 +617,22 @@ function BlocklyWorkspace({
     }
   }, [breakpoints, debugMode, isBreakable, breakableIds]);
 
-  /* ── Execution highlight (yellow glow on the running block) ── */
+  /* ── Execution highlight (yellow glow on the running block) ──
+     Debug-mode only, like the .bp-available effect above it — and like the
+     Help text says. useTrace sets executingBlockId on every trace batch, so
+     without this guard an ORDINARY run would strobe the loud yellow stroke
+     ~10x/sec over Blockly's own highlight. Reading `null` when debug is off
+     also clears a glow left lit by leaving debug mode mid-highlight. */
   useEffect(() => {
     const ws = workspaceRef.current;
     if (!ws) return;
+    const activeId = debugMode ? executingBlockId : null;
     for (const block of ws.getAllBlocks(false)) {
       const g = block.getSvgRoot();
       if (!g) continue;
-      g.classList.toggle("block-executing", block.id === executingBlockId);
+      g.classList.toggle("block-executing", activeId != null && block.id === activeId);
     }
-  }, [executingBlockId]);
+  }, [executingBlockId, debugMode]);
 
   /* ── Rebuild the toolbox when the project goal changes ─── */
   useEffect(() => {
