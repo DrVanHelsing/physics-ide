@@ -1,0 +1,200 @@
+/**
+ * Task 14 fix round 1 — the breakpoint context-menu registration used to be
+ * guarded with `if (!getItem(BP_ITEM_ID))`, so only the FIRST-ever mounted
+ * BlocklyWorkspace instance ever registered it. Blockly's
+ * ContextMenuRegistry is a module-level singleton — after IDELayout remounts
+ * BlocklyWorkspace (it keys it with `ws-${workspaceReloadKey}`, bumped by the
+ * "Analyse Run" flow, a real exercised path), the registered
+ * preconditionFn/displayText/callback stayed frozen on the FIRST instance's
+ * debugApiRef forever; the new instance's isBreakable/toggleBreakpoint/
+ * breakpoints were never consulted again for the rest of the session.
+ *
+ * The fix unregisters in the effect's cleanup (and defensively before
+ * registering) so every mount registers fresh. This test drives that
+ * lifecycle directly against a fake Blockly (mocking `blocklyLib`, following
+ * the same convention `CodeEditor.breakableLines.test.js` used for
+ * `monacoLib` and `WorkspaceTrash.test.js` used for a fake workspace).
+ */
+import { describe, test, expect, vi, beforeEach, afterEach } from "vitest";
+import { mountComponent } from "../../test/renderHelpers";
+import BlocklyWorkspace from "../BlocklyWorkspace";
+
+/* ── Fake ContextMenuRegistry — mirrors Blockly's real throw-on-duplicate /
+   throw-on-missing semantics closely enough to catch a regression either
+   way (silently skipped OR thrown). `vi.mock` factories are hoisted above
+   this file's own top-level code, so anything the factory closes over must
+   be created through `vi.hoisted` to exist by the time the factory runs. ── */
+const { registryStore, fakeRegistry, selectedRef } = vi.hoisted(() => {
+  const registryStore = new Map();
+  const fakeRegistry = {
+    getItem: vi.fn((id) => registryStore.get(id) || null),
+    register: vi.fn((item) => {
+      if (registryStore.has(item.id)) {
+        throw new Error(`Item with id "${item.id}" already registered.`);
+      }
+      registryStore.set(item.id, item);
+    }),
+    unregister: vi.fn((id) => {
+      if (!registryStore.has(id)) {
+        throw new Error(`No item with id "${id}" registered.`);
+      }
+      registryStore.delete(id);
+    }),
+  };
+  const selectedRef = { current: null };
+  return { registryStore, fakeRegistry, selectedRef };
+});
+
+function fakeWorkspace() {
+  return {
+    getToolbox: () => null,
+    getAllBlocks: () => [],
+    getTopBlocks: () => [],
+    getBlockById: () => null,
+    setScale: vi.fn(),
+    getScale: () => 0.9,
+    resize: vi.fn(),
+    addChangeListener: vi.fn(),
+    removeChangeListener: vi.fn(),
+    updateToolbox: vi.fn(),
+    setTheme: vi.fn(),
+    dispose: vi.fn(),
+  };
+}
+
+vi.mock("../../utils/blockly/blocklyLib", () => ({
+  default: {
+    inject: vi.fn(() => fakeWorkspace()),
+    Events: { VIEWPORT_CHANGE: "viewport_change", UI: "ui" },
+    utils: { xml: { textToDom: vi.fn() } },
+    Xml: { workspaceToDom: vi.fn(() => ({})), domToText: vi.fn(() => "") },
+    ContextMenuRegistry: {
+      registry: fakeRegistry,
+      ScopeType: { BLOCK: "block" },
+    },
+    common: { getSelected: () => selectedRef.current },
+  },
+}));
+
+vi.mock("../../utils/blockly/blocklyGenerator", () => ({
+  defineCustomBlocksAndGenerator: vi.fn(),
+  generatePythonFromWorkspace: vi.fn(() => ""),
+  BLOCK_CATALOGUE: [],
+  customConstantsRegistry: [],
+}));
+
+vi.mock("../../utils/blockly/toolbox", () => ({
+  buildToolboxXml: vi.fn(() => "<xml></xml>"),
+}));
+
+vi.mock("../../utils/blockly/blocklyTheme", () => ({
+  getBlocklyTheme: vi.fn(() => ({})),
+  gridColourFor: vi.fn(() => "#000"),
+}));
+
+// The trashcan isn't relevant here and its real module reaches into Blockly
+// classes (Blockly.DeleteArea, ComponentManager.Capability) at import time
+// that this fake Blockly does not provide.
+vi.mock("../WorkspaceTrash", () => ({
+  default: () => null,
+}));
+
+const BP_ITEM_ID = "physide_toggle_breakpoint";
+
+let mounted = null;
+
+beforeEach(() => {
+  registryStore.clear();
+  selectedRef.current = null;
+  class FakeResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+  global.ResizeObserver = FakeResizeObserver;
+});
+
+afterEach(() => {
+  mounted?.unmount();
+  mounted = null;
+  vi.clearAllMocks();
+  registryStore.clear();
+});
+
+describe("BlocklyWorkspace — breakpoint context-menu registration lifecycle", () => {
+  test("mount registers the item", () => {
+    mounted = mountComponent(<BlocklyWorkspace onWorkspaceReady={() => {}} />);
+    expect(fakeRegistry.register).toHaveBeenCalledTimes(1);
+    expect(fakeRegistry.register.mock.calls[0][0].id).toBe(BP_ITEM_ID);
+    expect(fakeRegistry.getItem(BP_ITEM_ID)).not.toBeNull();
+  });
+
+  test("unmount unregisters the item", () => {
+    mounted = mountComponent(<BlocklyWorkspace onWorkspaceReady={() => {}} />);
+    mounted.unmount();
+    mounted = null;
+    expect(fakeRegistry.unregister).toHaveBeenCalledWith(BP_ITEM_ID);
+    expect(fakeRegistry.getItem(BP_ITEM_ID)).toBeNull();
+  });
+
+  test("a remount re-registers — the item is not left frozen on the first mount forever", () => {
+    // First mount (e.g. IDELayout's first render of BlocklyWorkspace).
+    const isBreakableA = () => true;
+    const toggleA = vi.fn();
+    const first = mountComponent(
+      <BlocklyWorkspace
+        onWorkspaceReady={() => {}}
+        isBreakable={isBreakableA}
+        toggleBreakpoint={toggleA}
+        breakpoints={new Set()}
+      />
+    );
+    expect(fakeRegistry.register).toHaveBeenCalledTimes(1);
+    const itemA = fakeRegistry.register.mock.calls[0][0];
+    expect(itemA.preconditionFn({ block: { id: "blk-1" } })).toBe("enabled");
+
+    // Simulates IDELayout's `key={`ws-${workspaceReloadKey}`}` remount (the
+    // "Analyse Run" flow): the old instance unmounts, a new one mounts with
+    // its own debug API.
+    first.unmount();
+
+    const isBreakableB = () => false;
+    const toggleB = vi.fn();
+    const second = mountComponent(
+      <BlocklyWorkspace
+        onWorkspaceReady={() => {}}
+        isBreakable={isBreakableB}
+        toggleBreakpoint={toggleB}
+        breakpoints={new Set()}
+      />
+    );
+
+    // Without the fix, this second registration never happens (the old
+    // `if (!getItem(...))` guard treats the stale first-mount registration
+    // as "already there") — register would still show only 1 call total,
+    // failing this assertion.
+    expect(fakeRegistry.register).toHaveBeenCalledTimes(2);
+    const itemB = fakeRegistry.register.mock.calls[1][0];
+
+    // The fresh registration consults instance B's debug API, not A's.
+    expect(itemB.preconditionFn({ block: { id: "blk-1" } })).toBe("disabled");
+    itemB.callback({ block: { id: "blk-1" } });
+    expect(toggleB).toHaveBeenCalledWith("blk-1");
+    expect(toggleA).not.toHaveBeenCalled();
+
+    mounted = second;
+  });
+
+  test("double-register (e.g. StrictMode-style double mount) does not throw", () => {
+    // Defensive: register() is guarded with an unregister-if-present check
+    // rather than assuming the registry is always clean.
+    const first = mountComponent(<BlocklyWorkspace onWorkspaceReady={() => {}} />);
+    expect(() => {
+      first.unmount();
+    }).not.toThrow();
+
+    expect(() => {
+      mounted = mountComponent(<BlocklyWorkspace onWorkspaceReady={() => {}} />);
+    }).not.toThrow();
+  });
+});
