@@ -616,6 +616,14 @@ mark.help-search-highlight {
 .help-tag--teal   { background: rgba(78,201,176,.15);  color: var(--accent-green); }
 .help-tag--red    { background: rgba(244,71,71,.15);   color: var(--red); }
 
+/* Block-category chips (CategoryTag). Colour comes from the palette inline;
+   this only supplies the edge and the weight. The .help-tag--blue/purple/…
+   rules above stay — they serve the 51 non-category chips. */
+.help-tag--cat {
+  border: 1px solid color-mix(in srgb, #000 20%, transparent);
+  font-weight: var(--fw-semibold);
+}
+
 [data-theme="light"] .help-tag--blue   { background: rgba(4,81,165,.08); }
 [data-theme="light"] .help-tag--purple { background: rgba(175,0,219,.08); }
 [data-theme="light"] .help-tag--green  { background: rgba(9,134,88,.08); }

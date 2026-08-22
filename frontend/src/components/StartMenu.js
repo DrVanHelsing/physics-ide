@@ -71,6 +71,12 @@ const GOAL_BADGE = {
   hybrid: "Hybrid",
 };
 
+const GOAL_TOKEN = {
+  physics: "--cat-objects",
+  datascience: "--cat-data-science",
+  hybrid: "--cat-values",
+};
+
 const CARD_ICONS = {
   projectile: RocketIcon,
   spring: SpringIcon,
@@ -385,7 +391,15 @@ export default function StartMenu({
                         <Icon size={22} />
                       </div>
                       <div className="start-card-body">
-                        <span className="start-card-badge start-card-badge--code">{GOAL_BADGE[g.id] || g.id}</span>
+                        <span
+                          className="start-card-badge"
+                          style={{
+                            background: `var(${GOAL_TOKEN[g.id] || "--cat-advanced"})`,
+                            color: "#FFFFFF",
+                          }}
+                        >
+                          {GOAL_BADGE[g.id] || g.id}
+                        </span>
                         <h3 className="start-card-title">{g.label}</h3>
                         <p className="start-card-desc">{g.description}</p>
                       </div>

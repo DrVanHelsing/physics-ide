@@ -1,7 +1,17 @@
 import React, { useEffect, useRef, useState } from "react";
+import { BLOCK_PALETTE } from "../utils/blockly/blockPalette";
 
 const DAMPING = 0.82;
-const COLORS = ["#7dd3fc", "#f9a8d4", "#fcd34d", "#86efac", "#c4b5fd"];
+/* The landing page's particles are the product's own category colours —
+   Objects blue, Values violet, Motion amber, Data teal, Charts green — not a
+   sixth palette. */
+const COLORS = [
+  BLOCK_PALETTE.Objects.fill,
+  BLOCK_PALETTE.Values.fill,
+  BLOCK_PALETTE.Motion.fill,
+  BLOCK_PALETTE["Data Science"].fill,
+  BLOCK_PALETTE.Charts.fill,
+];
 /** One frame's worth of motion, used for the single-step renders while paused. */
 const STEP_DT = 1 / 60;
 
