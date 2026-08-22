@@ -311,6 +311,8 @@ async function executeCompiled(frameWindow, compiledCode, traceEntries, initialB
   activeFrameWindow = frameWindow;
   frameWindow.__physide_paused = false;
   frameWindow.__physide_steps = 0;
+  frameWindow.__physide_iter = 0;
+  frameWindow.__physide_frame_steps = 0;
   /* Seeded BEFORE eval so a breakpoint aimed at the FIRST iteration — the
      common case when debugging initial conditions — actually catches it.
      Until Tranche 3 this was `new Set()` and useSimulation re-armed it after
@@ -368,22 +370,39 @@ async function executeCompiled(frameWindow, compiledCode, traceEntries, initialB
           prefix + value + semi +
           "try{parent.postMessage({type:'__phtr',n:'" + dn +
           "',v:String(_phtr_" + safeName +
-          "),b:'" + bid + "'},'*');" +
+          "),b:'" + bid + "',i:(window.__physide_iter||0)},'*');" +
           "if(window.__physide_breakpoints&&window.__physide_breakpoints.has('" + bid + "')){" +
           "window.__physide_paused=true;window.__physide_steps=0;}" +
           "if(window.__physide_paused){" +
           "if(window.__physide_steps>0){window.__physide_steps--;}" +
-          "else{await new Promise(function(r){" +
+          "else{" +
+          "parent.postMessage({type:'__phpause',paused:true,b:'" + bid + "',i:(window.__physide_iter||0)},'*');" +
+          "await new Promise(function(r){" +
           "var _pi=setInterval(function(){" +
           "if(!window.__physide_paused||window.__physide_steps>0){" +
           "clearInterval(_pi);" +
           "if(window.__physide_steps>0)window.__physide_steps--;" +
+          "parent.postMessage({type:'__phpause',paused:false},'*');" +
           "r();}},30);})}" +
           "}}catch(_e){}"
         );
       }
     );
   }
+
+  /* Frame boundaries. Every VPython animation loop calls rate(); that call is
+     the only reliable "one timestep has elapsed" marker available without a
+     Python-level AST pass. The counter feeds the "iteration N" readout, and
+     __physide_frame_steps makes "Next frame" a real unit rather than "next
+     trace event" (which advanced a quarter of a timestep in a four-variable
+     loop). */
+  traceInjected = traceInjected.replace(
+    /\b(await\s+)?rate\s*\(/g,
+    "window.__physide_iter=(window.__physide_iter||0)+1;" +
+      "if(window.__physide_frame_steps>0){window.__physide_frame_steps--;" +
+      "if(window.__physide_frame_steps===0){window.__physide_paused=true;window.__physide_steps=0;}}" +
+      "$&",
+  );
 
   try {
     frameWindow.eval(traceInjected);
@@ -548,6 +567,14 @@ export function stepPython() {
     activeFrameWindow.__physide_paused = true;
     activeFrameWindow.__physide_steps = (activeFrameWindow.__physide_steps || 0) + 1;
   }
+}
+
+/** Advance exactly one animation frame (one rate() call), then pause again. */
+export function stepFrame() {
+  if (!activeFrameWindow) return;
+  activeFrameWindow.__physide_frame_steps = 1;
+  activeFrameWindow.__physide_steps = 0;
+  activeFrameWindow.__physide_paused = false;
 }
 
 export function setBreakpoints(bpSet) {

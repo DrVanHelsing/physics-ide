@@ -110,3 +110,42 @@ describe("DebugContext — toggleBreakpoint guard", () => {
     expect(latestCtx.breakpoints).toBe(before);
   });
 });
+
+describe("DebugContext — pauseState (Task 15)", () => {
+  // pauseState is a three-state machine ("running" | "pausing" | "paused"):
+  // the UI must never claim "paused" until the runtime's __phpause ack says
+  // so (handled in useTrace), and useDebug/useTrace share one pauseAckTimerRef
+  // instance for the ack-timeout fallback — both live on this context so
+  // neither hook has to reimplement or duplicate the other's ref.
+
+  test("starts 'running', with a pauseStateRef mirror and a null pauseAckTimerRef", () => {
+    mounted = mountComponent(<Wrapped />);
+    expect(latestCtx.pauseState).toBe("running");
+    expect(latestCtx.pauseStateRef.current).toBe("running");
+    expect(latestCtx.pauseAckTimerRef.current).toBe(null);
+  });
+
+  test("setPauseState publishes the new state and pauseStateRef mirrors it", () => {
+    mounted = mountComponent(<Wrapped />);
+    act(() => {
+      latestCtx.setPauseState("pausing");
+    });
+    expect(latestCtx.pauseState).toBe("pausing");
+    expect(latestCtx.pauseStateRef.current).toBe("pausing");
+
+    act(() => {
+      latestCtx.setPauseState("paused");
+    });
+    expect(latestCtx.pauseState).toBe("paused");
+    expect(latestCtx.pauseStateRef.current).toBe("paused");
+  });
+
+  test("pauseAckTimerRef is one shared mutable instance, not re-created per render", () => {
+    mounted = mountComponent(<Wrapped />);
+    const ref = latestCtx.pauseAckTimerRef;
+    act(() => {
+      latestCtx.setPauseState("pausing");
+    });
+    expect(latestCtx.pauseAckTimerRef).toBe(ref);
+  });
+});

@@ -4,6 +4,8 @@
  * Owns live-telemetry state for the Trace Table:
  *   - traceData     — Map<name, TraceEntry> updated on every postMessage batch
  *   - recording     — whether the record buffer is actively capturing rows
+ *   - iteration     — the runtime's rate()-call counter (__physide_iter),
+ *                      mirrored from __phtr / __phpause messages
  *   - recordBufferRef — mutable buffer of timestamped rows (not React state
  *                       to avoid re-renders on every data point)
  *   - recordingRef  — mirror of `recording` for stable closure access
@@ -24,6 +26,9 @@ const TraceContext = createContext(null);
 export function TraceProvider({ children }) {
   const [traceData, setTraceData] = useState(() => new Map());
   const [recording, setRecording] = useState(false);
+  /** rate()-call counter mirrored from the runtime's __physide_iter — the
+   *  "frame N" readout for both __phtr and __phpause messages. */
+  const [iteration, setIteration] = useState(0);
 
   const recordBufferRef = useRef([]);
   const recordingRef    = useRef(false);
@@ -84,6 +89,7 @@ export function TraceProvider({ children }) {
   const value = {
     traceData, setTraceData,
     recording, setRecording,
+    iteration, setIteration,
     recordBufferRef,
     recordingRef,
     updateTrace,

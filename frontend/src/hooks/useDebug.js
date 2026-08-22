@@ -5,11 +5,12 @@
  * Consumes DebugContext + SimulationContext.
  */
 import { useCallback } from "react";
-import { pausePython, resumePython, stepPython } from "../utils/runner/glowRunner";
+import { pausePython, resumePython, stepPython, stepFrame } from "../utils/runner/glowRunner";
 import { endRun } from "./useSimulation";
 import { useDebugContext }       from "../contexts/DebugContext";
 import { useSimulationContext }  from "../contexts/SimulationContext";
 import { useTraceContext }       from "../contexts/TraceContext";
+import { PAUSE_ACK_TIMEOUT_MS }  from "../constants";
 
 export function useDebug() {
   const {
@@ -17,6 +18,8 @@ export function useDebug() {
     breakpoints,
     toggleBreakpoint,
     executingBlockId,
+    setPauseState,
+    pauseAckTimerRef,
   } = useDebugContext();
 
   const { setRunning, setBooting, setPaused, setStatus, runGenerationRef } = useSimulationContext();
@@ -43,18 +46,40 @@ export function useDebug() {
 
   const handlePause = useCallback(() => {
     pausePython();
-    setPaused(true);
-  }, [setPaused]);
+    setPauseState("pausing");
+    if (pauseAckTimerRef.current) clearTimeout(pauseAckTimerRef.current);
+    pauseAckTimerRef.current = setTimeout(() => {
+      /* No checkpoint was reached. Tell the student why instead of showing a
+         PAUSED badge over a simulation that never stopped. */
+      resumePython();
+      setPauseState("running");
+      setPaused(false);
+      setStatus({
+        text: "Can't pause this simulation — it has no traced values.",
+        detail:
+          "Pausing happens where a block reports a value. Add a “set”, “update position” or “time step” block inside your loop, then try again.",
+        type: "error",
+      });
+    }, PAUSE_ACK_TIMEOUT_MS);
+  }, [setPauseState, setPaused, setStatus, pauseAckTimerRef]);
 
   const handleResume = useCallback(() => {
     resumePython();
+    if (pauseAckTimerRef.current) clearTimeout(pauseAckTimerRef.current);
+    setPauseState("running");
     setPaused(false);
-  }, [setPaused]);
+  }, [setPauseState, setPaused, pauseAckTimerRef]);
 
   const handleStep = useCallback(() => {
     setPaused(true);
     stepPython();
   }, [setPaused]);
+
+  /** The dominant control: one full animation frame. */
+  const handleStepFrame = useCallback(() => {
+    setPauseState("pausing");
+    stepFrame();
+  }, [setPauseState]);
 
   return {
     debugMode,
@@ -66,5 +91,6 @@ export function useDebug() {
     handlePause,
     handleResume,
     handleStep,
+    handleStepFrame,
   };
 }
