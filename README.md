@@ -85,6 +85,31 @@ via selector aliases, there is one global `:focus-visible` ring, and Run is a fi
 When adding CSS: use the tokens, never a raw hex below the theme blocks, and never
 `rgba(255,255,255,…)` — reach for `var(--card-border)` or a `color-mix()` on a token.
 
+Block colour is a design system, not a set of literals: `src/utils/blockly/blockPalette.js`
+is the single source for all 26 categories, mirrored as `--cat-*` custom properties that the
+pane accents, help-page tags, start-menu badges and landing-page particles all read. Every
+fill clears WCAG AA against its label (worst 4.95:1, against ten of twelve failures before),
+and red is reserved for errors and breakpoints. The toolbox and the block registry are held
+to each other in both directions by `npm run check:blocks`, so a block can no longer ship in
+a template but exist in no drawer — and the Data Science drawer now mirrors the analysis
+pipeline: Load Data → Explore → Statistics → Transforming Data → Uncertainty → Analyzing
+Relationships → Filter & Sort → Group & Compare → Charts → Communicate.
+
+Debug is a mode of the shell rather than a separate screen: the trace table docks beside the
+live viewport, step and record sit in the toolbar you already know, and you can edit blocks
+while stepping. It also tells the truth now — a breakpoint can only be set where one can
+fire (right-click a block to see), Pause waits for the runtime to acknowledge before
+claiming to be paused, "Next frame" advances one animation frame, setup constants and your
+own watch expressions appear in the trace table, and failures read like
+"There's no variable called “balll”." instead of
+"Execution error: Runtime error: NameError…".
+
+Blockly is bundled (`blockly@11.2.2`, pinned exact) and the GlowScript 3.2 runtime is
+vendored under `frontend/public/vendor/glowscript/`, so the IDE genuinely runs offline after
+first load — a filtered school network no longer renders the block editor or the 3D viewport
+inert. Monaco (bundled since the prior MakeCode overhaul) completes the picture: all three
+now run same-origin, with no CDN dependency left anywhere in the editor.
+
 The IDE shell is one 44px header: the project name is shown and renamed by clicking it, actions
 sit in three zones (run · view · file), and the account menu routes to your classes and profile
 without leaving the editor. Below 1280px the secondary controls become icons and below 1120px they
