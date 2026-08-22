@@ -1637,7 +1637,22 @@ try {
     }, trashRect);
     await page.mouse.move(trashRect.x, trashRect.y, { steps: 10 });
     await delay(200);
-    await screenshot(page, 'C3-trash-dragging');
+    // A full-viewport shot buries the 52x52 trashcan in a corner — crop
+    // tight around its real on-screen rect (computed above) so the
+    // summoned can is actually legible as evidence, not just technically
+    // present in frame.
+    const pad = 110;
+    const clipX = Math.max(0, trashRect.left - pad);
+    const clipY = Math.max(0, trashRect.top - pad);
+    await page.screenshot({
+      path: path.join(E2E_DIR, 'C3-trash-dragging.png'),
+      clip: {
+        x: clipX,
+        y: clipY,
+        width: Math.min(1440, trashRect.right + 20) - clipX,
+        height: Math.min(900, trashRect.bottom + 20) - clipY,
+      },
+    });
     await page.mouse.up();
     await delay(400);
   }
@@ -1651,13 +1666,18 @@ try {
   const restAfterDrag = await page.evaluate(() => document.querySelector('.workspace-trash')?.className);
   check('Trashcan: fades back out once the drag ends', restAfterDrag === 'workspace-trash', restAfterDrag);
 
-  info('Trashcan hover (lid rotate + danger colour), drop-delete, toolbox-rail ' +
-    'tint-and-delete, and Ctrl+Z restore are unit-tested (WorkspaceTrash.test.js). ' +
-    "Puppeteer's synthetic pointer input reliably reproduces Blockly's gesture " +
-    'recognition and the delete-area\'s registration + on-screen geometry (both ' +
-    'proven above, matching the real trashcan position pixel-for-pixel) but did ' +
-    'not trigger the final onDragEnter/onDrop callback despite confirmed overlap ' +
-    '— recorded as an e2e-harness limitation in task-15-report.md, not a product defect.');
+  info("Trashcan hover (lid rotate + danger colour via .workspace-trash--hover) and " +
+    "onDrop clearing that state are unit-tested directly (WorkspaceTrash.test.js — " +
+    "drives the real TrashZone.onDragEnter/onDragExit/onDrop). Toolbox-rail " +
+    "tint-and-delete is Blockly's own stock delete-area behaviour, unmodified by " +
+    "this app. Ctrl+Z restore is NOT unit-tested (it's Blockly's own keyboard " +
+    "shortcut, not WorkspaceTrash.js logic) and is NOT forced live here (nothing " +
+    "was actually deleted by this drag) — manual verification pending. " +
+    "Puppeteer's synthetic pointer input reproduces Blockly's gesture recognition " +
+    "and the delete-area's registration + on-screen geometry (both proven above, " +
+    "matching the real trashcan position pixel-for-pixel) but did not trigger the " +
+    "final onDragEnter/onDrop callback despite confirmed overlap — recorded as an " +
+    "e2e-harness limitation in task-15-report.md, not a product defect.");
 } catch (e) {
   check('C3: Trashcan', false, e.message);
 }

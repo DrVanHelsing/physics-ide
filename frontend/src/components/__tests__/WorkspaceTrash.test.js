@@ -5,10 +5,14 @@ import WorkspaceTrash from "../WorkspaceTrash";
 
 function fakeWorkspace() {
   const listeners = [];
+  // One persistent manager instance (not a fresh object per call) so a test
+  // can call getComponentManager() again after the fact and still see the
+  // same addComponent mock the component itself registered against.
+  const manager = { addComponent: vi.fn(), removeComponent: vi.fn() };
   return {
     addChangeListener: (fn) => listeners.push(fn),
     removeChangeListener: vi.fn(),
-    getComponentManager: () => ({ addComponent: vi.fn(), removeComponent: vi.fn() }),
+    getComponentManager: () => manager,
     fire: (e) => listeners.forEach((fn) => fn(e)),
   };
 }
@@ -70,6 +74,65 @@ describe("WorkspaceTrash", () => {
 
       act(() => ws.fire({ type: "drag", isStart: false }));
       expect(container.classList.contains("is-dragging-block")).toBe(false);
+    } finally {
+      unmount();
+    }
+  });
+
+  test("registers a real Blockly delete-area/drag-target component while visible", () => {
+    // The component itself (not this test) constructs the TrashZone and
+    // hands it to the workspace's ComponentManager — capture that instance
+    // via the fake addComponent's own call args, the same way the real
+    // ComponentManager would receive it, rather than reaching into
+    // WorkspaceTrash's internals.
+    const ws = fakeWorkspace();
+    const { unmount } = mountComponent(<WorkspaceTrash workspaceRef={{ current: ws }} />);
+    try {
+      act(() => ws.fire({ type: "drag", isStart: true }));
+      const manager = ws.getComponentManager();
+      expect(manager.addComponent).toHaveBeenCalledTimes(1);
+      const registered = manager.addComponent.mock.calls[0][0];
+      expect(registered.component.id).toBe("physicsTrashZone");
+      expect(typeof registered.component.onDragEnter).toBe("function");
+      expect(typeof registered.component.onDragExit).toBe("function");
+      expect(typeof registered.component.onDrop).toBe("function");
+    } finally {
+      unmount();
+    }
+  });
+
+  test("onDragEnter/onDragExit toggle the hover (lid + danger colour) class", () => {
+    const ws = fakeWorkspace();
+    const { container, unmount } = mountComponent(
+      <WorkspaceTrash workspaceRef={{ current: ws }} />
+    );
+    try {
+      act(() => ws.fire({ type: "drag", isStart: true }));
+      const zone = ws.getComponentManager().addComponent.mock.calls[0][0].component;
+
+      expect(container.querySelector(".workspace-trash--hover")).toBeFalsy();
+      act(() => zone.onDragEnter());
+      expect(container.querySelector(".workspace-trash--hover")).toBeTruthy();
+      act(() => zone.onDragExit());
+      expect(container.querySelector(".workspace-trash--hover")).toBeFalsy();
+    } finally {
+      unmount();
+    }
+  });
+
+  test("onDrop clears the hover state (the drag has ended, deleted or not)", () => {
+    const ws = fakeWorkspace();
+    const { container, unmount } = mountComponent(
+      <WorkspaceTrash workspaceRef={{ current: ws }} />
+    );
+    try {
+      act(() => ws.fire({ type: "drag", isStart: true }));
+      const zone = ws.getComponentManager().addComponent.mock.calls[0][0].component;
+
+      act(() => zone.onDragEnter());
+      expect(container.querySelector(".workspace-trash--hover")).toBeTruthy();
+      act(() => zone.onDrop());
+      expect(container.querySelector(".workspace-trash--hover")).toBeFalsy();
     } finally {
       unmount();
     }
