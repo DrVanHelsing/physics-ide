@@ -102,7 +102,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
         { type: "field_number", name: "Y", value: 0 },
         { type: "field_number", name: "Z", value: 0 },
       ],
-      output: null,
+      output: "Vector",
       style: "values_blocks",
       tooltip: "A 3D vector. Snap into pos, axis, size, velocity, or colour slots.",
     },
@@ -183,6 +183,11 @@ export function defineCustomBlocksAndGenerator(Blockly) {
         },
       ],
       inputsInline: true,
+      /* Deliberately untyped: the PROP dropdown spans vectors (pos, velocity,
+         axis, color), numbers (radius, opacity, mass) and booleans (visible),
+         so a fixed output would break more than it catches. The consuming
+         slots below accept ["Vector","Number"], which is where the real
+         guard lives. */
       output: null,
       style: "values_blocks",
       tooltip: "Read a property of an object variable: ball.velocity, ball.pos, ball.radius, etc.",
@@ -191,7 +196,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       type: "get_component_block",
       message0: "%1 . %2",
       args0: [
-        { type: "input_value", name: "VEC" },
+        { type: "input_value", name: "VEC", check: ["Vector", "Number"] },
         {
           type: "field_dropdown",
           name: "COMP",
@@ -206,18 +211,18 @@ export function defineCustomBlocksAndGenerator(Blockly) {
     {
       type: "mag_block",
       message0: "mag( %1 )",
-      args0: [{ type: "input_value", name: "VEC" }],
+      args0: [{ type: "input_value", name: "VEC", check: ["Vector", "Number"] }],
       inputsInline: true,
-      output: null,
+      output: "Number",
       style: "values_blocks",
       tooltip: "Magnitude (scalar length) of a vector. E.g. snap in an object property block like ball.velocity to get speed.",
     },
     {
       type: "norm_block",
       message0: "norm( %1 )",
-      args0: [{ type: "input_value", name: "VEC" }],
+      args0: [{ type: "input_value", name: "VEC", check: ["Vector", "Number"] }],
       inputsInline: true,
-      output: null,
+      output: "Vector",
       style: "values_blocks",
       tooltip: "Unit vector in the direction of the input. Snap in an object property block like ball.pos to get its direction.",
     },
@@ -289,7 +294,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       message0: "%1 = sphere  pos %2  radius %3  colour %4",
       args0: [
         { type: "field_variable", name: "NAME", variable: "ball" },
-        { type: "input_value", name: "POS" },
+        { type: "input_value", name: "POS", check: ["Vector", "Number"] },
         { type: "input_value", name: "RADIUS" },
         { type: "input_value", name: "COL" },
       ],
@@ -306,7 +311,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       message0: "%1 = sphere+trail  pos %2  radius %3  colour %4  trail_r %5  trail_col %6  keep %7",
       args0: [
         { type: "field_variable", name: "NAME", variable: "ball" },
-        { type: "input_value", name: "POS" },
+        { type: "input_value", name: "POS", check: ["Vector", "Number"] },
         { type: "input_value", name: "RADIUS" },
         { type: "input_value", name: "COL" },
         { type: "input_value", name: "TRAIL_R" },
@@ -326,7 +331,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       message0: "%1 = glowing sphere  pos %2  radius %3  colour %4  opacity %5",
       args0: [
         { type: "field_variable", name: "NAME", variable: "obj" },
-        { type: "input_value", name: "POS" },
+        { type: "input_value", name: "POS", check: ["Vector", "Number"] },
         { type: "input_value", name: "RADIUS" },
         { type: "input_value", name: "COL" },
         { type: "input_value", name: "OPACITY" },
@@ -344,8 +349,8 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       message0: "%1 = box  pos %2  size %3  colour %4",
       args0: [
         { type: "field_variable", name: "NAME", variable: "obj" },
-        { type: "input_value", name: "POS" },
-        { type: "input_value", name: "SIZE" },
+        { type: "input_value", name: "POS", check: ["Vector", "Number"] },
+        { type: "input_value", name: "SIZE", check: ["Vector", "Number"] },
         { type: "input_value", name: "COL" },
       ],
       inputsInline: true,
@@ -361,8 +366,8 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       message0: "%1 = box  pos %2  size %3  colour %4  opacity %5",
       args0: [
         { type: "field_variable", name: "NAME", variable: "obj" },
-        { type: "input_value", name: "POS" },
-        { type: "input_value", name: "SIZE" },
+        { type: "input_value", name: "POS", check: ["Vector", "Number"] },
+        { type: "input_value", name: "SIZE", check: ["Vector", "Number"] },
         { type: "input_value", name: "COL" },
         { type: "input_value", name: "OPACITY" },
       ],
@@ -379,8 +384,8 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       message0: "%1 = cylinder  pos %2  axis %3  radius %4  colour %5",
       args0: [
         { type: "field_variable", name: "NAME", variable: "obj" },
-        { type: "input_value", name: "POS" },
-        { type: "input_value", name: "AXIS" },
+        { type: "input_value", name: "POS", check: ["Vector", "Number"] },
+        { type: "input_value", name: "AXIS", check: ["Vector", "Number"] },
         { type: "input_value", name: "RADIUS" },
         { type: "input_value", name: "COL" },
       ],
@@ -397,8 +402,8 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       message0: "%1 = arrow  pos %2  axis %3  colour %4",
       args0: [
         { type: "field_variable", name: "NAME", variable: "obj" },
-        { type: "input_value", name: "POS" },
-        { type: "input_value", name: "AXIS" },
+        { type: "input_value", name: "POS", check: ["Vector", "Number"] },
+        { type: "input_value", name: "AXIS", check: ["Vector", "Number"] },
         { type: "input_value", name: "COL" },
       ],
       inputsInline: true,
@@ -414,8 +419,8 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       message0: "%1 = helix  pos %2  axis %3  radius %4  colour %5",
       args0: [
         { type: "field_variable", name: "NAME", variable: "obj" },
-        { type: "input_value", name: "POS" },
-        { type: "input_value", name: "AXIS" },
+        { type: "input_value", name: "POS", check: ["Vector", "Number"] },
+        { type: "input_value", name: "AXIS", check: ["Vector", "Number"] },
         { type: "input_value", name: "RADIUS" },
         { type: "input_value", name: "COL" },
       ],
@@ -432,8 +437,8 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       message0: "%1 = helix  pos %2  axis %3  radius %4  coils %5  thickness %6  colour %7",
       args0: [
         { type: "field_variable", name: "NAME", variable: "spring" },
-        { type: "input_value", name: "POS" },
-        { type: "input_value", name: "AXIS" },
+        { type: "input_value", name: "POS", check: ["Vector", "Number"] },
+        { type: "input_value", name: "AXIS", check: ["Vector", "Number"] },
         { type: "input_value", name: "RADIUS" },
         { type: "input_value", name: "COILS" },
         { type: "input_value", name: "THICK" },
@@ -452,7 +457,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       message0: "label %1  at %2",
       args0: [
         { type: "field_input", name: "TEXT", text: "hello" },
-        { type: "input_value", name: "POS" },
+        { type: "input_value", name: "POS", check: ["Vector", "Number"] },
       ],
       inputsInline: true,
       previousStatement: null,
@@ -467,7 +472,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       message0: "%1 = label  pos %2  text %3  height %4",
       args0: [
         { type: "field_variable", name: "NAME", variable: "telemetry" },
-        { type: "input_value", name: "POS" },
+        { type: "input_value", name: "POS", check: ["Vector", "Number"] },
         { type: "field_input", name: "TEXT", text: "" },
         { type: "input_value", name: "HEIGHT" },
       ],
@@ -483,7 +488,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       type: "local_light_block",
       message0: "local light  pos %1  colour %2",
       args0: [
-        { type: "input_value", name: "POS" },
+        { type: "input_value", name: "POS", check: ["Vector", "Number"] },
         { type: "input_value", name: "COL" },
       ],
       inputsInline: true,
@@ -501,7 +506,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       message0: "%1 .velocity = %2",
       args0: [
         { type: "field_variable", name: "OBJ", variable: "ball" },
-        { type: "input_value", name: "VEL" },
+        { type: "input_value", name: "VEL", check: ["Vector", "Number"] },
       ],
       inputsInline: true,
       previousStatement: null,
@@ -527,7 +532,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       message0: "%1 .velocity += %2 \u00d7 %3",
       args0: [
         { type: "field_variable", name: "OBJ", variable: "ball" },
-        { type: "input_value", name: "ACCEL" },
+        { type: "input_value", name: "ACCEL", check: ["Vector", "Number"] },
         { type: "input_value", name: "DT" },
       ],
       inputsInline: true,
@@ -890,11 +895,11 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       type: "cross_product_block",
       message0: "cross( %1 , %2 )",
       args0: [
-        { type: "input_value", name: "A" },
-        { type: "input_value", name: "B" },
+        { type: "input_value", name: "A", check: ["Vector", "Number"] },
+        { type: "input_value", name: "B", check: ["Vector", "Number"] },
       ],
       inputsInline: true,
-      output: null,
+      output: "Vector",
       style: "3d_math_blocks",
       tooltip: "Cross product of two 3D vectors. Returns a vector perpendicular to both (right-hand rule).",
     },
@@ -902,11 +907,11 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       type: "dot_product_block",
       message0: "dot( %1 , %2 )",
       args0: [
-        { type: "input_value", name: "A" },
-        { type: "input_value", name: "B" },
+        { type: "input_value", name: "A", check: ["Vector", "Number"] },
+        { type: "input_value", name: "B", check: ["Vector", "Number"] },
       ],
       inputsInline: true,
-      output: null,
+      output: "Number",
       style: "3d_math_blocks",
       tooltip: "Dot product of two vectors. Returns a scalar (used for work, projection, angle).",
     },
@@ -943,7 +948,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
         { type: "input_value", name: "Z" },
       ],
       inputsInline: true,
-      output: null,
+      output: "Vector",
       style: "3d_math_blocks",
       tooltip: "Build a vector from three expressions. Snap variables, numbers, or math blocks into x, y, z.",
     },
@@ -1867,6 +1872,34 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       tooltip: "Interquartile range: Q3 − Q1 (75th percentile minus 25th percentile).",
     },
   ]);
+
+  /* ──────────────────────────────────────────────────────────
+     WIDEN BUILT-IN math_arithmetic — VPython's +, -, *, / genuinely
+     operate on scalars AND vectors (vector±vector, scalar×vector,
+     vector/scalar all overload cleanly at runtime), but Blockly's
+     stock math_arithmetic block hardcodes check:"Number" on its A/B
+     inputs and output:"Number" — that describes a generic calculator,
+     not this product's arithmetic domain. Once the vector-producing
+     blocks above carry real output:"Vector" typing (Task 9), that
+     Number-only check silently rejects a legitimate `scalar * norm(vec)`
+     or `vector + vector` connection: domToWorkspace() doesn't throw on
+     a rejected connection, it just drops the child block off the tree,
+     and the generator's valueToCode() falls back to a default of "0"
+     for the vanished input. That is exactly what broke the "Sun, Earth
+     & Moon" orbit template during Task 9 salvage — every gravitational
+     acceleration term and the moon's velocity offset silently became
+     `* 0` / `+ 0`, i.e. zero gravity, with no error anywhere. Widening
+     the built-in block's checks to ["Number","Vector"] (controller
+     ruling, Task 9 salvage) restores those connections without
+     reverting the new producer typings or touching template XML.
+     ────────────────────────────────────────────────────────── */
+  const builtinArithmeticInit = Blockly.Blocks["math_arithmetic"].init;
+  Blockly.Blocks["math_arithmetic"].init = function () {
+    builtinArithmeticInit.call(this);
+    this.getInput("A").connection.setCheck(["Number", "Vector"]);
+    this.getInput("B").connection.setCheck(["Number", "Vector"]);
+    this.outputConnection.setCheck(["Number", "Vector"]);
+  };
 
   /* ── physics_const_block — dynamic dropdown with custom constants ── */
   Blockly.Blocks["physics_const_block"] = {
