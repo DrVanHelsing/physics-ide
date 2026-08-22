@@ -5,14 +5,16 @@
  * change, workspace callbacks, start-menu selection, etc.) from the three
  * contexts.  All handlers are memoised with useCallback.
  */
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import Blockly from "../utils/blockly/blocklyLib";
 import {
   runPython,
   stopPython,
-  setBreakpoints as syncBreakpointsToIframe,
+  setRuntimeErrorSink,
 } from "../utils/runner/glowRunner";
+import { describeRunError } from "../utils/runner/describeRunError";
 import { generatePythonFromWorkspace } from "../utils/blockly/blocklyGenerator";
+import { breakableIds as breakableIdsFromRegistry } from "../utils/blockly/traceRegistry";
 import { useSimulationContext } from "../contexts/SimulationContext";
 import { useDebugContext }      from "../contexts/DebugContext";
 import { useTraceContext }      from "../contexts/TraceContext";
@@ -26,20 +28,33 @@ import { DEFAULT_PYTHON_CODE, GLOWSCRIPT_HOST_ID } from "../constants";
  * from SimulationContext rather than through this hook) debug enter/exit.
  * Bumps the shared `runGenerationRef` (see SimulationContext) so a stale
  * in-flight handleRun's settle can no longer write into this session, stops
- * the runtime, and clears running/booting together — the T16 generation
- * guard is worthless if even one teardown path forgets a piece of it.
+ * the runtime, and clears running/booting/paused together — the T16
+ * generation guard is worthless if even one teardown path forgets a piece.
+ *
+ * `pauseState` is part of that reset. The runtime only posts a
+ * `__phpause {paused:false}` when an already-paused checkpoint is RELEASED,
+ * so nothing re-syncs it when the run simply ends: Stop while paused used to
+ * leave "paused" latched, the toolbar's aria-live chip reading
+ * "Paused · iteration N" over a dead simulation — and, worse, useTrace
+ * refuses to clear the execution highlight while pauseStateRef is anything
+ * but "running", so the yellow glow stuck too.
  *
  * A plain exported function, not a hook, so every call site shares this ONE
- * implementation instead of each reimplementing the same four lines.
+ * implementation instead of each reimplementing the same six lines.
  *
- * @param {{ runGenerationRef: {current:number}, setRunning: Function, setBooting: Function, setStatus: Function }} ctx
+ * @param {{ runGenerationRef: {current:number}, setRunning: Function, setBooting: Function, setPaused: Function, setPauseState: Function, setStatus: Function }} ctx
  * @param {{ text: string, type: string }} [statusOverride] optional status to post in the same tick
  */
-export function endRun({ runGenerationRef, setRunning, setBooting, setStatus }, statusOverride) {
+export function endRun(
+  { runGenerationRef, setRunning, setBooting, setPaused, setPauseState, setStatus },
+  statusOverride,
+) {
   runGenerationRef.current += 1; // any in-flight handleRun is now stale
   stopPython(GLOWSCRIPT_HOST_ID);
   setRunning(false);
   setBooting(false);
+  setPaused(false);
+  setPauseState("running");
   if (statusOverride) setStatus(statusOverride);
 }
 
@@ -62,8 +77,35 @@ export function useSimulation() {
     runGenerationRef,
   } = sim;
 
-  const { debugMode, breakpointsRef } = useDebugContext();
-  const { setTraceData } = useTraceContext();
+  const { debugMode, breakpointsRef, setBreakableIds, setPauseState } = useDebugContext();
+  /* `watch` is armed by the trace panel's watch box (TraceContext) and reaches
+     the runtime ONLY here — handleRun is the single place that hands opts to
+     runPython, and the instrumentor can only see a watch expression when the
+     source is re-instrumented at run time. Hence "press Run to see it". */
+  const { setTraceData, watch } = useTraceContext();
+
+  /* The generation of the last run that actually reached "confirmed live"
+     (runPython resolved and was not superseded before it could) — written
+     by handleRun's success path below. The sink compares this against the
+     live runGenerationRef so a stale async error (from a run since
+     superseded by a newer run, or torn down by Stop/Reset/Home) can never
+     stomp whatever now owns the screen; only a report for the CURRENT
+     confirmed generation is allowed through. */
+  const confirmedGenerationRef = useRef(0);
+
+  /* A rejection AFTER runPython resolves used to only console.error, leaving
+     the status bar claiming "Simulation started" over a dead simulation.
+     Same staleness discipline as handleRun's own catch (below): drop the
+     report if the generation it would apply to is no longer the live one. */
+  useEffect(() => {
+    setRuntimeErrorSink((err) => {
+      if (confirmedGenerationRef.current !== runGenerationRef.current) return;
+      const d = describeRunError(err);
+      setRunning(false);
+      setStatus({ text: d.title, detail: d.detail, type: "error" });
+    });
+    return () => setRuntimeErrorSink(null);
+  }, [setRunning, setStatus, runGenerationRef]);
 
   /* runGenerationRef (from SimulationContext) is bumped at the top of every
      handleRun/handleStop/handleResetToBlocks/handleHome call — and, via
@@ -81,10 +123,11 @@ export function useSimulation() {
     if (!workspaceRef.current) return pythonCode;
     if (workspaceRef.current.getAllBlocks(false).length === 0) return pythonCode;
     const generated = generatePythonFromWorkspace(workspaceRef.current);
+    setBreakableIds(breakableIdsFromRegistry());
     const code = generated || DEFAULT_PYTHON_CODE;
     setPythonCode(code);
     return code;
-  }, [pythonCode, setPythonCode, workspaceRef]);
+  }, [pythonCode, setPythonCode, setBreakableIds, workspaceRef]);
 
   /* ── Run ─────────────────────────────────────────────── */
   const handleRun = useCallback(async () => {
@@ -94,47 +137,73 @@ export function useSimulation() {
     setRunning(true);
     setBooting(true);
     setPaused(false);
+    /* A fresh run always starts unpaused. Nothing else re-syncs pauseState:
+       the runtime posts __phpause {paused:false} only when an already-paused
+       checkpoint is RELEASED, so Run after a debug pause left the toolbar's
+       aria-live chip reading "Paused · iteration N" while the simulation ran
+       — and kept useTrace from ever clearing the execution highlight, since
+       it bails while pauseStateRef.current !== "running". */
+    setPauseState("running");
     setTraceData(new Map());
     try {
       stopPython(GLOWSCRIPT_HOST_ID);
-      await runPython(code, GLOWSCRIPT_HOST_ID);
+      // Seeded BEFORE eval (glowRunner's executeCompiled), not re-armed after
+      // — a breakpoint aimed at the FIRST iteration is the common case when
+      // debugging initial conditions, and runPython's own resolve happens
+      // 120 ms after __main__() has already started the loop. Only armed in
+      // debug mode: useDebug's exit clears running/paused/recording but
+      // deliberately keeps breakpoints (so re-entering debug mode finds
+      // them), so a plain Run outside debug mode must not freeze on them.
+      await runPython(code, GLOWSCRIPT_HOST_ID, {
+        breakpoints: debugMode ? breakpointsRef.current : new Set(),
+        // Watches are NOT debug-gated: "watch my numbers while I work" is a
+        // plain-run gesture, and an empty array costs the instrumentor nothing.
+        watch,
+      });
       // A newer run (or an explicit Stop/Reset) has since bumped the
       // generation — this call is stale, so its "success" must not reopen
       // state a later action already owns.
       if (generation !== runGenerationRef.current) return;
-      syncBreakpointsToIframe(breakpointsRef.current);
+      // Arm the async-error sink for this generation now that it has
+      // genuinely reached "running" — see confirmedGenerationRef above.
+      confirmedGenerationRef.current = generation;
       setStatus({
         text: debugMode ? "Debug simulation started" : "Simulation started",
         type: "success",
       });
     } catch (err) {
-      console.error(err);
+      const d = describeRunError(err);
+      console.error("[PhysicsIDE]", d.raw);
       if (generation !== runGenerationRef.current) return;
       setRunning(false);
-      setStatus({ text: err.message || "Runtime error", type: "error" });
+      setStatus({
+        text: d.line ? `${d.title} (line ${d.line})` : d.title,
+        detail: d.detail,
+        type: "error",
+      });
     } finally {
       if (generation === runGenerationRef.current) setBooting(false);
     }
-  }, [mode, pythonCode, syncFromBlocks, debugMode, breakpointsRef, setRunning, setBooting, setPaused, setStatus, setTraceData]);
+  }, [mode, pythonCode, syncFromBlocks, debugMode, breakpointsRef, watch, setRunning, setBooting, setPaused, setPauseState, setStatus, setTraceData]);
 
   /* ── Stop ────────────────────────────────────────────── */
   const handleStop = useCallback(() => {
     endRun(
-      { runGenerationRef, setRunning, setBooting, setStatus },
+      { runGenerationRef, setRunning, setBooting, setPaused, setPauseState, setStatus },
       { text: "Simulation stopped", type: "" },
     );
-  }, [runGenerationRef, setRunning, setBooting, setStatus]);
+  }, [runGenerationRef, setRunning, setBooting, setPaused, setPauseState, setStatus]);
 
   /* ── Reset to blocks mode ────────────────────────────── */
   const handleResetToBlocks = useCallback(() => {
-    endRun({ runGenerationRef, setRunning, setBooting, setStatus });
+    endRun({ runGenerationRef, setRunning, setBooting, setPaused, setPauseState, setStatus });
     setMode("blocks");
     if (workspaceRef.current) {
       const code = generatePythonFromWorkspace(workspaceRef.current);
       setPythonCode(code || DEFAULT_PYTHON_CODE);
     }
     setStatus({ text: "Reset to blocks mode", type: "" });
-  }, [runGenerationRef, setRunning, setBooting, setMode, setPythonCode, setStatus, workspaceRef]);
+  }, [runGenerationRef, setRunning, setBooting, setPaused, setPauseState, setMode, setPythonCode, setStatus, workspaceRef]);
 
   /* ── Mode toggle ─────────────────────────────────────── */
   const handleModeChange = useCallback(
@@ -242,19 +311,19 @@ export function useSimulation() {
      XML loads as `initialXml`. */
   const loadWorkspaceXml = useCallback(
     (xml) => {
-      endRun({ runGenerationRef, setRunning, setBooting, setStatus });
+      endRun({ runGenerationRef, setRunning, setBooting, setPaused, setPauseState, setStatus });
       setProjectType("block_template");
       setWorkspaceXml(xml || "");
       setMode("blocks");
     },
-    [runGenerationRef, setRunning, setBooting, setStatus, setProjectType, setWorkspaceXml, setMode]
+    [runGenerationRef, setRunning, setBooting, setPaused, setPauseState, setStatus, setProjectType, setWorkspaceXml, setMode]
   );
 
   /* ── Home (back to start menu) ───────────────────────── */
   const handleHome = useCallback(() => {
     setShowStart(true);
-    endRun({ runGenerationRef, setRunning, setBooting, setStatus }, { text: "Ready", type: "" });
-  }, [setShowStart, runGenerationRef, setRunning, setBooting, setStatus]);
+    endRun({ runGenerationRef, setRunning, setBooting, setPaused, setPauseState, setStatus }, { text: "Ready", type: "" });
+  }, [setShowStart, runGenerationRef, setRunning, setBooting, setPaused, setPauseState, setStatus]);
 
   /* ── Import .py / .xml file ──────────────────────────── */
   const handleImport = useCallback(
@@ -264,7 +333,7 @@ export function useSimulation() {
       reader.onload = (e) => {
         const content = e.target.result;
         if (file.name.endsWith(".xml")) {
-          endRun({ runGenerationRef, setRunning, setBooting, setStatus });
+          endRun({ runGenerationRef, setRunning, setBooting, setPaused, setPauseState, setStatus });
           setProjectType("custom");
           if (workspaceRef.current) {
             try {
@@ -281,7 +350,7 @@ export function useSimulation() {
           setMode("blocks");
           setStatus({ text: `Imported blocks from ${file.name}`, type: "success" });
         } else if (file.name.endsWith(".py")) {
-          endRun({ runGenerationRef, setRunning, setBooting, setStatus });
+          endRun({ runGenerationRef, setRunning, setBooting, setPaused, setPauseState, setStatus });
           setPythonCode(content);
           setMode("text");
           setProjectType("code_blank");
@@ -294,7 +363,7 @@ export function useSimulation() {
       reader.readAsText(file);
     },
     [
-      runGenerationRef, setRunning, setBooting, setProjectType, setWorkspaceXml,
+      runGenerationRef, setRunning, setBooting, setPaused, setPauseState, setProjectType, setWorkspaceXml,
       setMode, setPythonCode, setStatus, workspaceRef,
     ]
   );

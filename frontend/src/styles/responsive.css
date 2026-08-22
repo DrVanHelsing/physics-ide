@@ -9,12 +9,12 @@
   .tb-dropdown-item { padding: 10px 12px; min-height: 36px; }
 
   .pane-divider,
-  .dm-resize-handle {
+  .debug-drawer-handle {
     width: 12px;
     min-width: 12px;
   }
   .pane-divider::before,
-  .dm-resize-handle::before { left: -6px; right: -6px; }
+  .debug-drawer-handle::before { left: -6px; right: -6px; }
 
   .mode-toggle button    { min-height: 32px; }
   .block-search-input    { min-height: 32px; }
@@ -26,7 +26,7 @@
    ring uses outline-offset, which on a 5px handle draws outside the hit area —
    pull it inside for these two, using the same tokens. */
 .pane-divider:focus-visible,
-.dm-resize-handle:focus-visible {
+.debug-drawer-handle:focus-visible {
   outline: var(--focus-ring-width, 2px) solid var(--focus-ring-color, var(--accent-bright));
   outline-offset: calc(-1 * var(--focus-ring-width, 2px));
 }

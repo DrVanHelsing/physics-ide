@@ -1,21 +1,29 @@
 /* ═══════════════════════════════════════════════════════════
-   DEBUG DRAWER — right-side panel that slides in over the
-   3D viewport without stealing vertical height from it.
+   DEBUG DRAWER — the trace panel, docked LATERAL to the viewport
+   column inside .canvas-wrap (see viewport.css). These rules sat
+   here with no consumer at all until DebugDrawer.js.
    ═══════════════════════════════════════════════════════════ */
-
-/* canvas-wrap stacks the viewport above the authored-caption strip */
 
 /* ── Drag handle on left edge of drawer ─────────────────── */
 .debug-drawer-handle {
   flex: none;
   width: 4px;
+  position: relative;
   background: linear-gradient(to bottom, var(--accent), var(--accent-alt, var(--accent)) 60%, transparent);
   opacity: 0.45;
   cursor: col-resize;
-  transition: opacity 0.15s;
+  transition: opacity var(--transition);
 }
 .debug-drawer-handle:hover {
   opacity: 0.9;
+}
+/* Wider invisible hit area — a 4px strip is not a grabbable target.
+   Mirrors .pane-divider::before. */
+.debug-drawer-handle::before {
+  content: '';
+  position: absolute;
+  top: 0; bottom: 0;
+  left: -4px; right: -4px;
 }
 
 /* ── Debug drawer container ─────────────────────────────── */
@@ -120,8 +128,7 @@
 .trace-alert-save,
 .trace-alert-del,
 .trace-alert-badge,
-.trace-snap-badge,
-.trace-snap-val {
+.trace-snap-badge {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -149,6 +156,33 @@
 .trace-clear-btn:hover {
   color: var(--text);
   border-color: var(--border);
+}
+
+/* ── Watch expression input ─────────────────────────────────── */
+.trace-watch {
+  display: flex;
+}
+.trace-watch-input {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg-input, var(--bg-sidebar));
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-sm);
+  padding: 3px 8px;
+  font-size: var(--fs-xs);
+  font-family: var(--font);
+  color: var(--text);
+}
+.trace-watch-input::placeholder { color: var(--text-muted); }
+.trace-watch-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.trace-watch-note {
+  margin: 0;
+  font-size: var(--fs-2xs);
+  color: var(--text-muted);
+  font-style: italic;
 }
 
 @media (max-width: 900px) {
@@ -241,6 +275,37 @@
   opacity: 0.75;
 }
 
+/* Setup / constants — collapsible section header */
+.trace-section-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  background: color-mix(in srgb, var(--bg-titlebar) 70%, transparent);
+  border: none;
+  padding: 0 8px;
+  cursor: pointer;
+  color: var(--text-muted);
+  opacity: 0.75;
+  transition: opacity 0.15s, color 0.15s;
+}
+.trace-section-toggle:hover {
+  opacity: 1;
+  color: var(--text);
+}
+.trace-section-toggle .trace-section-label {
+  padding: 5px 0 2px;
+  background: none;
+  opacity: 1;
+}
+.trace-section-toggle svg {
+  flex-shrink: 0;
+  transition: transform 0.15s ease;
+}
+.trace-section-toggle[aria-expanded="true"] svg {
+  transform: rotate(90deg);
+}
+
 /* Rows */
 .trace-row {
   border-bottom: 1px solid color-mix(in srgb, var(--border) 40%, transparent);
@@ -265,9 +330,9 @@
   white-space: nowrap;
 }
 .trace-col--pin   { width: 22px; padding: 4px 2px; text-align: center; }
-.trace-col--name  { width: 28%; }
-.trace-col--value { width: 36%; }
-.trace-col--spark { width: 36%; padding: 2px 4px; }
+.trace-col--name  { width: 26%; }
+.trace-col--value { width: 46%; }
+.trace-col--spark { width: 28%; padding: 2px 4px; }
 
 /* Pin button */
 .trace-pin-btn {
@@ -322,17 +387,21 @@
 .spark-svg  { display: block; overflow: visible; }
 .spark-empty { display: inline-block; width: 56px; height: 16px; }
 
-/* Min / max chip */
-.trace-minmax {
-  display: flex;
-  gap: 2px;
-  font-size: var(--fs-2xs);
-  color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
-  margin-top: 1px;
-  opacity: 0.8;
+/* Expand-on-click detail row — min/max and the snapshot diff used to fight
+   the sparkline for a 115px cell. */
+.trace-row-detail td {
+  padding: var(--space-1) var(--space-2) var(--space-2);
+  background: color-mix(in srgb, var(--bg-titlebar) 55%, transparent);
 }
-.trace-minmax-sep { opacity: 0.5; }
+.trace-detail-item {
+  display: inline-flex;
+  gap: var(--space-1);
+  margin-right: var(--space-3);
+  font-size: var(--fs-2xs);
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+.trace-detail-item b { color: var(--text); font-weight: var(--fw-semibold); }
 
 .trace-empty {
   padding: 20px 12px;
@@ -417,36 +486,6 @@
   border-radius: var(--radius-pill);
   padding: 1px 6px;
 }
-
-/* ── Snapshot diff in spark cell ────────────────────────────── */
-.trace-snap-chip {
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  margin-top: 2px;
-  overflow: hidden;
-}
-.trace-snap-val {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  font-size: var(--fs-2xs);
-  color: var(--text-muted);
-  opacity: 0.75;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 48px;
-}
-.trace-snap-diff {
-  font-size: var(--fs-2xs);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-.trace-snap-diff--pos  { color: var(--accent-blue); }
-.trace-snap-diff--neg  { color: var(--mauve); }
-.trace-snap-diff--zero { color: var(--text-muted); opacity: 0.7; }
 
 /* ── Inline threshold editor sub-row ────────────────────────── */
 .trace-alert-edit-row td {
@@ -540,231 +579,9 @@
   50%       { opacity: 0.3; }
 }
 
-/* ═══════════════════════════════════════════════════════════
-   DEBUG MODE — full-screen overlay layout
-   ═══════════════════════════════════════════════════════════ */
-.dm-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 200;
-  display: flex;
-  flex-direction: column;
-  background: var(--bg-base);
-  overflow: hidden;
-}
-
-/* ── Top bar ────────────────────────────────────────────── */
-.dm-topbar {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 0 10px;
-  height: 40px;
-  min-height: 40px;
-  background: var(--bg-toolbar);
-  border-bottom: 1px solid var(--border-hl);
-  overflow-x: auto;
-  overflow-y: hidden;
-  user-select: none;
-  flex-shrink: 0;
-}
-.dm-topbar-sep {
-  width: 1px;
-  height: 20px;
-  background: var(--border-hl);
-  flex-shrink: 0;
-  margin: 0 4px;
-}
-.dm-topbar-group {
-  display: flex;
-  align-items: center;
-  gap: 3px;
-}
-.dm-topbar-hint {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-size: var(--fs-sm);
-  font-weight: 500;
-  color: var(--text-muted);
-  opacity: 0.7;
-  white-space: nowrap;
-}
-
-.dm-exit-btn {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 3px 8px;
-  font-size: var(--fs-sm);
-  font-weight: 500;
-  color: var(--text-muted);
-  background: transparent;
-  border: 1px solid var(--card-border);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-.dm-exit-btn:hover { color: var(--text-bright); border-color: var(--border-hl); }
-
-.dm-ctrl-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 3px 8px;
-  font-size: var(--fs-sm);
-  color: var(--text-muted);
-  background: transparent;
-  border: 1px solid var(--card-border);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-.dm-ctrl-btn:hover:not(:disabled) { color: var(--text-bright); border-color: var(--border-hl); }
-.dm-ctrl-btn:disabled { opacity: 0.35; cursor: default; }
-.dm-ctrl-btn--active { color: var(--accent) !important; border-color: var(--accent) !important; }
-.dm-ctrl-btn--run { color: var(--accent); border-color: var(--accent); }
-.dm-ctrl-btn--run:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 12%, transparent); }
-.dm-ctrl-btn--step { font-weight: 600; }
-.dm-ctrl-btn--rec-active {
-  color: var(--red) !important;
-  border-color: var(--red) !important;
-  animation: recPulse 1.2s ease infinite;
-}
-.dm-rec-dot {
-  display: inline-block;
-  width: 7px;
-  height: 7px;
-  border-radius: var(--radius-pill);
-  background: var(--red);
-  flex-shrink: 0;
-  animation: recPulse 1.2s ease infinite;
-}
-.dm-rec-count {
-  font-size: var(--fs-2xs);
-  color: var(--red);
-  margin-left: 2px;
-}
-
-.dm-bp-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 1px 5px;
-  border-radius: var(--radius-pill);
-  background: var(--red);
-  color: var(--on-accent);
-  font-size: var(--fs-2xs);
-  font-weight: 700;
-  line-height: 1.4;
-}
-
-/* ── Three-column body ─────────────────────────────────── */
-.dm-body {
-  flex: 1 1 0;
-  display: flex;
-  flex-direction: row;
-  overflow: hidden;
-  min-height: 0;
-}
-
-/* ── Shared panel styles ────────────────────────────────── */
-.dm-panel {
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  min-width: 0;
-}
-.dm-panel--blocks  { background: var(--bg-panel); border-right: 1px solid var(--border-hl); }
-.dm-panel--viewport { flex: 1 1 0; background: var(--bg-base); }
-.dm-panel--trace   { background: var(--bg-panel); border-left: 1px solid var(--border-hl); }
-
-.dm-panel-hint {
-  font-size: var(--fs-xs);
-  color: var(--text-muted);
-  opacity: 0.7;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  flex: 1;
-}
-.dm-paused-badge {
-  padding: 1px 7px;
-  border-radius: var(--radius-sm);
-  background: var(--yellow);
-  color: var(--bg-base);
-  font-size: var(--fs-2xs);
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  margin-left: auto;
-}
-
-/* ── Resize handles ─────────────────────────────────────── */
-.dm-resize-handle {
-  width: 8px;
-  background: var(--border-hl);
-  cursor: col-resize;
-  flex-shrink: 0;
-  transition: background 0.15s;
-  z-index: 5;
-  position: relative;
-}
-.dm-resize-handle:hover { background: var(--accent); }
-/* Wider invisible hit area — mirrors .pane-divider::before */
-.dm-resize-handle::before {
-  content: '';
-  position: absolute;
-  top: 0; bottom: 0;
-  left: -4px; right: -4px;
-}
-
-/* ── Blockly panel inner ─────────────────────────────────── */
-.dm-blockly-wrap {
-  flex: 1 1 0;
-  overflow: hidden;
-  min-height: 0;
-  position: relative;
-}
-.dm-blockly-wrap > div,
-.dm-blockly-wrap .blocklyDiv {
-  width: 100% !important;
-  height: 100% !important;
-}
-
-/* ── Code-only panel inner ───────────────────────────────── */
-.dm-code-wrap {
-  flex: 1 1 0;
-  overflow: hidden;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
-.dm-code-wrap > div,
-.dm-code-wrap .monaco-editor {
-  flex: 1 1 0 !important;
-  min-height: 0 !important;
-}
-
-/* ── GlowScript viewport div ────────────────────────────── */
-.dm-glowhost {
-  flex: 1 1 0;
-  width: 100%;
-  overflow: hidden;
-  background: var(--bg-base);
-  min-height: 0;
-}
-
-/* ── Trace panel fills panel height ─────────────────────── */
-.dm-panel--trace .trace-panel {
-  height: 100%;
-  border: none;
-  border-radius: 0;
-}
-.dm-panel--trace .trace-scroll {
-  flex: 1 1 0;
-  overflow-y: auto;
-  min-height: 0;
-}
-
+/* ── Trace panel inside the drawer ────────────────────────
+   Was .dm-panel--trace .trace-panel / .trace-scroll — the trace panel needs a
+   scroll context inside a fixed-width drawer, and that is the only behaviour
+   the deleted .dm-* block carried that anything still needs. */
+.debug-drawer .trace-panel { height: 100%; min-height: 0; }
+.debug-drawer .trace-scroll { flex: 1; min-height: 0; overflow-y: auto; }

@@ -185,7 +185,7 @@
   /* ── DEPRECATED alias tokens — do NOT use in new rules. ──────────────
      Canonical names: --mono, --red. --bg-toolbar and --bg-sidebar have no
      canonical replacement yet — out of scope for this cleanup pass. ── */
-  --bg-toolbar:     #252526;              /* DebugMode top bar / panel headers      */
+  --bg-toolbar:     #252526;              /* TraceTable panel header background     */
   --bg-sidebar:     #252526;              /* TraceTable search bar background       */
   --font-mono:      var(--mono);          /* normalises var(--font-mono) references */
   --error:          #f44747;              /* form validation colour = --red         */

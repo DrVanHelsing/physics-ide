@@ -7,9 +7,24 @@
 
 import { traceRegistry } from '../blockly/traceRegistry';
 import { instrumentPythonForDebug } from './instrumentor';
+import { DEBUG_RUNNER } from '../../constants';
 
 let activeRunToken = 0;
 let activeFrameWindow = null;
+
+/** Set by useSimulation so a rejection AFTER runPython resolves can still
+ *  reach the status bar. Before Tranche 3 these only console.error'd, so a
+ *  dead simulation went on claiming it was running. */
+let runtimeErrorSink = null;
+
+export function setRuntimeErrorSink(fn) {
+  runtimeErrorSink = typeof fn === "function" ? fn : null;
+}
+
+function reportAsyncRuntimeError(err) {
+  console.error("[PhysicsIDE] runtime error after start:", err);
+  if (runtimeErrorSink) runtimeErrorSink(err);
+}
 
 /* ── Code-project trace entries (populated by instrumentPythonForDebug) ── */
 let codeTraceEntries = [];
@@ -195,6 +210,10 @@ function createRuntimeFrame(host) {
 </html>`);
   frameDoc.close();
 
+  const frameWindow = iframe.contentWindow;
+  frameWindow.addEventListener("error", (e) => reportAsyncRuntimeError(e.error || e.message));
+  frameWindow.addEventListener("unhandledrejection", (e) => reportAsyncRuntimeError(e.reason));
+
   return iframe;
 }
 
@@ -220,11 +239,12 @@ function buildSource(codeString) {
     throw new Error("Compile error: VPython source is empty.");
   }
 
-  /* ── DEBUG: log the Python source so we can spot the ';' problem ── */
-  console.log(
-    "[PhysicsIDE] Python source (" + source.split("\n").length + " lines):\n" +
-    source.slice(0, 4000) + (source.length > 4000 ? "\n…(truncated)" : "")
-  );
+  if (DEBUG_RUNNER) {
+    console.log(
+      "[PhysicsIDE] Python source (" + source.split("\n").length + " lines):\n" +
+      source.slice(0, 4000) + (source.length > 4000 ? "\n…(truncated)" : "")
+    );
+  }
 
   return source;
 }
@@ -287,11 +307,18 @@ function extractCompiledCode(compiled) {
   return compiledCode;
 }
 
-async function executeCompiled(frameWindow, compiledCode, traceEntries) {
+async function executeCompiled(frameWindow, compiledCode, traceEntries, initialBreakpoints) {
   activeFrameWindow = frameWindow;
   frameWindow.__physide_paused = false;
   frameWindow.__physide_steps = 0;
-  frameWindow.__physide_breakpoints = new Set();
+  frameWindow.__physide_iter = 0;
+  frameWindow.__physide_frame_steps = 0;
+  /* Seeded BEFORE eval so a breakpoint aimed at the FIRST iteration — the
+     common case when debugging initial conditions — actually catches it.
+     Until Tranche 3 this was `new Set()` and useSimulation re-armed it after
+     `await runPython`, which returns 120 ms after __main__() starts the loop. */
+  frameWindow.__physide_breakpoints =
+    initialBreakpoints instanceof Set ? new Set(initialBreakpoints) : new Set(initialBreakpoints || []);
   const mount = frameWindow.document.createElement("div");
   mount.id = "glowscript";
   mount.style.width = "100%";
@@ -339,20 +366,24 @@ async function executeCompiled(frameWindow, compiledCode, traceEntries) {
         if (!entry) return match;
         const dn = entry.displayName.replace(/'/g, "\\'");
         const bid = (entry.blockId || '').replace(/'/g, "\\'");
+        const sc = (entry.scope || 'loop').replace(/'/g, "\\'");
         return (
           prefix + value + semi +
           "try{parent.postMessage({type:'__phtr',n:'" + dn +
           "',v:String(_phtr_" + safeName +
-          "),b:'" + bid + "'},'*');" +
+          "),b:'" + bid + "',s:'" + sc + "',i:(window.__physide_iter||0)},'*');" +
           "if(window.__physide_breakpoints&&window.__physide_breakpoints.has('" + bid + "')){" +
           "window.__physide_paused=true;window.__physide_steps=0;}" +
           "if(window.__physide_paused){" +
           "if(window.__physide_steps>0){window.__physide_steps--;}" +
-          "else{await new Promise(function(r){" +
+          "else{" +
+          "parent.postMessage({type:'__phpause',paused:true,b:'" + bid + "',i:(window.__physide_iter||0)},'*');" +
+          "await new Promise(function(r){" +
           "var _pi=setInterval(function(){" +
           "if(!window.__physide_paused||window.__physide_steps>0){" +
           "clearInterval(_pi);" +
           "if(window.__physide_steps>0)window.__physide_steps--;" +
+          "parent.postMessage({type:'__phpause',paused:false},'*');" +
           "r();}},30);})}" +
           "}}catch(_e){}"
         );
@@ -360,15 +391,30 @@ async function executeCompiled(frameWindow, compiledCode, traceEntries) {
     );
   }
 
+  /* Frame boundaries. Every VPython animation loop calls rate(); that call is
+     the only reliable "one timestep has elapsed" marker available without a
+     Python-level AST pass. The counter feeds the "iteration N" readout, and
+     __physide_frame_steps makes "Next frame" a real unit rather than "next
+     trace event" (which advanced a quarter of a timestep in a four-variable
+     loop). */
+  traceInjected = traceInjected.replace(
+    /\b(await\s+)?rate\s*\(/g,
+    "window.__physide_iter=(window.__physide_iter||0)+1;" +
+      "if(window.__physide_frame_steps>0){window.__physide_frame_steps--;" +
+      "if(window.__physide_frame_steps===0){window.__physide_paused=true;window.__physide_steps=0;}}" +
+      "$&",
+  );
+
   try {
     frameWindow.eval(traceInjected);
   } catch (runtimeErr) {
-    /* ── DEBUG: show the compiled JS around the problem ── */
-    console.error(
-      "[PhysicsIDE] eval() failed:", runtimeErr.message,
-      "\nCompiled JS preview (first 1000 chars):\n",
-      traceInjected.slice(0, 1000)
-    );
+    console.error("[PhysicsIDE] eval() failed:", runtimeErr.message);
+    if (DEBUG_RUNNER) {
+      console.error(
+        "\nCompiled JS preview (first 1000 chars):\n",
+        traceInjected.slice(0, 1000)
+      );
+    }
     throw new Error("Runtime error: " + (runtimeErr.message || runtimeErr));
   }
 
@@ -376,9 +422,7 @@ async function executeCompiled(frameWindow, compiledCode, traceEntries) {
     try {
       const maybePromise = frameWindow.__main__();
       if (maybePromise && typeof maybePromise.then === "function") {
-        maybePromise.catch((runtimeErr) => {
-          console.error("GlowScript runtime async error:", runtimeErr);
-        });
+        maybePromise.catch(reportAsyncRuntimeError);
       }
     } catch (runtimeErr) {
       throw new Error("Runtime error: " + (runtimeErr.message || runtimeErr));
@@ -399,15 +443,13 @@ async function executeCompiled(frameWindow, compiledCode, traceEntries) {
     for (const entrypoint of fallbackEntrypoints) {
       const result = entrypoint();
       if (result && typeof result.then === "function") {
-        result.catch((runtimeErr) => {
-          console.error("GlowScript fallback async error:", runtimeErr);
-        });
+        result.catch(reportAsyncRuntimeError);
       }
     }
   }
 }
 
-export async function runPython(codeString, hostId = "glowscript-host") {
+export async function runPython(codeString, hostId = "glowscript-host", opts = {}) {
   activeRunToken += 1;
   const thisRunToken = activeRunToken;
 
@@ -445,15 +487,25 @@ export async function runPython(codeString, hostId = "glowscript-host") {
     const source = buildSource(codeString);
 
     /* For code-only projects (no block trace declarations), auto-instrument
-       the source so that pause/step/trace work exactly like block projects. */
+       the source so that pause/step/trace work exactly like block projects.
+       Block projects normally skip the instrumentor entirely (their tr()
+       checkpoints already cover the loop body) — but a watch expression has
+       no block-generated checkpoint of its own, so a project WITH block
+       trace entries still needs a pass through the instrumentor when watches
+       are present, purely to pick up the watch probes. */
     let compilableSource = source;
     let traceEntries = traceRegistry;
-    if (traceRegistry.length === 0) {
-      const result = instrumentPythonForDebug(source);
+    const watch = opts.watch || [];
+    if (traceRegistry.length === 0 || watch.length > 0) {
+      const result = instrumentPythonForDebug(source, { watch });
       compilableSource = result.source;
       codeTraceEntries = result.entries;
-      traceEntries = codeTraceEntries;
-      if (codeTraceEntries.length > 0) {
+      /* Block projects already have tr() checkpoints in the generated source;
+         keep them and add the instrumentor's watch entries on top. */
+      traceEntries = traceRegistry.length === 0
+        ? codeTraceEntries
+        : [...traceRegistry, ...codeTraceEntries.filter((e) => e.scope === "watch")];
+      if (DEBUG_RUNNER && codeTraceEntries.length > 0) {
         console.log(
           "[PhysicsIDE] Code instrumentation: " + codeTraceEntries.length + " trace vars injected"
         );
@@ -463,7 +515,7 @@ export async function runPython(codeString, hostId = "glowscript-host") {
     const compiled = compileSource(compile, compilableSource);
     const compiledCode = extractCompiledCode(compiled);
 
-    await executeCompiled(frameWindow, compiledCode, traceEntries);
+    await executeCompiled(frameWindow, compiledCode, traceEntries, opts.breakpoints);
 
     if (thisRunToken !== activeRunToken) {
       return;
@@ -526,6 +578,14 @@ export function stepPython() {
     activeFrameWindow.__physide_paused = true;
     activeFrameWindow.__physide_steps = (activeFrameWindow.__physide_steps || 0) + 1;
   }
+}
+
+/** Advance exactly one animation frame (one rate() call), then pause again. */
+export function stepFrame() {
+  if (!activeFrameWindow) return;
+  activeFrameWindow.__physide_frame_steps = 1;
+  activeFrameWindow.__physide_steps = 0;
+  activeFrameWindow.__physide_paused = false;
 }
 
 export function setBreakpoints(bpSet) {

@@ -2,8 +2,9 @@
  * Binds the global IDE hotkeys to a single window listener.
  *
  * `enabled` is false whenever another surface owns the keyboard — the start
- * menu, Help, Debug Mode (which has its own Space/F10/Escape handler at
- * DebugMode.js:162-179) or any open dialog — so the two never fight over Escape.
+ * menu, Help, or any open dialog — so the two never fight over Escape. Debug
+ * mode is NOT one of them: it is a mode of the shell, and useDebugHotkeys
+ * binds Space/F10 beside these without colliding with any of them.
  */
 import { useEffect, useRef } from "react";
 import { matchHotkey, isTypingTarget } from "../utils/hotkeys";
