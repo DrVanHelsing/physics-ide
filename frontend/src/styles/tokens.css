@@ -311,3 +311,59 @@ button {
   border-radius: inherit;
 }
 
+/* ── Category colours — generated from blockPalette.js, sync enforced by paletteCssSync.test.js ── */
+:root {
+  --cat-objects: #0973D1;
+  --cat-objects-bright: #0A8DFF;
+  --cat-motion: #B05D07;
+  --cat-motion-bright: #FF860A;
+  --cat-values: #743BF7;
+  --cat-values-bright: #550AFF;
+  --cat-state: #D7099A;
+  --cat-state-bright: #FF0AB6;
+  --cat-control: #BB0AF0;
+  --cat-control-bright: #C70AFF;
+  --cat-logic: #137AAD;
+  --cat-logic-bright: #19AAF0;
+  --cat-math: #3B54F7;
+  --cat-math-bright: #0A2BFF;
+  --cat-variables: #BB5421;
+  --cat-variables-bright: #E46525;
+  --cat-data-science: #058178;
+  --cat-data-science-bright: #0AFFEE;
+  --cat-advanced: #62748D;
+  --cat-advanced-bright: #6580A4;
+  --cat-load-data: #077CA0;
+  --cat-load-data-bright: #0AC6FF;
+  --cat-explore: #057F84;
+  --cat-explore-bright: #0AF7FF;
+  --cat-statistics: #058269;
+  --cat-statistics-bright: #0AFFCD;
+  --cat-transforming-data: #06844D;
+  --cat-transforming-data-bright: #0AFF93;
+  --cat-uncertainty: #068530;
+  --cat-uncertainty-bright: #0AFF5B;
+  --cat-analyzing-relationships: #068512;
+  --cat-analyzing-relationships-bright: #0AFF21;
+  --cat-filter-sort: #1F8506;
+  --cat-filter-sort-bright: #3BFF0A;
+  --cat-group-compare: #3F8205;
+  --cat-group-compare-bright: #7BFF0A;
+  --cat-charts: #617C05;
+  --cat-charts-bright: #C6FF0A;
+  --cat-communicate: #877106;
+  --cat-communicate-bright: #FFD60A;
+  --cat-3d-math: #6168D1;
+  --cat-3d-math-bright: #3741D2;
+  --cat-raw-python: #6D7380;
+  --cat-raw-python-bright: #717E98;
+  --cat-loops: #B43CC6;
+  --cat-loops-bright: #BE37D2;
+  --cat-text: #25806F;
+  --cat-text-bright: #37D2B4;
+  --cat-lists: #597D24;
+  --cat-lists-bright: #93D237;
+  --cat-functions: #BF38B1;
+  --cat-functions-bright: #D237C2;
+}
+
