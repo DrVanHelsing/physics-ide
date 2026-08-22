@@ -9,6 +9,11 @@
  *   - recordBufferRef — mutable buffer of timestamped rows (not React state
  *                       to avoid re-renders on every data point)
  *   - recordingRef  — mirror of `recording` for stable closure access
+ *   - watch         — expressions armed for the trace panel's watch box.
+ *                      `addWatch` appends to it; `handleRun` reads the array
+ *                      and passes it to `runPython` as `opts.watch`. Watches
+ *                      arm on the NEXT run — the instrumentor only sees them
+ *                      once source is re-instrumented at run time.
  *
  * The trace-message listener (postMessage → window.__physide_trace_cb) lives
  * in `useTrace` so it can access both TraceContext AND DebugContext together.
@@ -30,6 +35,9 @@ export function TraceProvider({ children }) {
    *  "frame N" readout for both __phtr and __phpause messages. */
   const [iteration, setIteration] = useState(0);
 
+  /** Watch expressions armed for the next run — see the module doc above. */
+  const [watch, setWatch] = useState(() => []);
+
   const recordBufferRef = useRef([]);
   const recordingRef    = useRef(false);
 
@@ -43,7 +51,7 @@ export function TraceProvider({ children }) {
   const updateTrace = (batch) => {
     setTraceData((prev) => {
       const next = new Map(prev);
-      for (const [name, { v, b }] of Object.entries(batch)) {
+      for (const [name, { v, b, s }] of Object.entries(batch)) {
         const existing = prev.get(name);
         const prevVal  = existing?.value;
         const numV     = parseFloat(v);
@@ -72,6 +80,7 @@ export function TraceProvider({ children }) {
         next.set(name, {
           value:    v,
           blockId:  b,
+          scope:    s || existing?.scope || 'loop',
           count:    (existing?.count || 0) + 1,
           flashKey: (existing?.flashKey || 0) + 1,
           delta,
@@ -86,10 +95,22 @@ export function TraceProvider({ children }) {
 
   const clearTrace = () => setTraceData(new Map());
 
+  /** Arm a watch expression for the next run. De-dupes so pressing Enter on
+   *  the same text twice does not double the request sent to the
+   *  instrumentor (which numbers watches by array index). */
+  const addWatch = (expr) => {
+    setWatch((prev) => (prev.includes(expr) ? prev : [...prev, expr]));
+  };
+  const removeWatch = (expr) => {
+    setWatch((prev) => prev.filter((w) => w !== expr));
+  };
+  const clearWatch = () => setWatch([]);
+
   const value = {
     traceData, setTraceData,
     recording, setRecording,
     iteration, setIteration,
+    watch, addWatch, removeWatch, clearWatch,
     recordBufferRef,
     recordingRef,
     updateTrace,

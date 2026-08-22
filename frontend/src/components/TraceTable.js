@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import {
   BellIcon,
   CheckIcon,
+  ChevronRightIcon,
   ClipboardIcon,
   DownloadIcon,
   PinIcon,
@@ -11,12 +12,28 @@ import {
   XIcon,
   ZapIcon,
 } from "./Icons";
+import { useTraceContext } from "../contexts/TraceContext";
 
 /* ── Truncate long values for display ─────────────────────── */
 function truncate(str, max) {
   if (!str) return "";
   const s = String(str);
   return s.length <= max ? s : s.slice(0, max) + "…";
+}
+
+/* A trace value that parses as a number is rendered at fixed precision so a
+   column of them lines up and stops jittering between 0.1 and
+   0.10000000000000009. Anything else — vectors, booleans, reprs — is passed
+   through untouched; guessing at their shape is how you lose information. */
+function formatTraceValue(raw) {
+  const s = String(raw ?? "");
+  if (!/^-?\d*\.?\d+(?:e[-+]?\d+)?$/i.test(s.trim())) return s;
+  const n = Number(s);
+  if (!Number.isFinite(n)) return s;
+  if (Number.isInteger(n) && Math.abs(n) < 1e6) return String(n);
+  return Math.abs(n) >= 1e5 || (Math.abs(n) < 1e-3 && n !== 0)
+    ? n.toExponential(3)
+    : n.toFixed(4);
 }
 
 /* ── Tiny sparkline SVG ────────────────────────────────────── */
@@ -122,6 +139,7 @@ function AlertEditRow({ name, alertConfig, onSave, onDelete, onCancel }) {
 function TraceRow({
   name, entry, pinned, flashKey, onHighlight, onPin,
   snapshotVal, alertConfig, isFiring, isEditing, onAlertEdit, onAlertSave, onAlertDelete,
+  expanded, onToggleExpand,
 }) {
   const rowRef  = useRef(null);
   const prevKey = useRef(flashKey);
@@ -155,21 +173,16 @@ function TraceRow({
     }
   }
 
-  // Snapshot diff
-  let snapDiffStr   = null;
-  let snapDiffClass = "trace-snap-diff trace-snap-diff--zero";
+  // Snapshot diff — shown in the expand-on-click detail row as "since snapshot"
+  let snapDiffStr = null;
   if (snapshotVal !== undefined && snapshotVal !== null) {
     const numCur  = parseFloat(value);
     const numSnap = parseFloat(snapshotVal);
     if (!isNaN(numCur) && !isNaN(numSnap)) {
       const d     = parseFloat((numCur - numSnap).toFixed(6));
       snapDiffStr = d > 0 ? `+${d.toFixed(3)}` : d.toFixed(3);
-      snapDiffClass = d > 0 ? "trace-snap-diff trace-snap-diff--pos"
-                    : d < 0 ? "trace-snap-diff trace-snap-diff--neg"
-                    :          "trace-snap-diff trace-snap-diff--zero";
     } else {
-      snapDiffStr   = value !== snapshotVal ? "≠" : "=";
-      snapDiffClass = "trace-snap-diff trace-snap-diff--zero";
+      snapDiffStr = value !== snapshotVal ? "≠" : "=";
     }
   }
 
@@ -207,30 +220,23 @@ function TraceRow({
           <span className="trace-varname">{name}</span>
         </td>
 
-        {/* Value + live delta */}
-        <td className="trace-col trace-col--value" title={value}>
+        {/* Value + live delta — click to expand min/max + snapshot detail */}
+        <td
+          className="trace-col trace-col--value"
+          title={value}
+          onClick={onToggleExpand}
+          style={{ cursor: "pointer" }}
+        >
           <div className="trace-value-cell">
-            <span className="trace-value">{truncate(value, 14)}</span>
+            <span className="trace-value">{truncate(formatTraceValue(value), 24)}</span>
             {deltaStr && <span className={deltaClass}>{deltaStr}</span>}
           </div>
         </td>
 
-        {/* Sparkline + min/max + snapshot diff */}
+        {/* Sparkline — the one thing that reads at a glance; min/max and the
+            snapshot diff live in the expand-on-click detail row below. */}
         <td className="trace-col trace-col--spark">
           <Sparkline history={entry.history} />
-          {minStr && (
-            <div className="trace-minmax">
-              <span>{minStr}</span>
-              <span className="trace-minmax-sep">–</span>
-              <span>{maxStr}</span>
-            </div>
-          )}
-          {snapshotVal !== undefined && (
-            <div className="trace-snap-chip">
-              <span className="trace-snap-val"><ClipboardIcon size={10} />{truncate(String(snapshotVal), 7)}</span>
-              {snapDiffStr && <span className={snapDiffClass}>{snapDiffStr}</span>}
-            </div>
-          )}
         </td>
 
         {/* Alert bell */}
@@ -248,6 +254,19 @@ function TraceRow({
           </button>
         </td>
       </tr>
+
+      {/* Expand-on-click detail: min/max and the snapshot diff used to fight
+          the sparkline for a 115px cell — now a click away instead. */}
+      {expanded && (
+        <tr className="trace-row-detail">
+          <td colSpan={5}>
+            <span className="trace-detail-item">min <b>{minStr ?? "—"}</b></span>
+            <span className="trace-detail-item">max <b>{maxStr ?? "—"}</b></span>
+            <span className="trace-detail-item">since snapshot <b>{snapDiffStr ?? "—"}</b></span>
+            <span className="trace-detail-item">block <b>{blockId || "—"}</b></span>
+          </td>
+        </tr>
+      )}
 
       {/* Inline threshold editor */}
       {isEditing && (
@@ -308,6 +327,17 @@ function TraceTable({
   const [snapshot,     setSnapshot]     = useState(null);           // null | Map<name, string>
   const [alerts,       setAlerts]       = useState(() => new Map()); // Map<name, {op, val}>
   const [editingAlert, setEditingAlert] = useState(null);           // string | null
+  const [expandedName, setExpandedName] = useState(null);           // string | null
+  const [setupOpen,    setSetupOpen]    = useState(false);
+  const [watchDraft,   setWatchDraft]   = useState("");
+
+  /* Watch expressions live in TraceContext (not props): `addWatch` arms an
+     expression for the NEXT run, and `handleRun` reads this same array to
+     pass `{ watch }` to runPython. Reading it from context here — rather
+     than threading it down as a prop — means the panel already works the
+     moment the run-side wiring reads `watch` off this same context; no
+     parent component needs to know this feature exists. */
+  const { watch, addWatch } = useTraceContext();
 
   /* Pin handling */
   const handlePin = useCallback((name) => {
@@ -373,6 +403,13 @@ function TraceTable({
       return aName.localeCompare(bName);
     });
 
+  /* Split the remaining rows by scope — a watch expression or a setup
+     constant is not "just another variable" and reads as noise mixed in
+     with the loop's live values. */
+  const watchRows = unpinnedRows.filter(([, e]) => e.scope === "watch");
+  const setupRows = unpinnedRows.filter(([, e]) => e.scope === "setup");
+  const liveRows  = unpinnedRows.filter(([, e]) => e.scope !== "watch" && e.scope !== "setup");
+
   const renderRows = (rows, isPinnedSection) =>
     rows.map(([name, entry]) => {
       const alertConfig = alerts.get(name);
@@ -392,6 +429,8 @@ function TraceTable({
           onAlertEdit={setEditingAlert}
           onAlertSave={handleAlertSave}
           onAlertDelete={handleAlertDelete}
+          expanded={expandedName === name}
+          onToggleExpand={() => setExpandedName((v) => (v === name ? null : name))}
         />
       );
     });
@@ -497,6 +536,31 @@ function TraceTable({
             Clear
           </button>
         </div>
+
+        {/* Watch expression input — arms on the NEXT run, not this one */}
+        <form
+          className="trace-watch"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const v = watchDraft.trim();
+            if (!v) return;
+            addWatch(v);
+            setWatchDraft("");
+          }}
+        >
+          <input
+            className="trace-watch-input"
+            value={watchDraft}
+            onChange={(e) => setWatchDraft(e.target.value)}
+            placeholder="Watch an expression…"
+            spellCheck={false}
+          />
+        </form>
+        {watch.length > 0 && (
+          <p className="trace-watch-note">
+            {watch.length} watch{watch.length === 1 ? "" : "es"} — press Run to see {watch.length === 1 ? "it" : "them"}.
+          </p>
+        )}
       </div>
 
       {/* ── Search ── */}
@@ -546,12 +610,43 @@ function TraceTable({
                     {renderRows(pinnedRows, true)}
                   </>
                 )}
-                {unpinnedRows.length > 0 && pinnedRows.length > 0 && (
+                {watchRows.length > 0 && (
+                  <>
+                    <tr className="trace-section-row">
+                      <td colSpan={5}>
+                        <span className="trace-section-label">Watch ({watchRows.length})</span>
+                      </td>
+                    </tr>
+                    {renderRows(watchRows, false)}
+                  </>
+                )}
+                {setupRows.length > 0 && (
+                  <>
+                    <tr className="trace-section-row">
+                      <td colSpan={5}>
+                        <button
+                          type="button"
+                          className="trace-section-toggle"
+                          onClick={() => setSetupOpen((v) => !v)}
+                          aria-expanded={setupOpen}
+                        >
+                          <ChevronRightIcon size={10} />
+                          <span className="trace-section-label">
+                            Setup / constants ({setupRows.length})
+                          </span>
+                        </button>
+                      </td>
+                    </tr>
+                    {setupOpen && renderRows(setupRows, false)}
+                  </>
+                )}
+                {liveRows.length > 0 &&
+                  (pinnedRows.length > 0 || watchRows.length > 0 || setupRows.length > 0) && (
                   <tr className="trace-section-row">
-                    <td colSpan={5}><span className="trace-section-label">All variables</span></td>
+                    <td colSpan={5}><span className="trace-section-label">Live values</span></td>
                   </tr>
                 )}
-                {renderRows(unpinnedRows, false)}
+                {renderRows(liveRows, false)}
               </>
             )}
           </tbody>
