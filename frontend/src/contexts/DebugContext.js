@@ -24,6 +24,7 @@ export function DebugProvider({ children }) {
   const [debugMode,        setDebugMode]        = useState(false);
   const [breakpoints,      setBreakpoints]      = useState(() => new Set());
   const [executingBlockId, setExecutingBlockId] = useState(null);
+  const [breakableIds,     setBreakableIds]     = useState(() => new Set());
 
   /* Mirror breakpoints in a ref so glowRunner callbacks never see stale data */
   const breakpointsRef = useRef(new Set());
@@ -32,13 +33,18 @@ export function DebugProvider({ children }) {
     syncBreakpointsToIframe(breakpoints);
   }, [breakpoints]);
 
-  /** Toggle a breakpoint by id. */
+  /** A breakpoint on a non-breakable block would be accepted and never fire. */
+  const isBreakable = (blockId) => breakableIds.has(blockId);
+
+  /** Toggle a breakpoint by id. A breakpoint can never be SET where it cannot
+   *  fire — removing one is always allowed, so an old project's stale
+   *  breakpoints can still be cleared. */
   const toggleBreakpoint = (blockId) => {
     if (!blockId) return;
     setBreakpoints((prev) => {
       const next = new Set(prev);
       if (next.has(blockId)) next.delete(blockId);
-      else next.add(blockId);
+      else if (breakableIds.has(blockId)) next.add(blockId);
       return next;
     });
   };
@@ -47,6 +53,7 @@ export function DebugProvider({ children }) {
     debugMode,        setDebugMode,
     breakpoints,      setBreakpoints,
     executingBlockId, setExecutingBlockId,
+    breakableIds,     setBreakableIds,     isBreakable,
     breakpointsRef,
     toggleBreakpoint,
   };

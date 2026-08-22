@@ -10,11 +10,11 @@ import Blockly from "../utils/blockly/blocklyLib";
 import {
   runPython,
   stopPython,
-  setBreakpoints as syncBreakpointsToIframe,
   setRuntimeErrorSink,
 } from "../utils/runner/glowRunner";
 import { describeRunError } from "../utils/runner/describeRunError";
 import { generatePythonFromWorkspace } from "../utils/blockly/blocklyGenerator";
+import { breakableIds as breakableIdsFromRegistry } from "../utils/blockly/traceRegistry";
 import { useSimulationContext } from "../contexts/SimulationContext";
 import { useDebugContext }      from "../contexts/DebugContext";
 import { useTraceContext }      from "../contexts/TraceContext";
@@ -64,7 +64,7 @@ export function useSimulation() {
     runGenerationRef,
   } = sim;
 
-  const { debugMode, breakpointsRef } = useDebugContext();
+  const { debugMode, breakpointsRef, setBreakableIds } = useDebugContext();
   const { setTraceData } = useTraceContext();
 
   /* The generation of the last run that actually reached "confirmed live"
@@ -106,10 +106,11 @@ export function useSimulation() {
     if (!workspaceRef.current) return pythonCode;
     if (workspaceRef.current.getAllBlocks(false).length === 0) return pythonCode;
     const generated = generatePythonFromWorkspace(workspaceRef.current);
+    setBreakableIds(breakableIdsFromRegistry());
     const code = generated || DEFAULT_PYTHON_CODE;
     setPythonCode(code);
     return code;
-  }, [pythonCode, setPythonCode, workspaceRef]);
+  }, [pythonCode, setPythonCode, setBreakableIds, workspaceRef]);
 
   /* ── Run ─────────────────────────────────────────────── */
   const handleRun = useCallback(async () => {
@@ -122,7 +123,16 @@ export function useSimulation() {
     setTraceData(new Map());
     try {
       stopPython(GLOWSCRIPT_HOST_ID);
-      await runPython(code, GLOWSCRIPT_HOST_ID);
+      // Seeded BEFORE eval (glowRunner's executeCompiled), not re-armed after
+      // — a breakpoint aimed at the FIRST iteration is the common case when
+      // debugging initial conditions, and runPython's own resolve happens
+      // 120 ms after __main__() has already started the loop. Only armed in
+      // debug mode: useDebug's exit clears running/paused/recording but
+      // deliberately keeps breakpoints (so re-entering debug mode finds
+      // them), so a plain Run outside debug mode must not freeze on them.
+      await runPython(code, GLOWSCRIPT_HOST_ID, {
+        breakpoints: debugMode ? breakpointsRef.current : new Set(),
+      });
       // A newer run (or an explicit Stop/Reset) has since bumped the
       // generation — this call is stale, so its "success" must not reopen
       // state a later action already owns.
@@ -130,7 +140,6 @@ export function useSimulation() {
       // Arm the async-error sink for this generation now that it has
       // genuinely reached "running" — see confirmedGenerationRef above.
       confirmedGenerationRef.current = generation;
-      syncBreakpointsToIframe(breakpointsRef.current);
       setStatus({
         text: debugMode ? "Debug simulation started" : "Simulation started",
         type: "success",

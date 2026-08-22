@@ -307,11 +307,16 @@ function extractCompiledCode(compiled) {
   return compiledCode;
 }
 
-async function executeCompiled(frameWindow, compiledCode, traceEntries) {
+async function executeCompiled(frameWindow, compiledCode, traceEntries, initialBreakpoints) {
   activeFrameWindow = frameWindow;
   frameWindow.__physide_paused = false;
   frameWindow.__physide_steps = 0;
-  frameWindow.__physide_breakpoints = new Set();
+  /* Seeded BEFORE eval so a breakpoint aimed at the FIRST iteration — the
+     common case when debugging initial conditions — actually catches it.
+     Until Tranche 3 this was `new Set()` and useSimulation re-armed it after
+     `await runPython`, which returns 120 ms after __main__() starts the loop. */
+  frameWindow.__physide_breakpoints =
+    initialBreakpoints instanceof Set ? new Set(initialBreakpoints) : new Set(initialBreakpoints || []);
   const mount = frameWindow.document.createElement("div");
   mount.id = "glowscript";
   mount.style.width = "100%";
@@ -424,7 +429,7 @@ async function executeCompiled(frameWindow, compiledCode, traceEntries) {
   }
 }
 
-export async function runPython(codeString, hostId = "glowscript-host") {
+export async function runPython(codeString, hostId = "glowscript-host", opts = {}) {
   activeRunToken += 1;
   const thisRunToken = activeRunToken;
 
@@ -480,7 +485,7 @@ export async function runPython(codeString, hostId = "glowscript-host") {
     const compiled = compileSource(compile, compilableSource);
     const compiledCode = extractCompiledCode(compiled);
 
-    await executeCompiled(frameWindow, compiledCode, traceEntries);
+    await executeCompiled(frameWindow, compiledCode, traceEntries, opts.breakpoints);
 
     if (thisRunToken !== activeRunToken) {
       return;
