@@ -38,6 +38,11 @@ Inside each goal the student picks an editing mode: **Blocks** or **Code**. Ther
 | Runtime abstraction | **Deferred** | No interface until a concrete second runtime exists. Physics stays in `src/utils/runner/glowRunner.js`; DS calls Arquero / Plot directly from block generators. The GlowScript 3.2 runtime is vendored at `frontend/public/vendor/glowscript/` (six files, provenance and SHA-256s recorded there) so §101's offline promise holds; Blockly is a pinned-exact npm dependency, not a CDN script. |
 | Type system | **Minimal** | Blockly connection checks + the new shared type tags. No coercion engine in v1. |
 | Bundle import | **Full-replace** | Confirmation dialog. Partial-merge revisited in v1.x with a real workflow spec. |
+| Design tokens *(added 22 Aug 2026 — see the Design-system amendment)* | **`frontend/src/styles/tokens.css` is the single source of every metric and colour** | 4px space ramp, nine-step type scale, three radii, three durations, three control heights (22 / 30 / 38px), one micro-label system. Replaced 16 ad-hoc pixel values. No literal metric in any new rule. |
+| Theme model | **`data-theme` attribute on `<html>`; dark default; light is one override block** | No `prefers-color-scheme` path exists anywhere in app CSS and none may be added — a projected classroom needs light mode *chosen*, not inherited. Derived role tokens are declared once in the dark block and re-resolve under light by `var()`. |
+| Component primitives | **`.btn` / `.card` / `.panel-header` in `frontend/src/styles/primitives.css`** | Legacy class names are comma-appended aliases: migration debt, not API. New surfaces use the canonical class plus modifiers. |
+| Icon idiom | **One module — `frontend/src/components/Icons.js`** | Inline SVG line art on a 24 grid, `stroke="currentColor"`, `strokeWidth 2`, `size` prop. **No emoji in product UI** (standing owner rule, 19 Aug 2026). No second icon module. |
+| Minimum viewport | **1024px** | Header collapse stages chosen so stage 2 is active *at* the floor, not below it; nothing load-bearing may be hidden at stage 2. Coarse-pointer targets ≥32px. No support obligation below 1024px. |
 
 ---
 
@@ -104,6 +109,13 @@ A step-by-step guided mode for beginners, **selectable at project creation** per
 - Arquero ops on 10 k rows under 200 ms (Phase A measured 1.3–4.9 ms — actuals stay well inside this).
 - Plot render of a 10 k-point chart under 500 ms.
 - Project switch (save current + load new) under 200 ms.
+- **Design-system gates** (added 22 Aug 2026, alongside the Locked-decision rows above):
+  - No literal `px` metric in `frontend/src/styles/platform.css` or in any JSX `style={}` — lint-checked. *(Not yet enforced; the tokenisation pass and its lint are outstanding work — see [classroom-platform.md](classroom-platform.md) §18's forward references.)*
+  - Every block-palette `fill` and `secondary` clears 4.5:1 against white, and no palette entry sits in the reserved red band (hue 340°–15°). Already enforced by `frontend/src/utils/blockly/__tests__/blockPalette.test.js`; stated here so it is a contract term, not only a test.
+  - `paletteCssText()` output appears verbatim in `tokens.css`. Enforced by `frontend/src/utils/blockly/__tests__/paletteCssSync.test.js`.
+  - Exactly one focus-ring rule ships; no component defines its own `:focus`.
+  - Every animation carries a `prefers-reduced-motion` guard.
+  - Zero emoji in product UI (Unicode scan over `frontend/src`).
 - No HTTP requests to any third-party origin after first load, with one tracked exception: the Google Fonts `@import` in `styles.css` (documented deferral) — the historical "Monaco stays on a CDN" carve-out behind the old "non-CDN origins" wording is gone now that Monaco is bundled alongside Blockly and the vendored GlowScript runtime. Self-hosting Inter / JetBrains Mono is a tracked, deliberate deferral (see Plan 3's spec), not an oversight. Smoke-tested in CI.
 
 ---
@@ -127,6 +139,15 @@ Effective for the `feature/classroom-platform` branch onward:
 - The exclusion-list bullets covering servers/databases, accounts/login/roles, cross-device sync/cloud save/rosters/dashboards are **lifted**. All other exclusions stand.
 - Phase D/E's Supabase choice is **superseded**: the stack is a Fastify + PostgreSQL backend, self-hosted auth, Google Cloud (`africa-south1`) at deployment, hard cap **200 accounts**.
 - The browser-first core is unchanged: simulation and DS execution never move server-side; guest mode remains.
+- **The classroom platform inherits the design system below in full.** Portal screens are not a separate visual product; [classroom-platform.md](classroom-platform.md) §18 is their binding design contract.
+
+## Amendment — Design system (22 August 2026)
+
+**Trigger.** The IDE was modernized in place on 20–21 August 2026 — a design-token layer, three shared primitives, an adaptive zoned header, a light/dark theme pair, a docked debug drawer, the 26-category Blockly palette and matching editor themes — and this contract recorded none of it. That is a Change-protocol violation of the "contract first, code second" rule, remedied here retroactively: the five **Locked decisions** rows and the **Design-system gates** in the Quality bar above are the record.
+
+**Consequence for future work.** Metrics, themes, primitives, icons and the minimum viewport are now locked decisions like any other. Changing a ramp, adding a token, or introducing a new visual pattern follows the Change protocol below — written here first, then built. Reaching for a literal pixel value because no rung fits is the signal to open the decision, not to skip it.
+
+**Two open decisions** are recorded in [classroom-platform.md](classroom-platform.md) §18 and are deliberately unresolved: the welcome page's off-ramp section rhythm, and the portal's extra letter-spacing values. Neither blocks the contract; both block the tokenisation pass.
 
 ## Change protocol
 
