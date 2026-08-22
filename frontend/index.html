@@ -10,8 +10,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 
-        <!-- GlowScript / VPython 3D engine is loaded dynamically in glowRunner.js
-          with AMD temporarily disabled to avoid Monaco loader define() conflicts. -->
+        <!-- GlowScript / VPython 3D engine vendored files load same-origin;
+          AMD-define conflicts handled by frontend/src/utils/monaco/amdGuard.js -->
 
     <script>
       // Lightweight diagnostics used by src/utils/glowRunner.js
