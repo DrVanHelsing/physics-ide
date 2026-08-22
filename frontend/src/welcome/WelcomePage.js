@@ -6,9 +6,9 @@ import {
   OrbitIcon,
   ChartIcon,
   LocalFirstIcon,
-  ClassroomIcon,
+  GraduationCapIcon,
   PrivacyIcon,
-} from "./WelcomeIcons";
+} from "../components/Icons";
 import { WELCOME_PASSED_SESSION_KEY } from "../constants";
 
 const FEATURES = [
@@ -16,7 +16,7 @@ const FEATURES = [
   { Icon: OrbitIcon, title: "Live 3D simulations", body: "VPython scenes render as your code runs: orbits, springs, collisions, projectiles — watch physics happen." },
   { Icon: ChartIcon, title: "Charts & data", body: "Every run captures data you can plot, fit, and analyse — the data-science half of the lab." },
   { Icon: LocalFirstIcon, title: "Yours, offline", body: "Everything saves to your computer first. Wi-Fi dies mid-lesson? Keep working. Sign in and projects follow you to any computer." },
-  { Icon: ClassroomIcon, title: "Classrooms", body: "Teachers create classes, share a join code or QR, and manage rosters. Assignments and marking are on the way." },
+  { Icon: GraduationCapIcon, title: "Classrooms", body: "Teachers create classes, share a join code or QR, and manage rosters. Assignments and marking are on the way." },
   { Icon: PrivacyIcon, title: "No surveillance", body: "No tracking, no paste detection, no webcam. Just an honest record of how your work grew." },
 ];
 
@@ -73,7 +73,7 @@ export default function WelcomePage() {
       <section className="welcome-features">
         {FEATURES.map((f) => (
           <article key={f.title} className="welcome-card welcome-reveal">
-            <span className="welcome-card__icon" aria-hidden="true"><f.Icon /></span>
+            <span className="welcome-card__icon" aria-hidden="true"><f.Icon size={28} /></span>
             <h2>{f.title}</h2>
             <p>{f.body}</p>
           </article>
