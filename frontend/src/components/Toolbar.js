@@ -6,8 +6,6 @@ import {
   UploadIcon,
   TrashIcon,
   RefreshIcon,
-  SunIcon,
-  MoonIcon,
   AtomIcon,
   HelpIcon,
   FileCodeIcon,
@@ -29,6 +27,7 @@ import {
 import { MOD_LABEL } from "../utils/hotkeys";
 import DropdownMenu from "./common/DropdownMenu";
 import ProjectTitle from "./layout/ProjectTitle";
+import ThemeToggleButton from "./layout/ThemeToggleButton";
 import HeaderAccount from "./auth/HeaderAccount";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { useMe } from "../auth/useAuth";
@@ -251,16 +250,7 @@ function Toolbar({
         </DropdownMenu>
       </>
     ),
-    themeToggle: () => (
-      <button
-        type="button"
-        className="tb-btn tb-btn--icon tb-btn--theme"
-        onClick={onToggleTheme}
-        title={isDark ? "Switch to light mode" : "Switch to dark mode"}
-      >
-        {isDark ? <SunIcon size={14} /> : <MoonIcon size={14} />}
-      </button>
-    ),
+    themeToggle: () => <ThemeToggleButton isDark={isDark} onToggle={onToggleTheme} />,
   };
 
   /** Render a zone's key list through CONTROL_RENDERERS, in matrix order. */
