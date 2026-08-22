@@ -208,7 +208,7 @@ await measureContrast('.start-action-btn', 'Sidebar action button');
 await createPhysicsProject();
 await screenshot('ide-physics');
 await measureContrast('.tb-btn-label', 'Toolbar button label', true);
-await measureContrast('.tb-zoom-label', 'Zoom label', true);
+await measureContrast('.workspace-zoom__pct', 'Zoom label (on-canvas cluster)', true);
 await measureContrast('.blocklyTreeLabel', 'Toolbox category label', true);
 
 // DS project
