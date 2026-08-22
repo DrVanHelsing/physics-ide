@@ -36,6 +36,10 @@ export const TRACE_HISTORY_SIZE  = 60;
 export const TRACE_DEBOUNCE_MS   = 50;
 /** Duration of the block-highlight flash in milliseconds. */
 export const HIGHLIGHT_DURATION_MS = 250;
+/** Per-run source and compiled-JS dumps. Off in production; up to 4 KB of
+ *  console noise per run when on, which used to bury the one message that
+ *  mattered. Set to `true` locally when working on the generator. */
+export const DEBUG_RUNNER = import.meta.env?.DEV === true;
 
 // ── Auto-save ─────────────────────────────────────────────────────────────
 /** How often the workspace state is persisted to localStorage (ms). */

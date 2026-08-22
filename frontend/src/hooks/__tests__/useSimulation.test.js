@@ -26,6 +26,7 @@ vi.mock("../../utils/runner/glowRunner", () => ({
   runPython: vi.fn(),
   stopPython: vi.fn(),
   setBreakpoints: vi.fn(),
+  setRuntimeErrorSink: vi.fn(),
 }));
 
 import { runPython } from "../../utils/runner/glowRunner";
@@ -129,7 +130,9 @@ describe("useSimulation — booting phase", () => {
     expect(latestCtx.booting).toBe(false);
     expect(latestCtx.running).toBe(false);
     expect(latestCtx.status.type).toBe("error");
-    expect(latestCtx.status.text).toBe("Execution error: no canvas");
+    // describeRunError (Task 13) strips the "Execution error:" wrapper and
+    // maps an unrecognised message to a plain-English fallback title.
+    expect(latestCtx.status.text).toBe("The simulation stopped with an error.");
   });
 
   test("Stop clears booting even mid-boot, so it never sticks true past a Stop click", () => {

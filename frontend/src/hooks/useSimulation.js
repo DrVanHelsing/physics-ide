@@ -5,13 +5,15 @@
  * change, workspace callbacks, start-menu selection, etc.) from the three
  * contexts.  All handlers are memoised with useCallback.
  */
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import Blockly from "../utils/blockly/blocklyLib";
 import {
   runPython,
   stopPython,
   setBreakpoints as syncBreakpointsToIframe,
+  setRuntimeErrorSink,
 } from "../utils/runner/glowRunner";
+import { describeRunError } from "../utils/runner/describeRunError";
 import { generatePythonFromWorkspace } from "../utils/blockly/blocklyGenerator";
 import { useSimulationContext } from "../contexts/SimulationContext";
 import { useDebugContext }      from "../contexts/DebugContext";
@@ -65,6 +67,17 @@ export function useSimulation() {
   const { debugMode, breakpointsRef } = useDebugContext();
   const { setTraceData } = useTraceContext();
 
+  /* A rejection AFTER runPython resolves used to only console.error, leaving
+     the status bar claiming "Simulation started" over a dead simulation. */
+  useEffect(() => {
+    setRuntimeErrorSink((err) => {
+      const d = describeRunError(err);
+      setRunning(false);
+      setStatus({ text: d.title, detail: d.detail, type: "error" });
+    });
+    return () => setRuntimeErrorSink(null);
+  }, [setRunning, setStatus]);
+
   /* runGenerationRef (from SimulationContext) is bumped at the top of every
      handleRun/handleStop/handleResetToBlocks/handleHome call — and, via
      endRun below, by useDebug's enter/exit too. handleRun captures the value
@@ -108,10 +121,15 @@ export function useSimulation() {
         type: "success",
       });
     } catch (err) {
-      console.error(err);
+      const d = describeRunError(err);
+      console.error("[PhysicsIDE]", d.raw);
       if (generation !== runGenerationRef.current) return;
       setRunning(false);
-      setStatus({ text: err.message || "Runtime error", type: "error" });
+      setStatus({
+        text: d.line ? `${d.title} (line ${d.line})` : d.title,
+        detail: d.detail,
+        type: "error",
+      });
     } finally {
       if (generation === runGenerationRef.current) setBooting(false);
     }
