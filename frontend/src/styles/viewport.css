@@ -134,13 +134,24 @@
 }
 .canvas-caption strong { color: var(--text); font-weight: 600; }
 
+/* .canvas-wrap is the ROW: viewport column | drag handle | trace drawer.
+   It used to be a column, to seat .canvas-caption beneath the canvas; that
+   stacking now lives on .canvas-column. The drawer is lateral by design —
+   docking it under the viewport would halve the scene on a 1024px screen. */
 .canvas-wrap {
   flex: 1;
   overflow: hidden;
   background: var(--canvas-bg);
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   position: relative;
+}
+.canvas-column {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
 }
 
 /* Viewport always fills remaining space */

@@ -1,12 +1,15 @@
 /**
  * useDebug
  *
- * Provides debug-mode entry/exit and breakpoint management.
- * Consumes DebugContext + SimulationContext.
+ * Debug-mode entry/exit, the pause/step controls, and breakpoint state.
+ * Consumes DebugContext + SimulationContext + TraceContext.
+ *
+ * Entering and leaving are NOT run teardowns (they were, until Task 17 —
+ * see handleEnterDebug). Debug is a mode of the shell: entering pauses,
+ * leaving resumes, and the workspace, viewport and status bar stay put.
  */
 import { useCallback } from "react";
 import { pausePython, resumePython, stepPython, stepFrame } from "../utils/runner/glowRunner";
-import { endRun } from "./useSimulation";
 import { useDebugContext }       from "../contexts/DebugContext";
 import { useSimulationContext }  from "../contexts/SimulationContext";
 import { useTraceContext }       from "../contexts/TraceContext";
@@ -16,33 +19,17 @@ export function useDebug() {
   const {
     debugMode, setDebugMode,
     breakpoints,
+    breakableIds,
+    isBreakable,
     toggleBreakpoint,
     executingBlockId,
+    pauseState,
     setPauseState,
     pauseAckTimerRef,
   } = useDebugContext();
 
-  const { setRunning, setBooting, setPaused, setStatus, runGenerationRef } = useSimulationContext();
+  const { running, setPaused, setStatus, runGenerationRef } = useSimulationContext();
   const { setRecording, recordingRef }       = useTraceContext();
-
-  /* Entering/exiting debug mode is a run teardown like Stop/Reset/Home — it
-     must go through the same endRun so it bumps the shared generation
-     counter and clears `booting` too (T16 guard; see useSimulation.js). */
-  const handleEnterDebug = useCallback(() => {
-    endRun({ runGenerationRef, setRunning, setBooting, setStatus }, { text: "Debug Mode", type: "" });
-    setPaused(false);
-    setDebugMode(true);
-  }, [runGenerationRef, setRunning, setBooting, setStatus, setPaused, setDebugMode]);
-
-  const handleExitDebug = useCallback(() => {
-      endRun({ runGenerationRef, setRunning, setBooting, setStatus }, { text: "Ready", type: "" });
-      setPaused(false);
-      setRecording(false);
-      recordingRef.current = false;
-      setDebugMode(false);
-    },
-    [runGenerationRef, setRunning, setBooting, setStatus, setPaused, setRecording, recordingRef, setDebugMode]
-  );
 
   /** Arms the shared ack-timeout fallback, capturing the CURRENT run
    *  generation. Without this, a stale timer from a session the student has
@@ -100,10 +87,55 @@ export function useDebug() {
     armPauseAckTimeout();
   }, [setPauseState, armPauseAckTimeout]);
 
+  /* ── Entering and leaving debug mode ───────────────────────────────────
+     Neither is a run teardown any more. Debug used to call endRun on the way
+     in AND on the way out — stopping the simulation both times — while
+     HelpPage promised "the simulation pauses immediately". A student who
+     clicked Debug mid-run landed on a blank black rectangle and had to find
+     Run again inside a toolbar they had never seen. Debug is a mode of this
+     shell now, so entering it pauses and leaving it resumes. */
+  const handleEnterDebug = useCallback(() => {
+    if (running) {
+      /* handlePause, not a bare pausePython: it posts "pausing" and arms the
+         honest ack fallback, so a program with no traced values says why it
+         cannot pause instead of sitting on "pausing…" forever. */
+      handlePause();
+    } else {
+      /* Nothing to pause. Start from a clean slate rather than inheriting a
+         stale "pausing"/"paused" left by a session that has already ended. */
+      if (pauseAckTimerRef.current) clearTimeout(pauseAckTimerRef.current);
+      setPauseState("running");
+      setPaused(false);
+    }
+    setDebugMode(true);
+    setStatus({ text: "Debug mode — breakpoints armed on the next Run", type: "" });
+  }, [running, handlePause, pauseAckTimerRef, setPauseState, setPaused, setDebugMode, setStatus]);
+
+  const handleExitDebug = useCallback(() => {
+    resumePython();
+    /* Load-bearing, not hygiene: exit no longer bumps runGenerationRef (it is
+       not a teardown), so a pause-ack timer armed moments ago would still
+       match the live generation and fire its "no traced values" error over a
+       simulation this call just resumed. */
+    if (pauseAckTimerRef.current) clearTimeout(pauseAckTimerRef.current);
+    setPauseState("running");
+    setPaused(false);
+    setRecording(false);
+    recordingRef.current = false;
+    setDebugMode(false);
+    setStatus({ text: running ? "Simulation running" : "Ready", type: "" });
+    /* It must NOT touch traceVisible (IDELayout): if the student opened the
+       trace drawer themselves, leaving debug mode takes the debug CONTROLS
+       away and leaves their panel where they put it. */
+  }, [running, pauseAckTimerRef, setPauseState, setPaused, setRecording, recordingRef, setDebugMode, setStatus]);
+
   return {
     debugMode,
     breakpoints,
+    breakableIds,
+    isBreakable,
     executingBlockId,
+    pauseState,
     toggleBreakpoint,
     handleEnterDebug,
     handleExitDebug,

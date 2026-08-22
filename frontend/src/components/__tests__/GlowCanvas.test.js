@@ -58,3 +58,36 @@ describe("GlowCanvas — idle/booting layer", () => {
     expect(mounted.container.querySelector(".canvas-idle")).toBeNull();
   });
 });
+
+/**
+ * Task 17 — the drawer docks LATERAL to the viewport, not under it.
+ *
+ * .canvas-wrap used to be a flex column so .canvas-caption could sit beneath
+ * the canvas. Adding the drawer as a plain sibling would have stacked it
+ * under the viewport and put it in a fight with the caption for vertical
+ * space. The column moved to its own box: .canvas-wrap is the ROW (column |
+ * handle | drawer) and .canvas-column stacks the viewport above its caption.
+ */
+describe("GlowCanvas — the .canvas-column / children structure", () => {
+  test("the viewport lives inside .canvas-column, itself inside .canvas-wrap", () => {
+    mounted = mountComponent(<GlowCanvas running={false} booting={false} onStatus={() => {}} />);
+    const column = mounted.container.querySelector(".canvas-wrap > .canvas-column");
+    expect(column).not.toBeNull();
+    expect(column.querySelector(".canvas-viewport")).not.toBeNull();
+  });
+
+  test("children render as the WRAP's child, beside the column — never inside it", () => {
+    mounted = mountComponent(
+      <GlowCanvas running={false} booting={false} onStatus={() => {}}>
+        <aside className="debug-drawer" />
+      </GlowCanvas>,
+    );
+    expect(mounted.container.querySelector(".canvas-wrap > .debug-drawer")).not.toBeNull();
+    expect(mounted.container.querySelector(".canvas-column .debug-drawer")).toBeNull();
+  });
+
+  test("no children: the wrap holds the column alone", () => {
+    mounted = mountComponent(<GlowCanvas running={false} booting={false} onStatus={() => {}} />);
+    expect(mounted.container.querySelector(".canvas-wrap").children).toHaveLength(1);
+  });
+});

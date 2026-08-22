@@ -19,7 +19,7 @@ import { act } from "react";
 import { mountComponent } from "../../test/renderHelpers";
 import { SimulationProvider, useSimulationContext } from "../../contexts/SimulationContext";
 import { DebugProvider, useDebugContext } from "../../contexts/DebugContext";
-import { TraceProvider } from "../../contexts/TraceContext";
+import { TraceProvider, useTraceContext } from "../../contexts/TraceContext";
 import { useSimulation } from "../useSimulation";
 
 vi.mock("../../utils/runner/glowRunner", () => ({
@@ -48,11 +48,13 @@ let mounted = null;
 let latestSim = null;
 let latestCtx = null;
 let latestDebug = null;
+let latestTrace = null;
 
 function Consumer() {
   latestSim = useSimulation();
   latestCtx = useSimulationContext();
   latestDebug = useDebugContext();
+  latestTrace = useTraceContext();
   return null;
 }
 
@@ -74,6 +76,7 @@ afterEach(() => {
   latestSim = null;
   latestCtx = null;
   latestDebug = null;
+  latestTrace = null;
   vi.clearAllMocks();
 });
 
@@ -533,6 +536,83 @@ describe("useSimulation — breakpoints are seeded before eval, only in debug mo
 
     const [, , opts] = runPython.mock.calls[0];
     expect(opts.breakpoints).toEqual(new Set());
+
+    run.resolve();
+    await act(async () => {
+      await flush();
+    });
+  });
+});
+
+/**
+ * Task 17 — the watch box reaches the runtime.
+ *
+ * TraceContext's `addWatch` armed expressions and TraceTable rendered them,
+ * but NOTHING read `watch` back out: handleRun is the only place that hands
+ * opts to runPython, and it passed `breakpoints` alone. The whole watch
+ * feature stopped at the context boundary. It is wired here — and, unlike
+ * breakpoints, it is deliberately NOT debug-gated: "watch my numbers while I
+ * work" is a plain-run gesture.
+ */
+describe("useSimulation — watch expressions reach runPython (Task 17)", () => {
+  test("an armed watch is passed through as opts.watch", async () => {
+    const run = deferred();
+    runPython.mockReturnValue(run.promise);
+    mounted = mountComponent(<Wrapped />);
+
+    act(() => {
+      latestTrace.addWatch("0.5*m*v**2");
+    });
+
+    act(() => {
+      latestSim.handleRun();
+    });
+
+    expect(runPython).toHaveBeenCalledTimes(1);
+    const [, , opts] = runPython.mock.calls[0];
+    expect(opts.watch).toEqual(["0.5*m*v**2"]);
+
+    run.resolve();
+    await act(async () => {
+      await flush();
+    });
+  });
+
+  test("watches are not debug-gated — a plain run carries them too", async () => {
+    const run = deferred();
+    runPython.mockReturnValue(run.promise);
+    mounted = mountComponent(<Wrapped />);
+
+    act(() => {
+      latestTrace.addWatch("ball.pos.y");
+    });
+    expect(latestDebug.debugMode).toBe(false);
+
+    act(() => {
+      latestSim.handleRun();
+    });
+
+    const [, , opts] = runPython.mock.calls[0];
+    expect(opts.watch).toEqual(["ball.pos.y"]);
+    expect(opts.breakpoints).toEqual(new Set()); // debug off: no breakpoints armed
+
+    run.resolve();
+    await act(async () => {
+      await flush();
+    });
+  });
+
+  test("with no watches armed, opts.watch is an empty array, never undefined", async () => {
+    const run = deferred();
+    runPython.mockReturnValue(run.promise);
+    mounted = mountComponent(<Wrapped />);
+
+    act(() => {
+      latestSim.handleRun();
+    });
+
+    const [, , opts] = runPython.mock.calls[0];
+    expect(opts.watch).toEqual([]);
 
     run.resolve();
     await act(async () => {

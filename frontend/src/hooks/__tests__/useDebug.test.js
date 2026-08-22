@@ -48,6 +48,7 @@ import {
   resumePython,
   stepPython,
   stepFrame,
+  stopPython,
 } from "../../utils/runner/glowRunner";
 
 let mounted = null;
@@ -200,7 +201,13 @@ describe("useDebug — pauseState state machine (Task 15)", () => {
     expect(resumePython).toHaveBeenCalledTimes(1);
   });
 
-  test("exiting debug mode before the timeout bumps the run generation — the stale fallback must not fire", () => {
+  test("exiting debug mode before the timeout clears the pending fallback (Task 17)", () => {
+    /* Task 17 made exit a RESUME, not a teardown: it no longer calls endRun,
+       so it no longer bumps runGenerationRef and the generation guard alone
+       would not save it — a timer armed a moment ago still matches the live
+       generation. Clearing pauseAckTimerRef on exit is therefore load-bearing,
+       not hygiene: without it the fallback would fire its "no traced values"
+       error over the simulation this very call just resumed. */
     vi.useFakeTimers();
     mounted = mountComponent(<Wrapped />);
 
@@ -210,17 +217,20 @@ describe("useDebug — pauseState state machine (Task 15)", () => {
     expect(latestDebugCtx.pauseState).toBe("pausing");
 
     act(() => {
-      latestDebug.handleExitDebug(); // bumps runGenerationRef — the session moved on
+      latestDebug.handleExitDebug();
     });
+    // The exit itself resumes — exactly once.
+    expect(resumePython).toHaveBeenCalledTimes(1);
+    expect(latestDebugCtx.pauseState).toBe("running");
+    expect(latestSimCtx.paused).toBe(false);
 
     act(() => {
       vi.advanceTimersByTime(PAUSE_ACK_TIMEOUT_MS);
     });
 
-    // The stale timer must bail: no resumePython call from the fallback, and
-    // no "no traced values" error clobbering whatever handleExitDebug itself
-    // already set as status.
-    expect(resumePython).not.toHaveBeenCalled();
+    // No SECOND resume from a fallback that should have been cleared, and no
+    // error clobbering the status handleExitDebug itself set.
+    expect(resumePython).toHaveBeenCalledTimes(1);
     expect(latestSimCtx.status.type).not.toBe("error");
   });
 
@@ -295,7 +305,7 @@ describe("useDebug — handleStepFrame gets the same honest ack-timeout fallback
     expect(latestSimCtx.status.type).not.toBe("error");
   });
 
-  test("a stale generation cancels handleStepFrame's fallback exactly like handlePause's", () => {
+  test("leaving debug mode cancels handleStepFrame's fallback exactly like handlePause's", () => {
     vi.useFakeTimers();
     mounted = mountComponent(<Wrapped />);
 
@@ -309,7 +319,104 @@ describe("useDebug — handleStepFrame gets the same honest ack-timeout fallback
       vi.advanceTimersByTime(PAUSE_ACK_TIMEOUT_MS);
     });
 
+    // One resume — the exit's own. The armed fallback was cleared with it.
+    expect(resumePython).toHaveBeenCalledTimes(1);
+    expect(latestSimCtx.status.type).not.toBe("error");
+  });
+
+  test("a stale generation (a fresh Run) still cancels the fallback", () => {
+    vi.useFakeTimers();
+    mounted = mountComponent(<Wrapped />);
+
+    act(() => {
+      latestDebug.handleStepFrame();
+    });
+    act(() => {
+      latestSimCtx.runGenerationRef.current += 1; // handleRun's own teardown
+    });
+    act(() => {
+      vi.advanceTimersByTime(PAUSE_ACK_TIMEOUT_MS);
+    });
+
     expect(resumePython).not.toHaveBeenCalled();
     expect(latestSimCtx.status.type).not.toBe("error");
+  });
+});
+
+/**
+ * Task 17 — debug is a MODE of the shell. Entering used to call endRun (stop
+ * the runtime, bump the generation) while HelpPage promised "the simulation
+ * pauses immediately", so a student who clicked Debug mid-run landed on a
+ * blank black rectangle. Entering now pauses; leaving resumes. Neither is a
+ * teardown any more, and both reset pauseState so a mid-pause exit cannot
+ * leave a stale "pausing"/"paused" behind.
+ */
+describe("useDebug — entering pauses, leaving resumes (Task 17)", () => {
+  test("entering while a run is live pauses it — it never stops it", () => {
+    mounted = mountComponent(<Wrapped />);
+    act(() => {
+      latestSimCtx.setRunning(true);
+    });
+
+    act(() => {
+      latestDebug.handleEnterDebug();
+    });
+
+    expect(stopPython).not.toHaveBeenCalled();
+    expect(pausePython).toHaveBeenCalledTimes(1);
+    expect(latestSimCtx.running).toBe(true);
+    expect(latestDebugCtx.debugMode).toBe(true);
+    expect(latestDebugCtx.pauseState).toBe("pausing");
+  });
+
+  test("entering with nothing running resets a stale pauseState instead of inheriting it", () => {
+    mounted = mountComponent(<Wrapped />);
+    act(() => {
+      latestDebugCtx.setPauseState("paused");
+      latestSimCtx.setPaused(true);
+    });
+
+    act(() => {
+      latestDebug.handleEnterDebug();
+    });
+
+    expect(pausePython).not.toHaveBeenCalled(); // nothing to pause
+    expect(latestDebugCtx.pauseState).toBe("running");
+    expect(latestSimCtx.paused).toBe(false);
+    expect(latestDebugCtx.debugMode).toBe(true);
+  });
+
+  test("leaving resumes, resets pauseState, and does not tear the run down", () => {
+    mounted = mountComponent(<Wrapped />);
+    act(() => {
+      latestSimCtx.setRunning(true);
+    });
+    act(() => {
+      latestDebug.handlePause();
+    });
+    act(() => {
+      latestDebugCtx.setPauseState("paused"); // the runtime acknowledged
+      latestSimCtx.setPaused(true);
+    });
+
+    act(() => {
+      latestDebug.handleExitDebug();
+    });
+
+    expect(resumePython).toHaveBeenCalledTimes(1);
+    expect(stopPython).not.toHaveBeenCalled();
+    expect(latestSimCtx.running).toBe(true);
+    expect(latestDebugCtx.pauseState).toBe("running");
+    expect(latestSimCtx.paused).toBe(false);
+    expect(latestDebugCtx.debugMode).toBe(false);
+    expect(latestSimCtx.status.text).toBe("Simulation running");
+  });
+
+  test("leaving with nothing running says Ready, not Simulation running", () => {
+    mounted = mountComponent(<Wrapped />);
+    act(() => {
+      latestDebug.handleExitDebug();
+    });
+    expect(latestSimCtx.status.text).toBe("Ready");
   });
 });
