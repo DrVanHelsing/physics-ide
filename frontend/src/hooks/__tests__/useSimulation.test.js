@@ -18,7 +18,7 @@ import React from "react";
 import { act } from "react";
 import { mountComponent } from "../../test/renderHelpers";
 import { SimulationProvider, useSimulationContext } from "../../contexts/SimulationContext";
-import { DebugProvider } from "../../contexts/DebugContext";
+import { DebugProvider, useDebugContext } from "../../contexts/DebugContext";
 import { TraceProvider } from "../../contexts/TraceContext";
 import { useSimulation } from "../useSimulation";
 
@@ -47,10 +47,12 @@ const flush = () => new Promise((r) => setTimeout(r, 0));
 let mounted = null;
 let latestSim = null;
 let latestCtx = null;
+let latestDebug = null;
 
 function Consumer() {
   latestSim = useSimulation();
   latestCtx = useSimulationContext();
+  latestDebug = useDebugContext();
   return null;
 }
 
@@ -71,6 +73,7 @@ afterEach(() => {
   mounted = null;
   latestSim = null;
   latestCtx = null;
+  latestDebug = null;
   vi.clearAllMocks();
 });
 
@@ -465,5 +468,75 @@ describe("useSimulation — the async error sink respects run generation (Task 1
     expect(latestCtx.running).toBe(false);
     expect(latestCtx.status.type).toBe("error");
     expect(latestCtx.status.text).toBe("Something was divided by zero.");
+  });
+});
+
+describe("useSimulation — breakpoints are seeded before eval, only in debug mode (Task 14)", () => {
+  // handleRun used to call runPython(code, hostId) with no breakpoints at
+  // all, then push the live set into the iframe AFTER runPython resolved —
+  // by which point __main__() had already started the loop and the very
+  // first iteration could never be caught. The fix passes the breakpoints
+  // as a runPython option so glowRunner can seed them before eval.
+
+  test("debug mode ON: runPython is called with the live breakpoint set", async () => {
+    const run = deferred();
+    runPython.mockReturnValue(run.promise);
+    mounted = mountComponent(<Wrapped />);
+
+    act(() => {
+      latestDebug.setDebugMode(true);
+      latestDebug.setBreakableIds(new Set(["blk-1"]));
+    });
+    act(() => {
+      latestDebug.toggleBreakpoint("blk-1");
+    });
+    expect(latestDebug.breakpoints.has("blk-1")).toBe(true);
+
+    act(() => {
+      latestSim.handleRun();
+    });
+
+    expect(runPython).toHaveBeenCalledTimes(1);
+    const [, , opts] = runPython.mock.calls[0];
+    expect(opts.breakpoints).toEqual(new Set(["blk-1"]));
+
+    run.resolve();
+    await act(async () => {
+      await flush();
+    });
+  });
+
+  test("debug mode OFF: runPython gets an EMPTY breakpoint set even if breakpoints exist", async () => {
+    // useDebug's exit deliberately keeps `breakpoints` (so re-entering debug
+    // mode finds them again) — only debugMode gates whether they are armed.
+    // Without this, leaving debug mode and pressing Run would freeze the
+    // simulation on the first iteration with no PAUSED indicator anywhere.
+    const run = deferred();
+    runPython.mockReturnValue(run.promise);
+    mounted = mountComponent(<Wrapped />);
+
+    act(() => {
+      latestDebug.setDebugMode(true);
+      latestDebug.setBreakableIds(new Set(["blk-1"]));
+    });
+    act(() => {
+      latestDebug.toggleBreakpoint("blk-1");
+    });
+    act(() => {
+      latestDebug.setDebugMode(false);
+    });
+    expect(latestDebug.breakpoints.has("blk-1")).toBe(true); // kept, not cleared
+
+    act(() => {
+      latestSim.handleRun();
+    });
+
+    const [, , opts] = runPython.mock.calls[0];
+    expect(opts.breakpoints).toEqual(new Set());
+
+    run.resolve();
+    await act(async () => {
+      await flush();
+    });
   });
 });

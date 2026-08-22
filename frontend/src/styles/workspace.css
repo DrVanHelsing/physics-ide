@@ -253,6 +253,13 @@
   stroke-width: 3px !important;
   filter: drop-shadow(0 0 7px color-mix(in srgb, var(--red) 70%, transparent)) !important;
 }
+/* Breakpoint CAN be set here (debug mode only). Deliberately quiet: it is an
+   affordance, not a state. */
+.bp-available > .blocklyPath {
+  stroke: color-mix(in srgb, var(--red) 55%, transparent) !important;
+  stroke-width: 2px !important;
+  stroke-dasharray: 4 4 !important;
+}
 .block-executing > .blocklyPath {
   stroke: var(--yellow) !important;
   stroke-width: 3px !important;
@@ -270,6 +277,16 @@
     transparent 62%
   );
   cursor: pointer;
+  width: 100%;
+  height: 100%;
+}
+/* Hollow ring — this line COULD hold a breakpoint but doesn't yet (debug mode
+   only). Mirrors the Blockly .bp-available treatment above: an affordance,
+   not a state. */
+.dbg-glyph-breakable {
+  border-radius: 50%;
+  border: 2px dashed color-mix(in srgb, var(--red) 55%, transparent);
+  box-sizing: border-box;
   width: 100%;
   height: 100%;
 }

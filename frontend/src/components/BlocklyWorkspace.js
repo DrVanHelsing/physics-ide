@@ -284,6 +284,10 @@ function countContentBlocks(workspace) {
   return workspace.getAllBlocks(false).filter((b) => !FRAME_BLOCK_TYPES.has(b.type)).length;
 }
 
+/** Stable empty Set — the safe default for the debug props below until
+ *  IDELayout threads the real ones through. */
+const EMPTY_BREAKPOINTS = new Set();
+
 function resizeBlocklyWorkspace(Blockly, workspace) {
   if (!workspace) return;
   if (typeof Blockly?.svgResize === "function") {
@@ -313,7 +317,16 @@ function decorateToolboxRows(workspace) {
   }
 }
 
-function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, onBlockCountChange, onScaleChange, isDark, goal = "physics", initialZoom }) {
+function BlocklyWorkspace({
+  initialXml, onWorkspaceReady, onWorkspaceChange, onBlockCountChange, onScaleChange,
+  isDark, goal = "physics", initialZoom,
+  /* Debug-mode props (optional). Threaded from IDELayout in a later task —
+     until then these defaults keep the context-menu breakpoint entry safely
+     inert: nothing reads as breakable and toggling is a no-op. */
+  isBreakable = () => false,
+  toggleBreakpoint = () => {},
+  breakpoints = EMPTY_BREAKPOINTS,
+}) {
   const hostRef = useRef(null);
   const workspaceRef = useRef(null);
   const [loadError, setLoadError] = useState("");
@@ -333,6 +346,12 @@ function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, onB
   const onScaleRef = useRef(onScaleChange);
   onScaleRef.current = onScaleChange;
   const lastScaleRef = useRef(null);
+
+  /* debugApiRef mirrors the debug props into a stable ref so the mount
+     effect's context-menu registration (registered once, deps []) never
+     closes over stale isBreakable/toggleBreakpoint/breakpoints. */
+  const debugApiRef = useRef({ isBreakable, toggleBreakpoint, breakpoints });
+  debugApiRef.current = { isBreakable, toggleBreakpoint, breakpoints };
 
   /* ── One-time workspace setup ──────────────────────────── */
   useEffect(() => {
@@ -390,6 +409,39 @@ function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, onB
     workspaceRef.current = workspace;
     onReadyRef.current(workspace);
     decorateToolboxRows(workspace);
+
+    /* Right-click → breakpoint. A click-anywhere toggle would fight dragging
+       in the editable workspace, and the old one accepted breakpoints on
+       blocks that can never pause. This entry is DISABLED with a reason on
+       those, which is the whole point: the debugger stops lying. */
+    const BP_ITEM_ID = "physide_toggle_breakpoint";
+    if (!Blockly.ContextMenuRegistry.registry.getItem(BP_ITEM_ID)) {
+      Blockly.ContextMenuRegistry.registry.register({
+        id: BP_ITEM_ID,
+        scopeType: Blockly.ContextMenuRegistry.ScopeType.BLOCK,
+        weight: 20,
+        preconditionFn: (scope) =>
+          debugApiRef.current.isBreakable(scope.block.id) ? "enabled" : "disabled",
+        displayText: (scope) => {
+          const api = debugApiRef.current;
+          if (!api.isBreakable(scope.block.id)) {
+            return "Can't pause here — this block doesn't report a value";
+          }
+          return api.breakpoints.has(scope.block.id) ? "Remove breakpoint" : "Set breakpoint";
+        },
+        callback: (scope) => debugApiRef.current.toggleBreakpoint(scope.block.id),
+      });
+    }
+
+    /* Alt+click — the fast path for students who find right-click slow. */
+    const altClickHandler = (e) => {
+      if (!e.altKey) return;
+      const block = Blockly.common.getSelected();
+      if (!block) return;
+      e.preventDefault();
+      debugApiRef.current.toggleBreakpoint(block.id);
+    };
+    hostRef.current.addEventListener("click", altClickHandler);
 
     // The inject options above always start at a fixed 90% (startScale: 0.9);
     // push the localStorage-restored zoom (SimulationContext's blocklyZoom,
@@ -508,6 +560,7 @@ function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, onB
     });
 
     return () => {
+      hostRef.current?.removeEventListener("click", altClickHandler);
       resizeObserver.disconnect();
       workspace.removeChangeListener(listener);
       workspace.removeChangeListener(constListener);
@@ -551,16 +604,20 @@ function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, onB
 }
 
 /* ── Read-only Blockly (for showing block reference alongside code) ── */
-function ReadOnlyBlockly({ xml, isDark, breakpoints, onBlockClick, executingBlockId }) {
+function ReadOnlyBlockly({
+  xml, isDark, breakpoints, onBlockClick, executingBlockId,
+  /* Debug-mode props (optional). Threaded from IDELayout in a later task —
+     debugMode defaults false, so `.bp-available` never lights up until then
+     (isBreakable is short-circuited out of the check entirely). */
+  debugMode = false,
+  isBreakable = () => false,
+  breakableIds,
+}) {
   const hostRef = useRef(null);
   const wsRef = useRef(null);
-  const onBlockClickRef = useRef(onBlockClick);
-  const bpDotsRef = useRef(new Map());  // blockId → SVG group element
-  useEffect(() => { onBlockClickRef.current = onBlockClick; }, [onBlockClick]);
 
   useEffect(() => {
     if (!hostRef.current) return undefined;
-    const dots = bpDotsRef.current;
 
     defineCustomBlocksAndGenerator(Blockly);
     const theme = getBlocklyTheme(isDark);
@@ -587,23 +644,6 @@ function ReadOnlyBlockly({ xml, isDark, breakpoints, onBlockClick, executingBloc
       }
     }
 
-    /* Blockly readOnly mode suppresses workspace change-events for clicks,
-       so we use a native DOM click handler on the SVG and walk up the
-       element tree to find the block's data-id attribute. */
-    const svg = ws.getParentSvg();
-    const domClickHandler = (e) => {
-      let el = e.target;
-      while (el && el !== svg) {
-        const blockId = el.getAttribute && el.getAttribute('data-id');
-        if (blockId) {
-          onBlockClickRef.current?.(blockId);
-          return;
-        }
-        el = el.parentElement;
-      }
-    };
-    if (svg) svg.addEventListener('click', domClickHandler);
-
     /* ── Keep Blockly SVG sized to its container at all times ── */
     const resizeObserver = new ResizeObserver(() => {
       requestAnimationFrame(() => {
@@ -617,9 +657,7 @@ function ReadOnlyBlockly({ xml, isDark, breakpoints, onBlockClick, executingBloc
     });
 
     return () => {
-      if (svg) svg.removeEventListener('click', domClickHandler);
       resizeObserver.disconnect();
-      dots.clear();
       ws.dispose();
       wsRef.current = null;
     };
@@ -633,35 +671,22 @@ function ReadOnlyBlockly({ xml, isDark, breakpoints, onBlockClick, executingBloc
     ws.setTheme(theme);
   }, [isDark]);
 
-  // ── Breakpoint red dots ──
+  /* Two markers, not one: a solid red outline where a breakpoint is SET, and
+     a hollow dashed outline on every block that CAN hold one while debug mode
+     is on. A student can now see the difference between "I didn't set it" and
+     "this block can never pause". */
   useEffect(() => {
     const ws = wsRef.current;
     if (!ws) return;
-    const svg = ws.getParentSvg();
-    if (!svg) return;
     const bpSet = breakpoints || new Set();
-    const dots = bpDotsRef.current;
-
-    // Remove highlight from blocks no longer breakpointed
-    for (const [bid, svgGroup] of dots) {
-      if (!bpSet.has(bid)) {
-        svgGroup.classList.remove('bp-block');
-        dots.delete(bid);
-      }
+    for (const block of ws.getAllBlocks(false)) {
+      const g = block.getSvgRoot();
+      if (!g) continue;
+      const isBp = bpSet.has(block.id);
+      g.classList.toggle("bp-block", isBp);
+      g.classList.toggle("bp-available", debugMode && !isBp && isBreakable(block.id));
     }
-
-    // Add highlight to new breakpoints
-    for (const bid of bpSet) {
-      if (dots.has(bid)) continue;
-      const block = ws.getBlockById(bid);
-      if (!block) continue;
-      const svgGroup = block.getSvgRoot();
-      if (!svgGroup) continue;
-
-      svgGroup.classList.add('bp-block');
-      dots.set(bid, svgGroup);
-    }
-  }, [breakpoints]);
+  }, [breakpoints, debugMode, isBreakable, breakableIds]);
 
   // ── Execution highlight (yellow glow on running block) ──
   useEffect(() => {
