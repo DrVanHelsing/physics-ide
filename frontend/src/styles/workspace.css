@@ -476,3 +476,50 @@
 }
 .blockly-empty__chip:hover { background: var(--card-bg-hover); border-color: var(--card-border-hover); }
 .blockly-empty .beginner-guide { pointer-events: auto; }
+
+/* ── Workspace trashcan (drag-summoned delete area) ──────
+   No can at rest — WorkspaceTrash.js toggles --visible on
+   Blockly's BLOCK_DRAG start/end and --hover from the delete
+   area's onDragEnter/onDragExit. Dropping onto the toolbox rail
+   also deletes; is-dragging-block (same component, same class
+   toggle) tints the rail below as the second delete zone. */
+.workspace-trash {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  color: var(--text-dim);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition), transform var(--transition);
+}
+.workspace-trash--visible {
+  opacity: .9;
+}
+.workspace-trash--hover {
+  transform: scale(1.15);
+  color: var(--danger);
+}
+.workspace-trash__lid {
+  transform-origin: 12px 6px;
+  transition: transform var(--transition);
+}
+.workspace-trash--hover .workspace-trash__lid {
+  transform: rotate(-28deg);
+}
+.is-dragging-block .blocklyToolboxDiv {
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--danger) 55%, transparent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .workspace-trash {
+    transition: opacity var(--transition);
+  }
+  .workspace-trash__lid {
+    transition: none;
+  }
+}
