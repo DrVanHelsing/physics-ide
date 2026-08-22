@@ -12,6 +12,7 @@ import * as dialogService from "../utils/export/dialogService";
 import { buildToolboxXml } from "../utils/blockly/toolbox";
 import { getBlocklyTheme, gridColourFor } from "../utils/blockly/blocklyTheme";
 import { BLOCK_PALETTE } from "../utils/blockly/blockPalette";
+import { ANCHOR_TYPES, planOrphanState, applyOrphanState, readTopBlocks } from "../utils/blockly/orphans";
 
 /* ── Block search bar component ────────────────────────── */
 function BlockSearch({ workspaceRef }) {
@@ -73,13 +74,19 @@ function BlockSearch({ workspaceRef }) {
       const block = ids && ids.length ? ws.getBlockById(ids[ids.length - 1]) : null;
       if (!block) return false;
 
-      const metrics = ws.getMetricsManager?.().getViewMetrics(true);
-      if (metrics) {
-        const xy = block.getRelativeToSurfaceXY();
-        block.moveBy(
-          metrics.left + metrics.width / 2 - xy.x - 40,
-          metrics.top + metrics.height / 2 - xy.y - 20,
-        );
+      /* An insert is the student asking for the block to be in their program.
+         The automatic adoption loop that used to do this is gone (Task 10), so
+         attach explicitly — and only here, never on a drag-aside. */
+      const attached = appendToSetup(ws, block);
+      if (!attached) {
+        const metrics = ws.getMetricsManager?.().getViewMetrics(true);
+        if (metrics) {
+          const xy = block.getRelativeToSurfaceXY();
+          block.moveBy(
+            metrics.left + metrics.width / 2 - xy.x - 40,
+            metrics.top + metrics.height / 2 - xy.y - 20,
+          );
+        }
       }
       block.select();
       return true;
@@ -149,6 +156,58 @@ function BlockSearch({ workspaceRef }) {
     </div>
   );
 }
+/**
+ * Attach `block` to the end of sim_start's SETUP statement input.
+ *
+ * Exported since Tranche 3 because explicit insertion — a block-search result,
+ * an empty-state starter chip — has to attach itself now that the automatic
+ * top-block adoption loop is gone (Task 10, product-contract.md:36). Returns
+ * false when there is no sim_start to attach to (a data-science or
+ * not-yet-anchored canvas), so callers can leave the block where it landed.
+ */
+export function appendToSetup(workspace, block) {
+  if (!workspace || !block) return false;
+
+  const allBlocks = workspace.getAllBlocks(false);
+  const startBlocks = allBlocks.filter((b) => b.type === "sim_start_block");
+  if (startBlocks.length === 0) return false;
+
+  const byYThenX = (a, b) => {
+    const pa = a.getRelativeToSurfaceXY();
+    const pb = b.getRelativeToSurfaceXY();
+    if (pa.y !== pb.y) return pa.y - pb.y;
+    return pa.x - pb.x;
+  };
+
+  const simStart = [...startBlocks].sort(byYThenX)[0];
+  const setupConnection = simStart.getInput("SETUP")?.connection || null;
+  if (!setupConnection) return false;
+
+  const endBlocks = allBlocks.filter((b) => b.type === "sim_end_block");
+  const simEnd = endBlocks.length > 0 ? [...endBlocks].sort(byYThenX)[0] : null;
+
+  if (block === simStart || block === simEnd) return false;
+  if (!block.previousConnection) return false;
+
+  if (block.previousConnection.isConnected()) {
+    block.previousConnection.disconnect();
+  }
+
+  const setupHead = simStart.getInputTargetBlock("SETUP");
+  if (!setupHead) {
+    setupConnection.connect(block.previousConnection);
+    return true;
+  }
+
+  let tail = setupHead;
+  while (tail.getNextBlock()) tail = tail.getNextBlock();
+  if (tail.nextConnection && !tail.nextConnection.isConnected()) {
+    tail.nextConnection.connect(block.previousConnection);
+    return true;
+  }
+  return false;
+}
+
 function normalizeSimulationStructure(workspace) {
   if (!workspace) return false;
 
@@ -172,54 +231,20 @@ function normalizeSimulationStructure(workspace) {
 
   let changed = false;
 
-  const getSetupTail = () => {
-    let node = simStart.getInputTargetBlock("SETUP");
-    if (!node) return null;
-    while (node.getNextBlock()) node = node.getNextBlock();
-    return node;
-  };
-
-  const appendToSetup = (block) => {
-    if (!block || block === simStart || block === simEnd) return;
-    if (!block.previousConnection) return;
-
-    if (block.previousConnection.isConnected()) {
-      block.previousConnection.disconnect();
-    }
-
-    const setupHead = simStart.getInputTargetBlock("SETUP");
-    if (!setupHead) {
-      setupConnection.connect(block.previousConnection);
-      changed = true;
-      return;
-    }
-
-    const tail = getSetupTail();
-    if (tail && tail.nextConnection && !tail.nextConnection.isConnected()) {
-      tail.nextConnection.connect(block.previousConnection);
-      changed = true;
-    }
-  };
-
   // Move any blocks currently chained after Simulation Start (except Sim End) into SETUP.
+  // This is a student's explicit gesture — dropping a block directly under the
+  // hat — not the automatic top-block adoption Task 10 removed.
   let chained = simStart.getNextBlock();
   while (chained && chained !== simEnd) {
     const next = chained.getNextBlock();
-    appendToSetup(chained);
+    if (appendToSetup(workspace, chained)) changed = true;
     chained = next;
-  }
-
-  // Move any other top-level statement blocks into SETUP.
-  const topBlocks = workspace.getTopBlocks(true);
-  for (const top of topBlocks) {
-    if (top === simStart || top === simEnd) continue;
-    appendToSetup(top);
   }
 
   // Simulation End must be the final top-level block after Simulation Start.
   if (simEnd && simEnd.previousConnection && simStart.nextConnection) {
     const endNext = simEnd.getNextBlock();
-    if (endNext) appendToSetup(endNext);
+    if (endNext && appendToSetup(workspace, endNext)) changed = true;
 
     if (simStart.getNextBlock() !== simEnd) {
       if (simEnd.previousConnection.isConnected()) {
@@ -240,32 +265,13 @@ function normalizeSimulationStructure(workspace) {
   return changed;
 }
 
-/* ── Disable orphaned blocks (data-science goal) ───────────────
-   MakeCode pattern: a data analysis is anchored by a ds_start_block
-   "hat". Any top-level block NOT rooted in that hat is disabled
-   (rendered grey, generates no code) so "in use vs unused" is visible.
-   No-op until at least one hat exists, so legacy DS projects that have
-   no hat yet are left fully enabled. Idempotent (guards on isEnabled)
-   so it can run inside the change listener without an event storm. */
-function disableOrphanedBlocks(workspace, goal) {
-  if (!workspace || goal !== "datascience") return false;
-
-  const tops = workspace.getTopBlocks(false);
-  const hasHat = tops.some((b) => b.type === "ds_start_block");
-  if (!hasHat) return false;
-
-  let changed = false;
-  for (const top of tops) {
-    const enable = top.type === "ds_start_block";
-    for (const b of top.getDescendants(false)) {
-      if (b.isShadow()) continue;
-      if (b.isEnabled() !== enable) {
-        b.setEnabled(enable);
-        changed = true;
-      }
-    }
-  }
-  return changed;
+/* ── Orphan handling, one behaviour for every goal ─────────────
+   docs/product-contract.md:36: top-level blocks outside the anchor hat are
+   greyed and ignored, so "in use vs unused" is visible. No goal check — a
+   physics canvas and a data canvas behave identically, and neither adopts. */
+function greyOrphanedBlocks(workspace) {
+  if (!workspace) return false;
+  return applyOrphanState(workspace, planOrphanState(readTopBlocks(workspace), ANCHOR_TYPES));
 }
 
 /* Scaffold, not content — a freshly seeded project must still read as "empty"
@@ -426,7 +432,7 @@ function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, onB
           normalizing = true;
           try {
             normalizeSimulationStructure(workspace);
-            disableOrphanedBlocks(workspace, goalRef.current);
+            greyOrphanedBlocks(workspace);
           } finally {
             normalizing = false;
           }
@@ -444,7 +450,7 @@ function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, onB
     workspace.addChangeListener(listener);
 
     normalizeSimulationStructure(workspace);
-    disableOrphanedBlocks(workspace, goalRef.current);
+    greyOrphanedBlocks(workspace);
     onCountRef.current?.(countContentBlocks(workspace));
 
     /* ── Custom constant popup: intercept __NEW__ on physics_const_block ── */
@@ -517,7 +523,7 @@ function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, onB
     try {
       ws.updateToolbox(buildToolboxXml(goal));
       decorateToolboxRows(ws);
-      disableOrphanedBlocks(ws, goal);
+      greyOrphanedBlocks(ws);
     } catch (e) {
       console.warn("BlocklyWorkspace: could not rebuild toolbox for goal", goal, e);
     }

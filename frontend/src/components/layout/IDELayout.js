@@ -21,7 +21,7 @@
 import React, { useCallback, useRef, useState } from "react";
 import Blockly from "../../utils/blockly/blocklyLib";
 
-import BlocklyWorkspace, { ReadOnlyBlockly } from "../BlocklyWorkspace";
+import BlocklyWorkspace, { ReadOnlyBlockly, appendToSetup } from "../BlocklyWorkspace";
 import BlocklyEmptyState from "../BlocklyEmptyState";
 import WorkspaceZoom from "../WorkspaceZoom";
 import CodeEditor   from "../CodeEditor";
@@ -173,23 +173,25 @@ export default function IDELayout() {
         `<xml xmlns="https://developers.google.com/blockly/xml">${blockXml}</xml>`,
       );
       const ids = Blockly.Xml.domToWorkspace(dom, ws);
-      /* normalizeSimulationStructure (BlocklyWorkspace.js:196-232) adopts the
-         new top-level block into the sim_start SETUP slot on the next change
-         event, which is exactly where a beginner wants it — but only for a
-         stack block (one with a previousConnection). A value block like the
-         Gravity chip's physics_const_block has none, so appendToSetup no-ops
-         on it and it is left exactly where domToWorkspace dropped it: (0,0),
-         behind the 180px toolbox rail. Recentre on the visible view the same
-         way BlockSearch's insertBlock does (BlocklyWorkspace.js) so it is
-         never an invisible block regardless of whether it ends up adopted. */
       const block = ids && ids.length ? ws.getBlockById(ids[ids.length - 1]) : null;
-      const metrics = block ? ws.getMetricsManager?.().getViewMetrics(true) : null;
-      if (block && metrics) {
-        const xy = block.getRelativeToSurfaceXY();
-        block.moveBy(
-          metrics.left + metrics.width / 2 - xy.x - 40,
-          metrics.top + metrics.height / 2 - xy.y - 20,
-        );
+      /* Explicit attach: Tranche 3 removed the adoption loop this used to
+         rely on (Task 10). A starter chip is a request to add the block to
+         the program, so it goes into SETUP — a block dragged aside does not.
+         appendToSetup no-ops on a value block (no previousConnection), like
+         the Gravity chip's physics_const_block, so recentre on the visible
+         view the same way BlockSearch's insertBlock does (BlocklyWorkspace.js)
+         when it was left exactly where domToWorkspace dropped it: (0,0),
+         behind the 180px toolbox rail. */
+      const attached = block ? appendToSetup(ws, block) : false;
+      if (!attached) {
+        const metrics = block ? ws.getMetricsManager?.().getViewMetrics(true) : null;
+        if (block && metrics) {
+          const xy = block.getRelativeToSurfaceXY();
+          block.moveBy(
+            metrics.left + metrics.width / 2 - xy.x - 40,
+            metrics.top + metrics.height / 2 - xy.y - 20,
+          );
+        }
       }
     } catch (err) {
       console.warn("Could not insert starter block:", err);
