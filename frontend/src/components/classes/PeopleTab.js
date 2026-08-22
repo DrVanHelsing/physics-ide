@@ -77,7 +77,7 @@ function PeopleBody({ classData }) {
                   <td>{m.email}</td>
                   <td className="admin-actions">
                     <button
-                      className="admin-btn"
+                      className="btn"
                       type="button"
                       onClick={() =>
                         act.mutate({ path: `/api/classes/${id}/members/${m.userId}/approve` })
@@ -86,7 +86,7 @@ function PeopleBody({ classData }) {
                       Approve
                     </button>
                     <button
-                      className="admin-btn"
+                      className="btn"
                       type="button"
                       onClick={() =>
                         act.mutate({ path: `/api/classes/${id}/members/${m.userId}/deny` })
@@ -125,7 +125,7 @@ function PeopleBody({ classData }) {
                 {isTeacher ? (
                   <td className="admin-actions">
                     <button
-                      className="admin-btn"
+                      className="btn"
                       type="button"
                       onClick={() =>
                         act.mutate({
@@ -164,7 +164,11 @@ function PeopleBody({ classData }) {
               </select>
             </label>
             {inviteNote ? <p className="auth-text auth-text--dim">{inviteNote}</p> : null}
-            <button className="auth-submit" type="submit" disabled={!emailsRaw.trim() || invite.isPending}>
+            <button
+              className="btn btn--primary btn--lg btn--block"
+              type="submit"
+              disabled={!emailsRaw.trim() || invite.isPending}
+            >
               Send invites
             </button>
           </form>
@@ -179,14 +183,14 @@ function PeopleBody({ classData }) {
                       <td>{i.role === "ta" ? "assistant" : i.role}</td>
                       <td className="admin-actions">
                         <button
-                          className="admin-btn"
+                          className="btn"
                           type="button"
                           onClick={() => act.mutate({ path: `/api/invites/${i.id}/resend` })}
                         >
                           Resend
                         </button>
                         <button
-                          className="admin-btn"
+                          className="btn"
                           type="button"
                           onClick={() => act.mutate({ path: `/api/invites/${i.id}/revoke` })}
                         >
@@ -229,7 +233,7 @@ function JoinPanel({ classData, onChanged }) {
           <div className="join-code-big">{classData.joinCode}</div>
           <div className="classes-actions" style={{ marginTop: 8 }}>
             <button
-              className="admin-btn"
+              className="btn"
               type="button"
               onClick={async () => {
                 await navigator.clipboard.writeText(joinUrl);
@@ -240,7 +244,7 @@ function JoinPanel({ classData, onChanged }) {
               {copied ? "Copied!" : "Copy join link"}
             </button>
             <button
-              className="admin-btn"
+              className="btn"
               type="button"
               onClick={() => regen.mutate()}
               disabled={regen.isPending}

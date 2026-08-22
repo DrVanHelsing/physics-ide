@@ -53,7 +53,11 @@ function SettingsBody({ classData }) {
             onChange={(e) => setSubjectLabel(e.target.value)}
           />
         </label>
-        <button className="auth-submit" type="submit" disabled={patch.isPending}>
+        <button
+          className="btn btn--primary btn--lg btn--block"
+          type="submit"
+          disabled={patch.isPending}
+        >
           Save
         </button>
       </form>
@@ -78,11 +82,11 @@ function SettingsBody({ classData }) {
       {msg ? <p className="auth-text auth-text--dim">{msg}</p> : null}
       <h2 className="auth-title">Archive</h2>
       {classData.archived ? (
-        <button className="admin-btn" type="button" onClick={() => archive.mutate("unarchive")}>
+        <button className="btn" type="button" onClick={() => archive.mutate("unarchive")}>
           Unarchive this class
         </button>
       ) : (
-        <button className="admin-btn" type="button" onClick={() => archive.mutate("archive")}>
+        <button className="btn" type="button" onClick={() => archive.mutate("archive")}>
           Archive this class (read-only for everyone)
         </button>
       )}

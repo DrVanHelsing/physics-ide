@@ -25,7 +25,7 @@ export default function ClassChrome({ tab, children }) {
       <div className="classes-page">
         <div className="classes-body">
           <div className="auth-error">{classQuery.error.message}</div>
-          <Link className="admin-btn" to="/classes">
+          <Link className="btn" to="/classes">
             Back to my classes
           </Link>
         </div>

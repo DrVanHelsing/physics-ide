@@ -47,11 +47,11 @@ function ClassWall({ me }) {
     <div className="classes-body">
       <div className="classes-actions">
         {canCreate ? (
-          <button className="admin-btn" type="button" onClick={() => setCreating((v) => !v)}>
+          <button className="btn" type="button" onClick={() => setCreating((v) => !v)}>
             New class
           </button>
         ) : null}
-        <Link className="admin-btn" to="/join">
+        <Link className="btn" to="/join">
           Join a class
         </Link>
       </div>
@@ -77,7 +77,11 @@ function ClassWall({ me }) {
             />
           </label>
           {error ? <div className="auth-error">{error}</div> : null}
-          <button className="auth-submit" type="submit" disabled={!name.trim() || create.isPending}>
+          <button
+            className="btn btn--primary btn--lg btn--block"
+            type="submit"
+            disabled={!name.trim() || create.isPending}
+          >
             Create class
           </button>
         </form>

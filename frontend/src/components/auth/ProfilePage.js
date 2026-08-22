@@ -57,7 +57,11 @@ export default function ProfilePage() {
             onChange={(e) => setName(e.target.value)}
           />
         </label>
-        <button className="auth-submit" type="submit" disabled={name === null || name === me.name}>
+        <button
+          className="btn btn--primary btn--lg btn--block"
+          type="submit"
+          disabled={name === null || name === me.name}
+        >
           Save name
         </button>
       </form>
@@ -82,7 +86,7 @@ export default function ProfilePage() {
             autoComplete="new-password"
           />
         </label>
-        <button className="auth-submit" type="submit">
+        <button className="btn btn--primary btn--lg btn--block" type="submit">
           Change password
         </button>
       </form>

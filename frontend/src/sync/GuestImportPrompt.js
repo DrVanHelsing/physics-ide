@@ -7,10 +7,10 @@ export default function GuestImportPrompt({ count, onAccept, onDecline, busy }) 
       <span>
         Bring your {count} guest project{count === 1 ? "" : "s"} into your new account?
       </span>
-      <button className="admin-btn admin-btn--primary" type="button" onClick={onAccept} disabled={busy}>
+      <button className="btn btn--primary" type="button" onClick={onAccept} disabled={busy}>
         {busy ? "Bringing them in…" : "Bring them in"}
       </button>
-      <button className="admin-btn" type="button" onClick={onDecline} disabled={busy}>
+      <button className="btn" type="button" onClick={onDecline} disabled={busy}>
         Not now
       </button>
     </div>

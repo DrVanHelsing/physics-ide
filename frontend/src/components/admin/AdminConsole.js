@@ -79,7 +79,7 @@ function PeopleTab() {
             onChange={(e) => setCapInput(Number(e.target.value))}
           />
           <button
-            className="admin-btn"
+            className="btn"
             type="button"
             disabled={capInput === null || capInput === capQuery.data.cap}
             onClick={() => saveCap.mutate(capInput)}
@@ -118,20 +118,20 @@ function PeopleTab() {
                 </td>
                 <td className="admin-actions">
                   {u.active ? (
-                    <button className="admin-btn" type="button" onClick={() => act.mutate({ id: u.id, action: "deactivate" })}>
+                    <button className="btn" type="button" onClick={() => act.mutate({ id: u.id, action: "deactivate" })}>
                       Deactivate
                     </button>
                   ) : (
-                    <button className="admin-btn" type="button" onClick={() => act.mutate({ id: u.id, action: "reactivate" })}>
+                    <button className="btn" type="button" onClick={() => act.mutate({ id: u.id, action: "reactivate" })}>
                       Reactivate
                     </button>
                   )}
                   {!u.emailConfirmed ? (
-                    <button className="admin-btn" type="button" onClick={() => act.mutate({ id: u.id, action: "resend-confirmation" })}>
+                    <button className="btn" type="button" onClick={() => act.mutate({ id: u.id, action: "resend-confirmation" })}>
                       Resend confirmation
                     </button>
                   ) : null}
-                  <button className="admin-btn" type="button" onClick={() => act.mutate({ id: u.id, action: "send-reset" })}>
+                  <button className="btn" type="button" onClick={() => act.mutate({ id: u.id, action: "send-reset" })}>
                     Send reset
                   </button>
                 </td>

@@ -40,7 +40,7 @@ export default function ResetPage() {
           />
         </label>
         {error ? <div className="auth-error">{error}</div> : null}
-        <button className="auth-submit" type="submit">
+        <button className="btn btn--primary btn--lg btn--block" type="submit">
           Set password
         </button>
       </form>
