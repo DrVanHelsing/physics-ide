@@ -19,6 +19,7 @@ import {
   BLOCK_CATALOGUE,
 } from "../blockRegistry";
 import { buildToolboxXml } from "../toolbox";
+import { BLOCK_PALETTE, categoryStyleNameFor } from "../blockPalette";
 
 const STOCK_PREFIXES = ["controls_", "variables_", "procedures_", "lists_", "text_"];
 const STOCK_ONLY_IDS = new Set([
@@ -191,5 +192,48 @@ describe("buildToolboxXml goal filtering", () => {
     expect(ds.includes('custom="VARIABLE"')).toBe(true); // dynamic — keep
     expect(ds.includes('name="Objects"')).toBe(false);   // physics-only — pruned
     expect(ds.includes('name="Data Science"')).toBe(true);
+  });
+
+  test("the three template-shipped Objects blocks are now reachable", () => {
+    const t = typesIn(buildToolboxXml("physics"));
+    expect(t.has("sphere_emissive_block")).toBe(true);
+    expect(t.has("box_opacity_block")).toBe(true);
+    expect(t.has("helix_full_block")).toBe(true);
+  });
+
+  test("Data Science is a parent drawer with ten pipeline sub-categories", () => {
+    const ds = buildToolboxXml("datascience");
+    for (const name of [
+      "Load Data",
+      "Explore",
+      "Statistics",
+      "Transforming Data",
+      "Uncertainty",
+      "Analyzing Relationships",
+      "Filter & Sort",
+      "Group & Compare",
+      "Charts",
+      "Communicate",
+    ]) {
+      // XMLSerializer re-escapes "&" as "&amp;" in the attribute value —
+      // the registry/palette keep the literal "&", only the XML text differs.
+      expect(ds, name).toContain(`name="${name.replace(/&/g, "&amp;")}"`);
+    }
+    expect(ds).toContain('name="Data Science"');
+  });
+
+  test("the whole DS drawer prunes away on a physics project", () => {
+    const phys = buildToolboxXml("physics");
+    expect(phys).not.toContain('name="Data Science"');
+    expect(phys).not.toContain('name="Statistics"');
+  });
+
+  test("category colours come from categorystyle names, not colour literals", () => {
+    const xml = buildToolboxXml("hybrid");
+    for (const name of ["Objects", "Data Science", "Load Data", "Filter & Sort"]) {
+      expect(BLOCK_PALETTE[name]).toBeDefined();
+      expect(xml).toContain(`categorystyle="${categoryStyleNameFor(name)}"`);
+    }
+    expect(xml).not.toMatch(/colour="#/);
   });
 });
