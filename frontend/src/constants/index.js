@@ -40,6 +40,9 @@ export const HIGHLIGHT_DURATION_MS = 250;
  *  console noise per run when on, which used to bury the one message that
  *  mattered. Set to `true` locally when working on the generator. */
 export const DEBUG_RUNNER = import.meta.env?.DEV === true;
+/** How long to wait for the runtime's __phpause acknowledgement before telling
+ *  the student the truth: this program has nothing to pause on. */
+export const PAUSE_ACK_TIMEOUT_MS = 1000;
 
 // ── Auto-save ─────────────────────────────────────────────────────────────
 /** How often the workspace state is persisted to localStorage (ms). */
