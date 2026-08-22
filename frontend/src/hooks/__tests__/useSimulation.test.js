@@ -29,7 +29,7 @@ vi.mock("../../utils/runner/glowRunner", () => ({
   setRuntimeErrorSink: vi.fn(),
 }));
 
-import { runPython } from "../../utils/runner/glowRunner";
+import { runPython, setRuntimeErrorSink } from "../../utils/runner/glowRunner";
 
 /** A promise this test can resolve/reject on its own schedule. */
 function deferred() {
@@ -386,5 +386,84 @@ describe("useSimulation — every load path ends the run (Task 13)", () => {
     });
     expect(latestCtx.booting).toBe(false);
     expect(latestCtx.running).toBe(false);
+  });
+});
+
+describe("useSimulation — the async error sink respects run generation (Task 13 fix round)", () => {
+  // The sink registered with glowRunner (setRuntimeErrorSink) is a single,
+  // long-lived callback — it does not know which run an incoming async error
+  // "belongs to". Without a staleness check of its own, a stray report that
+  // surfaces from a run that has since been superseded by a newer run (or
+  // torn down by Stop/Reset/Home) would stomp whatever now owns the screen:
+  // flipping `running` false and overwriting the live status with an error.
+  // The fix compares a "confirmed generation" (set only once a run's own
+  // runPython call has resolved AND was not itself superseded) against the
+  // live runGenerationRef, exactly mirroring handleRun's own catch-clause
+  // staleness guard.
+
+  test("a sink report for a superseded run does not stomp a newer, still-booting run", async () => {
+    const runA = deferred();
+    const runB = deferred();
+    runPython.mockReturnValueOnce(runA.promise).mockReturnValueOnce(runB.promise);
+    mounted = mountComponent(<Wrapped />);
+
+    // Run A starts and reaches "confirmed live".
+    act(() => {
+      latestSim.handleRun();
+    });
+    runA.resolve();
+    await act(async () => {
+      await flush();
+    });
+    expect(latestCtx.status.type).toBe("success");
+
+    // The sink is registered once, at mount — capture it.
+    const sink = setRuntimeErrorSink.mock.calls[0][0];
+    expect(typeof sink).toBe("function");
+
+    // Run B starts (generation bumps) but has not yet resolved — nothing has
+    // confirmed it live yet.
+    act(() => {
+      latestSim.handleRun();
+    });
+    expect(latestCtx.booting).toBe(true);
+    expect(latestCtx.status.text).toBe("Starting simulation…");
+
+    // A stray async report — as if it arrived late from A's now-superseded
+    // run — must be dropped: it must not touch B's still-booting session.
+    act(() => {
+      sink(new Error("Runtime error: ghost from a superseded run"));
+    });
+    expect(latestCtx.running).toBe(true);
+    expect(latestCtx.booting).toBe(true);
+    expect(latestCtx.status.text).toBe("Starting simulation…");
+    expect(latestCtx.status.type).toBe("");
+  });
+
+  test("a sink report for the current, confirmed generation is acted on", async () => {
+    const run = deferred();
+    runPython.mockReturnValueOnce(run.promise);
+    mounted = mountComponent(<Wrapped />);
+
+    act(() => {
+      latestSim.handleRun();
+    });
+    run.resolve();
+    await act(async () => {
+      await flush();
+    });
+    expect(latestCtx.status.type).toBe("success");
+    expect(latestCtx.running).toBe(true);
+
+    const sink = setRuntimeErrorSink.mock.calls[0][0];
+
+    // This run has genuinely reached "confirmed live" and no newer run has
+    // started since — a report through the sink now must be believed.
+    act(() => {
+      sink(new Error("Runtime error: ZeroDivisionError: division by zero"));
+    });
+    expect(latestCtx.running).toBe(false);
+    expect(latestCtx.status.type).toBe("error");
+    expect(latestCtx.status.text).toBe("Something was divided by zero.");
   });
 });

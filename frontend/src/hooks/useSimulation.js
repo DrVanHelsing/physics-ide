@@ -5,7 +5,7 @@
  * change, workspace callbacks, start-menu selection, etc.) from the three
  * contexts.  All handlers are memoised with useCallback.
  */
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import Blockly from "../utils/blockly/blocklyLib";
 import {
   runPython,
@@ -67,16 +67,28 @@ export function useSimulation() {
   const { debugMode, breakpointsRef } = useDebugContext();
   const { setTraceData } = useTraceContext();
 
+  /* The generation of the last run that actually reached "confirmed live"
+     (runPython resolved and was not superseded before it could) — written
+     by handleRun's success path below. The sink compares this against the
+     live runGenerationRef so a stale async error (from a run since
+     superseded by a newer run, or torn down by Stop/Reset/Home) can never
+     stomp whatever now owns the screen; only a report for the CURRENT
+     confirmed generation is allowed through. */
+  const confirmedGenerationRef = useRef(0);
+
   /* A rejection AFTER runPython resolves used to only console.error, leaving
-     the status bar claiming "Simulation started" over a dead simulation. */
+     the status bar claiming "Simulation started" over a dead simulation.
+     Same staleness discipline as handleRun's own catch (below): drop the
+     report if the generation it would apply to is no longer the live one. */
   useEffect(() => {
     setRuntimeErrorSink((err) => {
+      if (confirmedGenerationRef.current !== runGenerationRef.current) return;
       const d = describeRunError(err);
       setRunning(false);
       setStatus({ text: d.title, detail: d.detail, type: "error" });
     });
     return () => setRuntimeErrorSink(null);
-  }, [setRunning, setStatus]);
+  }, [setRunning, setStatus, runGenerationRef]);
 
   /* runGenerationRef (from SimulationContext) is bumped at the top of every
      handleRun/handleStop/handleResetToBlocks/handleHome call — and, via
@@ -115,6 +127,9 @@ export function useSimulation() {
       // generation — this call is stale, so its "success" must not reopen
       // state a later action already owns.
       if (generation !== runGenerationRef.current) return;
+      // Arm the async-error sink for this generation now that it has
+      // genuinely reached "running" — see confirmedGenerationRef above.
+      confirmedGenerationRef.current = generation;
       syncBreakpointsToIframe(breakpointsRef.current);
       setStatus({
         text: debugMode ? "Debug simulation started" : "Simulation started",
