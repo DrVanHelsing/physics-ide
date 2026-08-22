@@ -15,6 +15,8 @@ And the two standing constraints: **at most 200 people**, and **nothing may cons
 
 **Revision 3 (22 August 2026)** — design alignment. The IDE was modernized in place on 20–21 August (design tokens, shared primitives, an adaptive header, a light/dark theme pair, one icon module), and this document was silent on all of it. Added **section 18, the design contract** — the binding rules every screen here is built from. Corrected four passages that the shipped code had overtaken: the front-page doors (3.1), how switched-off tools are actually removed (5.4), the phone/viewport framing (13), and the screen inventory (14). Section numbering is unchanged; nothing above 17 moved.
 
+**22 August 2026, later the same day** — §18's two open decisions closed: the spacing ramp gained one rung (`--space-9: 64px`) for the welcome page's section rhythm, and the join code's wider tracking survives as a named token (`--tracking-code`). See §18's "Decisions taken."
+
 ---
 
 ## 1. The big picture
@@ -511,7 +513,7 @@ Those files are the implementation; this section is their contract. Where the tw
 
 ### The clauses
 
-**D1 — Tokens are the only source of every metric.** No literal pixel value for spacing, type size, corner radius, line height, font weight, control height or animation duration appears in any portal stylesheet or in any inline style in the markup. Every one of those resolves through a token. The scales are deliberately short — a 4px spacing ramp, nine type sizes, three corner radii plus a pill, three durations, three control heights — and that shortness is the point: a value that does not exist on a ramp is a design decision, not a number, and it goes through D16.
+**D1 — Tokens are the only source of every metric.** No literal pixel value for spacing, type size, corner radius, line height, font weight, control height or animation duration appears in any portal stylesheet or in any inline style in the markup. Every one of those resolves through a token. The scales are deliberately short — a 4px spacing ramp of nine rungs, nine type sizes, three corner radii plus a pill, three durations, three control heights — and that shortness is the point: a value that does not exist on a ramp is a design decision, not a number, and it goes through D16.
 
 **D2 — There are three shared components, and they are the API.** A button is `.btn`. A card is `.card`. A section header is `.panel-header`. Older class names (`.admin-btn`, `.auth-card`, `.welcome-btn`, and the rest) still work because they are aliased onto these three — but they are **migration debt, not an interface.** New portal markup uses the canonical class with modifiers. Adding a screen must never mean adding a name to an alias list.
 
@@ -545,13 +547,13 @@ Those files are the implementation; this section is their contract. Where the tw
 
 ---
 
-### Open decisions — deliberately not settled here
+### Decisions taken — closed 22 August 2026
 
-These need an owner's call. They are listed rather than quietly resolved, because either answer is defensible and the wrong kind of fix is for a builder to pick one in passing.
+Both of §18's open decisions have been settled and built. Recorded here, alongside the tokens.css comments and product-contract.md's locked-decision row, so the record and the code cannot drift.
 
-1. **The welcome page's section rhythm.** Its three big vertical gaps (56 / 64 / 72px) sit above the top of the spacing ramp, which stops at 48px. Either collapse all three to the ramp's top rung — cheap, and the page becomes slightly tighter — or extend the ramp once with a single new rung at 64px and use it for all three. Extending the ramp is a change to the design system itself and must be a written decision, not a silent edit.
+1. **The welcome page's section rhythm.** Its three big vertical gaps (56 / 64 / 72px) sat above the top of the spacing ramp, which stopped at 48px. The ramp was **extended once**, with a single new rung at 64px (`--space-9`), and all three gaps now use it. A marketing-shaped page genuinely needs more air than app chrome, and one shared new rung is a smaller change than special-casing a page with its own off-ramp values. The rung is for **page-level section rhythm only** — a second extension, for any other surface, needs its own decision; this one does not license a general habit of growing the ramp.
 
-2. **Letter-spacing.** The system has exactly one tracking value. The portal has introduced three more: on the front-page hero, on the big join code, and hardcoded on the brand wordmark. The brand and hero should almost certainly fall back to the one tracking value or drop tracking entirely. **The join code's wider tracking is the interesting case and probably deserves to survive** — section 3.3 chose that code's alphabet specifically so no two characters look alike, and a monospace code being read off a projector needs the air. If it stays, it becomes a named token for exactly that purpose, not a magic number sitting in one rule.
+2. **Letter-spacing.** The system has exactly one tracking value, `--label-tracking`. The brand wordmark falls back to it instead of its own hardcoded value; the front-page hero drops tracking entirely. **The join code's wider tracking survives as a named token, `--tracking-code`**, for exactly the reason section 3.3 gives: that code's alphabet was chosen so no two characters look alike, and a monospace code read off a projector needs the air. It is the one place the wider value is legitimate, and naming it keeps it from becoming a second magic number elsewhere.
 
 ---
 

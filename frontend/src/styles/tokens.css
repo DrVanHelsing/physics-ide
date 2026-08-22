@@ -17,6 +17,14 @@
   --space-7:  32px;
   --space-8:  48px;
 
+  /* One rung above the app-chrome ramp, added 2026-08-22 (Plan 5) for the
+     welcome page's section rhythm: a marketing-shaped surface legitimately
+     needs more air than app chrome, and its three gaps (56/64/72px) had all
+     fallen off the top of the ramp. Recorded in classroom-platform.md §18 and
+     in product-contract.md's locked decisions — extending a ramp is a
+     decision, not an edit. Use it for page-level section rhythm only. */
+  --space-9:  64px;
+
   /* ── Type scale ────────────────────────────────────────────
      Replaces 16 ad-hoc pixel values (216 declarations, incl. the
      9px / 9.5px / 11.5px / 15px / 17px / 18px / 22px one-offs).  */
@@ -47,6 +55,12 @@
   --label-tracking:  0.02em;
   --label-weight:    var(--fw-semibold);
   --label-fs:        var(--fs-sm);
+
+  /* Display tracking for the class join code, and nothing else. Spec §3.3
+     chose that alphabet so no two characters look alike; a monospace code
+     read off a projector needs the air. Named rather than inlined so the
+     one place it is legitimate is visible. */
+  --tracking-code:   0.08em;
 
   /* ── Radii — three roles, nothing else ─────────────────── */
   --radius-sm:   4px;    /* controls: buttons, inputs, chips   */
@@ -86,6 +100,15 @@
   /* ── Focus geometry (colour is --focus-ring-color, per theme) */
   --focus-ring-width:  2px;
   --focus-ring-offset: 2px;
+
+  /* ── Stacking order ────────────────────────────────────────
+     Retires the magic numbers. The portal's toast was z-index: 4000
+     against a product whose highest real layer is 1000. */
+  --z-header:   50;
+  --z-dropdown: 100;
+  --z-overlay:  900;
+  --z-dialog:   1000;
+  --z-toast:    1100;
 
   /* White label on filled accent/danger surfaces — identical in
      both themes, so it is declared once here. */
