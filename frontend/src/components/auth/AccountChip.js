@@ -13,7 +13,7 @@ export default function AccountChip() {
   if (!me) {
     return (
       <div className="account-chip">
-        <div className="account-chip-head">ACCOUNT</div>
+        <div className="account-chip-head">Account</div>
         <Link className="nav-row" to="/auth/signin">
           Sign in
         </Link>
@@ -26,7 +26,7 @@ export default function AccountChip() {
 
   return (
     <div className="account-chip">
-      <div className="account-chip-head">ACCOUNT</div>
+      <div className="account-chip-head">Account</div>
       <div className="account-chip-name" title={me.email}>
         {me.name}
         {!me.emailConfirmed ? <span className="account-chip-badge">unconfirmed</span> : null}

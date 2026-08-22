@@ -80,7 +80,11 @@ export default function JoinClassPage() {
               autoFocus
             />
           </label>
-          {error ? <div className="auth-error">{error}</div> : null}
+          {error ? (
+            <div className="alert alert--danger" role="alert">
+              {error}
+            </div>
+          ) : null}
           <button
             className="btn btn--primary btn--lg btn--block"
             type="submit"

@@ -3,6 +3,7 @@ import { Link, Navigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../utils/api/client";
 import { useMe } from "../../auth/useAuth";
+import { CheckIcon, AlertTriangleIcon } from "../Icons";
 
 const TABS = ["People", "Classes", "Emails", "Health"];
 
@@ -94,7 +95,7 @@ function PeopleTab() {
         value={q}
         onChange={(e) => setQ(e.target.value)}
       />
-      {act.error ? <div className="auth-error">{act.error.message}</div> : null}
+      {act.error ? <div className="alert alert--danger">{act.error.message}</div> : null}
       <div className="admin-table-wrap">
         <table className="admin-table">
           <thead>
@@ -118,7 +119,7 @@ function PeopleTab() {
                 </td>
                 <td className="admin-actions">
                   {u.active ? (
-                    <button className="btn" type="button" onClick={() => act.mutate({ id: u.id, action: "deactivate" })}>
+                    <button className="btn btn--danger" type="button" onClick={() => act.mutate({ id: u.id, action: "deactivate" })}>
                       Deactivate
                     </button>
                   ) : (
@@ -229,7 +230,7 @@ function ClassesTab() {
   );
 }
 
-function HealthTab() {
+export function HealthTab() {
   const healthQuery = useQuery({
     queryKey: ["admin", "health"],
     queryFn: () => api("/api/admin/health"),
@@ -238,14 +239,28 @@ function HealthTab() {
   return (
     <div className="admin-body">
       {h ? (
-        <ul className="admin-health">
-          <li>API: {h.ok ? "running" : "trouble"}</li>
-          <li>Database: {h.db}</li>
-          <li>
-            Accounts: {h.users} of {h.cap}
-          </li>
-          <li>Emails logged: {h.emailsLogged}</li>
-        </ul>
+        <div className="card">
+          <ul className="admin-health">
+            <li>
+              API:{" "}
+              <span className={`badge ${h.ok ? "badge--success" : "badge--danger"}`}>
+                {h.ok ? <CheckIcon size={12} /> : <AlertTriangleIcon size={12} />}
+                {h.ok ? "running" : "trouble"}
+              </span>
+            </li>
+            <li>
+              Database:{" "}
+              <span className={`badge ${h.db === "ok" ? "badge--success" : "badge--danger"}`}>
+                {h.db === "ok" ? <CheckIcon size={12} /> : <AlertTriangleIcon size={12} />}
+                {h.db}
+              </span>
+            </li>
+            <li>
+              Accounts: {h.users} of {h.cap}
+            </li>
+            <li>Emails logged: {h.emailsLogged}</li>
+          </ul>
+        </div>
       ) : (
         <p className="auth-text">Loading…</p>
       )}

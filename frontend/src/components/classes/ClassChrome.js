@@ -24,7 +24,9 @@ export default function ClassChrome({ tab, children }) {
     return (
       <div className="classes-page">
         <div className="classes-body">
-          <div className="auth-error">{classQuery.error.message}</div>
+          <div className="alert alert--danger" role="alert">
+            {classQuery.error.message}
+          </div>
           <Link className="btn" to="/classes">
             Back to my classes
           </Link>
@@ -74,7 +76,7 @@ export function AssignmentsStub() {
     <ClassChrome tab="assignments">
       {() => (
         <div className="classes-body">
-          <p className="auth-text auth-text--dim">
+          <p className="empty">
             Assignments arrive in a later update. For now this class holds its roster and settings.
           </p>
         </div>

@@ -45,8 +45,11 @@ export default function ProfilePage() {
   return (
     <AuthLayout title="Profile & settings">
       <p className="auth-text">
-        {me.email} · {me.role === "admin" ? "site admin" : me.isTeacher ? "teacher" : "student"}
-        {!me.emailConfirmed ? " · email not yet confirmed" : ""}
+        {me.email}
+        <span className="badge badge--accent">
+          {me.role === "admin" ? "site admin" : me.isTeacher ? "teacher" : "student"}
+        </span>
+        {!me.emailConfirmed ? <span className="badge badge--warning">unconfirmed</span> : null}
       </p>
       <form className="auth-form" onSubmit={saveName}>
         <label className="auth-label">
