@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { registerPhysicsThemes, physicsThemeName } from "../utils/monaco/monacoThemes";
 
 function CodeEditor({
   value,
@@ -37,14 +38,17 @@ function CodeEditor({
     let disposed = false;
 
     import("../utils/monaco/monacoLib")
-      .then(({ default: monaco }) => {
+      .then(async ({ default: monaco }) => {
         if (disposed || !hostRef.current) return;
         monacoRef.current = monaco;
+
+        await registerPhysicsThemes(monaco);
+        if (disposed || !hostRef.current) return;
 
         const editor = monaco.editor.create(hostRef.current, {
           value: valueRef.current,
           language: "python",
-          theme: isDarkRef.current ? "vs-dark" : "vs",
+          theme: physicsThemeName(isDarkRef.current),
           minimap: { enabled: false },
           lineNumbers: "on",
           wordWrap: "on",
@@ -90,7 +94,7 @@ function CodeEditor({
   /* ── React to theme changes ──────────────────────────────── */
   useEffect(() => {
     if (editorRef.current && monacoRef.current) {
-      monacoRef.current.editor.setTheme(isDark ? "vs-dark" : "vs");
+      monacoRef.current.editor.setTheme(physicsThemeName(isDark));
     }
   }, [isDark]);
 
