@@ -22,7 +22,7 @@
  * and, critically, no status bar, so the one mode whose purpose is finding
  * faults was the one mode that could not show them.
  */
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import Blockly from "../../utils/blockly/blocklyLib";
 
 import BlocklyWorkspace, { ReadOnlyBlockly, appendToSetup } from "../BlocklyWorkspace";
@@ -117,6 +117,24 @@ export default function IDELayout() {
 
   /* ── Simple UI handlers (defined here to avoid extra hook) */
   const handleHelp = useCallback(() => setShowHelp(true), [setShowHelp]);
+
+  /* Blockly opens helpUrl by navigating; intercept the hash instead of
+     letting it change the route. */
+  const [helpBlockId, setHelpBlockId] = useState(null);
+  useEffect(() => {
+    const onHash = () => {
+      const m = /^#\/help\?block=([A-Za-z0-9_]+)$/.exec(window.location.hash);
+      if (!m) return;
+      setHelpBlockId(m[1]);
+      setShowHelp(true);
+      // Restore the URL so Help is closable and the route is untouched.
+      window.history.replaceState(null, "", window.location.pathname + window.location.search);
+    };
+    window.addEventListener("hashchange", onHash);
+    onHash();
+    return () => window.removeEventListener("hashchange", onHash);
+  }, [setShowHelp]);
+
   const handleGoHome = useCallback(() => {
     sim.handleHome();
     proj.closeProject();
@@ -406,7 +424,12 @@ export default function IDELayout() {
           onImport={(file) => { proj.noteExplicitOpen(); sim.handleImport(file); setShowStart(false); }}
           onHelp={handleHelp}
         />
-        {showHelp && <HelpPage onClose={() => setShowHelp(false)} />}
+        {showHelp && (
+          <HelpPage
+            focusBlockId={helpBlockId}
+            onClose={() => { setShowHelp(false); setHelpBlockId(null); }}
+          />
+        )}
         {chartDataset && <ChartOverlay dataset={chartDataset} onClose={handleCloseChart} />}
       </>
     );
@@ -416,7 +439,12 @@ export default function IDELayout() {
   return (
     <div className="app-shell">
       <VariableDialog />
-      {showHelp && <HelpPage onClose={() => setShowHelp(false)} />}
+      {showHelp && (
+        <HelpPage
+          focusBlockId={helpBlockId}
+          onClose={() => { setShowHelp(false); setHelpBlockId(null); }}
+        />
+      )}
 
       <Toolbar
         goal={goal}
