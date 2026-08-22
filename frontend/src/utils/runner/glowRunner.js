@@ -290,6 +290,114 @@ function compileSource(compile, source) {
   return compiled;
 }
 
+/** Index of the last non-whitespace character at or before `from`, or -1
+ *  (meaning "start of string" — a legitimate statement boundary). */
+function lastNonSpaceIndex(source, from) {
+  let i = from;
+  while (i >= 0 && /\s/.test(source[i])) i--;
+  return i;
+}
+
+/** Index of the first non-whitespace character at or after `from`, or -1
+ *  if only whitespace remains. */
+function nextNonSpaceIndex(source, from) {
+  let i = from;
+  while (i < source.length && /\s/.test(source[i])) i++;
+  return i < source.length ? i : -1;
+}
+
+/** From `openIdx` (the index just past an opening "("), the index of its
+ *  matching closing ")" by depth-counting, or -1 if unbalanced. */
+function findMatchingParen(source, openIdx) {
+  let depth = 1;
+  for (let i = openIdx; i < source.length; i++) {
+    if (source[i] === "(") depth++;
+    else if (source[i] === ")") {
+      depth--;
+      if (depth === 0) return i;
+    }
+  }
+  return -1;
+}
+
+/** Rewrites every rate()-call statement in compiled GlowScript JS to run
+ *  `bookkeeping` immediately before it, wrapping the ENTIRE original
+ *  statement — verbatim, whatever shape it is — inside a fresh `{ }` block.
+ *
+ *  Why a whole-statement wrap rather than "insert text right before
+ *  `rate(`": RapydScript does not always emit a bare `rate(240);` statement.
+ *  The confirmed real shape (captured from an actual compile, see Task 15
+ *  fix round 2) is a PARENTHESIZED expression-statement —
+ *  `(await rate(240));` — and plain `await rate(240);` / bare `rate(240);`
+ *  are also plausible depending on where the call falls in RapydScript's
+ *  async-generator rewrite. Textually inserting a semicolon-separated
+ *  statement sequence right before `rate(` is only valid for the bare form:
+ *  inside `(await rate(240))`'s parens, a statement sequence is not a legal
+ *  expression, so that shape always threw "SyntaxError: Unexpected token
+ *  ';'" at `frameWindow.eval()` — the release-blocking regression this
+ *  rewrite fixes. A `{ }` block is legal wherever a statement is legal, so
+ *  wrapping the original statement (parens and all) inside one, with the
+ *  bookkeeping as an earlier statement in the same block, is valid for all
+ *  three shapes without needing to special-case which one it is.
+ *
+ *  Defensive: `rate(` occurrences that are NOT their own statement (e.g.
+ *  embedded in a larger expression, or a "(" that turns out to belong to an
+ *  unrelated call rather than a statement-wrapping paren) are left
+ *  completely untouched rather than guessed at — see the boundary checks
+ *  below. */
+export function injectFrameBoundaries(source, bookkeeping) {
+  const RATE_RE = /\b(?:await\s+)?rate\s*\(/g;
+  let result = "";
+  let cursor = 0;
+  let match;
+
+  while ((match = RATE_RE.exec(source))) {
+    const callStart = match.index; // start of "await" or "rate"
+    const argStart = RATE_RE.lastIndex; // just past "rate("
+
+    const argClose = findMatchingParen(source, argStart);
+    if (argClose === -1) continue; // unbalanced parens — leave untouched
+
+    // Does a standalone "(" immediately (mod whitespace) precede this call,
+    // itself immediately preceded by a genuine statement boundary (";", "{",
+    // "}", or the start of the file)? That is RapydScript's parenthesized
+    // expression-statement form. Anything else preceding the call — an
+    // identifier, a comma, an operator, a function name's own "(" — means
+    // `rate(` is embedded in some other expression or call, not its own
+    // statement, and must be left alone.
+    const beforeCall = lastNonSpaceIndex(source, callStart - 1);
+    let stmtStart = callStart;
+    let wrapCloseExpected = false;
+
+    if (beforeCall !== -1 && source[beforeCall] === "(") {
+      const beforeWrap = lastNonSpaceIndex(source, beforeCall - 1);
+      const atBoundary = beforeWrap === -1 || ";{}".includes(source[beforeWrap]);
+      if (!atBoundary) continue; // that "(" belongs to a real call/expression
+      stmtStart = beforeCall;
+      wrapCloseExpected = true;
+    } else if (beforeCall !== -1 && !";{}".includes(source[beforeCall])) {
+      continue; // rate() is embedded in some other expression
+    }
+
+    let afterArgs = argClose + 1;
+    if (wrapCloseExpected) {
+      const closeParenIdx = nextNonSpaceIndex(source, afterArgs);
+      if (closeParenIdx === -1 || source[closeParenIdx] !== ")") continue;
+      afterArgs = closeParenIdx + 1;
+    }
+    const semiIdx = nextNonSpaceIndex(source, afterArgs);
+    if (semiIdx === -1 || source[semiIdx] !== ";") continue;
+    const stmtEnd = semiIdx + 1;
+
+    result += source.slice(cursor, stmtStart);
+    result += "{" + bookkeeping + source.slice(stmtStart, stmtEnd) + "}";
+    cursor = stmtEnd;
+    RATE_RE.lastIndex = stmtEnd;
+  }
+  result += source.slice(cursor);
+  return result;
+}
+
 function extractCompiledCode(compiled) {
   const compiledCode =
     typeof compiled === "string"
@@ -396,13 +504,16 @@ async function executeCompiled(frameWindow, compiledCode, traceEntries, initialB
      Python-level AST pass. The counter feeds the "iteration N" readout, and
      __physide_frame_steps makes "Next frame" a real unit rather than "next
      trace event" (which advanced a quarter of a timestep in a four-variable
-     loop). */
-  traceInjected = traceInjected.replace(
-    /\b(await\s+)?rate\s*\(/g,
+     loop). injectFrameBoundaries wraps the WHOLE original rate() statement
+     (which RapydScript actually emits as `(await rate(240));` — a
+     parenthesized expression-statement, not a bare one) in a fresh block
+     rather than inserting text directly ahead of `rate(` — see its doc
+     comment for why the naive version broke every run. */
+  traceInjected = injectFrameBoundaries(
+    traceInjected,
     "window.__physide_iter=(window.__physide_iter||0)+1;" +
       "if(window.__physide_frame_steps>0){window.__physide_frame_steps--;" +
-      "if(window.__physide_frame_steps===0){window.__physide_paused=true;window.__physide_steps=0;}}" +
-      "$&",
+      "if(window.__physide_frame_steps===0){window.__physide_paused=true;window.__physide_steps=0;}}",
   );
 
   try {
