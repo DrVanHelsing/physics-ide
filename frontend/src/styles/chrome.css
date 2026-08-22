@@ -329,50 +329,53 @@
   background: var(--border);
 }
 
-/* ── Zoom Slider ──────────────────────────────────────── */
-.tb-zoom {
+/* ── On-canvas workspace zoom cluster ─────────────────────
+   Docked bottom-right of the blocks pane (blocks mode only —
+   see IDELayout.js, rendered beside <BlocklyWorkspace>). Replaces
+   the old header zoom slider above. Offset clears the trashcan's
+   own bottom-right corner (WorkspaceTrash, workspace.css) and
+   hides during a block drag via the sibling-combinator rule below. */
+.workspace-zoom {
+  position: absolute;
+  right: var(--space-4);
+  bottom: calc(var(--space-4) + 56px);
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  transition: opacity var(--transition);
+}
+.is-dragging-block ~ .workspace-zoom {
+  opacity: 0;
+}
+.workspace-zoom__btn {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 0 4px;
-}
-.tb-zoom-slider {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 80px;
-  height: 3px;
-  background: var(--border);
-  border-radius: 2px;
-  cursor: pointer;
-}
-.tb-zoom-slider::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: var(--accent);
-  cursor: pointer;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  color: var(--text-dim);
+  background: transparent;
   border: none;
-  transition: transform 0.1s;
-}
-.tb-zoom-slider::-webkit-slider-thumb:hover {
-  transform: scale(1.25);
-}
-.tb-zoom-slider::-moz-range-thumb {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: var(--accent);
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  border: none;
+  transition: background var(--transition), color var(--transition);
 }
-.tb-zoom-label {
+.workspace-zoom__btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-bright);
+}
+.workspace-zoom__pct {
   font-size: 10px;
   color: var(--text-muted);
-  min-width: 32px;
-  text-align: center;
   font-family: var(--mono);
+  padding-top: 2px;
 }
 
 /* ── Mode Toggle (VS Code tab bar style) ──────────────── */
