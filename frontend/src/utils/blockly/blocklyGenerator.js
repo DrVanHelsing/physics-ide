@@ -11,6 +11,13 @@
  *   State     – set var, set property, increment property, telemetry display
  *   Control   – forever loop, for range, if, if-else, rate, time step, comment
  *   Advanced  – raw Python code/expression
+ *
+ * Label voice (one rule, Tranche 3):
+ *   message0 is NATURAL LANGUAGE — "length of %1", not "mag( %1 )". The
+ *   Python form belongs on the first line of the tooltip, where a student
+ *   who wants to read the generated code can find it. Twelve blocks were
+ *   converted; a new block that names a Python function on its face is a
+ *   review comment.
  */
 
 import Blockly from './blocklyLib';
@@ -96,7 +103,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
        ══════════════════════════════════════════════════════ */
     {
       type: "vector_block",
-      message0: "vector( %1 , %2 , %3 )",
+      message0: "vector x %1  y %2  z %3",
       args0: [
         { type: "field_number", name: "X", value: 0 },
         { type: "field_number", name: "Y", value: 0 },
@@ -104,7 +111,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       ],
       output: "Vector",
       style: "values_blocks",
-      tooltip: "A 3D vector. Snap into pos, axis, size, velocity, or colour slots.",
+      tooltip: "vector(x, y, z) — A 3D vector. Snap into pos, axis, size, velocity, or colour slots.",
     },
     {
       type: "colour_block",
@@ -150,12 +157,12 @@ export function defineCustomBlocksAndGenerator(Blockly) {
     },
     {
       type: "expr_block",
-      message0: "( %1 )",
+      message0: "expression %1",
       args0: [{ type: "field_input", name: "EXPR", text: "0" }],
       output: null,
       style: "values_blocks",
       tooltip:
-        "Type any expression. Snaps into number, vector, or colour slots.",
+        "Any Python expression. ",
     },
 
     /* ── Physics expression blocks ─────────────────────── */
@@ -210,21 +217,21 @@ export function defineCustomBlocksAndGenerator(Blockly) {
     },
     {
       type: "mag_block",
-      message0: "mag( %1 )",
+      message0: "length of %1",
       args0: [{ type: "input_value", name: "VEC", check: ["Vector", "Number"] }],
       inputsInline: true,
       output: "Number",
       style: "values_blocks",
-      tooltip: "Magnitude (scalar length) of a vector. E.g. snap in an object property block like ball.velocity to get speed.",
+      tooltip: "mag(v) — Magnitude (scalar length) of a vector. E.g. snap in an object property block like ball.velocity to get speed.",
     },
     {
       type: "norm_block",
-      message0: "norm( %1 )",
+      message0: "direction of %1",
       args0: [{ type: "input_value", name: "VEC", check: ["Vector", "Number"] }],
       inputsInline: true,
       output: "Vector",
       style: "values_blocks",
-      tooltip: "Unit vector in the direction of the input. Snap in an object property block like ball.pos to get its direction.",
+      tooltip: "norm(v) — Unit vector in the direction of the input. Snap in an object property block like ball.pos to get its direction.",
     },
 
     /* ── Variable read — snap any named variable into a slot ── */
@@ -638,12 +645,12 @@ export function defineCustomBlocksAndGenerator(Blockly) {
        ══════════════════════════════════════════════════════ */
     {
       type: "rate_block",
-      message0: "rate( %1 )",
+      message0: "run at %1 steps per second",
       args0: [{ type: "field_number", name: "N", value: 100, min: 1 }],
       previousStatement: null,
       nextStatement: null,
       style: "control_blocks",
-      tooltip: "Set animation speed (frames per second).",
+      tooltip: "rate(n) — Set animation speed (frames per second).",
     },
     {
       type: "forever_loop_block",
@@ -763,12 +770,12 @@ export function defineCustomBlocksAndGenerator(Blockly) {
        ══════════════════════════════════════════════════════ */
     {
       type: "python_raw_block",
-      message0: "code: %1",
+      message0: "run Python %1",
       args0: [{ type: "field_input", name: "CODE", text: "# custom" }],
       previousStatement: null,
       nextStatement: null,
       style: "raw_python_blocks",
-      tooltip: "Insert any Python statement.",
+      tooltip: "Raw Python statement. Insert any Python statement.",
     },
     {
       type: "python_raw_expr_block",
@@ -893,7 +900,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
     /* ══ 3D Math blocks ═══════════════════════════════════════════════ */
     {
       type: "cross_product_block",
-      message0: "cross( %1 , %2 )",
+      message0: "cross product of %1 and %2",
       args0: [
         { type: "input_value", name: "A", check: ["Vector", "Number"] },
         { type: "input_value", name: "B", check: ["Vector", "Number"] },
@@ -901,11 +908,11 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       output: "Vector",
       style: "3d_math_blocks",
-      tooltip: "Cross product of two 3D vectors. Returns a vector perpendicular to both (right-hand rule).",
+      tooltip: "cross(a, b) — Cross product of two 3D vectors. Returns a vector perpendicular to both (right-hand rule).",
     },
     {
       type: "dot_product_block",
-      message0: "dot( %1 , %2 )",
+      message0: "dot product of %1 and %2",
       args0: [
         { type: "input_value", name: "A", check: ["Vector", "Number"] },
         { type: "input_value", name: "B", check: ["Vector", "Number"] },
@@ -913,7 +920,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       output: "Number",
       style: "3d_math_blocks",
-      tooltip: "Dot product of two vectors. Returns a scalar (used for work, projection, angle).",
+      tooltip: "dot(a, b) — Dot product of two vectors. Returns a scalar (used for work, projection, angle).",
     },
     {
       type: "math_trig_block",
@@ -941,7 +948,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
     /* ── Vector compose — input slots for variable-based vectors ── */
     {
       type: "vector_compose_block",
-      message0: "vector( %1 , %2 , %3 )",
+      message0: "build vector x %1  y %2  z %3",
       args0: [
         { type: "input_value", name: "X" },
         { type: "input_value", name: "Y" },
@@ -950,12 +957,12 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       output: "Vector",
       style: "3d_math_blocks",
-      tooltip: "Build a vector from three expressions. Snap variables, numbers, or math blocks into x, y, z.",
+      tooltip: "vector(x, y, z) — Build a vector from three expressions. Snap variables, numbers, or math blocks into x, y, z.",
     },
     /* ── Min / Max / Pow — common physics math ─────────────── */
     {
       type: "math_min_block",
-      message0: "min( %1 , %2 )",
+      message0: "smaller of %1 and %2",
       args0: [
         { type: "input_value", name: "A" },
         { type: "input_value", name: "B" },
@@ -963,11 +970,11 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       output: null,
       style: "3d_math_blocks",
-      tooltip: "Returns the smaller of two values. Useful for clamping.",
+      tooltip: "min(a, b) — Returns the smaller of two values. Useful for clamping.",
     },
     {
       type: "math_max_block",
-      message0: "max( %1 , %2 )",
+      message0: "larger of %1 and %2",
       args0: [
         { type: "input_value", name: "A" },
         { type: "input_value", name: "B" },
@@ -975,7 +982,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       output: null,
       style: "3d_math_blocks",
-      tooltip: "Returns the larger of two values. Useful for floor clamping and safe divisors.",
+      tooltip: "max(a, b) — Returns the larger of two values. Useful for floor clamping and safe divisors.",
     },
     {
       type: "math_pow_block",
@@ -991,7 +998,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
     },
     {
       type: "math_clamp_block",
-      message0: "clamp( %1 , %2 , %3 )",
+      message0: "keep %1 between %2 and %3",
       args0: [
         { type: "input_value", name: "VAL" },
         { type: "input_value", name: "LO" },
@@ -1000,7 +1007,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       output: null,
       style: "3d_math_blocks",
-      tooltip: "Clamp a value between low and high bounds: max(lo, min(val, hi)).",
+      tooltip: "clamp(value, lo, hi) — Clamp a value between low and high bounds: max(lo, min(val, hi)).",
     },
     {
       type: "rotate_object_block",
