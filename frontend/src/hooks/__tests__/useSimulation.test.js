@@ -620,3 +620,99 @@ describe("useSimulation — watch expressions reach runPython (Task 17)", () => 
     });
   });
 });
+
+/**
+ * Task 17 fix round 1, Finding 1 — the pause chip lied over a live run.
+ *
+ * pauseState was reset on debug enter/exit but by nothing else. The runtime
+ * posts __phpause {paused:false} only when an already-paused checkpoint is
+ * RELEASED, so after Debug→Pause the state stayed "paused" through the next
+ * Run and through Stop: the toolbar's aria-live chip read
+ * "Paused · iteration N" — ticking — over a running simulation, and useTrace
+ * (which bails out of clearing the execution highlight while
+ * pauseStateRef.current !== "running") left the yellow glow lit for the rest
+ * of the run. Both entry points reset it now: handleRun directly, every
+ * teardown path through endRun.
+ */
+describe("useSimulation — Run and Stop resync pauseState (Task 17 fix round 1)", () => {
+  test("Run after a debug pause clears the latched 'paused' state", async () => {
+    const run = deferred();
+    runPython.mockReturnValue(run.promise);
+    mounted = mountComponent(<Wrapped />);
+
+    // Debug → Pause: the runtime acknowledged, so the chip reads "Paused · …".
+    act(() => {
+      latestDebug.setDebugMode(true);
+      latestDebug.setPauseState("paused");
+      latestCtx.setPaused(true);
+    });
+    expect(latestDebug.pauseState).toBe("paused");
+
+    act(() => {
+      latestSim.handleRun();
+    });
+
+    expect(latestDebug.pauseState).toBe("running");
+    expect(latestCtx.paused).toBe(false);
+
+    run.resolve();
+    await act(async () => {
+      await flush();
+    });
+    // And it stays reset once the run confirms.
+    expect(latestDebug.pauseState).toBe("running");
+  });
+
+  test("Stop while paused clears it too — no 'Paused' chip over a dead simulation", () => {
+    mounted = mountComponent(<Wrapped />);
+
+    act(() => {
+      latestDebug.setDebugMode(true);
+      latestDebug.setPauseState("paused");
+      latestCtx.setPaused(true);
+      latestCtx.setRunning(true);
+    });
+
+    act(() => {
+      latestSim.handleStop();
+    });
+
+    expect(latestDebug.pauseState).toBe("running");
+    expect(latestCtx.paused).toBe(false);
+    expect(latestCtx.running).toBe(false);
+  });
+
+  test("a half-finished pause ('pausing') is cleared by Stop as well", () => {
+    mounted = mountComponent(<Wrapped />);
+    act(() => {
+      latestDebug.setPauseState("pausing");
+      latestCtx.setRunning(true);
+    });
+
+    act(() => {
+      latestSim.handleStop();
+    });
+
+    expect(latestDebug.pauseState).toBe("running");
+  });
+
+  test("every teardown path resets it, not just Stop", () => {
+    for (const teardown of ["handleHome", "handleResetToBlocks", "loadWorkspaceXml"]) {
+      mounted = mountComponent(<Wrapped />);
+      act(() => {
+        latestDebug.setPauseState("paused");
+        latestCtx.setPaused(true);
+      });
+
+      act(() => {
+        latestSim[teardown]("");
+      });
+
+      expect(latestDebug.pauseState, teardown).toBe("running");
+      expect(latestCtx.paused, teardown).toBe(false);
+
+      mounted.unmount();
+      mounted = null;
+    }
+  });
+});

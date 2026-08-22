@@ -637,7 +637,7 @@ export default function HelpPage({ onClose }) {
                 <li>Click <Tag color="red">Record</Tag> to start recording.</li>
                 <li>Run or step through the simulation — every trace update is captured.</li>
                 <li>Click <Tag color="red">Stop Rec</Tag> to end the recording.</li>
-                <li>Click <Tag color="blue">CSV</Tag> to download the recorded data as a CSV
+                <li>Click <Tag color="blue">Rec.CSV</Tag> to download the recorded data as a CSV
                     file containing variable, value, delta, min, max, and timestamp columns.</li>
               </ol>
               <Note type="info">

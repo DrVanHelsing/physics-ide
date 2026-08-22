@@ -285,8 +285,35 @@ describe("BlocklyWorkspace — breakpoint and execution decorations", () => {
   test("only the executing block carries .block-executing", () => {
     const a = blockWithSvg("a");
     const b = blockWithSvg("b");
-    mountWith([a, b], { executingBlockId: "b" });
+    mountWith([a, b], { debugMode: true, executingBlockId: "b" });
     expect(a._g.classList.contains("block-executing")).toBe(false);
     expect(b._g.classList.contains("block-executing")).toBe(true);
+  });
+
+  /* Fix round 1, Finding 2 — the glow is debug-mode-only, like the
+     .bp-available effect beside it and like the Help text says. useTrace sets
+     executingBlockId on every trace batch, so without the guard an ORDINARY
+     run strobed the loud yellow stroke ~10x/sec over Blockly's own
+     highlight. */
+  test("outside debug mode the glow never paints, even with a live executing block", () => {
+    const a = blockWithSvg("a");
+    mountWith([a], { debugMode: false, executingBlockId: "a" });
+    expect(a._g.classList.contains("block-executing")).toBe(false);
+  });
+
+  test("leaving debug mode clears a glow that was already lit", () => {
+    const a = blockWithSvg("a");
+    const ws = fakeWorkspace();
+    ws.getAllBlocks = () => [a];
+    Blockly.inject.mockReturnValueOnce(ws);
+    mounted = mountComponent(
+      <BlocklyWorkspace onWorkspaceReady={() => {}} debugMode executingBlockId="a" />,
+    );
+    expect(a._g.classList.contains("block-executing")).toBe(true);
+
+    mounted.rerender(
+      <BlocklyWorkspace onWorkspaceReady={() => {}} debugMode={false} executingBlockId="a" />,
+    );
+    expect(a._g.classList.contains("block-executing")).toBe(false);
   });
 });
