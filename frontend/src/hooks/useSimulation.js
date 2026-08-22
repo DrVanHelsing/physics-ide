@@ -24,8 +24,13 @@ import { DEFAULT_PYTHON_CODE, GLOWSCRIPT_HOST_ID } from "../constants";
 
 /**
  * Ends a run through every teardown path this IDE has — Stop, Reset to
- * blocks, Home, and (via useDebug, which reaches simulation state straight
- * from SimulationContext rather than through this hook) debug enter/exit.
+ * blocks, and Home. Entering or leaving DEBUG mode is deliberately not one of
+ * them: debug is a mode of this shell, not a separate screen, so useDebug
+ * pauses on the way in and resumes on the way out (see its handleEnterDebug /
+ * handleExitDebug) and never calls this. That is load-bearing in both
+ * directions — exit must NOT bump `runGenerationRef`, or a pause-ack timer
+ * armed moments earlier would be judged stale and skip its cleanup.
+ *
  * Bumps the shared `runGenerationRef` (see SimulationContext) so a stale
  * in-flight handleRun's settle can no longer write into this session, stops
  * the runtime, and clears running/booting/paused together — the T16
@@ -108,15 +113,19 @@ export function useSimulation() {
   }, [setRunning, setStatus, runGenerationRef]);
 
   /* runGenerationRef (from SimulationContext) is bumped at the top of every
-     handleRun/handleStop/handleResetToBlocks/handleHome call — and, via
-     endRun below, by useDebug's enter/exit too. handleRun captures the value
-     at its own start and re-checks it after every await: runPython's own
-     activeRunToken guard only protects its internal DOM/iframe work and
-     resolves a superseded call SILENTLY AS SUCCESS, so without this a slow,
-     superseded run's `catch`/`finally` could still land after a newer run
-     (or an explicit Stop/Reset/Home/debug-enter) already owns the screen —
-     clearing `booting`/`running` out from under it and reopening the exact
-     blank-rectangle window this state exists to close. */
+     handleRun/handleStop/handleResetToBlocks/handleHome call — and by those
+     only. Entering or leaving debug mode does NOT bump it: useDebug pauses
+     and resumes rather than tearing the run down, and its pause-ack timers
+     compare against this generation to tell "the session moved on" from "the
+     student is still here".
+
+     handleRun captures the value at its own start and re-checks it after
+     every await: runPython's own activeRunToken guard only protects its
+     internal DOM/iframe work and resolves a superseded call SILENTLY AS
+     SUCCESS, so without this a slow, superseded run's `catch`/`finally` could
+     still land after a newer run (or an explicit Stop/Reset/Home) already
+     owns the screen — clearing `booting`/`running` out from under it and
+     reopening the exact blank-rectangle window this state exists to close. */
 
   /* ── Generate Python from current Blockly workspace ──── */
   const syncFromBlocks = useCallback(() => {

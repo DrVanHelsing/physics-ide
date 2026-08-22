@@ -1,7 +1,11 @@
 /**
  * The adaptive header's single source of truth: given the project's axes,
- * which control keys exist in which zone. Toolbar renders ONLY what these
- * lists contain — no scattered `showX &&` conditionals in the component.
+ * which control keys exist in which zone. Every keyed control in the header
+ * comes from these lists — no scattered `showX &&` conditionals in the
+ * component. The one exception is the debug group (Pause / Next frame / Next
+ * value / Record and the two chips), which Toolbar renders inline behind a
+ * bare `{debugMode && …}`: it is a single block that exists or does not, with
+ * no per-control visibility to decide and no place in any zone's ordering.
  *
  * The zoom slider is intentionally absent from every configuration: the
  * on-canvas cluster owns zoom now (Task 11). `trace`/`debug` were reserved

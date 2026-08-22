@@ -99,10 +99,20 @@ export function instrumentPythonForDebug(pythonSource, { watch = [] } = {}) {
   const output  = [];
   const entries = [];  /* {safeName, displayName, blockId, scope} */
 
-  let inLoop          = false;
-  let loopBaseIndent  = -1;
-  let loopBodyIndent  = null;   /* body indent of the last in-loop probe seen */
-  let lastLoopLineIndex = -1;   /* index in `output` of the last loop-scope probe */
+  let inLoop            = false;
+  let loopBaseIndent    = -1;
+  let loopBodyIndent    = null;  /* indent string of the CURRENT loop's body */
+  let lastLoopBodyIndex = -1;    /* index in `output` of the last line inside it */
+
+  /** Begin tracking a fresh loop. Body indent and end-of-body marker are
+   *  per-loop: the watch splice below indents to the body of the loop it
+   *  actually lands in, so those two must never survive from an earlier one. */
+  const enterLoop = (baseIndent) => {
+    inLoop            = true;
+    loopBaseIndent    = baseIndent;
+    loopBodyIndent    = null;
+    lastLoopBodyIndex = -1;
+  };
 
   for (let i = 0; i < lines.length; i++) {
     const line     = lines[i];
@@ -111,31 +121,40 @@ export function instrumentPythonForDebug(pythonSource, { watch = [] } = {}) {
 
     if (!stripped || stripped.startsWith('#')) continue;
 
-    /* Detect while-loop entry */
+    const indentLen = line.length - stripped.length;
+
+    /* Detect while-loop entry. A `while` at or outside the current loop's own
+       indent starts a NEW loop; a deeper one is nested inside the body we are
+       already tracking and must not reset it. */
     const loopMatch = line.match(/^(\s*)while\s+/);
     if (loopMatch) {
-      if (!inLoop) {
-        inLoop         = true;
-        loopBaseIndent = loopMatch[1].length;
-      }
+      if (!inLoop || loopMatch[1].length <= loopBaseIndent) enterLoop(loopMatch[1].length);
       continue;
     }
 
-    /* Detect leaving the loop (non-blank, non-comment at indent <= loopBase) */
-    if (inLoop) {
-      const indentLen = (line.match(/^(\s*)/) || ['', ''])[1].length;
-      if (stripped && indentLen <= loopBaseIndent) {
-        if (!stripped.match(/^(?:else|elif|except|finally)\b/)) {
-          inLoop         = false;
-          loopBaseIndent = -1;
-          const newLoop  = line.match(/^(\s*)while\s+/);
-          if (newLoop) {
-            inLoop         = true;
-            loopBaseIndent = newLoop[1].length;
-          }
-        }
-        if (!inLoop) continue;
+    /* Detect leaving the loop (non-blank, non-comment at indent <= loopBase).
+       `else`/`elif`/`except`/`finally` at that indent are continuations of the
+       loop's own compound statement, not the line after it. */
+    if (inLoop && indentLen <= loopBaseIndent) {
+      if (!stripped.match(/^(?:else|elif|except|finally)\b/)) {
+        inLoop         = false;
+        loopBaseIndent = -1;
       }
+      if (!inLoop) continue;
+    }
+
+    /* ── Where does the loop body END? ─────────────────────────────────
+       Watch probes are spliced in at the end of the loop BODY, so what has
+       to be tracked is the last OUTPUT line belonging to that body — every
+       line indented past the `while` header, not merely the probed ones.
+       Anchoring on the last probe instead is what broke: when the last
+       traced assignment sat inside an `if` branch, the watch line was
+       emitted after it at the *body's* indent, i.e. dedented into the gap
+       between the if-body and its `else:` — invalid Python, and the run
+       died at compile with the blame pointed at the student. */
+    if (inLoop && indentLen > loopBaseIndent) {
+      if (loopBodyIndent === null) loopBodyIndent = line.slice(0, indentLen);
+      lastLoopBodyIndex = output.length - 1;
     }
 
     const am = line.match(ASSIGN_RE);
@@ -172,10 +191,8 @@ export function instrumentPythonForDebug(pythonSource, { watch = [] } = {}) {
     entries.push({ safeName, displayName: varName, blockId, scope });
     output.push(`${indent}_phtr_${safeName} = str(${varName})`);
 
-    if (scope === 'loop') {
-      if (loopBodyIndent === null) loopBodyIndent = indent;
-      lastLoopLineIndex = output.length - 1;
-    }
+    /* The probe itself is now the last line of the loop body. */
+    if (scope === 'loop') lastLoopBodyIndex = output.length - 1;
   }
 
   const watches = sanitiseWatch(watch);
@@ -183,8 +200,14 @@ export function instrumentPythonForDebug(pythonSource, { watch = [] } = {}) {
     const bodyIndent = loopBodyIndent ?? (loopBaseIndent >= 0 ? ' '.repeat(loopBaseIndent + 4) : '');
     /* Watches are appended to the END of the loop body so they observe the
        values AFTER the frame's updates, which is what a student watching
-       "total energy" expects. Emitted at top level when there is no loop. */
-    const insertAt = lastLoopLineIndex >= 0 ? lastLoopLineIndex + 1 : output.length;
+       "total energy" expects. Emitted at top level when there is no loop.
+       Splicing after the last body line — never after the last probe — is
+       what keeps the dedent to `bodyIndent` legal: by then every nested
+       if/try inside the body has been closed by the source itself, so there
+       is no continuation clause left for this line to orphan. Trailing blank
+       and comment lines are not tracked, so the probe lands after the last
+       real statement rather than after the loop's whitespace. */
+    const insertAt = lastLoopBodyIndex >= 0 ? lastLoopBodyIndex + 1 : output.length;
     const watchLines = watches.map((expr, n) => `${bodyIndent}_phtr_watch_${n} = str(${expr})`);
     output.splice(insertAt, 0, ...watchLines);
     watches.forEach((expr, n) => {

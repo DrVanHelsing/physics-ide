@@ -316,10 +316,10 @@ function categoryStylesFromPalette() {
   return styles;
 }
 
-const STYLE_CATEGORY_ALIASES = Object.freeze({
-  Starter: "Control",
-  Scene: "Objects",
-});
+/* `STYLE_CATEGORY_ALIASES` ({ Starter: "Control", Scene: "Objects" }) lived
+   here while two registry categories had no palette entry. Plan 4 Task 4
+   re-categorised the registry — no entry carries "Starter" or "Scene" any
+   more — and the plan mandated the map's retirement when that landed. */
 
 export {
   BLOCK_PALETTE,
@@ -335,5 +335,4 @@ export {
   relativeLuminance,
   contrastRatio,
   hueOf,
-  STYLE_CATEGORY_ALIASES,
 };

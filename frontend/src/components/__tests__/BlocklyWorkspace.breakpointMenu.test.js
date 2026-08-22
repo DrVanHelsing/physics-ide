@@ -12,8 +12,7 @@
  * The fix unregisters in the effect's cleanup (and defensively before
  * registering) so every mount registers fresh. This test drives that
  * lifecycle directly against a fake Blockly (mocking `blocklyLib`, following
- * the same convention `CodeEditor.breakableLines.test.js` used for
- * `monacoLib` and `WorkspaceTrash.test.js` used for a fake workspace).
+ * the same convention `WorkspaceTrash.test.js` uses for a fake workspace).
  */
 import { describe, test, expect, vi, beforeEach, afterEach } from "vitest";
 import { mountComponent } from "../../test/renderHelpers";
@@ -25,8 +24,9 @@ import Blockly from "../../utils/blockly/blocklyLib";
    way (silently skipped OR thrown). `vi.mock` factories are hoisted above
    this file's own top-level code, so anything the factory closes over must
    be created through `vi.hoisted` to exist by the time the factory runs. ── */
-const { registryStore, fakeRegistry, selectedRef } = vi.hoisted(() => {
+const { registryStore, fakeRegistry, selectedRef, blocksRef } = vi.hoisted(() => {
   const registryStore = new Map();
+  const blocksRef = { current: [] };
   const fakeRegistry = {
     getItem: vi.fn((id) => registryStore.get(id) || null),
     register: vi.fn((item) => {
@@ -43,13 +43,25 @@ const { registryStore, fakeRegistry, selectedRef } = vi.hoisted(() => {
     }),
   };
   const selectedRef = { current: null };
-  return { registryStore, fakeRegistry, selectedRef };
+  return { registryStore, fakeRegistry, selectedRef, blocksRef };
 });
+
+/** A block whose SVG root records which decoration classes are on it. */
+function fakeBlock(id) {
+  const classes = new Set();
+  const svgRoot = {
+    classList: {
+      toggle: (name, on) => (on ? classes.add(name) : classes.delete(name)),
+      contains: (name) => classes.has(name),
+    },
+  };
+  return { id, classes, getSvgRoot: () => svgRoot };
+}
 
 function fakeWorkspace() {
   return {
     getToolbox: () => null,
-    getAllBlocks: () => [],
+    getAllBlocks: () => blocksRef.current,
     getTopBlocks: () => [],
     getBlockById: () => null,
     setScale: vi.fn(),
@@ -107,6 +119,7 @@ let mounted = null;
 beforeEach(() => {
   registryStore.clear();
   selectedRef.current = null;
+  blocksRef.current = [];
   class FakeResizeObserver {
     observe() {}
     unobserve() {}
@@ -184,6 +197,32 @@ describe("BlocklyWorkspace — breakpoint context-menu registration lifecycle", 
     expect(toggleA).not.toHaveBeenCalled();
 
     mounted = second;
+  });
+
+  /**
+   * Final-review finding I3 — `bp-block` was the one debug decoration that was
+   * not debug-gated, while its siblings `bp-available` and `block-executing`
+   * both were. Breakpoints are armed only in debug mode and the set survives
+   * leaving it, so a student outside debug mode saw solid red breakpoint
+   * outlines, pressed Run, and nothing paused: a marker that cannot fire.
+   */
+  test("a set breakpoint outlines its block only while debug mode is on", () => {
+    const blk = fakeBlock("blk-1");
+    blocksRef.current = [blk];
+    const shared = {
+      onWorkspaceReady: () => {},
+      breakpoints: new Set(["blk-1"]),
+      isBreakable: () => true,
+    };
+
+    const inDebug = mountComponent(<BlocklyWorkspace {...shared} debugMode />);
+    expect(blk.classes.has("bp-block")).toBe(true);
+    inDebug.unmount();
+
+    // Leaving debug keeps the breakpoint SET — it just stops advertising it.
+    mounted = mountComponent(<BlocklyWorkspace {...shared} debugMode={false} />);
+    expect(blk.classes.has("bp-block")).toBe(false);
+    expect(blk.classes.has("bp-available")).toBe(false);
   });
 
   test("double-register (e.g. StrictMode-style double mount) does not throw", () => {
