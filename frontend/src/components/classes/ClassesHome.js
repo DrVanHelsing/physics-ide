@@ -76,7 +76,7 @@ function ClassWall({ me }) {
               onChange={(e) => setSubjectLabel(e.target.value)}
             />
           </label>
-          {error ? <div className="auth-error">{error}</div> : null}
+          {error ? <div className="alert alert--danger">{error}</div> : null}
           <button
             className="btn btn--primary btn--lg btn--block"
             type="submit"
@@ -98,7 +98,7 @@ function ClassWall({ me }) {
           </Link>
         ))}
         {active.length === 0 && !classesQuery.isLoading ? (
-          <p className="auth-text auth-text--dim">
+          <p className="empty empty--full">
             {canCreate
               ? "No classes yet — create your first one."
               : "No classes yet — join one with a code from your teacher."}

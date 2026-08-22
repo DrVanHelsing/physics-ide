@@ -74,8 +74,10 @@
 }
 .account-chip-head {
   font-size: var(--label-fs);
+  font-weight: var(--label-weight);
+  text-transform: var(--label-transform);
   letter-spacing: var(--label-tracking);
-  color: var(--text-muted);
+  color: var(--label-color);
 }
 .account-chip-name { color: var(--text-bright); font-size: var(--fs-md); }
 .account-chip-badge {
@@ -136,9 +138,12 @@
 .admin-table { width: 100%; border-collapse: collapse; font-size: var(--fs-md); }
 .admin-table th {
   text-align: left;
-  color: var(--text-muted);
-  font-weight: var(--fw-medium);
   padding: var(--space-2);
+  font-size: var(--label-fs);
+  font-weight: var(--label-weight);
+  text-transform: var(--label-transform);
+  letter-spacing: var(--label-tracking);
+  color: var(--label-color);
   border-bottom: 1px solid var(--border);
 }
 .admin-table td { padding: var(--space-2); border-bottom: 1px solid var(--border); }
@@ -152,8 +157,19 @@
   padding: var(--space-3);
   white-space: pre-wrap;
   font-size: var(--fs-sm);
+  font-family: var(--mono);
 }
-.admin-health { list-style: none; padding: 0; font-size: var(--fs-lg); display: flex; flex-direction: column; gap: var(--space-2); }
+.admin-health { list-style: none; margin: 0; padding: 0; font-size: var(--fs-lg); display: flex; flex-direction: column; gap: var(--space-2); }
+
+/* Section heading inside a portal body. Not .auth-title — that is the
+   auth page's H1 and borrowing it flattened the heading hierarchy on
+   every class screen. */
+.section-title {
+  margin: var(--space-5) 0 var(--space-2);
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-semibold);
+  color: var(--text-bright);
+}
 
 /* ---- Classes (Plan 3) ---- */
 .classes-page { min-height: 100vh; background: var(--bg-base); color: var(--text); }
@@ -192,13 +208,39 @@
   border-radius: var(--radius);
   padding: var(--space-3) var(--space-4);
 }
-.join-qr { background: var(--on-accent); padding: var(--space-2); border-radius: var(--radius); }
-/* ---- Sync chip (Plan 4) ---- */
-.sync-chip { font-size: var(--fs-xs); color: var(--text-dim); margin-right: var(--space-4); }
-.sync-chip--synced { color: var(--green); }
-.sync-chip--syncing { color: var(--accent-bright); }
-.sync-chip--offline { color: var(--yellow); }
-.sync-chip--error { color: var(--red); }
+.join-qr {
+  background: var(--on-accent);
+  padding: var(--space-2);
+  border-radius: var(--radius);
+  border: 1px solid var(--card-border);
+}
+/* ---- Sync chip (Plan 4) ----
+   Adopts the .tb-chip shape (chrome.css): a small pill, tinted per state
+   the way .badge and .alert are tinted — --sync-color is the one knob. */
+.sync-chip {
+  --sync-color: var(--text-dim);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  height: var(--control-h-sm);
+  padding: 0 var(--space-2);
+  margin-right: var(--space-4);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  color: var(--sync-color);
+  background: color-mix(in srgb, var(--sync-color) 15%, transparent);
+  border-radius: var(--radius-pill);
+  white-space: nowrap;
+}
+.sync-chip svg { flex-shrink: 0; }
+/* idle is the initial state, before the sync engine has reported in — give
+   it its own rule so the fallthrough to --text-dim is intentional, not an
+   accident of no rule existing. */
+.sync-chip--idle { --sync-color: var(--text-dim); }
+.sync-chip--synced { --sync-color: var(--green); }
+.sync-chip--syncing { --sync-color: var(--accent-bright); }
+.sync-chip--offline { --sync-color: var(--yellow); }
+.sync-chip--error { --sync-color: var(--red); }
 
 /* ---- Guest import prompt (Plan 4) ---- */
 .guest-import {

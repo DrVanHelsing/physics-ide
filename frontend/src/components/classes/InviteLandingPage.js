@@ -64,7 +64,11 @@ export default function InviteLandingPage() {
     <AuthLayout title="You're invited" footer={<Link to="/classes">My classes</Link>}>
       {state === "working" ? <p className="auth-text">One moment…</p> : null}
       {state === "done" ? <p className="auth-text">{message}</p> : null}
-      {state === "failed" ? <div className="auth-error">{message}</div> : null}
+      {state === "failed" ? (
+        <div className="alert alert--danger" role="alert">
+          {message}
+        </div>
+      ) : null}
     </AuthLayout>
   );
 }

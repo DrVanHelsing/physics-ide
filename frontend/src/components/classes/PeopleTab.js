@@ -68,7 +68,7 @@ function PeopleBody({ classData }) {
       {isTeacher ? <JoinPanel classData={classData} onChanged={refresh} /> : null}
       {isTeacher && waiting.length > 0 ? (
         <div>
-          <h2 className="auth-title">Waiting to join</h2>
+          <h2 className="section-title">Waiting to join</h2>
           <table className="admin-table">
             <tbody>
               {waiting.map((m) => (
@@ -86,7 +86,7 @@ function PeopleBody({ classData }) {
                       Approve
                     </button>
                     <button
-                      className="btn"
+                      className="btn btn--danger"
                       type="button"
                       onClick={() =>
                         act.mutate({ path: `/api/classes/${id}/members/${m.userId}/deny` })
@@ -101,8 +101,8 @@ function PeopleBody({ classData }) {
           </table>
         </div>
       ) : null}
-      <h2 className="auth-title">Roster</h2>
-      {act.error ? <div className="auth-error">{act.error.message}</div> : null}
+      <h2 className="section-title">Roster</h2>
+      {act.error ? <div className="alert alert--danger">{act.error.message}</div> : null}
       <table className="admin-table">
         <thead>
           <tr>
@@ -125,7 +125,7 @@ function PeopleBody({ classData }) {
                 {isTeacher ? (
                   <td className="admin-actions">
                     <button
-                      className="btn"
+                      className="btn btn--danger"
                       type="button"
                       onClick={() =>
                         act.mutate({
@@ -144,7 +144,7 @@ function PeopleBody({ classData }) {
       </table>
       {isTeacher ? (
         <>
-          <h2 className="auth-title">Invite by email</h2>
+          <h2 className="section-title">Invite by email</h2>
           <form className="auth-form classes-newform" onSubmit={sendInvites}>
             <label className="auth-label">
               Email addresses (comma, space, or line separated)
@@ -174,7 +174,7 @@ function PeopleBody({ classData }) {
           </form>
           {(invitesQuery.data?.invites ?? []).length > 0 ? (
             <>
-              <h2 className="auth-title">Pending invites</h2>
+              <h2 className="section-title">Pending invites</h2>
               <table className="admin-table">
                 <tbody>
                   {invitesQuery.data.invites.map((i) => (
@@ -190,7 +190,7 @@ function PeopleBody({ classData }) {
                           Resend
                         </button>
                         <button
-                          className="btn"
+                          className="btn btn--danger"
                           type="button"
                           onClick={() => act.mutate({ path: `/api/invites/${i.id}/revoke` })}
                         >
@@ -227,7 +227,7 @@ function JoinPanel({ classData, onChanged }) {
 
   return (
     <div>
-      <h2 className="auth-title">Joining</h2>
+      <h2 className="section-title">Joining</h2>
       <div className="join-panel">
         <div>
           <div className="join-code-big">{classData.joinCode}</div>
