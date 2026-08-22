@@ -53,6 +53,13 @@ describe("instrumentPythonForDebug", () => {
     expect(entries.filter((e) => e.scope === "watch").map((e) => e.displayName)).toEqual(["m"]);
   });
 
+  test("a semicolon cannot smuggle extra statements onto a watch expression's line", () => {
+    const { entries } = instrumentPythonForDebug(SRC, {
+      watch: ["1); __import__('os').system('x'); str(1", "m"],
+    });
+    expect(entries.filter((e) => e.scope === "watch").map((e) => e.displayName)).toEqual(["m"]);
+  });
+
   test("a source with no while loop still yields setup entries", () => {
     const { entries } = instrumentPythonForDebug("a = 1\nb = 2\n");
     expect(entries.map((e) => [e.displayName, e.scope])).toEqual([
