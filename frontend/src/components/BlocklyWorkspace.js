@@ -413,25 +413,38 @@ function BlocklyWorkspace({
     /* Right-click → breakpoint. A click-anywhere toggle would fight dragging
        in the editable workspace, and the old one accepted breakpoints on
        blocks that can never pause. This entry is DISABLED with a reason on
-       those, which is the whole point: the debugger stops lying. */
+       those, which is the whole point: the debugger stops lying.
+
+       ContextMenuRegistry is a MODULE-LEVEL SINGLETON, but this component
+       remounts — IDELayout keys BlocklyWorkspace with
+       `ws-${workspaceReloadKey}`, bumped by the "Analyse Run" flow — and each
+       mount's preconditionFn/displayText/callback close over THIS mount's
+       debugApiRef. Registering once-ever (the old `if (!getItem(...))`
+       guard) would leave every later mount's registration a no-op, freezing
+       the menu on the first mount's now-stale ref for the rest of the
+       session. So: clear any stale registration before registering fresh
+       (also guards StrictMode's mount→unmount→mount double-invoke), and
+       unregister again in this effect's cleanup so the NEXT mount starts
+       from a clean slate too. */
     const BP_ITEM_ID = "physide_toggle_breakpoint";
-    if (!Blockly.ContextMenuRegistry.registry.getItem(BP_ITEM_ID)) {
-      Blockly.ContextMenuRegistry.registry.register({
-        id: BP_ITEM_ID,
-        scopeType: Blockly.ContextMenuRegistry.ScopeType.BLOCK,
-        weight: 20,
-        preconditionFn: (scope) =>
-          debugApiRef.current.isBreakable(scope.block.id) ? "enabled" : "disabled",
-        displayText: (scope) => {
-          const api = debugApiRef.current;
-          if (!api.isBreakable(scope.block.id)) {
-            return "Can't pause here — this block doesn't report a value";
-          }
-          return api.breakpoints.has(scope.block.id) ? "Remove breakpoint" : "Set breakpoint";
-        },
-        callback: (scope) => debugApiRef.current.toggleBreakpoint(scope.block.id),
-      });
+    if (Blockly.ContextMenuRegistry.registry.getItem(BP_ITEM_ID)) {
+      Blockly.ContextMenuRegistry.registry.unregister(BP_ITEM_ID);
     }
+    Blockly.ContextMenuRegistry.registry.register({
+      id: BP_ITEM_ID,
+      scopeType: Blockly.ContextMenuRegistry.ScopeType.BLOCK,
+      weight: 20,
+      preconditionFn: (scope) =>
+        debugApiRef.current.isBreakable(scope.block.id) ? "enabled" : "disabled",
+      displayText: (scope) => {
+        const api = debugApiRef.current;
+        if (!api.isBreakable(scope.block.id)) {
+          return "Can't pause here — this block doesn't report a value";
+        }
+        return api.breakpoints.has(scope.block.id) ? "Remove breakpoint" : "Set breakpoint";
+      },
+      callback: (scope) => debugApiRef.current.toggleBreakpoint(scope.block.id),
+    });
 
     /* Alt+click — the fast path for students who find right-click slow. */
     const altClickHandler = (e) => {
@@ -561,6 +574,11 @@ function BlocklyWorkspace({
 
     return () => {
       hostRef.current?.removeEventListener("click", altClickHandler);
+      // So the NEXT mount (a remount, e.g. Analyse Run's key bump) registers
+      // fresh instead of finding this instance's stale entry still present.
+      if (Blockly.ContextMenuRegistry.registry.getItem(BP_ITEM_ID)) {
+        Blockly.ContextMenuRegistry.registry.unregister(BP_ITEM_ID);
+      }
       resizeObserver.disconnect();
       workspace.removeChangeListener(listener);
       workspace.removeChangeListener(constListener);
