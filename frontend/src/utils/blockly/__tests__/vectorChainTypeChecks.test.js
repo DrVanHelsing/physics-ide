@@ -63,10 +63,14 @@ function sha256(text) {
 // blocklyGenerator.js (`git stash` the typing edit, run, record, `git stash
 // pop`, run again) and confirming an EXACT match against the post-Task-9
 // (post-widening) hashes below — see task-9-report.md for the transcript.
+//
+// Re-captured after commit 7b41d04 (scene.background strip from three templates):
+// projectile, spring, and orbits templates no longer emit scene.background assignments,
+// so their hashes changed legitimately during cross-lane merge reconciliation.
 const EXPECTED_HASHES = {
-  blocks_projectile: "38b66c9b0f1771c3c6c63e837975bc29ba5fbcefb1f4bd48e71a2fbc382a19f6",
-  blocks_spring:      "f6b61de47b92a9b84c25ca12ccb228b8f2d660987c041d004e8eaa32ef1f4e27",
-  blocks_orbits:      "039ace02e0d6dc11127320798e95f12155204a06f1e93dbafab06b73962ad2bf",
+  blocks_projectile: "0b8e144f42eddd6519c411ecc9403ef96b39e10744f41051ba55ee4274824093",
+  blocks_spring:      "8c322f2de61ceb68d9174c7ef85d66521af541441dfea9fa685c9ec7e818743b",
+  blocks_orbits:      "456590d618a349e051b9ce3e6b6c653343492057f00c0ad8dc3386fb5ece16b3",
   blocks_pendulum:    "c81e6a7e38688631c6ade1d1049d77826a9751ad21d7815e35defea6578447f1",
 };
 
