@@ -93,7 +93,11 @@ export function isManifest(v) {
   if (!GOALS.includes(v.goal)) return false;
   if (!PROJECT_TYPES.includes(v.projectType)) return false;
   if (!EDITOR_MODES.includes(v.preferredEditor)) return false;
-  if (typeof v.beginnerEnabled !== "boolean") return false;
+  /* No beginner-mode field. The beginner/advanced TOGGLE was removed long
+     before this (toolbox.js header, docs/product-contract.md:17); its
+     metadata was deleted in the Tranche-3 sweep. Walkthrough Mode
+     (docs/product-contract.md:90) is a guided flow over BeginnerGuide.js,
+     not a visibility filter — it will not want this field back. */
   if (!isFiniteNumber(v.createdAt)) return false;
   if (!isFiniteNumber(v.updatedAt)) return false;
   if (!v.workspace || typeof v.workspace !== "object") return false;
@@ -117,7 +121,6 @@ export function explainManifest(v) {
   if (!GOALS.includes(v.goal)) return `invalid goal '${v.goal}'`;
   if (!PROJECT_TYPES.includes(v.projectType)) return `invalid projectType '${v.projectType}'`;
   if (!EDITOR_MODES.includes(v.preferredEditor)) return `invalid preferredEditor '${v.preferredEditor}'`;
-  if (typeof v.beginnerEnabled !== "boolean") return "beginnerEnabled must be boolean";
   if (!isFiniteNumber(v.createdAt)) return "createdAt must be a finite number";
   if (!isFiniteNumber(v.updatedAt)) return "updatedAt must be a finite number";
   if (!v.workspace || typeof v.workspace !== "object") return "workspace missing";
