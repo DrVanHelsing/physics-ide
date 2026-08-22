@@ -366,11 +366,12 @@ async function executeCompiled(frameWindow, compiledCode, traceEntries, initialB
         if (!entry) return match;
         const dn = entry.displayName.replace(/'/g, "\\'");
         const bid = (entry.blockId || '').replace(/'/g, "\\'");
+        const sc = (entry.scope || 'loop').replace(/'/g, "\\'");
         return (
           prefix + value + semi +
           "try{parent.postMessage({type:'__phtr',n:'" + dn +
           "',v:String(_phtr_" + safeName +
-          "),b:'" + bid + "',i:(window.__physide_iter||0)},'*');" +
+          "),b:'" + bid + "',s:'" + sc + "',i:(window.__physide_iter||0)},'*');" +
           "if(window.__physide_breakpoints&&window.__physide_breakpoints.has('" + bid + "')){" +
           "window.__physide_paused=true;window.__physide_steps=0;}" +
           "if(window.__physide_paused){" +
@@ -486,14 +487,24 @@ export async function runPython(codeString, hostId = "glowscript-host", opts = {
     const source = buildSource(codeString);
 
     /* For code-only projects (no block trace declarations), auto-instrument
-       the source so that pause/step/trace work exactly like block projects. */
+       the source so that pause/step/trace work exactly like block projects.
+       Block projects normally skip the instrumentor entirely (their tr()
+       checkpoints already cover the loop body) — but a watch expression has
+       no block-generated checkpoint of its own, so a project WITH block
+       trace entries still needs a pass through the instrumentor when watches
+       are present, purely to pick up the watch probes. */
     let compilableSource = source;
     let traceEntries = traceRegistry;
-    if (traceRegistry.length === 0) {
-      const result = instrumentPythonForDebug(source);
+    const watch = opts.watch || [];
+    if (traceRegistry.length === 0 || watch.length > 0) {
+      const result = instrumentPythonForDebug(source, { watch });
       compilableSource = result.source;
       codeTraceEntries = result.entries;
-      traceEntries = codeTraceEntries;
+      /* Block projects already have tr() checkpoints in the generated source;
+         keep them and add the instrumentor's watch entries on top. */
+      traceEntries = traceRegistry.length === 0
+        ? codeTraceEntries
+        : [...traceRegistry, ...codeTraceEntries.filter((e) => e.scope === "watch")];
       if (DEBUG_RUNNER && codeTraceEntries.length > 0) {
         console.log(
           "[PhysicsIDE] Code instrumentation: " + codeTraceEntries.length + " trace vars injected"
