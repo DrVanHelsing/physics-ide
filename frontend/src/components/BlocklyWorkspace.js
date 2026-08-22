@@ -7,6 +7,7 @@ import {
   customConstantsRegistry,
 } from "../utils/blockly/blocklyGenerator";
 import { SearchIcon, XIcon, MaximizeIcon } from "./Icons";
+import WorkspaceTrash from "./WorkspaceTrash";
 import * as dialogService from "../utils/export/dialogService";
 import { buildToolboxXml } from "../utils/blockly/toolbox";
 import { getBlocklyTheme, gridColourFor } from "../utils/blockly/blocklyTheme";
@@ -358,7 +359,7 @@ function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, onB
         toolbox: buildToolboxXml(goalRef.current),
         theme,
         comments: true,
-        trashcan: true,
+        trashcan: false,
         scrollbars: true,
         sounds: false,
         grid: { spacing: 25, length: 3, colour: gridColourFor(isDarkRef.current), snap: true },
@@ -530,6 +531,7 @@ function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, onB
     <div className="blockly-workspace-wrapper">
       <BlockSearch workspaceRef={workspaceRef} />
       <div ref={hostRef} className="blockly-host" />
+      <WorkspaceTrash workspaceRef={workspaceRef} />
     </div>
   );
 }
