@@ -7,9 +7,24 @@
 
 import { traceRegistry } from '../blockly/traceRegistry';
 import { instrumentPythonForDebug } from './instrumentor';
+import { DEBUG_RUNNER } from '../../constants';
 
 let activeRunToken = 0;
 let activeFrameWindow = null;
+
+/** Set by useSimulation so a rejection AFTER runPython resolves can still
+ *  reach the status bar. Before Tranche 3 these only console.error'd, so a
+ *  dead simulation went on claiming it was running. */
+let runtimeErrorSink = null;
+
+export function setRuntimeErrorSink(fn) {
+  runtimeErrorSink = typeof fn === "function" ? fn : null;
+}
+
+function reportAsyncRuntimeError(err) {
+  console.error("[PhysicsIDE] runtime error after start:", err);
+  if (runtimeErrorSink) runtimeErrorSink(err);
+}
 
 /* ── Code-project trace entries (populated by instrumentPythonForDebug) ── */
 let codeTraceEntries = [];
@@ -195,6 +210,10 @@ function createRuntimeFrame(host) {
 </html>`);
   frameDoc.close();
 
+  const frameWindow = iframe.contentWindow;
+  frameWindow.addEventListener("error", (e) => reportAsyncRuntimeError(e.error || e.message));
+  frameWindow.addEventListener("unhandledrejection", (e) => reportAsyncRuntimeError(e.reason));
+
   return iframe;
 }
 
@@ -220,11 +239,12 @@ function buildSource(codeString) {
     throw new Error("Compile error: VPython source is empty.");
   }
 
-  /* ── DEBUG: log the Python source so we can spot the ';' problem ── */
-  console.log(
-    "[PhysicsIDE] Python source (" + source.split("\n").length + " lines):\n" +
-    source.slice(0, 4000) + (source.length > 4000 ? "\n…(truncated)" : "")
-  );
+  if (DEBUG_RUNNER) {
+    console.log(
+      "[PhysicsIDE] Python source (" + source.split("\n").length + " lines):\n" +
+      source.slice(0, 4000) + (source.length > 4000 ? "\n…(truncated)" : "")
+    );
+  }
 
   return source;
 }
@@ -363,12 +383,13 @@ async function executeCompiled(frameWindow, compiledCode, traceEntries) {
   try {
     frameWindow.eval(traceInjected);
   } catch (runtimeErr) {
-    /* ── DEBUG: show the compiled JS around the problem ── */
-    console.error(
-      "[PhysicsIDE] eval() failed:", runtimeErr.message,
-      "\nCompiled JS preview (first 1000 chars):\n",
-      traceInjected.slice(0, 1000)
-    );
+    console.error("[PhysicsIDE] eval() failed:", runtimeErr.message);
+    if (DEBUG_RUNNER) {
+      console.error(
+        "\nCompiled JS preview (first 1000 chars):\n",
+        traceInjected.slice(0, 1000)
+      );
+    }
     throw new Error("Runtime error: " + (runtimeErr.message || runtimeErr));
   }
 
@@ -376,9 +397,7 @@ async function executeCompiled(frameWindow, compiledCode, traceEntries) {
     try {
       const maybePromise = frameWindow.__main__();
       if (maybePromise && typeof maybePromise.then === "function") {
-        maybePromise.catch((runtimeErr) => {
-          console.error("GlowScript runtime async error:", runtimeErr);
-        });
+        maybePromise.catch(reportAsyncRuntimeError);
       }
     } catch (runtimeErr) {
       throw new Error("Runtime error: " + (runtimeErr.message || runtimeErr));
@@ -399,9 +418,7 @@ async function executeCompiled(frameWindow, compiledCode, traceEntries) {
     for (const entrypoint of fallbackEntrypoints) {
       const result = entrypoint();
       if (result && typeof result.then === "function") {
-        result.catch((runtimeErr) => {
-          console.error("GlowScript fallback async error:", runtimeErr);
-        });
+        result.catch(reportAsyncRuntimeError);
       }
     }
   }
@@ -453,7 +470,7 @@ export async function runPython(codeString, hostId = "glowscript-host") {
       compilableSource = result.source;
       codeTraceEntries = result.entries;
       traceEntries = codeTraceEntries;
-      if (codeTraceEntries.length > 0) {
+      if (DEBUG_RUNNER && codeTraceEntries.length > 0) {
         console.log(
           "[PhysicsIDE] Code instrumentation: " + codeTraceEntries.length + " trace vars injected"
         );
