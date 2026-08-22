@@ -240,15 +240,6 @@
   margin-bottom: var(--space-6, 24px);
 }
 .start-card--template { align-items: flex-start; }
-.start-empty {
-  margin: 0 0 var(--space-6, 24px);
-  padding: var(--space-4, 16px);
-  font-size: var(--fs-md, 13px);
-  color: var(--text-dim);
-  background: var(--card-bg);
-  border: 1px dashed var(--card-border);
-  border-radius: var(--radius, 6px);
-}
 
 /* ═══════════════════════════════════════════════════════════
    HELP PAGE (VS Code Documentation Panel Style)
