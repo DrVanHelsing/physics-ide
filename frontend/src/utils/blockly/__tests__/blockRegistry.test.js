@@ -65,7 +65,6 @@ describe("blockRegistry guarantees", () => {
       expect(typeof e.category).toBe("string");
       expect(["shared", "physics", "datascience", "hybrid"]).toContain(e.domain);
       expect(typeof e.conceptLabel).toBe("string");
-      expect(typeof e.beginnerVisible).toBe("boolean");
       expect(Array.isArray(e.keywords)).toBe(true);
     }
   });
@@ -106,17 +105,50 @@ describe("blockRegistry guarantees", () => {
     expect(result.every((e) => e.domain === "shared" || e.domain === "physics")).toBe(true);
   });
 
-  test("getBlocksForGoal with beginnerEnabled drops non-beginner entries", () => {
-    const beginner = getBlocksForGoal("physics", { beginnerEnabled: true });
-    const all = getBlocksForGoal("physics");
-    expect(beginner.length).toBeLessThan(all.length);
-    expect(beginner.every((e) => e.beginnerVisible === true)).toBe(true);
-  });
-
   test("getBlocksForGoal('hybrid') is the union of shared + physics + datascience + hybrid", () => {
     const hybrid = getBlocksForGoal("hybrid");
     const allowed = new Set(["shared", "physics", "datascience", "hybrid"]);
     expect(hybrid.every((e) => allowed.has(e.domain))).toBe(true);
+  });
+
+  test("the registry is 120 entries across 19 categories", () => {
+    const entries = getAllBlockEntries();
+    expect(entries).toHaveLength(120);
+    const byCat = {};
+    for (const e of entries) byCat[e.category] = (byCat[e.category] || 0) + 1;
+    expect(byCat).toEqual({
+      "Values": 10,
+      "Objects": 15,
+      "Motion": 5,
+      "State": 5,
+      "Control": 10,
+      "Logic": 4,
+      "Math": 3,
+      "3D Math": 8,
+      "Raw Python": 2,
+      "Load Data": 4,
+      "Explore": 10,
+      "Statistics": 13,
+      "Transforming Data": 2,
+      "Uncertainty": 3,
+      "Analyzing Relationships": 3,
+      "Filter & Sort": 9,
+      "Group & Compare": 2,
+      "Charts": 6,
+      "Communicate": 6,
+    });
+  });
+
+  test("the five phantom stock entries are gone", () => {
+    for (const id of ["logic_compare", "logic_operation", "logic_negate", "math_single", "math_trig"]) {
+      expect(getBlockEntry(id), id).toBeNull();
+    }
+  });
+
+  test("no entry carries beginner-mode metadata", () => {
+    for (const e of getAllBlockEntries()) {
+      expect(e).not.toHaveProperty("beginnerVisible");
+    }
   });
 });
 

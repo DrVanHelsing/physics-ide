@@ -317,7 +317,6 @@ export default function IDELayout() {
         workspaceXml: manifest.workspace?.xml || "",
         python: manifest.source?.python || "",
         preferredEditor: manifest.preferredEditor,
-        beginnerEnabled: manifest.beginnerEnabled,
         projectType: manifest.projectType,
       });
     } catch (err) {

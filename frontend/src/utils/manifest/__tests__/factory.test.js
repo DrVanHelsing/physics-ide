@@ -9,7 +9,6 @@ describe("createManifest", () => {
     expect(m.goal).toBe("physics");
     expect(m.preferredEditor).toBe("blocks");
     expect(m.projectType).toBe("custom");
-    expect(m.beginnerEnabled).toBe(false);
     expect(m.datasets).toEqual([]);
     expect(m.runs).toEqual([]);
     expect(m.chartSpecs).toEqual([]);

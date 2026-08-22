@@ -145,7 +145,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "values_blocks",
+      style: "state_blocks",
       tooltip: "Set a colour variable. Click the swatch to choose any colour.",
     },
     {
@@ -762,7 +762,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       args0: [{ type: "field_input", name: "CODE", text: "# custom" }],
       previousStatement: null,
       nextStatement: null,
-      style: "advanced_blocks",
+      style: "raw_python_blocks",
       tooltip: "Insert any Python statement.",
     },
     {
@@ -770,7 +770,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       message0: "expr: %1",
       args0: [{ type: "field_input", name: "EXPR", text: "0" }],
       output: null,
-      style: "advanced_blocks",
+      style: "raw_python_blocks",
       tooltip: "Python expression that outputs a value. Use this only when no structured block covers your needs.",
     },
 
@@ -879,7 +879,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       ],
       message1: "%1",
       args1: [{ type: "input_statement", name: "BODY" }],
-      style: "data_science_blocks",
+      style: "load_data_blocks",
       tooltip:
         "Marks the start of a data analysis. Put your load / explore / chart blocks inside. Blocks left outside are greyed out and ignored.",
       hat: "cap",
@@ -1057,7 +1057,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "load_data_blocks",
       tooltip: "Load a built-in dataset (planets, penguins, weather, pendulum, spring, free fall) into a variable.",
     },
     {
@@ -1070,7 +1070,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "load_data_blocks",
       tooltip: "Load a promoted simulation run by its label (copy the label from the Saved Traces panel).",
     },
     {
@@ -1082,7 +1082,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "load_data_blocks",
       tooltip: "Open a CSV file from your computer and load it as a dataset.",
     },
     {
@@ -1094,7 +1094,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "explore_blocks",
       tooltip: "Display the dataset as a scrollable table in the Data panel.",
     },
     {
@@ -1108,7 +1108,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "statistics_blocks",
       tooltip: "Calculate the mean of a numeric column and store it in a variable.",
     },
     {
@@ -1122,7 +1122,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "statistics_blocks",
       tooltip: "Calculate the median (middle value) of a numeric column.",
     },
     {
@@ -1136,7 +1136,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "statistics_blocks",
       tooltip: "Find the minimum value in a numeric column.",
     },
     {
@@ -1150,7 +1150,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "statistics_blocks",
       tooltip: "Find the maximum value in a numeric column.",
     },
     {
@@ -1164,7 +1164,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "statistics_blocks",
       tooltip: "Calculate the sum (total) of a numeric column.",
     },
     {
@@ -1178,7 +1178,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "statistics_blocks",
       tooltip: "Calculate how spread out the values are in a column (standard deviation).",
     },
     {
@@ -1192,7 +1192,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "explore_blocks",
       tooltip: "Display the first N rows of a dataset as a table.",
     },
     {
@@ -1205,7 +1205,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "explore_blocks",
       tooltip: "Count the total number of rows in a dataset.",
     },
     {
@@ -1219,7 +1219,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "explore_blocks",
       tooltip: "Count the number of distinct values in a column.",
     },
     /* ── Category 2: Exploring Data (remaining) ── */
@@ -1234,7 +1234,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "explore_blocks",
       tooltip: "Display the last N rows of a dataset as a table.",
     },
     {
@@ -1247,7 +1247,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "explore_blocks",
       tooltip: "Count the number of columns (variables) in a dataset.",
     },
     {
@@ -1260,7 +1260,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "explore_blocks",
       tooltip: "Get the names of all columns in a dataset as a list.",
     },
     {
@@ -1273,7 +1273,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "explore_blocks",
       tooltip: "Display all values in a single column.",
     },
     /* ── Category 3: Describing Data (remaining) ── */
@@ -1288,7 +1288,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "statistics_blocks",
       tooltip: "Find the most frequently occurring value in a column.",
     },
     {
@@ -1302,7 +1302,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "statistics_blocks",
       tooltip: "Calculate the range (max minus min) of a numeric column.",
     },
     {
@@ -1316,7 +1316,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "statistics_blocks",
       tooltip: "Count the number of non-missing values in a column.",
     },
     /* ── Category 4: Asking Questions (Filter / Sort / Group) ── */
@@ -1332,7 +1332,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "filter_sort_blocks",
       tooltip: "Keep only rows where a column equals a specific value.",
     },
     {
@@ -1347,7 +1347,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "filter_sort_blocks",
       tooltip: "Keep only rows where a column is greater than a value.",
     },
     {
@@ -1362,7 +1362,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "filter_sort_blocks",
       tooltip: "Keep only rows where a column is less than a value.",
     },
     {
@@ -1376,7 +1376,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "filter_sort_blocks",
       tooltip: "Sort the dataset by a column from smallest to largest.",
     },
     {
@@ -1390,7 +1390,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "filter_sort_blocks",
       tooltip: "Sort the dataset by a column from largest to smallest.",
     },
     {
@@ -1404,7 +1404,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "filter_sort_blocks",
       tooltip: "Remove rows that have a missing value in a specific column.",
     },
     {
@@ -1418,7 +1418,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "group_compare_blocks",
       tooltip: "Count how many rows belong to each group in a categorical column.",
     },
     {
@@ -1433,7 +1433,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "group_compare_blocks",
       tooltip: "Calculate the mean of a numeric column for each group in a categorical column.",
     },
     /* ── Category 5: Seeing Data (Charts) ── */
@@ -1449,7 +1449,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "charts_blocks",
       tooltip: "Draw a bar chart. Best for comparing values across categories.",
     },
     {
@@ -1464,7 +1464,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "charts_blocks",
       tooltip: "Draw a line chart. Best for showing change over an ordered variable (e.g. time).",
     },
     {
@@ -1479,7 +1479,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "charts_blocks",
       tooltip: "Draw a scatter plot. Best for exploring the relationship between two numeric columns.",
     },
     {
@@ -1493,7 +1493,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "charts_blocks",
       tooltip: "Draw a histogram showing the distribution of values in a numeric column.",
     },
     {
@@ -1508,7 +1508,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "charts_blocks",
       tooltip: "Draw a box plot showing spread and median. Leave group empty for a single box.",
     },
     /* ── Category 6: Communicating Findings ── */
@@ -1521,7 +1521,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "communicate_blocks",
       tooltip: "Add a plain-text annotation to the output.",
     },
     {
@@ -1534,7 +1534,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "communicate_blocks",
       tooltip: "Display a computed value with a custom label.",
     },
     {
@@ -1549,7 +1549,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "communicate_blocks",
       tooltip: "Display two computed values side-by-side for comparison.",
     },
     {
@@ -1561,7 +1561,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "communicate_blocks",
       tooltip: "State a conclusion based on your findings.",
     },
     {
@@ -1573,7 +1573,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "communicate_blocks",
       tooltip: "Download the dataset as a CSV file.",
     },
     {
@@ -1583,7 +1583,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "communicate_blocks",
       tooltip: "Reveal the Python code generated by the blocks above.",
     },
     /* ── D.5: Missing spec blocks ── */
@@ -1598,7 +1598,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "filter_sort_blocks",
       tooltip: "Find rows where a column has missing (empty) values.",
     },
     {
@@ -1613,7 +1613,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "explore_blocks",
       tooltip: "Read one value from a specific row and column.",
     },
     {
@@ -1626,7 +1626,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "statistics_blocks",
       tooltip: "Show mean, median, min, max, range, sum and spread for a column.",
     },
     {
@@ -1640,7 +1640,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "statistics_blocks",
       tooltip: "Compare all descriptive statistics for two columns side by side.",
     },
     {
@@ -1656,7 +1656,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "charts_blocks",
       tooltip: "Save the chart as a PNG image file.",
     },
     /* ── Phase E: Compound filters + identify-type ── */
@@ -1674,7 +1674,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "filter_sort_blocks",
       tooltip: "Filter rows where both conditions are true (AND logic).",
     },
     {
@@ -1691,7 +1691,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "filter_sort_blocks",
       tooltip: "Filter rows where at least one condition is true (OR logic).",
     },
     {
@@ -1705,7 +1705,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "explore_blocks",
       tooltip: "Find out the data type of a column (number, text, boolean).",
     },
 
@@ -1849,7 +1849,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "statistics_blocks",
       tooltip: "Calculate the p-th percentile of a column using linear interpolation.",
     },
     {
@@ -1863,7 +1863,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "statistics_blocks",
       tooltip: "Interquartile range: Q3 − Q1 (75th percentile minus 25th percentile).",
     },
   ]);
