@@ -223,3 +223,180 @@
   letter-spacing: var(--label-tracking);
 }
 
+/* ═══════════════════════════════════════════════════════════
+   PRIMITIVES — .input
+   Same shape as .btn so a field and a button sitting side by
+   side line up. No focus rule here — tokens.css's zero-
+   specificity focus-visible ring is the only one in the
+   product (D8), and .auth-input's own focus override is the
+   cautionary tale of what a 0-1-1 rule does to it product-wide.
+   ═══════════════════════════════════════════════════════════ */
+.input,
+.auth-input {
+  min-height: var(--control-h);
+  padding: var(--space-2) var(--space-3);
+  font-family: var(--font);
+  font-size: var(--fs-lg);
+  color: var(--text-bright);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.input:disabled,
+.auth-input:disabled { opacity: 0.5; cursor: not-allowed; }
+/* A code entered by a human off a projector reads as the code it is. */
+.input--code {
+  font-family: var(--mono);
+  letter-spacing: var(--tracking-code);
+  text-transform: uppercase;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PRIMITIVES — .alert
+   Generalises .run-error-banner (chrome.css) over the four
+   semantic colours. --alert-color is the one knob.
+   ═══════════════════════════════════════════════════════════ */
+.alert {
+  --alert-color: var(--accent);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--fs-md);
+  color: var(--alert-color);
+  background: color-mix(in srgb, var(--alert-color) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--alert-color) 35%, transparent);
+  border-radius: var(--radius-sm);
+}
+.alert svg { flex-shrink: 0; }
+.alert--info    { --alert-color: var(--accent); }
+.alert--success { --alert-color: var(--success); }
+.alert--warning { --alert-color: var(--warning); }
+.alert--danger,
+.auth-error     { --alert-color: var(--danger); }
+
+/* ═══════════════════════════════════════════════════════════
+   PRIMITIVES — .badge
+   The .tb-chip shape (chrome.css), tinted by --badge-color.
+   ═══════════════════════════════════════════════════════════ */
+.badge,
+.account-chip-badge,
+.class-archived-badge {
+  --badge-color: var(--text-dim);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-left: var(--space-2);
+  padding: 0 var(--space-2);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--label-tracking);
+  line-height: var(--lh-tight);
+  color: var(--badge-color);
+  background: color-mix(in srgb, var(--badge-color) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--badge-color) 35%, transparent);
+  border-radius: var(--radius-pill);
+  vertical-align: middle;
+}
+.badge--accent  { --badge-color: var(--accent-bright); }
+.badge--success { --badge-color: var(--success); }
+.badge--warning,
+.account-chip-badge,
+.class-archived-badge { --badge-color: var(--warning); }
+.badge--danger  { --badge-color: var(--danger); }
+
+/* ═══════════════════════════════════════════════════════════
+   PRIMITIVES — .empty
+   Promoted verbatim out of pages.css, where the IDE's start
+   menu already had exactly the right treatment.
+   ═══════════════════════════════════════════════════════════ */
+.empty,
+.start-empty {
+  margin: 0 0 var(--space-6);
+  padding: var(--space-4);
+  font-size: var(--fs-md);
+  color: var(--text-dim);
+  background: var(--card-bg);
+  border: 1px dashed var(--card-border);
+  border-radius: var(--radius);
+}
+/* An empty state inside a grid is a statement about the grid, not a cell. */
+.empty--full { grid-column: 1 / -1; }
+
+/* ═══════════════════════════════════════════════════════════
+   PRIMITIVES — .tabs / .tab
+   ARIA lives in the markup (D14); this is the treatment only.
+   ═══════════════════════════════════════════════════════════ */
+.tabs,
+.admin-tabs {
+  display: flex;
+  gap: var(--space-1);
+}
+.tab,
+.admin-tab {
+  padding: var(--space-2) var(--space-4);
+  font-family: var(--font);
+  font-size: var(--fs-md);
+  color: var(--text-dim);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: color var(--transition), background var(--transition);
+}
+.tab:hover,
+.admin-tab:hover { background: var(--bg-hover); color: var(--text); }
+.tab--on,
+.tab[aria-selected="true"],
+.tab[aria-current="page"],
+.admin-tab--on {
+  color: var(--text-bright);
+  border-bottom-color: var(--accent);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PRIMITIVES — .range
+   The product had no themed slider: the IDE's zoom slider was
+   deleted in 4f11684 and the welcome playground's control is
+   raw. Both WebKit and Firefox pseudo-elements, because a
+   half-themed slider looks worse than an unthemed one.
+   ═══════════════════════════════════════════════════════════ */
+.range {
+  appearance: none;
+  -webkit-appearance: none;
+  height: var(--control-h-sm);
+  background: transparent;
+  cursor: pointer;
+}
+.range::-webkit-slider-runnable-track {
+  height: var(--space-1);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+}
+.range::-moz-range-track {
+  height: var(--space-1);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+}
+.range::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: var(--space-4);
+  height: var(--space-4);
+  margin-top: calc(-1 * var(--space-2) + var(--space-1));
+  background: var(--accent);
+  border: 1px solid var(--accent-bright);
+  border-radius: var(--radius-pill);
+}
+.range::-moz-range-thumb {
+  width: var(--space-4);
+  height: var(--space-4);
+  background: var(--accent);
+  border: 1px solid var(--accent-bright);
+  border-radius: var(--radius-pill);
+}
+
