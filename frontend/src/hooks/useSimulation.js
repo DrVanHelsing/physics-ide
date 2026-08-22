@@ -65,7 +65,11 @@ export function useSimulation() {
   } = sim;
 
   const { debugMode, breakpointsRef, setBreakableIds } = useDebugContext();
-  const { setTraceData } = useTraceContext();
+  /* `watch` is armed by the trace panel's watch box (TraceContext) and reaches
+     the runtime ONLY here — handleRun is the single place that hands opts to
+     runPython, and the instrumentor can only see a watch expression when the
+     source is re-instrumented at run time. Hence "press Run to see it". */
+  const { setTraceData, watch } = useTraceContext();
 
   /* The generation of the last run that actually reached "confirmed live"
      (runPython resolved and was not superseded before it could) — written
@@ -132,6 +136,9 @@ export function useSimulation() {
       // them), so a plain Run outside debug mode must not freeze on them.
       await runPython(code, GLOWSCRIPT_HOST_ID, {
         breakpoints: debugMode ? breakpointsRef.current : new Set(),
+        // Watches are NOT debug-gated: "watch my numbers while I work" is a
+        // plain-run gesture, and an empty array costs the instrumentor nothing.
+        watch,
       });
       // A newer run (or an explicit Stop/Reset) has since bumped the
       // generation — this call is stale, so its "success" must not reopen
@@ -157,7 +164,7 @@ export function useSimulation() {
     } finally {
       if (generation === runGenerationRef.current) setBooting(false);
     }
-  }, [mode, pythonCode, syncFromBlocks, debugMode, breakpointsRef, setRunning, setBooting, setPaused, setStatus, setTraceData]);
+  }, [mode, pythonCode, syncFromBlocks, debugMode, breakpointsRef, watch, setRunning, setBooting, setPaused, setStatus, setTraceData]);
 
   /* ── Stop ────────────────────────────────────────────── */
   const handleStop = useCallback(() => {

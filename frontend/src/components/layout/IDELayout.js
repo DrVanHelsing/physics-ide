@@ -9,14 +9,18 @@
  *   App (providers + ErrorBoundary)
  *     └─ IDELayout
  *          ├─ StartMenu  (conditional)
- *          ├─ DebugMode  (conditional)
  *          └─ Main IDE shell
- *               ├─ Toolbar
+ *               ├─ Toolbar   (grows a debug control group in debug mode)
  *               ├─ .main-layout
  *               │    ├─ .editor-pane  (BlocklyWorkspace | CodeEditor)
  *               │    ├─ .pane-divider
- *               │    └─ .canvas-pane  (GlowCanvas)
+ *               │    └─ .canvas-pane  (GlowCanvas > DebugDrawer)
  *               └─ .status-bar
+ *
+ * Debug is a MODE of this shell, not a screen beside it. It used to early-
+ * return an entirely separate tree — its own titlebar, toolbar, split pane
+ * and, critically, no status bar, so the one mode whose purpose is finding
+ * faults was the one mode that could not show them.
  */
 import React, { useCallback, useRef, useState } from "react";
 import Blockly from "../../utils/blockly/blocklyLib";
@@ -31,7 +35,7 @@ import ModeToggle   from "../ModeToggle";
 import StartMenu    from "../StartMenu";
 import HelpPage     from "../HelpPage";
 import VariableDialog from "../VariableDialog";
-import DebugMode    from "../DebugMode";
+import DebugDrawer  from "../DebugDrawer";
 import ChartOverlay from "../ChartOverlay";
 import DataPanel    from "../DataPanel";
 import TracePromoteDialog from "../TracePromoteDialog";
@@ -63,6 +67,7 @@ import { useExport }      from "../../hooks/useExport";
 import { useSplitPane }   from "../../hooks/useSplitPane";
 import { useProject }     from "../../hooks/useProject";
 import { useHotkeys }     from "../../hooks/useHotkeys";
+import { useDebugHotkeys } from "../../hooks/useDebugHotkeys";
 import { useRunErrorBanner } from "../../hooks/useRunErrorBanner";
 
 export default function IDELayout() {
@@ -80,7 +85,7 @@ export default function IDELayout() {
     setBlocklyZoom,
   } = useSimulationContext();
 
-  const { traceData, recordBufferRef } = useTraceContext();
+  const { traceData, recordBufferRef, iteration } = useTraceContext();
 
   /* ── Hooks ───────────────────────────────────────────── */
   const sim = useSimulation();
@@ -89,6 +94,26 @@ export default function IDELayout() {
   const exp = useExport();
   const proj = useProject();
   const { splitPct, handleDividerPointerDown, handleDividerKeyDown } = useSplitPane();
+  /* Space / F10 / Shift+F10, alive only while debug mode is on. */
+  useDebugHotkeys();
+
+  /* The trace drawer has two independent reasons to be open: the student is
+     debugging, or the student just wants to watch their numbers while they
+     work. Plan 2 built the toggle (Task 9's secondaryActions 'trace' entry)
+     and deliberately left it unwired for this task to supply the handler. */
+  const [traceVisible, setTraceVisible] = useState(false);
+  const handleToggleTrace = useCallback(() => setTraceVisible((v) => !v), []);
+  const traceOpen = dbg.debugMode || traceVisible;
+
+  /* Click a variable name in the trace table → light up its block. The ref is
+     the SHARED one (SimulationContext), filled by handleWorkspaceReady and —
+     since Step 4a — emptied when the workspace is disposed. A null ref must
+     read as "no workspace", not as a swallowed exception. */
+  const handleHighlightBlock = useCallback((id) => {
+    const ws = workspaceRef.current;
+    if (!ws) return;
+    try { ws.highlightBlock(id); } catch (_) { /* disposed mid-frame */ }
+  }, [workspaceRef]);
 
   /* ── Simple UI handlers (defined here to avoid extra hook) */
   const handleHelp = useCallback(() => setShowHelp(true), [setShowHelp]);
@@ -229,8 +254,10 @@ export default function IDELayout() {
 
   /* ── Global hotkeys ────────────────────────────────────────
      Disabled whenever another surface owns the keyboard: the start menu,
-     Help, Debug Mode (its own handler lives at DebugMode.js:162-179), the
-     trace-promote dialog and the chart overlay. */
+     Help, the trace-promote dialog and the chart overlay. Debug mode is NOT
+     one of them any more — it is a mode of this shell, so Run/Stop/Save keep
+     working while debugging, and useDebugHotkeys adds Space/F10 beside these
+     without colliding with any of them. */
   const handleSaveProject = useCallback(async () => {
     try {
       const saved = await proj.saveCurrent();
@@ -246,7 +273,7 @@ export default function IDELayout() {
   }, [proj, setStatus]);
 
   useHotkeys({
-    enabled: !showStart && !showHelp && !dbg.debugMode && !showTraceDialog && !chartDataset,
+    enabled: !showStart && !showHelp && !showTraceDialog && !chartDataset,
     onRun: sim.handleRun,
     onStop: sim.running ? sim.handleStop : undefined,
     onSave: handleSaveProject,
@@ -290,6 +317,21 @@ export default function IDELayout() {
     }
     setChartDataset(dataset);
   }, [proj]);
+
+  /* One drawer, handed to whichever viewport branch is on screen as
+     GlowCanvas's child — it docks LATERAL to .canvas-column, never under it. */
+  const debugDrawer = traceOpen ? (
+    <DebugDrawer
+      traceData={traceData}
+      onHighlight={handleHighlightBlock}
+      onClearTrace={trc.handleClearTrace}
+      recording={trc.recording}
+      onStartRecord={trc.handleStartRecord}
+      onStopRecord={trc.handleStopRecord}
+      recordBuffer={recordBufferRef.current}
+      onSaveAsDataset={handleSaveAsDataset}
+    />
+  ) : null;
 
   /* ── Bundle export / import ──────────────────────────────── */
   const handleExportProject = useCallback(() => {
@@ -371,52 +413,6 @@ export default function IDELayout() {
     );
   }
 
-  /* ── Debug mode ──────────────────────────────────────── */
-  if (dbg.debugMode) {
-    return (
-      <>
-        <VariableDialog />
-        {showHelp && <HelpPage onClose={() => setShowHelp(false)} />}
-        <DebugMode
-          workspaceXml={workspaceXml}
-          pythonCode={pythonCode}
-          isDark={isDark}
-          running={running}
-          booting={sim.booting}
-          paused={paused}
-          onRun={sim.handleRun}
-          onStop={sim.handleStop}
-          onPause={dbg.handlePause}
-          onResume={dbg.handleResume}
-          onStep={dbg.handleStep}
-          traceData={traceData}
-          onHighlightBlock={(id) => {
-            try { workspaceRef.current?.highlightBlock(id); } catch (_) {}
-          }}
-          onClearTrace={trc.handleClearTrace}
-          recording={trc.recording}
-          onStartRecord={trc.handleStartRecord}
-          onStopRecord={trc.handleStopRecord}
-          recordBuffer={recordBufferRef.current}
-          onSaveAsDataset={handleSaveAsDataset}
-          projectType={projectType}
-          breakpoints={dbg.breakpoints}
-          onToggleBreakpoint={dbg.toggleBreakpoint}
-          executingBlockId={dbg.executingBlockId}
-          onExitDebug={dbg.handleExitDebug}
-        />
-        {chartDataset && <ChartOverlay dataset={chartDataset} onClose={handleCloseChart} {...analyseProps} />}
-        {showTraceDialog && pendingBufferRef.current && (
-          <TracePromoteDialog
-            recordBuffer={pendingBufferRef.current}
-            onConfirm={handleTraceConfirm}
-            onCancel={() => setShowTraceDialog(false)}
-          />
-        )}
-      </>
-    );
-  }
-
   /* ── Main IDE shell ──────────────────────────────────── */
   return (
     <div className="app-shell">
@@ -450,7 +446,22 @@ export default function IDELayout() {
         mode={mode}
         viewportHidden={viewportHidden}
         onToggleViewport={sim.handleToggleViewport}
-        onDebugMode={dbg.handleEnterDebug}
+        /* ── Debug group — one toolbar, one button vocabulary ── */
+        debugMode={dbg.debugMode}
+        onDebugMode={dbg.debugMode ? dbg.handleExitDebug : dbg.handleEnterDebug}
+        traceVisible={traceVisible}
+        onToggleTrace={handleToggleTrace}
+        paused={paused}
+        pauseState={dbg.pauseState}
+        iteration={iteration}
+        recording={trc.recording}
+        breakpointCount={dbg.breakpoints.size}
+        onPause={dbg.handlePause}
+        onResume={dbg.handleResume}
+        onStepFrame={dbg.handleStepFrame}
+        onStepValue={dbg.handleStep}
+        onStartRecord={trc.handleStartRecord}
+        onStopRecord={trc.handleStopRecord}
       >
         <ModeToggle
           mode={mode}
@@ -495,6 +506,16 @@ export default function IDELayout() {
                     isDark={isDark}
                     goal={goal}
                     initialZoom={blocklyZoom}
+                    /* Breakpoints live on the EDITABLE workspace now — the
+                       read-only mirror DebugMode used to show is gone, so
+                       right-click / Alt+click and the dashed "can pause here"
+                       outlines belong to the blocks the student is editing. */
+                    debugMode={dbg.debugMode}
+                    breakpoints={dbg.breakpoints}
+                    breakableIds={dbg.breakableIds}
+                    isBreakable={dbg.isBreakable}
+                    toggleBreakpoint={dbg.toggleBreakpoint}
+                    executingBlockId={dbg.executingBlockId}
                   />
                   <WorkspaceZoom
                     zoom={blocklyZoom}
@@ -578,7 +599,9 @@ export default function IDELayout() {
               <div className="pane-header pane-header--viewport">
                 <GlobeIcon size={14} /> 3D Viewport
               </div>
-              <GlowCanvas running={running} booting={sim.booting} onStatus={setStatus} />
+              <GlowCanvas running={running} booting={sim.booting} onStatus={setStatus}>
+                {debugDrawer}
+              </GlowCanvas>
             </div>
             <div className="hybrid-datapanel">
               <DataPanel
@@ -596,7 +619,9 @@ export default function IDELayout() {
             <div className="pane-header pane-header--viewport">
               <GlobeIcon size={14} /> 3D Viewport
             </div>
-            <GlowCanvas running={running} booting={sim.booting} onStatus={setStatus} />
+            <GlowCanvas running={running} booting={sim.booting} onStatus={setStatus}>
+              {debugDrawer}
+            </GlowCanvas>
           </section>
         )}
       </div>
@@ -608,9 +633,15 @@ export default function IDELayout() {
         </span>
         <SaveState updatedAt={proj.activeManifest?.updatedAt} />
         <span className="status-bar__spacer" />
-        <span className={running ? "console-bar console-bar--running" : statusClass}>
+        <span
+          className={running ? "console-bar console-bar--running" : statusClass}
+          title={status.detail ? `${status.text} — ${status.detail}` : status.text}
+        >
           {running && <span className="status-dot" />}
           {status.text}
+          {/* describeRunError's second sentence, quiet so the title stays the
+             thing you read first in a 26px strip. */}
+          {status.detail && <span className="console-bar__detail">{status.detail}</span>}
         </span>
         <span className="status-bar__engine">VPython {GLOWSCRIPT_VERSION}</span>
       </div>

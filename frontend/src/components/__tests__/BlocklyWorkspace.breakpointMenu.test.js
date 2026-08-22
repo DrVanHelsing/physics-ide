@@ -18,6 +18,7 @@
 import { describe, test, expect, vi, beforeEach, afterEach } from "vitest";
 import { mountComponent } from "../../test/renderHelpers";
 import BlocklyWorkspace from "../BlocklyWorkspace";
+import Blockly from "../../utils/blockly/blocklyLib";
 
 /* ── Fake ContextMenuRegistry — mirrors Blockly's real throw-on-duplicate /
    throw-on-missing semantics closely enough to catch a regression either
@@ -196,5 +197,96 @@ describe("BlocklyWorkspace — breakpoint context-menu registration lifecycle", 
     expect(() => {
       mounted = mountComponent(<BlocklyWorkspace onWorkspaceReady={() => {}} />);
     }).not.toThrow();
+  });
+});
+
+/**
+ * Task 17 Step 4a — the SHARED workspace ref goes stale.
+ *
+ * BlocklyWorkspace's own workspaceRef was already nulled on dispose. The one
+ * that leaked is SimulationContext's: handleWorkspaceReady fills it via the
+ * onWorkspaceReady prop and nothing ever emptied it, so after a goal change
+ * or a project switch IDELayout's onHighlight — the trace table's
+ * click-a-variable-to-find-the-block gesture — called highlightBlock on a
+ * DISPOSED workspace and silently did nothing, every time.
+ */
+describe("BlocklyWorkspace — the shared workspace ref is emptied on dispose", () => {
+  test("onWorkspaceReady receives the workspace on mount and null on unmount", () => {
+    const onWorkspaceReady = vi.fn();
+    mounted = mountComponent(<BlocklyWorkspace onWorkspaceReady={onWorkspaceReady} />);
+
+    expect(onWorkspaceReady).toHaveBeenCalledTimes(1);
+    expect(onWorkspaceReady.mock.calls[0][0]).toBeTruthy();
+
+    mounted.unmount();
+    mounted = null;
+
+    expect(onWorkspaceReady).toHaveBeenCalledTimes(2);
+    expect(onWorkspaceReady.mock.calls[1][0]).toBeNull();
+  });
+
+  test("the null lands AFTER dispose, so nothing can reach a half-torn-down workspace", () => {
+    const order = [];
+    const ws = fakeWorkspace();
+    ws.dispose = vi.fn(() => order.push("dispose"));
+    Blockly.inject.mockReturnValueOnce(ws);
+
+    mounted = mountComponent(
+      <BlocklyWorkspace onWorkspaceReady={(w) => { if (w === null) order.push("null"); }} />,
+    );
+    mounted.unmount();
+    mounted = null;
+
+    expect(order).toEqual(["dispose", "null"]);
+  });
+});
+
+/**
+ * Task 17 — the breakpoint decorations moved off ReadOnlyBlockly (the mirror
+ * DebugMode rendered) and onto the workspace the student actually edits,
+ * which is why the marks never appeared where anyone was working.
+ */
+describe("BlocklyWorkspace — breakpoint and execution decorations", () => {
+  function blockWithSvg(id) {
+    const g = document.createElement("div"); // classList is all the effect uses
+    return { id, getSvgRoot: () => g, _g: g };
+  }
+
+  function mountWith(blocks, props) {
+    const ws = fakeWorkspace();
+    ws.getAllBlocks = () => blocks;
+    Blockly.inject.mockReturnValueOnce(ws);
+    mounted = mountComponent(<BlocklyWorkspace onWorkspaceReady={() => {}} {...props} />);
+    return ws;
+  }
+
+  test("a set breakpoint gets .bp-block; a breakable one without gets .bp-available", () => {
+    const set = blockWithSvg("blk-set");
+    const free = blockWithSvg("blk-free");
+    const inert = blockWithSvg("blk-inert");
+    mountWith([set, free, inert], {
+      debugMode: true,
+      breakpoints: new Set(["blk-set"]),
+      isBreakable: (id) => id !== "blk-inert",
+    });
+
+    expect(set._g.classList.contains("bp-block")).toBe(true);
+    expect(set._g.classList.contains("bp-available")).toBe(false);
+    expect(free._g.classList.contains("bp-available")).toBe(true);
+    expect(inert._g.classList.contains("bp-available")).toBe(false);
+  });
+
+  test("outside debug mode nothing is marked as available", () => {
+    const free = blockWithSvg("blk-free");
+    mountWith([free], { debugMode: false, breakpoints: new Set(), isBreakable: () => true });
+    expect(free._g.classList.contains("bp-available")).toBe(false);
+  });
+
+  test("only the executing block carries .block-executing", () => {
+    const a = blockWithSvg("a");
+    const b = blockWithSvg("b");
+    mountWith([a, b], { executingBlockId: "b" });
+    expect(a._g.classList.contains("block-executing")).toBe(false);
+    expect(b._g.classList.contains("block-executing")).toBe(true);
   });
 });

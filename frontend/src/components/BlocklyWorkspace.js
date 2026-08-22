@@ -320,12 +320,16 @@ function decorateToolboxRows(workspace) {
 function BlocklyWorkspace({
   initialXml, onWorkspaceReady, onWorkspaceChange, onBlockCountChange, onScaleChange,
   isDark, goal = "physics", initialZoom,
-  /* Debug-mode props (optional). Threaded from IDELayout in a later task —
-     until then these defaults keep the context-menu breakpoint entry safely
-     inert: nothing reads as breakable and toggling is a no-op. */
+  /* Debug-mode props (optional). IDELayout threads the real ones now that
+     debug is a mode of the shell; the defaults keep the context-menu
+     breakpoint entry inert for any other mount (nothing reads as breakable
+     and toggling is a no-op). */
+  debugMode = false,
   isBreakable = () => false,
   toggleBreakpoint = () => {},
   breakpoints = EMPTY_BREAKPOINTS,
+  breakableIds,
+  executingBlockId = null,
 }) {
   const hostRef = useRef(null);
   const workspaceRef = useRef(null);
@@ -584,8 +588,45 @@ function BlocklyWorkspace({
       workspace.removeChangeListener(constListener);
       workspace.dispose();
       workspaceRef.current = null;
+      /* And empty the SHARED ref too. handleWorkspaceReady (useSimulation.js)
+         wrote SimulationContext's workspaceRef when this workspace mounted and
+         nothing ever cleared it, so after a goal change or a project switch
+         IDELayout's onHighlight — the trace table's click-a-variable-to-find-
+         the-block gesture — was calling highlightBlock on a disposed
+         workspace and silently doing nothing, every time. */
+      onReadyRef.current?.(null);
     };
   }, []);
+
+  /* ── Breakpoint decorations ────────────────────────────────
+     Two markers, not one: a solid red outline where a breakpoint is SET, and
+     a hollow dashed outline on every block that CAN hold one while debug mode
+     is on. A student can now see the difference between "I didn't set it" and
+     "this block can never pause". These used to live on ReadOnlyBlockly — the
+     mirror DebugMode showed — which is exactly why the marks never appeared
+     on the blocks anyone was actually editing. */
+  useEffect(() => {
+    const ws = workspaceRef.current;
+    if (!ws) return;
+    for (const block of ws.getAllBlocks(false)) {
+      const g = block.getSvgRoot();
+      if (!g) continue;
+      const isBp = breakpoints.has(block.id);
+      g.classList.toggle("bp-block", isBp);
+      g.classList.toggle("bp-available", debugMode && !isBp && isBreakable(block.id));
+    }
+  }, [breakpoints, debugMode, isBreakable, breakableIds]);
+
+  /* ── Execution highlight (yellow glow on the running block) ── */
+  useEffect(() => {
+    const ws = workspaceRef.current;
+    if (!ws) return;
+    for (const block of ws.getAllBlocks(false)) {
+      const g = block.getSvgRoot();
+      if (!g) continue;
+      g.classList.toggle("block-executing", block.id === executingBlockId);
+    }
+  }, [executingBlockId]);
 
   /* ── Rebuild the toolbox when the project goal changes ─── */
   useEffect(() => {
@@ -621,16 +662,13 @@ function BlocklyWorkspace({
   );
 }
 
-/* ── Read-only Blockly (for showing block reference alongside code) ── */
-function ReadOnlyBlockly({
-  xml, isDark, breakpoints, onBlockClick, executingBlockId,
-  /* Debug-mode props (optional). Threaded from IDELayout in a later task —
-     debugMode defaults false, so `.bp-available` never lights up until then
-     (isBreakable is short-circuited out of the check entirely). */
-  debugMode = false,
-  isBreakable = () => false,
-  breakableIds,
-}) {
+/* ── Read-only Blockly (for showing block reference alongside code) ──
+   Its debug role is gone: DebugMode used to render this mirror as its Blocks
+   panel and hang breakpoints, the execution highlight and a click-to-toggle
+   handler off it. Debug is a mode of the shell now, so all of that lives on
+   the editable workspace above and this is once again exactly what its name
+   says — a read-only reference view. */
+function ReadOnlyBlockly({ xml, isDark }) {
   const hostRef = useRef(null);
   const wsRef = useRef(null);
 
@@ -689,40 +727,7 @@ function ReadOnlyBlockly({
     ws.setTheme(theme);
   }, [isDark]);
 
-  /* Two markers, not one: a solid red outline where a breakpoint is SET, and
-     a hollow dashed outline on every block that CAN hold one while debug mode
-     is on. A student can now see the difference between "I didn't set it" and
-     "this block can never pause". */
-  useEffect(() => {
-    const ws = wsRef.current;
-    if (!ws) return;
-    const bpSet = breakpoints || new Set();
-    for (const block of ws.getAllBlocks(false)) {
-      const g = block.getSvgRoot();
-      if (!g) continue;
-      const isBp = bpSet.has(block.id);
-      g.classList.toggle("bp-block", isBp);
-      g.classList.toggle("bp-available", debugMode && !isBp && isBreakable(block.id));
-    }
-  }, [breakpoints, debugMode, isBreakable, breakableIds]);
-
-  // ── Execution highlight (yellow glow on running block) ──
-  useEffect(() => {
-    const ws = wsRef.current;
-    if (!ws) return;
-    const allBlocks = ws.getAllBlocks(false);
-    for (const block of allBlocks) {
-      const svgGroup = block.getSvgRoot();
-      if (!svgGroup) continue;
-      if (block.id === executingBlockId) {
-        svgGroup.classList.add('block-executing');
-      } else {
-        svgGroup.classList.remove('block-executing');
-      }
-    }
-  }, [executingBlockId]);
-
-  return <div ref={hostRef} className="blockly-host blockly-readonly" style={{ cursor: onBlockClick ? 'pointer' : undefined }} />;
+  return <div ref={hostRef} className="blockly-host blockly-readonly" />;
 }
 
 export default BlocklyWorkspace;

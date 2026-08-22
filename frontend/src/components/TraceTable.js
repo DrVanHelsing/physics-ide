@@ -13,6 +13,7 @@ import {
   ZapIcon,
 } from "./Icons";
 import { useTraceContext } from "../contexts/TraceContext";
+import { downloadCsv } from "../utils/export/downloadCsv";
 
 /* ── Truncate long values for display ─────────────────────── */
 function truncate(str, max) {
@@ -298,21 +299,6 @@ function exportCsv(data) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-/* ── Recording CSV export ─────────────────────────────────── */
-function exportRecordingCsv(buffer) {
-  const header = "timestamp_ms,variable,value,delta,min,max\n";
-  const rows = buffer.map(
-    (r) => `${r.t},"${r.name}","${r.value}",${r.delta ?? ""},${r.min ?? ""},${r.max ?? ""}`
-  );
-  const blob = new Blob([header + rows.join("\n")], { type: "text/csv" });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement("a");
-  a.href     = url;
-  a.download = "recording_" + Date.now() + ".csv";
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-
 /* ── Main trace table ─────────────────────────────────────── */
 function TraceTable({
   data, onHighlight, onClear,
@@ -487,7 +473,7 @@ function TraceTable({
               <button
                 type="button"
                 className="trace-icon-btn"
-                onClick={() => exportRecordingCsv(recordBuffer)}
+                onClick={() => downloadCsv(recordBuffer)}
                 title={`Export recording (${recordBuffer.length} rows)`}
                 disabled={recordBuffer.length === 0}
               >

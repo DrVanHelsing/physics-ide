@@ -32,6 +32,32 @@ describe("visibleControls", () => {
     expect(v({ runState: "booting" }).view).toEqual(expect.arrayContaining(["trace", "debug"]));
     expect(v({ runState: "running" }).view).toEqual(expect.arrayContaining(["trace", "debug"]));
   });
+
+  /* Task 17: "only while live" alone would let Stop strand a student inside
+     debug mode — Exit Debug would leave the header with the run — and would
+     orphan a drawer the student opened themselves. Their own state keeps them
+     on screen past the end of the run. */
+  test("debug survives the end of the run while debug mode is on", () => {
+    expect(v({ runState: "idle", debugMode: true }).view).toContain("debug");
+    expect(v({ runState: "idle", debugMode: false }).view).not.toContain("debug");
+  });
+
+  test("trace survives the end of the run while the drawer is open", () => {
+    expect(v({ runState: "idle", traceVisible: true }).view).toContain("trace");
+    expect(v({ runState: "idle", debugMode: true }).view).toContain("trace");
+    expect(v({ runState: "idle" }).view).not.toContain("trace");
+  });
+
+  test("neither axis resurrects them for a datascience project", () => {
+    const out = v({ goal: "datascience", runState: "idle", debugMode: true, traceVisible: true });
+    expect(out.view).not.toContain("trace");
+    expect(out.view).not.toContain("debug");
+  });
+
+  test("trace still precedes debug in the view zone", () => {
+    const view = v({ runState: "running" }).view;
+    expect(view.indexOf("trace")).toBeLessThan(view.indexOf("debug"));
+  });
   test("clear is blocks-mode only; help and reset always", () => {
     expect(v({ mode: "text" }).view).not.toContain("clear");
     expect(v({ mode: "blocks" }).view).toContain("clear");

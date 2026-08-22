@@ -514,27 +514,32 @@ export default function HelpPage({ onClose }) {
             <section className="help-section">
               <SectionHeader id="debug-mode">Debug Mode</SectionHeader>
               <p>
-                Debug Mode is a full-screen overlay for step-through inspection of a running
+                Debug Mode is a mode of the editor, for step-through inspection of a running
                 simulation. Access it by clicking the <Tag color="purple">Debug</Tag> button in
-                the toolbar. The simulation pauses immediately and the debug overlay opens.
+                the toolbar. The simulation pauses immediately. Your blocks stay on screen; the
+                trace panel opens beside the viewport.
               </p>
 
-              <h3 className="help-h3">Three-panel layout</h3>
-              <p>Debug Mode divides the screen into three resizable panels:</p>
+              <h3 className="help-h3">What changes when you enter</h3>
+              <p>Nothing is replaced — the editor grows debug controls:</p>
               <ul className="help-list">
                 <li>
-                  <strong>Left — Blocks / Code panel</strong> — a read-only view of the simulation's
-                  block workspace (or a read-only code editor for Blank Projects and Code Examples).
-                  Click any block to <strong>toggle a breakpoint</strong> on it.
+                  <strong>Your workspace stays editable</strong> — the same blocks (or the same code
+                  editor), in the same place. Right-click a block to <strong>toggle a breakpoint</strong>{" "}
+                  on it, or hold <Kbd>Alt</Kbd> and click it.
                 </li>
                 <li>
-                  <strong>Centre — 3D Viewport</strong> — the live GlowScript viewport, exactly as it
-                  appears during normal execution. The simulation is paused but the camera is still
-                  interactive.
+                  <strong>The 3D Viewport keeps its frame</strong> — the simulation is paused where it
+                  was, and the camera is still interactive.
                 </li>
                 <li>
-                  <strong>Right — Trace Table</strong> — a live variable trace with sparklines, delta,
-                  min and max columns, a search filter, and pin-to-top support.
+                  <strong>The Trace panel docks beside the viewport</strong> — a live variable trace
+                  with sparklines, delta, min and max columns, a search filter, and pin-to-top
+                  support. Drag its edge to resize it.
+                </li>
+                <li>
+                  <strong>The toolbar grows a debug group</strong> — Pause / Resume, Next frame, Next
+                  value and Record, next to the Run button you already know.
                 </li>
               </ul>
 
@@ -550,7 +555,10 @@ export default function HelpPage({ onClose }) {
                   <tr>
                     <td><Tag color="red">Stop</Tag></td>
                     <td>—</td>
-                    <td>Stop the simulation and clear trace data</td>
+                    <td>
+                      Stop the simulation. Pressing Run clears the trace table and starts a fresh
+                      recording; Stop leaves the last values on screen so you can read them.
+                    </td>
                   </tr>
                   <tr>
                     <td><Tag color="yellow">Pause</Tag></td>
@@ -563,14 +571,19 @@ export default function HelpPage({ onClose }) {
                     <td>Resume a paused simulation</td>
                   </tr>
                   <tr>
-                    <td><Tag color="blue">Step</Tag></td>
+                    <td><Tag color="blue">Next frame</Tag></td>
                     <td><Kbd>F10</Kbd></td>
-                    <td>Advance one trace event (one simulation step) while paused</td>
+                    <td>Advance one whole animation frame — one timestep of your loop</td>
+                  </tr>
+                  <tr>
+                    <td><Tag color="blue">Next value</Tag></td>
+                    <td><Kbd>Shift</Kbd> + <Kbd>F10</Kbd></td>
+                    <td>Advance to the next single reported value inside that frame</td>
                   </tr>
                   <tr>
                     <td><Tag color="purple">Exit Debug</Tag></td>
-                    <td><Kbd>Esc</Kbd></td>
-                    <td>Close Debug Mode and return to the normal editor</td>
+                    <td>—</td>
+                    <td>Leave Debug Mode. The simulation resumes; your work stays where it is.</td>
                   </tr>
                 </tbody>
               </table>
@@ -580,15 +593,23 @@ export default function HelpPage({ onClose }) {
                 In block-based projects, you can set breakpoints directly in the Blocks panel:
               </p>
               <ol className="help-list">
-                <li>Click any block in the left panel — a <strong>red dot</strong> appears on the block to indicate a breakpoint is set.</li>
-                <li>Click the same block again to remove the breakpoint.</li>
+                <li>Right-click a block (or hold <Kbd>Alt</Kbd> and click it) — a <strong>red
+                    outline</strong> appears to show a breakpoint is set.</li>
+                <li>Do the same again to remove the breakpoint.</li>
                 <li>When the simulation runs and reaches a breakpointed block, execution stops
                     <strong> synchronously</strong> — the simulation freezes at that exact point.</li>
                 <li>Use <Kbd>F10</Kbd> to step forward, or <Kbd>Space</Kbd> to resume running.</li>
               </ol>
               <Note type="tip">
-                Breakpoints are retained until you exit Debug Mode or stop the simulation.
-                Set multiple breakpoints to jump between key moments in your simulation loop.
+                Breakpoints go on blocks that report a value — the “set”, “add to”, “update
+                position”, “apply force”, “time step” and “define constant” blocks. Those blocks
+                show a dashed outline in Debug Mode; right-clicking any other block tells you it
+                can’t pause there.
+              </Note>
+              <Note type="tip">
+                Breakpoints are remembered when you leave Debug Mode, but they only pause the
+                simulation while Debug Mode is on. Set multiple breakpoints to jump between key
+                moments in your simulation loop.
               </Note>
 
               <h3 className="help-h3">Execution highlight</h3>
@@ -599,10 +620,18 @@ export default function HelpPage({ onClose }) {
                 useful when stepping through a simulation manually with <Kbd>F10</Kbd>.
               </p>
 
+              <h3 className="help-h3">What the trace table shows</h3>
+              <p>
+                The trace table shows every variable that changes inside your loop, plus a collapsed{" "}
+                <strong>Setup / constants</strong> section for the values you set before it. To watch
+                anything else — total energy, say — type the expression into the watch box and press
+                Run.
+              </p>
+
               <h3 className="help-h3">Trace recording &amp; CSV export</h3>
               <p>
-                The Trace Table on the right side of Debug Mode can record all variable values over
-                time for post-run analysis:
+                The trace panel beside the viewport can record all variable values over time for
+                post-run analysis:
               </p>
               <ol className="help-list">
                 <li>Click <Tag color="red">Record</Tag> to start recording.</li>
@@ -619,10 +648,11 @@ export default function HelpPage({ onClose }) {
               <h3 className="help-h3">Code-only projects</h3>
               <p>
                 When debugging a <Tag color="green">Blank Project</Tag> or{" "}
-                <Tag color="blue">Code Example</Tag>, the Blocks panel is replaced by a
-                read-only code editor showing the VPython source. Breakpoints are not available
-                in this mode — use Pause / Step to inspect execution. All other Debug Mode features
-                (execution highlight, trace recording, CSV export) work normally.
+                <Tag color="blue">Code Example</Tag>, you debug in the code editor you were already
+                writing in. Breakpoints are a block-editor feature — they go on blocks that report a
+                value — so in a code project use Pause, <strong>Next frame</strong> and{" "}
+                <strong>Next value</strong> to walk through execution. Trace recording and CSV export
+                work exactly the same way.
               </p>
             </section>
 
@@ -2238,8 +2268,8 @@ angle = clamp(input_angle, -30, 30)`}</Pre>
                   <tr><td>3D Viewport</td><td>Right drag</td><td>Pan camera</td></tr>
                   <tr><td>3D Viewport</td><td>Scroll wheel</td><td>Zoom in / out</td></tr>
                   <tr><td>Debug Mode</td><td><Kbd>Space</Kbd></td><td>Pause / Resume simulation</td></tr>
-                  <tr><td>Debug Mode</td><td><Kbd>F10</Kbd></td><td>Step forward one trace event</td></tr>
-                  <tr><td>Debug Mode</td><td><Kbd>Esc</Kbd></td><td>Exit Debug Mode</td></tr>
+                  <tr><td>Debug Mode</td><td><Kbd>F10</Kbd></td><td>Next frame — one whole timestep</td></tr>
+                  <tr><td>Debug Mode</td><td><Kbd>Shift</Kbd> + <Kbd>F10</Kbd></td><td>Next value — one reported value</td></tr>
                 </tbody>
               </table>
             </section>
