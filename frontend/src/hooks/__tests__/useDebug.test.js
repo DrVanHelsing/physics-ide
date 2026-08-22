@@ -11,6 +11,16 @@
  *
  * `../../utils/runner/glowRunner` is mocked: none of these tests need a real
  * runtime frame, only the calls useDebug makes into it.
+ *
+ * Fix round 1 (code review): the ack-timeout fallback is shared by
+ * handlePause AND handleStepFrame (armPauseAckTimeout), and both capture
+ * `runGenerationRef.current` when armed and bail in the callback if it no
+ * longer matches — otherwise a stale timer from a session the student has
+ * already left (exit debug, a fresh Run) fires ~1s later against whatever
+ * now owns the screen. handleStepFrame needed the fallback in the first
+ * place: a program with no traced values never reaches a checkpoint from
+ * "Next frame" either, so without it pauseState would stick at "pausing"
+ * forever — the exact bug class this task exists to fix.
  */
 import { describe, test, expect, vi, afterEach } from "vitest";
 import React from "react";
@@ -188,5 +198,118 @@ describe("useDebug — pauseState state machine (Task 15)", () => {
       vi.advanceTimersByTime(PAUSE_ACK_TIMEOUT_MS / 2);
     });
     expect(resumePython).toHaveBeenCalledTimes(1);
+  });
+
+  test("exiting debug mode before the timeout bumps the run generation — the stale fallback must not fire", () => {
+    vi.useFakeTimers();
+    mounted = mountComponent(<Wrapped />);
+
+    act(() => {
+      latestDebug.handlePause();
+    });
+    expect(latestDebugCtx.pauseState).toBe("pausing");
+
+    act(() => {
+      latestDebug.handleExitDebug(); // bumps runGenerationRef — the session moved on
+    });
+
+    act(() => {
+      vi.advanceTimersByTime(PAUSE_ACK_TIMEOUT_MS);
+    });
+
+    // The stale timer must bail: no resumePython call from the fallback, and
+    // no "no traced values" error clobbering whatever handleExitDebug itself
+    // already set as status.
+    expect(resumePython).not.toHaveBeenCalled();
+    expect(latestSimCtx.status.type).not.toBe("error");
+  });
+
+  test("a fresh Run (runGenerationRef bumped directly) before the timeout also cancels the stale fallback", () => {
+    vi.useFakeTimers();
+    mounted = mountComponent(<Wrapped />);
+
+    act(() => {
+      latestDebug.handlePause();
+    });
+
+    // Simulate handleRun's own teardown path bumping the shared generation
+    // counter (see SimulationContext / useSimulation's endRun) without going
+    // through handleExitDebug specifically — the guard is generation-based,
+    // not tied to any one teardown path.
+    act(() => {
+      latestSimCtx.runGenerationRef.current += 1;
+    });
+
+    act(() => {
+      vi.advanceTimersByTime(PAUSE_ACK_TIMEOUT_MS);
+    });
+
+    expect(resumePython).not.toHaveBeenCalled();
+    expect(latestSimCtx.status.type).not.toBe("error");
+  });
+});
+
+describe("useDebug — handleStepFrame gets the same honest ack-timeout fallback (Task 15 fix round 1)", () => {
+  test("no ack within PAUSE_ACK_TIMEOUT_MS: resumes, tells the student why, and stops claiming paused", () => {
+    vi.useFakeTimers();
+    mounted = mountComponent(<Wrapped />);
+
+    act(() => {
+      latestDebug.handleStepFrame();
+    });
+    expect(latestDebugCtx.pauseState).toBe("pausing");
+
+    act(() => {
+      vi.advanceTimersByTime(PAUSE_ACK_TIMEOUT_MS);
+    });
+
+    expect(resumePython).toHaveBeenCalledTimes(1);
+    expect(latestDebugCtx.pauseState).toBe("running");
+    expect(latestSimCtx.paused).toBe(false);
+    expect(latestSimCtx.status.type).toBe("error");
+    expect(latestSimCtx.status.text).toBe(
+      "Can't pause this simulation — it has no traced values.",
+    );
+  });
+
+  test("an ack (simulated by clearing pauseAckTimerRef, as useTrace's handler does) cancels the fallback", () => {
+    vi.useFakeTimers();
+    mounted = mountComponent(<Wrapped />);
+
+    act(() => {
+      latestDebug.handleStepFrame();
+    });
+    act(() => {
+      if (latestDebugCtx.pauseAckTimerRef.current) {
+        clearTimeout(latestDebugCtx.pauseAckTimerRef.current);
+      }
+      latestDebugCtx.setPauseState("paused");
+    });
+
+    act(() => {
+      vi.advanceTimersByTime(PAUSE_ACK_TIMEOUT_MS);
+    });
+
+    expect(resumePython).not.toHaveBeenCalled();
+    expect(latestDebugCtx.pauseState).toBe("paused");
+    expect(latestSimCtx.status.type).not.toBe("error");
+  });
+
+  test("a stale generation cancels handleStepFrame's fallback exactly like handlePause's", () => {
+    vi.useFakeTimers();
+    mounted = mountComponent(<Wrapped />);
+
+    act(() => {
+      latestDebug.handleStepFrame();
+    });
+    act(() => {
+      latestDebug.handleExitDebug();
+    });
+    act(() => {
+      vi.advanceTimersByTime(PAUSE_ACK_TIMEOUT_MS);
+    });
+
+    expect(resumePython).not.toHaveBeenCalled();
+    expect(latestSimCtx.status.type).not.toBe("error");
   });
 });
