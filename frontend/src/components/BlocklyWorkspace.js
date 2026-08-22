@@ -639,7 +639,7 @@ function ReadOnlyBlockly({ xml, isDark, breakpoints, onBlockClick, executingBloc
     // Remove highlight from blocks no longer breakpointed
     for (const [bid, svgGroup] of dots) {
       if (!bpSet.has(bid)) {
-        svgGroup.classList.remove('dm-bp-block');
+        svgGroup.classList.remove('bp-block');
         dots.delete(bid);
       }
     }
@@ -652,7 +652,7 @@ function ReadOnlyBlockly({ xml, isDark, breakpoints, onBlockClick, executingBloc
       const svgGroup = block.getSvgRoot();
       if (!svgGroup) continue;
 
-      svgGroup.classList.add('dm-bp-block');
+      svgGroup.classList.add('bp-block');
       dots.set(bid, svgGroup);
     }
   }, [breakpoints]);
@@ -666,9 +666,9 @@ function ReadOnlyBlockly({ xml, isDark, breakpoints, onBlockClick, executingBloc
       const svgGroup = block.getSvgRoot();
       if (!svgGroup) continue;
       if (block.id === executingBlockId) {
-        svgGroup.classList.add('dm-block-executing');
+        svgGroup.classList.add('block-executing');
       } else {
-        svgGroup.classList.remove('dm-block-executing');
+        svgGroup.classList.remove('block-executing');
       }
     }
   }, [executingBlockId]);
