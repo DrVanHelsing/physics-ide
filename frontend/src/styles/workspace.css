@@ -61,10 +61,10 @@
 .pane-header { color: var(--text-dim); }
 .pane-header svg { opacity: 0.7; }
 
-/* VS Code colored tab indicator */
-.pane-header--blocks  { border-top: 2px solid var(--mauve); padding-top: 0; }
-.pane-header--code    { border-top: 2px solid var(--accent-blue); padding-top: 0; }
-.pane-header--viewport { border-top: 2px solid var(--green); padding-top: 0; }
+/* VS Code colored tab indicator — coloured by what's actually in the pane */
+.pane-header--blocks   { border-top: 2px solid var(--cat-values); padding-top: 0; }
+.pane-header--code     { border-top: 2px solid var(--cat-objects); padding-top: 0; }
+.pane-header--viewport { border-top: 2px solid var(--cat-data-science); padding-top: 0; }
 
 /* ═══════════════════════════════════════════════════════════
    BLOCKLY HOST
@@ -329,7 +329,7 @@
   background: var(--cat, var(--accent)) !important;
 }
 .blocklyTreeLabel {
-  font-size: 12px !important;
+  font-size: var(--fs-md) !important;
   font-family: var(--font) !important;
   font-weight: 500 !important;
   color: var(--text) !important;
@@ -342,6 +342,17 @@
   border-bottom: 1px solid var(--border) !important;
   margin: 4px 12px !important;
   height: 0 !important;
+}
+/* Flyout group headers (toolbox.js passes web-class="tb-label" on 21 of them,
+   and until Tranche 3 the class had no rules at all). Matches the micro-label
+   voice Plan 1 established for .account-chip-head. */
+.tb-label {
+  font-size: var(--fs-2xs);
+  font-weight: var(--label-weight);
+  text-transform: var(--label-transform);
+  letter-spacing: var(--label-tracking);
+  color: var(--label-color);
+  padding: var(--space-2) var(--space-3) var(--space-1);
 }
 .blocklyFlyoutBackground {
   fill: var(--bg-surface) !important;

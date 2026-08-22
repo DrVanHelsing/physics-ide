@@ -11,6 +11,7 @@ import {
   DownloadIcon, ZapIcon, LayersIcon, EditIcon, BugIcon,
   TableIcon, GraduationCapIcon,
 } from "./Icons";
+import { BLOCK_PALETTE, cssVarFor } from "../utils/blockly/blockPalette";
 
 /* ── Tiny inline components ──────────────────────────────── */
 function Code({ children }) {
@@ -25,6 +26,31 @@ function Pre({ children }) {
 }
 function Tag({ color = "blue", children }) {
   return <span className={`help-tag help-tag--${color}`}>{children}</span>;
+}
+
+/**
+ * A block-category chip that is literally the colour of the blocks it names.
+ *
+ * Distinct from Tag (color="…") on purpose. Tag is the page's general-purpose
+ * chip and has 51 uses that are not block categories at all — goal badges,
+ * toolbar verbs, difficulty ratings, tab and export-format names — so it keeps
+ * its ad-hoc colour words and its .help-tag--* rules. Only the eight chips that
+ * name a real drawer come here, where the colour is the palette's and cannot
+ * drift from the blocks it describes. Before Tranche 3 these eight quoted raw
+ * Blockly hue integers, three of which were wrong and one of which ("colour
+ * 330") named a hue no block ever used.
+ */
+function CategoryTag({ category, children }) {
+  const e = BLOCK_PALETTE[category];
+  if (!e) throw new Error(`CategoryTag: unknown block category ${JSON.stringify(category)}`);
+  return (
+    <span
+      className="help-tag help-tag--cat"
+      style={{ background: `var(${cssVarFor(category)})`, color: e.on }}
+    >
+      {children || category}
+    </span>
+  );
 }
 function Note({ type = "info", children }) {
   const icons = {
@@ -723,7 +749,7 @@ export default function HelpPage({ onClose }) {
               <SectionHeader id="block-reference">Block Reference</SectionHeader>
               <p>All custom Physics IDE blocks and the VPython code they generate.</p>
 
-              <h3 className="help-h3">Quick Create <Tag color="blue">colour 210</Tag> <Tag color="green">beginner friendly</Tag></h3>
+              <h3 className="help-h3">Quick Create <CategoryTag category="Objects" /></h3>
               <p className="help-tip">
                 Quick-create blocks pack all object settings into a single block using inline
                 number fields and a colour picker — no composable value slots required.
@@ -752,7 +778,7 @@ export default function HelpPage({ onClose }) {
                 </div>
               </div>
 
-              <h3 className="help-h3">Scene Objects <Tag color="blue">colour 210</Tag></h3>
+              <h3 className="help-h3">Scene Objects <CategoryTag category="Objects" /></h3>
               <div className="help-block-table">
                 <div className="help-block-row">
                   <div className="help-block-name">sphere_block</div>
@@ -907,7 +933,7 @@ CHARGE = 1.6e-19`}</Pre>
                 </div>
               </div>
 
-              <h3 className="help-h3">Physics Expressions <Tag color="teal">colour 160</Tag></h3>
+              <h3 className="help-h3">Physics Expressions <CategoryTag category="Values" /></h3>
               <div className="help-block-table">
                 <div className="help-block-row">
                   <div className="help-block-name">get_prop_block</div>
@@ -947,7 +973,7 @@ CHARGE = 1.6e-19`}</Pre>
                 </div>
               </div>
 
-              <h3 className="help-h3">Motion / Physics <Tag color="yellow">colour 45</Tag></h3>
+              <h3 className="help-h3">Motion / Physics <CategoryTag category="Motion" /></h3>
               <div className="help-block-table">
                 <div className="help-block-row">
                   <div className="help-block-name">set_velocity_block</div>
@@ -1009,7 +1035,7 @@ CHARGE = 1.6e-19`}</Pre>
                 </div>
               </div>
 
-              <h3 className="help-h3">Control <Tag color="purple">colour 260</Tag></h3>
+              <h3 className="help-h3">Control <CategoryTag category="Control" /></h3>
               <div className="help-block-table">
                 <div className="help-block-row">
                   <div className="help-block-name">forever_loop_block</div>
@@ -1075,7 +1101,7 @@ CHARGE = 1.6e-19`}</Pre>
                 </div>
               </div>
 
-              <h3 className="help-h3">Utility <Tag color="pink">colour 330</Tag></h3>
+              <h3 className="help-h3">Utility <CategoryTag category="State" /></h3>
               <div className="help-block-table">
                 <div className="help-block-row">
                   <div className="help-block-name">local_light_block</div>
@@ -1158,7 +1184,7 @@ abs(stretch / L0)           # normalised stretch`}</Pre>
                 </div>
               </div>
 
-              <h3 className="help-h3">Simulation Structure <Tag color="green">colour 120/0</Tag></h3>
+              <h3 className="help-h3">Simulation Structure <CategoryTag category="Control" /></h3>
               <p className="help-tip">
                 These blocks define the overall scaffold of a simulation — setup, teardown, scene
                 camera, object rotation, and named constants.
@@ -1214,7 +1240,7 @@ scene.background = vector(0, 0, 0.1) # background colour`}</Pre>
                 </div>
               </div>
 
-              <h3 className="help-h3">3D Math <Tag color="teal">colour 230</Tag></h3>
+              <h3 className="help-h3">3D Math <CategoryTag category="3D Math" /></h3>
               <p className="help-tip">
                 All of these blocks output values — snap them into any numeric or vector slot.
               </p>

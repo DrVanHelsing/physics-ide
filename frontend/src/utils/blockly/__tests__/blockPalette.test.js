@@ -1,4 +1,6 @@
 import { describe, test, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import {
   BLOCK_PALETTE, CATEGORY_NAMES, getCategoryColour, styleNameFor,
   categoryStyleNameFor, cssVarFor, brightFor, paletteCssText,
@@ -64,6 +66,51 @@ describe("BLOCK_PALETTE v2", () => {
       expect(css).toContain(`${cssVarFor(n)}: ${BLOCK_PALETTE[n].fill};`);
       expect(css).toContain(`${cssVarFor(n)}-bright: ${brightFor(n)};`);
       expect(getCategoryColour(n)).toBe(BLOCK_PALETTE[n].fill);
+    }
+  });
+});
+
+/* ── Task 8: `--cat-*` consumers ─────────────────────────────
+   CategoryTag (HelpPage.js) and GravityPlayground's landing-page COLORS
+   are plain, unexported values/components — like Tag, Note and Kbd beside
+   CategoryTag, they aren't part of any module's public surface, so these
+   pin the *source text* of each consumer against the palette, the same
+   fs-read approach paletteCssSync.test.js uses one directory over to pin
+   tokens.css against paletteCssText(). */
+describe("Task 8 consumers", () => {
+  const helpPageSrc = readFileSync(
+    resolve(__dirname, "../../../components/HelpPage.js"), "utf8",
+  );
+  const gravitySrc = readFileSync(
+    resolve(__dirname, "../../../welcome/GravityPlayground.js"), "utf8",
+  );
+
+  test("CategoryTag resolves its background from the palette's --cat-* var, for a known category", () => {
+    // CategoryTag's own construction: background: `var(${cssVarFor(category)})`.
+    // Pin the mechanism for a known category (Values) end to end: the var
+    // name it would compute, that tokens.css actually declares that var
+    // with the palette's fill, and that the call site converted by this
+    // task asks for exactly that category.
+    const category = "Values";
+    expect(cssVarFor(category)).toBe("--cat-values");
+    expect(paletteCssText()).toContain(`--cat-values: ${BLOCK_PALETTE[category].fill};`);
+    expect(helpPageSrc).toContain('background: `var(${cssVarFor(category)})`');
+    expect(helpPageSrc).toContain('<CategoryTag category="Values" />');
+  });
+
+  test("GravityPlayground's landing-page COLORS derive from BLOCK_PALETTE fills, not a hardcoded hex palette", () => {
+    for (const ref of [
+      "BLOCK_PALETTE.Objects.fill",
+      "BLOCK_PALETTE.Values.fill",
+      "BLOCK_PALETTE.Motion.fill",
+      'BLOCK_PALETTE["Data Science"].fill',
+      "BLOCK_PALETTE.Charts.fill",
+    ]) {
+      expect(gravitySrc).toContain(ref);
+    }
+    // the old pastel Tailwind-300 hues this task removed must not come back
+    for (const hex of ["7dd3fc", "f9a8d4", "fcd34d", "86efac", "c4b5fd"]) {
+      expect(gravitySrc).not.toContain(hex);
     }
   });
 });
