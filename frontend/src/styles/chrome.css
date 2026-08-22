@@ -266,8 +266,14 @@
 /* Stage 2 shortens the debug group rather than collapsing it: a student
    mid-step must not lose Next frame into an overflow menu. The stage-1 rule
    above hides .tb-btn--secondary labels; these buttons are deliberately not
-   --secondary, so they keep their words and only the readout goes. */
-.app-header--stage2 .tb-chip--quiet { display: none; }
+   --secondary, so they keep their words.
+
+   The readout used to go entirely here — but stage 2 is active AT the
+   declared 1024px floor, so 1024–1120px lost the "Paused · iteration N"
+   chip AND the aria-live region announcing it, i.e. the only visible proof
+   that a pause actually took. Toolbar now renders a shortened string at
+   this stage (see `pauseLabel` in Toolbar.js); CSS only tightens it. */
+.app-header--stage2 .tb-chip--quiet { padding: 0 4px; }
 
 /* Danger (clear / trash) */
 .tb-btn--danger {

@@ -266,43 +266,12 @@
   filter: drop-shadow(0 0 6px color-mix(in srgb, var(--yellow) 70%, transparent)) !important;
 }
 
-/* ── Code-editor debug decorations (Monaco) ────────────────── */
-/* Red dot in the glyph margin for breakpointed lines */
-.dbg-glyph-bp {
-  border-radius: 50%;
-  background: radial-gradient(
-    circle at 50% 55%,
-    var(--red) 38%,
-    color-mix(in srgb, var(--red) 55%, #000) 60%,
-    transparent 62%
-  );
-  cursor: pointer;
-  width: 100%;
-  height: 100%;
-}
-/* Hollow ring — this line COULD hold a breakpoint but doesn't yet (debug mode
-   only). Mirrors the Blockly .bp-available treatment above: an affordance,
-   not a state. */
-.dbg-glyph-breakable {
-  border-radius: 50%;
-  border: 2px dashed color-mix(in srgb, var(--red) 55%, transparent);
-  box-sizing: border-box;
-  width: 100%;
-  height: 100%;
-}
-/* Arrow in the glyph margin for the executing line */
-.dbg-glyph-executing {
-  background: currentColor;
-  color: var(--yellow);
-  -webkit-mask: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><polygon points='2,4 10,8 2,12'/></svg>") center/10px no-repeat;
-  mask: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><polygon points='2,4 10,8 2,12'/></svg>") center/10px no-repeat;
-  width: 100%;
-  height: 100%;
-}
-/* Background highlight for the executing line */
-.dbg-executing-line {
-  background: color-mix(in srgb, var(--yellow) 12%, transparent) !important;
-}
+/* The Monaco glyph-margin debug decorations that used to live here
+   (.dbg-glyph-bp / .dbg-glyph-breakable / .dbg-glyph-executing, plus the
+   .dbg-executing-line row highlight) are gone with the code-mode breakpoint
+   gutter that was their only consumer — see CodeEditor.js. Breakpoints are a
+   block-editor feature; the .bp-* rules above are the live ones. */
+
 /* ═══════════════════════════════════════════════════════════
    BLOCKLY OVERRIDES (VS Code style)
    ═══════════════════════════════════════════════════════════ */

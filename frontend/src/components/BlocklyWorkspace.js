@@ -604,14 +604,20 @@ function BlocklyWorkspace({
      is on. A student can now see the difference between "I didn't set it" and
      "this block can never pause". These used to live on ReadOnlyBlockly — the
      mirror DebugMode showed — which is exactly why the marks never appeared
-     on the blocks anyone was actually editing. */
+     on the blocks anyone was actually editing.
+
+     BOTH are gated on debugMode, like the execution highlight below.
+     Breakpoints are armed only in debug mode and leaving the mode keeps the
+     set, so an ungated .bp-block painted solid red outlines over a student's
+     blocks outside debug mode: they press Run, nothing pauses, and the marker
+     has lied. A breakpoint shows itself exactly where it can fire. */
   useEffect(() => {
     const ws = workspaceRef.current;
     if (!ws) return;
     for (const block of ws.getAllBlocks(false)) {
       const g = block.getSvgRoot();
       if (!g) continue;
-      const isBp = breakpoints.has(block.id);
+      const isBp = debugMode && breakpoints.has(block.id);
       g.classList.toggle("bp-block", isBp);
       g.classList.toggle("bp-available", debugMode && !isBp && isBreakable(block.id));
     }

@@ -1903,9 +1903,14 @@ export function defineCustomBlocksAndGenerator(Blockly) {
   const builtinArithmeticInit = Blockly.Blocks["math_arithmetic"].init;
   Blockly.Blocks["math_arithmetic"].init = function () {
     builtinArithmeticInit.call(this);
-    this.getInput("A").connection.setCheck(["Number", "Vector"]);
-    this.getInput("B").connection.setCheck(["Number", "Vector"]);
-    this.outputConnection.setCheck(["Number", "Vector"]);
+    /* Optional chaining, not a bare access: these input names belong to
+       Blockly's own block definition, not ours. If a future Blockly renames
+       or restructures them, a throw in here kills `init` for EVERY arithmetic
+       block on the workspace; degrading to "no widening" instead costs only
+       the vector connections this widening restored. */
+    this.getInput("A")?.connection?.setCheck(["Number", "Vector"]);
+    this.getInput("B")?.connection?.setCheck(["Number", "Vector"]);
+    this.outputConnection?.setCheck(["Number", "Vector"]);
   };
 
   /* ── physics_const_block — dynamic dropdown with custom constants ── */

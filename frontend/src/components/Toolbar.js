@@ -126,6 +126,19 @@ function Toolbar({
     if (file && onImportProject) onImportProject(file);
   };
 
+  /* ── The pause readout, in two lengths ──────────────────────────────
+     Stage 2 is active AT the declared 1024px floor, so "hide it there" and
+     "hide it on every supported narrow screen" are the same sentence. The
+     short form keeps both facts the chip exists to carry — the pause STATE
+     and the iteration NUMBER — and only drops the word "iteration", which
+     the title attribute restores on hover. */
+  const pauseLabel =
+    pauseState === "paused"
+      ? { full: `Paused · iteration ${iteration}`, short: `Paused · ${iteration}` }
+      : pauseState === "pausing"
+        ? { full: "Pausing…", short: "Pausing…" }
+        : { full: `iteration ${iteration}`, short: `${iteration}` };
+
   /* ── Primary- and file-zone controls: each key renders its own JSX
      directly — today's markup, relocated verbatim, not redesigned. A
      renderer may still return null for a key the matrix says exists but
@@ -417,12 +430,18 @@ function Toolbar({
                 {breakpointCount} bp
               </span>
             )}
-            <span className="tb-chip tb-chip--quiet" aria-live="polite">
-              {pauseState === "paused"
-                ? `Paused · iteration ${iteration}`
-                : pauseState === "pausing"
-                  ? "Pausing…"
-                  : `iteration ${iteration}`}
+            {/* The pause readout — this plan's visible proof that a pause
+                actually took, and the aria-live region that announces it.
+                Stage 2 (active AT the 1024px floor) used to hide it outright
+                in CSS, so the narrowest supported viewport got neither the
+                text nor the announcement. It shortens instead, and stays one
+                text node so what is announced is exactly what is shown. */}
+            <span
+              className="tb-chip tb-chip--quiet"
+              aria-live="polite"
+              title={pauseLabel.full}
+            >
+              {stage2 ? pauseLabel.short : pauseLabel.full}
             </span>
           </>
         )}
