@@ -726,6 +726,18 @@ mark.help-search-highlight {
   border-bottom: 1px solid var(--border);
 }
 .help-block-row:last-child { border-bottom: none; }
+/* Hidden deep-link anchor for a row that documents two blocks at once
+   (e.g. math_min_block / math_max_block) — a real DOM id for the second
+   block's helpUrl to land on, taken out of the row's grid flow entirely so
+   it cannot shift .help-block-name / .help-block-desc into the wrong cell. */
+.help-block-row-alias { display: none; }
+/* Deep-link focus: right-click → Help on a block scrolls the reference to
+   its row and briefly rings it (see HelpPage's focusBlockId effect). */
+.help-block-entry--focused {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: var(--radius);
+}
 .help-block-name {
   padding: 10px 12px;
   font-family: var(--mono);

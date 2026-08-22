@@ -235,7 +235,7 @@ const NAV = [
 /* ═══════════════════════════════════════════════════════════
    MAIN COMPONENT
    ═══════════════════════════════════════════════════════════ */
-export default function HelpPage({ onClose }) {
+export default function HelpPage({ onClose, focusBlockId }) {
   const [activeSection, setActiveSection] = useState("overview");
   const [searchQuery, setSearchQuery] = useState("");
   const contentRef = useRef(null);
@@ -284,6 +284,27 @@ export default function HelpPage({ onClose }) {
     anchors.forEach((a) => obs.observe(a));
     return () => obs.disconnect();
   }, []);
+
+  /* Deep link from a block's right-click → Help (helpUrl "#/help?block=<id>").
+     The anchor may be the row itself, or (for the two combined rows that
+     document a pair of blocks) a hidden alias <span> inside the row — walk
+     up to the row so the highlight and scroll target the visible entry. */
+  useEffect(() => {
+    if (!focusBlockId) return;
+    const el = document.getElementById(`help-block-${focusBlockId}`);
+    if (!el) return;
+    const row = el.closest(".help-block-row") || el;
+    row.scrollIntoView?.({ block: "center", behavior: "smooth" });
+    row.classList.add("help-block-entry--focused");
+    const t = setTimeout(() => row.classList.remove("help-block-entry--focused"), 2000);
+    // Also clear the ring on cleanup (a new focusBlockId arriving, or
+    // unmount, before the 2s timeout fires) — otherwise a superseded row
+    // stays lit forever once its removal timer is cancelled.
+    return () => {
+      clearTimeout(t);
+      row.classList.remove("help-block-entry--focused");
+    };
+  }, [focusBlockId]);
 
   function scrollTo(id) {
     const el = contentRef.current;
@@ -786,7 +807,7 @@ export default function HelpPage({ onClose }) {
                 Ideal for beginners building their first simulation.
               </p>
               <div className="help-block-table">
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-preset_sphere_block">
                   <div className="help-block-name">preset_sphere_block</div>
                   <div className="help-block-desc">
                     Create a sphere with a single block. Set the variable name, position
@@ -797,7 +818,7 @@ export default function HelpPage({ onClose }) {
                     which uses composable value-slot inputs for expressions and variables.</Note>
                   </div>
                 </div>
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-preset_box_block">
                   <div className="help-block-name">preset_box_block</div>
                   <div className="help-block-desc">
                     Create a box with all settings inline: variable name, position, width
@@ -810,7 +831,7 @@ export default function HelpPage({ onClose }) {
 
               <h3 className="help-h3">Scene Objects <CategoryTag category="Objects" /></h3>
               <div className="help-block-table">
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-sphere_block">
                   <div className="help-block-name">sphere_block</div>
                   <div className="help-block-desc">
                     Creates a basic VPython sphere assigned to a <strong>variable dropdown</strong> (native Blockly variable).
@@ -818,7 +839,7 @@ export default function HelpPage({ onClose }) {
                     <Pre>ball = sphere(pos=vector(0,0,0), radius=1, color=vector(1,0,0))</Pre>
                   </div>
                 </div>
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-sphere_trail_block">
                   <div className="help-block-name">sphere_trail_block</div>
                   <div className="help-block-desc">
                     Creates a sphere with a motion trail. All trail parameters are passed in the constructor as required by GlowScript 3.2.
@@ -827,7 +848,7 @@ export default function HelpPage({ onClose }) {
                     <Note type="warning"><Code>make_trail=True</Code> must be set in the constructor. Use this block instead of <Code>sphere_block</Code> whenever you need a trail.</Note>
                   </div>
                 </div>
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-sphere_emissive_block">
                   <div className="help-block-name">sphere_emissive_block</div>
                   <div className="help-block-desc">
                     Creates a self-illuminating (glow) sphere with configurable <Code>opacity</Code>.
@@ -836,14 +857,14 @@ export default function HelpPage({ onClose }) {
                     <Note type="warning"><Code>emissive=True</Code> must be set in the constructor in GlowScript 3.2.</Note>
                   </div>
                 </div>
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-box_block">
                   <div className="help-block-name">box_block</div>
                   <div className="help-block-desc">
                     Creates a VPython box using composable value sockets for <Code>pos</Code>, <Code>size</Code>, and <Code>color</Code>.
                     <Pre>wall = box(pos=vector(0,0,0), size=vector(1,1,1), color=...)</Pre>
                   </div>
                 </div>
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-box_opacity_block">
                   <div className="help-block-name">box_opacity_block</div>
                   <div className="help-block-desc">
                     Creates a box with an <Code>opacity</Code> field (0 = invisible, 1 = solid). The position fields accept Python expressions
@@ -851,21 +872,21 @@ export default function HelpPage({ onClose }) {
                     <Pre>shadow = box(pos=vector(mass.pos.x,-1.08,0), size=vector(1,0.01,1), color=..., opacity=0.45)</Pre>
                   </div>
                 </div>
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-cylinder_block">
                   <div className="help-block-name">cylinder_block</div>
                   <div className="help-block-desc">
                     Creates a cylinder from <Code>pos</Code> to <Code>pos + axis</Code>. The axis vector determines both direction and length.
                     <Pre>rod = cylinder(pos=vector(0,0,0), axis=vector(4,0,0), radius=0.3)</Pre>
                   </div>
                 </div>
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-arrow_block">
                   <div className="help-block-name">arrow_block</div>
                   <div className="help-block-desc">
                     Creates a VPython arrow. The <Code>axis</Code> vector sets direction and length.
                     Ideal for visualising velocity, force, and acceleration vectors.
                   </div>
                 </div>
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-helix_block">
                   <div className="help-block-name">helix_block</div>
                   <div className="help-block-desc">
                     Creates a basic helix with <Code>pos</Code>, <Code>axis</Code>, and <Code>radius</Code>. Update <Code>axis</Code> each frame to animate stretch.
@@ -873,7 +894,7 @@ export default function HelpPage({ onClose }) {
                     <Pre>spring = helix(pos=anchor, axis=vector(L0,0,0), radius=0.3)</Pre>
                   </div>
                 </div>
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-helix_full_block">
                   <div className="help-block-name">helix_full_block</div>
                   <div className="help-block-desc">
                     Creates a helix with full constructor parameters: <Code>coils</Code>, <Code>thickness</Code>, and expression-based
@@ -891,21 +912,21 @@ export default function HelpPage({ onClose }) {
                 into any empty slot.
               </p>
               <div className="help-block-table">
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-vector_block">
                   <div className="help-block-name">vector_block</div>
                   <div className="help-block-desc">
                     Creates a <Code>vector(x, y, z)</Code> value. Snap into pos, axis, size,
                     velocity, or colour slots on other blocks.
                   </div>
                 </div>
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-colour_block">
                   <div className="help-block-name">colour_block</div>
                   <div className="help-block-desc">
                     Pick a colour from a visual colour palette. Outputs a VPython
                     <Code>vector(r, g, b)</Code> colour. Snap into any colour slot.
                   </div>
                 </div>
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-expr_block">
                   <div className="help-block-name">expr_block</div>
                   <div className="help-block-desc">
                     <strong>The Swiss-army expression block.</strong> Type any Python expression
@@ -933,7 +954,7 @@ ball.velocity += (vector(0, -9.81 * mass, 0)) * dt
                     </Note>
                   </div>
                 </div>
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-define_const_block">
                   <div className="help-block-name">define_const_block</div>
                   <div className="help-block-desc">
                     Define a reusable named constant at the top of your program. Set the variable
@@ -952,7 +973,7 @@ CHARGE = 1.6e-19`}</Pre>
                     </Note>
                   </div>
                 </div>
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-physics_const_block">
                   <div className="help-block-name">physics_const_block</div>
                   <div className="help-block-desc">
                     Insert a standard physics constant via a dropdown. Choose from:
@@ -965,7 +986,7 @@ CHARGE = 1.6e-19`}</Pre>
 
               <h3 className="help-h3">Physics Expressions <CategoryTag category="Values" /></h3>
               <div className="help-block-table">
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-get_prop_block">
                   <div className="help-block-name">get_prop_block</div>
                   <div className="help-block-desc">
                     Read any property of an object variable. Set the variable name in the
@@ -974,7 +995,7 @@ CHARGE = 1.6e-19`}</Pre>
                     Snap the result into any value slot, or chain into component/mag blocks.
                   </div>
                 </div>
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-get_component_block">
                   <div className="help-block-name">get_component_block</div>
                   <div className="help-block-desc">
                     Get the <Code>x</Code>, <Code>y</Code>, or <Code>z</Code> scalar
@@ -984,7 +1005,7 @@ CHARGE = 1.6e-19`}</Pre>
                     Snap the result into a <Code>logic_compare</Code> condition or math slot.
                   </div>
                 </div>
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-mag_block">
                   <div className="help-block-name">mag_block</div>
                   <div className="help-block-desc">
                     Magnitude (scalar length) of a vector. Chain with <Code>get_prop_block</Code>:
@@ -993,7 +1014,7 @@ CHARGE = 1.6e-19`}</Pre>
                     <Note type="tip">Compare with a number using a Logic Compare block: <Code>mag(ball.velocity) &lt; 0.06</Code>.</Note>
                   </div>
                 </div>
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-norm_block">
                   <div className="help-block-name">norm_block</div>
                   <div className="help-block-desc">
                     Unit vector in the direction of the input. Use to find the direction
@@ -1005,7 +1026,7 @@ CHARGE = 1.6e-19`}</Pre>
 
               <h3 className="help-h3">Motion / Physics <CategoryTag category="Motion" /></h3>
               <div className="help-block-table">
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-set_velocity_block">
                   <div className="help-block-name">set_velocity_block</div>
                   <div className="help-block-desc">
                     Sets an object's initial velocity vector.
@@ -1014,7 +1035,7 @@ CHARGE = 1.6e-19`}</Pre>
                     creates a custom attribute that your loop must use to update position.
                   </div>
                 </div>
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-update_position_block">
                   <div className="help-block-name">update_position_block</div>
                   <div className="help-block-desc">
                     <strong>Euler integration step</strong> — advances position by one time step.
@@ -1022,7 +1043,7 @@ CHARGE = 1.6e-19`}</Pre>
                     Place inside a <Code>forever</Code> loop after updating velocity.
                   </div>
                 </div>
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-apply_force_block">
                   <div className="help-block-name">apply_force_block</div>
                   <div className="help-block-desc">
                     Applies a constant acceleration (force/mass) vector to an object's velocity.
@@ -1031,7 +1052,7 @@ CHARGE = 1.6e-19`}</Pre>
                     your force by mass before entering it.
                   </div>
                 </div>
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-set_gravity_block">
                   <div className="help-block-name">set_gravity_block</div>
                   <div className="help-block-desc">
                     Defines a gravity vector in the −Y direction.
@@ -1039,7 +1060,7 @@ CHARGE = 1.6e-19`}</Pre>
                     Use this in your loop: <Code>ball.velocity = ball.velocity + g * dt</Code>
                   </div>
                 </div>
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-set_scalar_block">
                   <div className="help-block-name">set_scalar_block</div>
                   <div className="help-block-desc">
                     Assigns any Python expression to a variable chosen from a Blockly variable dropdown.
@@ -1048,7 +1069,7 @@ CHARGE = 1.6e-19`}</Pre>
                   </div>
                 </div>
 
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-set_attr_expr_block">
                   <div className="help-block-name">set_attr_expr_block</div>
                   <div className="help-block-desc">
                     One-line attribute assignment: <Code>object.attr = expr</Code>.
@@ -1056,7 +1077,7 @@ CHARGE = 1.6e-19`}</Pre>
                     Very flexible — use for updating any object property.
                   </div>
                 </div>
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-add_attr_expr_block">
                   <div className="help-block-name">add_attr_expr_block</div>
                   <div className="help-block-desc">
                     Attribute increment: <Code>object.attr += expr</Code>.
@@ -1067,7 +1088,7 @@ CHARGE = 1.6e-19`}</Pre>
 
               <h3 className="help-h3">Control <CategoryTag category="Control" /></h3>
               <div className="help-block-table">
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-forever_loop_block">
                   <div className="help-block-name">forever_loop_block</div>
                   <div className="help-block-desc">
                     Wraps its body in <Code>while True:</Code>. Every VPython simulation needs exactly
@@ -1075,7 +1096,7 @@ CHARGE = 1.6e-19`}</Pre>
                     <Pre>{`while True:\n    rate(200)\n    ball.pos = ball.pos + ball.velocity * dt`}</Pre>
                   </div>
                 </div>
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-for_range_block">
                   <div className="help-block-name">for_range_block</div>
                   <div className="help-block-desc">
                     A for-loop over a numeric range. Loop variable is a Blockly variable dropdown, plus
@@ -1084,7 +1105,7 @@ CHARGE = 1.6e-19`}</Pre>
                     <Pre>{`for i in range(0, 31, 5):\n    cylinder(pos=vector(i, 0, 0), axis=vector(0, 0.04, 0), ...)`}</Pre>
                   </div>
                 </div>
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-if_block">
                   <div className="help-block-name">if_block</div>
                   <div className="help-block-desc">
                     A conditional statement with a free-text condition field. Accepts nested blocks in its body.
@@ -1093,7 +1114,7 @@ CHARGE = 1.6e-19`}</Pre>
                     <Note type="tip">For complex boolean conditions (e.g. <Code>x &lt; 0 and mag(v) &lt; 0.1</Code>) type them directly into the condition field.</Note>
                   </div>
                 </div>
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-if_else_block">
                   <div className="help-block-name">if_else_block</div>
                   <div className="help-block-desc">
                     An if/else conditional with separate bodies for the true and false branches.
@@ -1102,7 +1123,7 @@ CHARGE = 1.6e-19`}</Pre>
                     <Pre>{`if stretch > 0:\n    spring.color = vector(1, 0.45, 0.15)\nelse:\n    spring.color = vector(0.3, 0.55, 1)`}</Pre>
                   </div>
                 </div>
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-break_loop_block">
                   <div className="help-block-name">break_loop_block</div>
                   <div className="help-block-desc">
                     Emits a Python <Code>break</Code> statement. Place inside a <Code>forever_loop_block</Code>
@@ -1112,7 +1133,7 @@ CHARGE = 1.6e-19`}</Pre>
                     <Note type="info">Used in the Projectile template to stop the loop when the ball comes to rest.</Note>
                   </div>
                 </div>
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-rate_block">
                   <div className="help-block-name">rate_block</div>
                   <div className="help-block-desc">
                     Throttles the loop to N iterations per second. This is <strong>essential</strong> — without
@@ -1121,7 +1142,7 @@ CHARGE = 1.6e-19`}</Pre>
                     <Note type="warning">Always place <Code>rate()</Code> as the first line inside a <Code>forever</Code> loop.</Note>
                   </div>
                 </div>
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-time_step_block">
                   <div className="help-block-name">time_step_block</div>
                   <div className="help-block-desc">
                     Defines the simulation time step <Code>dt</Code>.
@@ -1133,14 +1154,14 @@ CHARGE = 1.6e-19`}</Pre>
 
               <h3 className="help-h3">Utility <CategoryTag category="State" /></h3>
               <div className="help-block-table">
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-local_light_block">
                   <div className="help-block-name">local_light_block</div>
                   <div className="help-block-desc">
                     Adds a point light source at a given position.
                     <Pre>local_light(pos=vector(0, 10, 5), color=color.white)</Pre>
                   </div>
                 </div>
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-label_block">
                   <div className="help-block-name">label_block</div>
                   <div className="help-block-desc">
                     Creates a simple on-screen text label at a 3D position (white, no box, transparent background).
@@ -1148,7 +1169,7 @@ CHARGE = 1.6e-19`}</Pre>
                     <Pre>info = label(text="", pos=vector(5,8,0), box=False, opacity=0, color=color.white)</Pre>
                   </div>
                 </div>
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-label_full_block">
                   <div className="help-block-name">label_full_block</div>
                   <div className="help-block-desc">
                     Creates a named telemetry label with a configurable <Code>height</Code> field (font size in pixels).
@@ -1156,7 +1177,7 @@ CHARGE = 1.6e-19`}</Pre>
                     <Pre>telemetry = label(pos=vector(8.5, 9.2, 0), text="", height=12, box=False, opacity=0, color=color.white)</Pre>
                   </div>
                 </div>
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-telemetry_update_block">
                   <div className="help-block-name">telemetry_update_block</div>
                   <div className="help-block-desc">
                     Updates a label variable's <Code>.text</Code> using up to 5 metric rows.
@@ -1165,14 +1186,14 @@ CHARGE = 1.6e-19`}</Pre>
                     <Note type="tip">Leave metric name/value blank to skip that row.</Note>
                   </div>
                 </div>
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-comment_block">
                   <div className="help-block-name">comment_block</div>
                   <div className="help-block-desc">
                     Emits a Python comment. Good for documenting block programs.
                     <Pre># This is a comment</Pre>
                   </div>
                 </div>
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-python_raw_block">
                   <div className="help-block-name">python_raw_block</div>
                   <div className="help-block-desc">
                     <strong>Advanced statement block</strong> — inlines any raw Python <em>statement</em>
@@ -1193,7 +1214,7 @@ if t > 10:\n    break`}</Pre>
                     </Note>
                   </div>
                 </div>
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-python_raw_expr_block">
                   <div className="help-block-name">python_raw_expr_block</div>
                   <div className="help-block-desc">
                     <strong>Advanced expression block</strong> — like <Code>python_raw_block</Code>
@@ -1220,7 +1241,7 @@ abs(stretch / L0)           # normalised stretch`}</Pre>
                 camera, object rotation, and named constants.
               </p>
               <div className="help-block-table">
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-sim_start_block">
                   <div className="help-block-name">sim_start_block</div>
                   <div className="help-block-desc">
                     <strong>Simulation header block</strong> — a hat block (always at the top of
@@ -1233,7 +1254,7 @@ scene.title = "Spring Mass"
                     The hat shape prevents accidentally attaching code above it.
                   </div>
                 </div>
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-sim_end_block">
                   <div className="help-block-name">sim_end_block</div>
                   <div className="help-block-desc">
                     <strong>Simulation footer block</strong> — emits a completion message after the
@@ -1242,7 +1263,7 @@ scene.title = "Spring Mass"
                     Place immediately after the forever loop block.
                   </div>
                 </div>
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-rotate_object_block">
                   <div className="help-block-name">rotate_object_block</div>
                   <div className="help-block-desc">
                     Rotate a VPython object by a given angle (in degrees) around an axis vector.
@@ -1253,7 +1274,7 @@ scene.title = "Spring Mass"
                     orbiting labels.
                   </div>
                 </div>
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-scene_camera_block">
                   <div className="help-block-name">scene_camera_block</div>
                   <div className="help-block-desc">
                     Set any <Code>scene.*</Code> property at runtime using a dropdown.
@@ -1275,7 +1296,7 @@ scene.background = vector(0, 0, 0.1) # background colour`}</Pre>
                 All of these blocks output values — snap them into any numeric or vector slot.
               </p>
               <div className="help-block-table">
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-vector_compose_block">
                   <div className="help-block-name">vector_compose_block</div>
                   <div className="help-block-desc">
                     Build a <Code>vector(x, y, z)</Code> from three <em>value sockets</em> rather
@@ -1287,7 +1308,7 @@ vector(ball.velocity.x * 0.5,  -9.81 * mass,  0)`}</Pre>
                     <Code>vector_compose_block</Code> whenever any component is a variable or formula.
                   </div>
                 </div>
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-cross_product_block">
                   <div className="help-block-name">cross_product_block</div>
                   <div className="help-block-desc">
                     Cross product of two vectors (right-hand rule): returns a vector perpendicular
@@ -1297,7 +1318,7 @@ vector(ball.velocity.x * 0.5,  -9.81 * mass,  0)`}</Pre>
                     the <Code>A</Code> and <Code>B</Code> slots.
                   </div>
                 </div>
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-dot_product_block">
                   <div className="help-block-name">dot_product_block</div>
                   <div className="help-block-desc">
                     Dot product of two vectors: returns a scalar. Used for work
@@ -1306,7 +1327,7 @@ vector(ball.velocity.x * 0.5,  -9.81 * mass,  0)`}</Pre>
 cos_angle = dot(norm(a), norm(b))     # cosine of angle`}</Pre>
                   </div>
                 </div>
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-math_trig_block">
                   <div className="help-block-name">math_trig_block</div>
                   <div className="help-block-desc">
                     Trigonometric and maths functions via a dropdown. All operate on VPython-compatible
@@ -1327,7 +1348,7 @@ abs(x)          # absolute value`}</Pre>
                     </Note>
                   </div>
                 </div>
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-math_pow_block">
                   <div className="help-block-name">math_pow_block</div>
                   <div className="help-block-desc">
                     Raise a base to an exponent (<Code>BASE ** EXP</Code>). Common uses:
@@ -1337,7 +1358,8 @@ mass ** 0.5   # square root via ** 0.5`}</Pre>
                     Snap value blocks into both <Code>BASE</Code> and <Code>EXP</Code> slots.
                   </div>
                 </div>
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-math_min_block">
+                  <span id="help-block-math_max_block" className="help-block-row-alias" aria-hidden="true" />
                   <div className="help-block-name">math_min_block / math_max_block</div>
                   <div className="help-block-desc">
                     Returns the smaller (or larger) of two values.
@@ -1349,7 +1371,7 @@ speed = min(mag(ball.velocity), v_term)`}</Pre>
                     Pair with <Code>set_attr_expr_block</Code> or snap into another expression.
                   </div>
                 </div>
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-math_clamp_block">
                   <div className="help-block-name">math_clamp_block</div>
                   <div className="help-block-desc">
                     Restrict a value to the range <Code>[lo, hi]</Code>.
@@ -1388,15 +1410,15 @@ angle = clamp(input_angle, -30, 30)`}</Pre>
 
               <h3 className="help-h3">Load blocks</h3>
               <div className="help-block-table">
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-ds_load_builtin_block">
                   <div className="help-block-name">ds_load_builtin_block</div>
                   <div className="help-block-desc">Load one of the six built-in datasets into a variable: <strong>Planets</strong>, <strong>Penguins</strong>, <strong>Weather</strong>, <strong>Pendulum</strong>, <strong>Spring</strong>, or <strong>Free fall</strong>. The Pendulum, Spring, and Free fall sets are realistic first-year lab measurements (see the Built-in datasets table below).</div>
                 </div>
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-ds_load_csv_block">
                   <div className="help-block-name">ds_load_csv_block</div>
                   <div className="help-block-desc">Open a system file picker and load a CSV file. Column types are inferred automatically from the first 100 rows. The file is cached per variable name so the dialog opens only once.</div>
                 </div>
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-ds_load_trace_block">
                   <div className="help-block-name">ds_load_trace_block</div>
                   <div className="help-block-desc">Load a saved simulation trace as a dataset. Available only in Hybrid projects after a trace has been promoted via the Trace table. Paste the label from the Data panel's "Saved traces" list.</div>
                 </div>
@@ -1404,19 +1426,20 @@ angle = clamp(input_angle, -30, 30)`}</Pre>
 
               <h3 className="help-h3">Explore blocks</h3>
               <div className="help-block-table">
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-ds_show_table_block">
                   <div className="help-block-name">ds_show_table_block</div>
                   <div className="help-block-desc">Render a scrollable table of the dataset. The table shows up to 12 rows; a "N more rows" indicator appears when the dataset is larger.</div>
                 </div>
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-ds_show_first_n_block">
+                  <span id="help-block-ds_show_last_n_block" className="help-block-row-alias" aria-hidden="true" />
                   <div className="help-block-name">ds_show_first_n_block / ds_show_last_n_block</div>
                   <div className="help-block-desc">Show the first or last N rows as a table. Use after sorting to inspect the extreme values.</div>
                 </div>
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-ds_count_rows_block">
                   <div className="help-block-name">ds_count_rows_block</div>
                   <div className="help-block-desc">Output the total row count as a named numeric value. Useful after filtering to confirm the filter worked.</div>
                 </div>
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-ds_all_stats_block">
                   <div className="help-block-name">ds_all_stats_block</div>
                   <div className="help-block-desc">Show count, mean, median, min, max, range, sum, and spread (standard deviation) for a column in a compact grid.</div>
                 </div>
@@ -1457,11 +1480,11 @@ angle = clamp(input_angle, -30, 30)`}</Pre>
 
               <h3 className="help-h3">Group and Compare blocks</h3>
               <div className="help-block-table">
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-ds_group_count_block">
                   <div className="help-block-name">ds_group_count_block</div>
                   <div className="help-block-desc">Count rows per unique value in a group column. Outputs a table with one row per group and a count column.</div>
                 </div>
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-ds_group_mean_block">
                   <div className="help-block-name">ds_group_mean_block</div>
                   <div className="help-block-desc">Calculate the mean of a value column grouped by a categorical column. The result column is named <Code>mean_&lt;valueCol&gt;</Code>. Use this result variable in a bar chart to compare group averages.</div>
                 </div>
@@ -1473,23 +1496,23 @@ angle = clamp(input_angle, -30, 30)`}</Pre>
                 lines, and reporting measurement uncertainty.
               </p>
               <div className="help-block-table">
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-ds_linear_regression_block">
                   <div className="help-block-name">ds_linear_regression_block</div>
                   <div className="help-block-desc">Fit a straight line <Code>y = m·x + c</Code> to two numeric columns. Stores the result in a variable and shows a regression card with slope, intercept, R², and a quality rating. The slope is the physical quantity in most labs (g, k, −γ).</div>
                 </div>
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-ds_multiply_columns_block">
                   <div className="help-block-name">ds_multiply_columns_block</div>
                   <div className="help-block-desc">Create a new column from the product of two existing columns. Used to compute <Code>T² = period_s × period_s</Code> so T² vs length can be regressed.</div>
                 </div>
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-ds_add_column_transform_block">
                   <div className="help-block-name">ds_add_column_transform_block</div>
                   <div className="help-block-desc">Add a column derived from another via a transform (square, square-root, natural log, etc.) — e.g. <Code>ln(E_total)</Code> for the damping analysis or <Code>t²</Code> for a distance-vs-t² linearisation.</div>
                 </div>
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-ds_print_uncertainty_block">
                   <div className="help-block-name">ds_print_uncertainty_block</div>
                   <div className="help-block-desc">Report a column's <strong>mean ± standard error</strong> as an uncertainty card. Use on a set of repeated measurements (e.g. one length's timing trials).</div>
                 </div>
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-ds_calc_relative_uncertainty_block">
                   <div className="help-block-name">ds_calc_relative_uncertainty_block</div>
                   <div className="help-block-desc">Compute the relative uncertainty (standard error ÷ mean, as a %) for a column — a quick measure of how precise a measurement is.</div>
                 </div>
@@ -1515,23 +1538,23 @@ angle = clamp(input_angle, -30, 30)`}</Pre>
 
               <h3 className="help-h3">Communicate blocks</h3>
               <div className="help-block-table">
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-ds_write_note_block">
                   <div className="help-block-name">ds_write_note_block</div>
                   <div className="help-block-desc">Insert a free-text markdown note in the Data panel. Use to annotate findings between charts.</div>
                 </div>
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-ds_print_result_block">
                   <div className="help-block-name">ds_print_result_block</div>
                   <div className="help-block-desc">Display a named variable as a labelled value card. Use after a stats block to show the result with a human-readable label.</div>
                 </div>
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-ds_state_conclusion_block">
                   <div className="help-block-name">ds_state_conclusion_block</div>
                   <div className="help-block-desc">Display a styled conclusion callout at the end of the analysis. Encourages students to articulate a finding in plain language.</div>
                 </div>
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-ds_export_table_block">
                   <div className="help-block-name">ds_export_table_block</div>
                   <div className="help-block-desc">Download the current dataset as a CSV file.</div>
                 </div>
-                <div className="help-block-row">
+                <div className="help-block-row" id="help-block-ds_show_python_block">
                   <div className="help-block-name">ds_show_python_block</div>
                   <div className="help-block-desc">Reveal the generated Python (pandas-style) code for the current analysis. Useful for students transitioning to a Python data science workflow.</div>
                 </div>

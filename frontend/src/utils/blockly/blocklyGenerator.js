@@ -1942,6 +1942,20 @@ export function defineCustomBlocksAndGenerator(Blockly) {
     },
   };
 
+  /* Right-click → Help, on every block we own. Derived from the block id so
+     it cannot drift: there were zero helpUrl declarations before Tranche 3,
+     while HelpPage.js has carried a full block reference the whole time.
+     Stock Blockly blocks keep their own upstream help URLs. Runs after every
+     block registration above (JSON-defined and the manually-registered
+     physics_const_block) so Blockly.Blocks[entry.type] is always populated
+     by the time this loop reads it. */
+  for (const entry of REGISTRY_BLOCK_CATALOGUE) {
+    const def = Blockly.Blocks[entry.type];
+    if (!def) continue;              // stock block, or not yet registered
+    if (def.helpUrl) continue;       // never clobber an upstream URL
+    def.helpUrl = `#/help?block=${entry.type}`;
+  }
+
   /* ──────────────────────────────────────────────────────────
      CODE GENERATORS  (Python.forBlock)
      ────────────────────────────────────────────────────────── */
