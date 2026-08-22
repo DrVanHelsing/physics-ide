@@ -44,11 +44,20 @@ export function useDebug() {
     [runGenerationRef, setRunning, setBooting, setStatus, setPaused, setRecording, recordingRef, setDebugMode]
   );
 
-  const handlePause = useCallback(() => {
-    pausePython();
-    setPauseState("pausing");
+  /** Arms the shared ack-timeout fallback, capturing the CURRENT run
+   *  generation. Without this, a stale timer from a session the student has
+   *  already left (exit debug, Stop, a fresh Run — anything that bumps
+   *  `runGenerationRef`, see SimulationContext) would fire ~1s later and
+   *  call resumePython()/overwrite status against whatever now owns the
+   *  screen, not the session that armed it. Shared by handlePause and
+   *  handleStepFrame — both can leave a program stuck "pausing" forever
+   *  when it has no traced values, since neither ever reaches a runtime
+   *  checkpoint to post the __phpause ack. */
+  const armPauseAckTimeout = useCallback(() => {
+    const armedGeneration = runGenerationRef.current;
     if (pauseAckTimerRef.current) clearTimeout(pauseAckTimerRef.current);
     pauseAckTimerRef.current = setTimeout(() => {
+      if (runGenerationRef.current !== armedGeneration) return; // stale — session moved on
       /* No checkpoint was reached. Tell the student why instead of showing a
          PAUSED badge over a simulation that never stopped. */
       resumePython();
@@ -61,7 +70,13 @@ export function useDebug() {
         type: "error",
       });
     }, PAUSE_ACK_TIMEOUT_MS);
-  }, [setPauseState, setPaused, setStatus, pauseAckTimerRef]);
+  }, [runGenerationRef, pauseAckTimerRef, setPauseState, setPaused, setStatus]);
+
+  const handlePause = useCallback(() => {
+    pausePython();
+    setPauseState("pausing");
+    armPauseAckTimeout();
+  }, [setPauseState, armPauseAckTimeout]);
 
   const handleResume = useCallback(() => {
     resumePython();
@@ -75,11 +90,15 @@ export function useDebug() {
     stepPython();
   }, [setPaused]);
 
-  /** The dominant control: one full animation frame. */
+  /** The dominant control: one full animation frame. Gets the same honest
+   *  ack-timeout fallback as handlePause — a program with no traced values
+   *  never posts a __phpause ack here either, and without the fallback
+   *  "Next frame" would leave pauseState stuck at "pausing" forever. */
   const handleStepFrame = useCallback(() => {
     setPauseState("pausing");
     stepFrame();
-  }, [setPauseState]);
+    armPauseAckTimeout();
+  }, [setPauseState, armPauseAckTimeout]);
 
   return {
     debugMode,
