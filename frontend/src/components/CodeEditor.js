@@ -10,6 +10,12 @@ function CodeEditor({
   breakpointLines,         /* Set<number> — lines that have a breakpoint */
   onToggleLineBreakpoint,  /* (lineNumber: number) => void */
   executingLine,           /* number | null — current execution line highlight */
+  breakableLines,          /* Set<number> | undefined — lines a breakpoint can
+                               actually pause on. Undefined means "not known
+                               yet / not wired" and is treated permissively
+                               (no line is refused) so callers that have not
+                               been updated to pass it keep working exactly
+                               as before. */
 }) {
   const hostRef    = useRef(null);
   const editorRef  = useRef(null);
@@ -19,12 +25,14 @@ function CodeEditor({
   const readOnlyRef = useRef(readOnly);
   const isDarkRef   = useRef(isDark);
   const onToggleBpRef = useRef(onToggleLineBreakpoint);
+  const breakableLinesRef = useRef(breakableLines);
   const [fallback, setFallback] = useState(false);
   const suppressRef = useRef(false);
 
   /* Decoration ID arrays (for deltaDecorations cleanup) */
   const bpDecoIds  = useRef([]);
   const exDecoIds  = useRef([]);
+  const breakableDecoIds = useRef([]);
 
   // Keep latest callback/value in refs
   onChangeRef.current     = onChange;
@@ -32,6 +40,7 @@ function CodeEditor({
   readOnlyRef.current     = readOnly;
   isDarkRef.current       = isDark;
   onToggleBpRef.current   = onToggleLineBreakpoint;
+  breakableLinesRef.current = breakableLines;
 
   /* ── One-time Monaco bootstrap ───────────────────────────── */
   useEffect(() => {
@@ -67,13 +76,18 @@ function CodeEditor({
           onChangeRef.current(editor.getValue());
         });
 
-        /* ── Glyph-margin / line-number click → toggle breakpoint ── */
+        /* ── Glyph-margin / line-number click → toggle breakpoint ──
+           Only an instrumentable line can ever pause — clicking any other
+           line used to happily accept a breakpoint that would never fire. */
         if (onToggleBpRef.current) {
           editor.onMouseDown((e) => {
             const tgt = e.target;
             /* MouseTargetType: GUTTER_GLYPH_MARGIN = 2, GUTTER_LINE_NUMBERS = 3 */
             if ((tgt.type === 2 || tgt.type === 3) && tgt.position) {
-              onToggleBpRef.current(tgt.position.lineNumber);
+              const line = tgt.position.lineNumber;
+              const breakable = breakableLinesRef.current;
+              if (breakable && !breakable.has(line)) return;
+              onToggleBpRef.current(line);
             }
           });
         }
@@ -131,6 +145,28 @@ function CodeEditor({
       : [];
     bpDecoIds.current = editor.deltaDecorations(bpDecoIds.current, decos);
   }, [breakpointLines]);
+
+  /* ── Breakable-line hollow glyph ─────────────────────────── */
+  /* A quiet affordance, not a state: shows every line that COULD hold a
+     breakpoint (and does not already have one) so a student can see the
+     difference between "no breakpoint here" and "can't pause here". */
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor || !monacoRef.current) return;
+    const bpSet = breakpointLines || new Set();
+    const decos = breakableLines
+      ? Array.from(breakableLines)
+          .filter((line) => !bpSet.has(line))
+          .map((line) => ({
+            range: new monacoRef.current.Range(line, 1, line, 1),
+            options: {
+              glyphMarginClassName: "dbg-glyph-breakable",
+              glyphMarginHoverMessage: { value: "Breakpoint can be set here" },
+            },
+          }))
+      : [];
+    breakableDecoIds.current = editor.deltaDecorations(breakableDecoIds.current, decos);
+  }, [breakableLines, breakpointLines]);
 
   /* ── Executing-line highlight decoration ──────────────────── */
   useEffect(() => {

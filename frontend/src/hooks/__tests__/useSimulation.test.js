@@ -18,17 +18,18 @@ import React from "react";
 import { act } from "react";
 import { mountComponent } from "../../test/renderHelpers";
 import { SimulationProvider, useSimulationContext } from "../../contexts/SimulationContext";
-import { DebugProvider } from "../../contexts/DebugContext";
-import { TraceProvider } from "../../contexts/TraceContext";
+import { DebugProvider, useDebugContext } from "../../contexts/DebugContext";
+import { TraceProvider, useTraceContext } from "../../contexts/TraceContext";
 import { useSimulation } from "../useSimulation";
 
 vi.mock("../../utils/runner/glowRunner", () => ({
   runPython: vi.fn(),
   stopPython: vi.fn(),
   setBreakpoints: vi.fn(),
+  setRuntimeErrorSink: vi.fn(),
 }));
 
-import { runPython } from "../../utils/runner/glowRunner";
+import { runPython, setRuntimeErrorSink } from "../../utils/runner/glowRunner";
 
 /** A promise this test can resolve/reject on its own schedule. */
 function deferred() {
@@ -46,10 +47,14 @@ const flush = () => new Promise((r) => setTimeout(r, 0));
 let mounted = null;
 let latestSim = null;
 let latestCtx = null;
+let latestDebug = null;
+let latestTrace = null;
 
 function Consumer() {
   latestSim = useSimulation();
   latestCtx = useSimulationContext();
+  latestDebug = useDebugContext();
+  latestTrace = useTraceContext();
   return null;
 }
 
@@ -70,6 +75,8 @@ afterEach(() => {
   mounted = null;
   latestSim = null;
   latestCtx = null;
+  latestDebug = null;
+  latestTrace = null;
   vi.clearAllMocks();
 });
 
@@ -129,7 +136,9 @@ describe("useSimulation — booting phase", () => {
     expect(latestCtx.booting).toBe(false);
     expect(latestCtx.running).toBe(false);
     expect(latestCtx.status.type).toBe("error");
-    expect(latestCtx.status.text).toBe("Execution error: no canvas");
+    // describeRunError (Task 13) strips the "Execution error:" wrapper and
+    // maps an unrecognised message to a plain-English fallback title.
+    expect(latestCtx.status.text).toBe("The simulation stopped with an error.");
   });
 
   test("Stop clears booting even mid-boot, so it never sticks true past a Stop click", () => {
@@ -383,5 +392,327 @@ describe("useSimulation — every load path ends the run (Task 13)", () => {
     });
     expect(latestCtx.booting).toBe(false);
     expect(latestCtx.running).toBe(false);
+  });
+});
+
+describe("useSimulation — the async error sink respects run generation (Task 13 fix round)", () => {
+  // The sink registered with glowRunner (setRuntimeErrorSink) is a single,
+  // long-lived callback — it does not know which run an incoming async error
+  // "belongs to". Without a staleness check of its own, a stray report that
+  // surfaces from a run that has since been superseded by a newer run (or
+  // torn down by Stop/Reset/Home) would stomp whatever now owns the screen:
+  // flipping `running` false and overwriting the live status with an error.
+  // The fix compares a "confirmed generation" (set only once a run's own
+  // runPython call has resolved AND was not itself superseded) against the
+  // live runGenerationRef, exactly mirroring handleRun's own catch-clause
+  // staleness guard.
+
+  test("a sink report for a superseded run does not stomp a newer, still-booting run", async () => {
+    const runA = deferred();
+    const runB = deferred();
+    runPython.mockReturnValueOnce(runA.promise).mockReturnValueOnce(runB.promise);
+    mounted = mountComponent(<Wrapped />);
+
+    // Run A starts and reaches "confirmed live".
+    act(() => {
+      latestSim.handleRun();
+    });
+    runA.resolve();
+    await act(async () => {
+      await flush();
+    });
+    expect(latestCtx.status.type).toBe("success");
+
+    // The sink is registered once, at mount — capture it.
+    const sink = setRuntimeErrorSink.mock.calls[0][0];
+    expect(typeof sink).toBe("function");
+
+    // Run B starts (generation bumps) but has not yet resolved — nothing has
+    // confirmed it live yet.
+    act(() => {
+      latestSim.handleRun();
+    });
+    expect(latestCtx.booting).toBe(true);
+    expect(latestCtx.status.text).toBe("Starting simulation…");
+
+    // A stray async report — as if it arrived late from A's now-superseded
+    // run — must be dropped: it must not touch B's still-booting session.
+    act(() => {
+      sink(new Error("Runtime error: ghost from a superseded run"));
+    });
+    expect(latestCtx.running).toBe(true);
+    expect(latestCtx.booting).toBe(true);
+    expect(latestCtx.status.text).toBe("Starting simulation…");
+    expect(latestCtx.status.type).toBe("");
+  });
+
+  test("a sink report for the current, confirmed generation is acted on", async () => {
+    const run = deferred();
+    runPython.mockReturnValueOnce(run.promise);
+    mounted = mountComponent(<Wrapped />);
+
+    act(() => {
+      latestSim.handleRun();
+    });
+    run.resolve();
+    await act(async () => {
+      await flush();
+    });
+    expect(latestCtx.status.type).toBe("success");
+    expect(latestCtx.running).toBe(true);
+
+    const sink = setRuntimeErrorSink.mock.calls[0][0];
+
+    // This run has genuinely reached "confirmed live" and no newer run has
+    // started since — a report through the sink now must be believed.
+    act(() => {
+      sink(new Error("Runtime error: ZeroDivisionError: division by zero"));
+    });
+    expect(latestCtx.running).toBe(false);
+    expect(latestCtx.status.type).toBe("error");
+    expect(latestCtx.status.text).toBe("Something was divided by zero.");
+  });
+});
+
+describe("useSimulation — breakpoints are seeded before eval, only in debug mode (Task 14)", () => {
+  // handleRun used to call runPython(code, hostId) with no breakpoints at
+  // all, then push the live set into the iframe AFTER runPython resolved —
+  // by which point __main__() had already started the loop and the very
+  // first iteration could never be caught. The fix passes the breakpoints
+  // as a runPython option so glowRunner can seed them before eval.
+
+  test("debug mode ON: runPython is called with the live breakpoint set", async () => {
+    const run = deferred();
+    runPython.mockReturnValue(run.promise);
+    mounted = mountComponent(<Wrapped />);
+
+    act(() => {
+      latestDebug.setDebugMode(true);
+      latestDebug.setBreakableIds(new Set(["blk-1"]));
+    });
+    act(() => {
+      latestDebug.toggleBreakpoint("blk-1");
+    });
+    expect(latestDebug.breakpoints.has("blk-1")).toBe(true);
+
+    act(() => {
+      latestSim.handleRun();
+    });
+
+    expect(runPython).toHaveBeenCalledTimes(1);
+    const [, , opts] = runPython.mock.calls[0];
+    expect(opts.breakpoints).toEqual(new Set(["blk-1"]));
+
+    run.resolve();
+    await act(async () => {
+      await flush();
+    });
+  });
+
+  test("debug mode OFF: runPython gets an EMPTY breakpoint set even if breakpoints exist", async () => {
+    // useDebug's exit deliberately keeps `breakpoints` (so re-entering debug
+    // mode finds them again) — only debugMode gates whether they are armed.
+    // Without this, leaving debug mode and pressing Run would freeze the
+    // simulation on the first iteration with no PAUSED indicator anywhere.
+    const run = deferred();
+    runPython.mockReturnValue(run.promise);
+    mounted = mountComponent(<Wrapped />);
+
+    act(() => {
+      latestDebug.setDebugMode(true);
+      latestDebug.setBreakableIds(new Set(["blk-1"]));
+    });
+    act(() => {
+      latestDebug.toggleBreakpoint("blk-1");
+    });
+    act(() => {
+      latestDebug.setDebugMode(false);
+    });
+    expect(latestDebug.breakpoints.has("blk-1")).toBe(true); // kept, not cleared
+
+    act(() => {
+      latestSim.handleRun();
+    });
+
+    const [, , opts] = runPython.mock.calls[0];
+    expect(opts.breakpoints).toEqual(new Set());
+
+    run.resolve();
+    await act(async () => {
+      await flush();
+    });
+  });
+});
+
+/**
+ * Task 17 — the watch box reaches the runtime.
+ *
+ * TraceContext's `addWatch` armed expressions and TraceTable rendered them,
+ * but NOTHING read `watch` back out: handleRun is the only place that hands
+ * opts to runPython, and it passed `breakpoints` alone. The whole watch
+ * feature stopped at the context boundary. It is wired here — and, unlike
+ * breakpoints, it is deliberately NOT debug-gated: "watch my numbers while I
+ * work" is a plain-run gesture.
+ */
+describe("useSimulation — watch expressions reach runPython (Task 17)", () => {
+  test("an armed watch is passed through as opts.watch", async () => {
+    const run = deferred();
+    runPython.mockReturnValue(run.promise);
+    mounted = mountComponent(<Wrapped />);
+
+    act(() => {
+      latestTrace.addWatch("0.5*m*v**2");
+    });
+
+    act(() => {
+      latestSim.handleRun();
+    });
+
+    expect(runPython).toHaveBeenCalledTimes(1);
+    const [, , opts] = runPython.mock.calls[0];
+    expect(opts.watch).toEqual(["0.5*m*v**2"]);
+
+    run.resolve();
+    await act(async () => {
+      await flush();
+    });
+  });
+
+  test("watches are not debug-gated — a plain run carries them too", async () => {
+    const run = deferred();
+    runPython.mockReturnValue(run.promise);
+    mounted = mountComponent(<Wrapped />);
+
+    act(() => {
+      latestTrace.addWatch("ball.pos.y");
+    });
+    expect(latestDebug.debugMode).toBe(false);
+
+    act(() => {
+      latestSim.handleRun();
+    });
+
+    const [, , opts] = runPython.mock.calls[0];
+    expect(opts.watch).toEqual(["ball.pos.y"]);
+    expect(opts.breakpoints).toEqual(new Set()); // debug off: no breakpoints armed
+
+    run.resolve();
+    await act(async () => {
+      await flush();
+    });
+  });
+
+  test("with no watches armed, opts.watch is an empty array, never undefined", async () => {
+    const run = deferred();
+    runPython.mockReturnValue(run.promise);
+    mounted = mountComponent(<Wrapped />);
+
+    act(() => {
+      latestSim.handleRun();
+    });
+
+    const [, , opts] = runPython.mock.calls[0];
+    expect(opts.watch).toEqual([]);
+
+    run.resolve();
+    await act(async () => {
+      await flush();
+    });
+  });
+});
+
+/**
+ * Task 17 fix round 1, Finding 1 — the pause chip lied over a live run.
+ *
+ * pauseState was reset on debug enter/exit but by nothing else. The runtime
+ * posts __phpause {paused:false} only when an already-paused checkpoint is
+ * RELEASED, so after Debug→Pause the state stayed "paused" through the next
+ * Run and through Stop: the toolbar's aria-live chip read
+ * "Paused · iteration N" — ticking — over a running simulation, and useTrace
+ * (which bails out of clearing the execution highlight while
+ * pauseStateRef.current !== "running") left the yellow glow lit for the rest
+ * of the run. Both entry points reset it now: handleRun directly, every
+ * teardown path through endRun.
+ */
+describe("useSimulation — Run and Stop resync pauseState (Task 17 fix round 1)", () => {
+  test("Run after a debug pause clears the latched 'paused' state", async () => {
+    const run = deferred();
+    runPython.mockReturnValue(run.promise);
+    mounted = mountComponent(<Wrapped />);
+
+    // Debug → Pause: the runtime acknowledged, so the chip reads "Paused · …".
+    act(() => {
+      latestDebug.setDebugMode(true);
+      latestDebug.setPauseState("paused");
+      latestCtx.setPaused(true);
+    });
+    expect(latestDebug.pauseState).toBe("paused");
+
+    act(() => {
+      latestSim.handleRun();
+    });
+
+    expect(latestDebug.pauseState).toBe("running");
+    expect(latestCtx.paused).toBe(false);
+
+    run.resolve();
+    await act(async () => {
+      await flush();
+    });
+    // And it stays reset once the run confirms.
+    expect(latestDebug.pauseState).toBe("running");
+  });
+
+  test("Stop while paused clears it too — no 'Paused' chip over a dead simulation", () => {
+    mounted = mountComponent(<Wrapped />);
+
+    act(() => {
+      latestDebug.setDebugMode(true);
+      latestDebug.setPauseState("paused");
+      latestCtx.setPaused(true);
+      latestCtx.setRunning(true);
+    });
+
+    act(() => {
+      latestSim.handleStop();
+    });
+
+    expect(latestDebug.pauseState).toBe("running");
+    expect(latestCtx.paused).toBe(false);
+    expect(latestCtx.running).toBe(false);
+  });
+
+  test("a half-finished pause ('pausing') is cleared by Stop as well", () => {
+    mounted = mountComponent(<Wrapped />);
+    act(() => {
+      latestDebug.setPauseState("pausing");
+      latestCtx.setRunning(true);
+    });
+
+    act(() => {
+      latestSim.handleStop();
+    });
+
+    expect(latestDebug.pauseState).toBe("running");
+  });
+
+  test("every teardown path resets it, not just Stop", () => {
+    for (const teardown of ["handleHome", "handleResetToBlocks", "loadWorkspaceXml"]) {
+      mounted = mountComponent(<Wrapped />);
+      act(() => {
+        latestDebug.setPauseState("paused");
+        latestCtx.setPaused(true);
+      });
+
+      act(() => {
+        latestSim[teardown]("");
+      });
+
+      expect(latestDebug.pauseState, teardown).toBe("running");
+      expect(latestCtx.paused, teardown).toBe(false);
+
+      mounted.unmount();
+      mounted = null;
+    }
   });
 });

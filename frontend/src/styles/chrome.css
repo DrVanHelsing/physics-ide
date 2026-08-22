@@ -230,6 +230,45 @@
   background: color-mix(in srgb, var(--accent-blue) 12%, transparent);
 }
 
+/* The one control a student presses over and over while stepping. Weightier
+   than --subtle, deliberately not the filled primary — Run owns that and a
+   debug session must not grow a second filled button. */
+.tb-btn--primary-ghost {
+  color: var(--accent-bright);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  font-weight: var(--fw-semibold);
+}
+.tb-btn--primary-ghost:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border-color: var(--accent);
+}
+
+/* ── Debug-group readouts ── */
+.tb-chip {
+  display: inline-flex;
+  align-items: center;
+  height: var(--control-h-sm);
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-pill);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  background: color-mix(in srgb, var(--red) 18%, transparent);
+  color: var(--red);
+  white-space: nowrap;
+}
+.tb-chip--quiet {
+  background: transparent;
+  color: var(--text-dim);
+  font-weight: var(--fw-regular);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Stage 2 shortens the debug group rather than collapsing it: a student
+   mid-step must not lose Next frame into an overflow menu. The stage-1 rule
+   above hides .tb-btn--secondary labels; these buttons are deliberately not
+   --secondary, so they keep their words and only the readout goes. */
+.app-header--stage2 .tb-chip--quiet { display: none; }
+
 /* Danger (clear / trash) */
 .tb-btn--danger {
   color: var(--text-dim);
@@ -459,6 +498,24 @@
 .console-bar--error   { color: var(--red); }
 .console-bar--success { color: var(--green); }
 .console-bar--running { color: var(--accent); font-weight: 500; }
+
+/* The second sentence of a describeRunError result. Quieter and narrower than
+   the title beside it — the strip is 26px and the title has to stay the thing
+   you read first. The full text is still on the element's title attribute and
+   in the console (and, when one is up, at full width in the error banner). */
+/* Scoped to .status-bar so it outranks that block's `.status-bar span
+   { display: inline-flex }` — text-overflow does nothing on a flex box. */
+.status-bar .console-bar__detail {
+  display: inline-block;
+  color: var(--text-dim);
+  font-family: var(--font);
+  font-weight: var(--fw-regular);
+  margin-left: var(--space-2);
+  max-width: 40ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 .run-error-banner {
   display: flex;

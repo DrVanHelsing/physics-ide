@@ -22,6 +22,9 @@ import {
   SaveIcon,
   MenuIcon,
   MoreHorizontalIcon,
+  PauseIcon,
+  StepForwardIcon,
+  RecordIcon,
 } from "./Icons";
 import { MOD_LABEL } from "../utils/hotkeys";
 import DropdownMenu from "./common/DropdownMenu";
@@ -67,6 +70,21 @@ function Toolbar({
   projectTitle,
   onRenameProject,
   onSave,
+  /* ── Debug group (Plan 4 Task 17). Debug is a MODE of this shell now, not
+     a separate screen with its own button vocabulary, so its controls are
+     .tb-btn like everything else and live at the end of the view zone. */
+  debugMode = false,
+  paused = false,
+  pauseState = "running",
+  iteration = 0,
+  recording = false,
+  breakpointCount = 0,
+  onPause,
+  onResume,
+  onStepFrame,
+  onStepValue,
+  onStartRecord,
+  onStopRecord,
   children,
 }) {
   const stage1 = useMediaQuery(HEADER_STAGE1_QUERY);
@@ -82,7 +100,7 @@ function Toolbar({
   const role = me ? me.role : "guest";
   const isTeacher = me?.isTeacher ?? false;
   const runState = booting ? "booting" : running ? "running" : "idle";
-  const zones = visibleControls({ mode, goal, role, isTeacher, runState });
+  const zones = visibleControls({ mode, goal, role, isTeacher, runState, debugMode, traceVisible });
 
   const handleImportClick = () => {
     if (importInputRef.current) {
@@ -254,8 +272,11 @@ function Toolbar({
       icon: viewportHidden ? PanelRightOpenIcon : PanelRightCloseIcon,
       onClick: onToggleViewport,
     },
-    // Reserved for Plan 4's docked trace drawer, which supplies onToggleTrace.
-    // Inert until then — the toggle does not render without the handler.
+    /* Plan 1 deferred this toggle and Plan 2 Task 9 Step 3 deliberately kept
+       it unwired — "Plan 4 revives .debug-drawer … and supplies exactly this
+       handler". Task 17 supplies it: the drawer has two independent reasons to
+       be open, and watching your numbers is not the same gesture as stepping
+       through them. */
     trace: onToggleTrace && {
       key: "trace",
       label: traceVisible ? "Hide live trace table" : "Show live trace table",
@@ -266,10 +287,13 @@ function Toolbar({
     },
     debug: onDebugMode && {
       key: "debug",
-      label: "Open Debug Mode — step-through, breakpoints, recording",
-      short: "Debug",
+      label: debugMode
+        ? "Leave Debug Mode — the simulation keeps running"
+        : "Open Debug Mode — step-through, breakpoints, recording",
+      short: debugMode ? "Exit Debug" : "Debug",
       icon: BugIcon,
       onClick: onDebugMode,
+      active: debugMode,
     },
     reset: onReset && {
       key: "reset",
@@ -341,6 +365,66 @@ function Toolbar({
               </button>
             ))}
           </DropdownMenu>
+        )}
+
+        {/* ── Debug controls (only while debug mode is on) ──
+           Deliberately NOT collapsible: a student mid-step cannot lose Next
+           frame into an overflow menu, so stage 2 shortens this group (see
+           .tb-chip--quiet in chrome.css) rather than hiding it. */}
+        {debugMode && (
+          <>
+            <span className="app-header__sep" />
+            <button
+              type="button"
+              className="tb-btn"
+              onClick={paused ? onResume : onPause}
+              disabled={!running}
+              title={paused ? "Resume (Space)" : "Pause (Space)"}
+            >
+              {paused ? <PlayIcon size={13} /> : <PauseIcon size={13} />}
+              <span className="tb-btn-label">{paused ? "Resume" : "Pause"}</span>
+            </button>
+            <button
+              type="button"
+              className="tb-btn tb-btn--primary-ghost"
+              onClick={onStepFrame}
+              disabled={!running}
+              title="Advance one animation frame (F10)"
+            >
+              <StepForwardIcon size={13} />
+              <span className="tb-btn-label">Next frame</span>
+            </button>
+            <button
+              type="button"
+              className="tb-btn tb-btn--subtle"
+              onClick={onStepValue}
+              disabled={!running}
+              title="Advance to the next reported value (Shift+F10)"
+            >
+              <span className="tb-btn-label">Next value</span>
+            </button>
+            <button
+              type="button"
+              className={`tb-btn${recording ? " tb-btn--active" : ""}`}
+              onClick={recording ? onStopRecord : onStartRecord}
+              title={recording ? "Stop recording" : "Record every value to CSV"}
+            >
+              <RecordIcon size={12} />
+              <span className="tb-btn-label">{recording ? "Stop Rec" : "Record"}</span>
+            </button>
+            {breakpointCount > 0 && (
+              <span className="tb-chip" title={`${breakpointCount} breakpoint${breakpointCount === 1 ? "" : "s"} set`}>
+                {breakpointCount} bp
+              </span>
+            )}
+            <span className="tb-chip tb-chip--quiet" aria-live="polite">
+              {pauseState === "paused"
+                ? `Paused · iteration ${iteration}`
+                : pauseState === "pausing"
+                  ? "Pausing…"
+                  : `iteration ${iteration}`}
+            </span>
+          </>
         )}
       </div>
 

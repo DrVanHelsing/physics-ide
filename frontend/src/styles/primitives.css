@@ -177,7 +177,6 @@
    ═══════════════════════════════════════════════════════════ */
 .panel-header,
 .pane-header,
-.dm-panel-header,
 .vdialog-header {
   display: flex;
   align-items: center;
@@ -196,14 +195,12 @@
   user-select: none;
   overflow: hidden;
 }
-.panel-header--compact,
-.dm-panel-header {
+.panel-header--compact {
   height: var(--panel-header-h-compact);
   min-height: var(--panel-header-h-compact);
   padding: 0 var(--space-2);
 }
 .panel-header__title,
-.dm-panel-title,
 .vdialog-title {
   font-size: var(--fs-md);
   font-weight: var(--fw-semibold);
@@ -214,7 +211,6 @@
 
 /* Legacy variants — position matters: these must follow the base group
    above to override it at equal specificity. */
-.dm-panel-header { background: var(--bg-toolbar); border-bottom-color: var(--border-hl); }
 .vdialog-header {
   height: auto;
   min-height: var(--panel-header-h);

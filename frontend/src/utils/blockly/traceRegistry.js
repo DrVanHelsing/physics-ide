@@ -20,3 +20,20 @@ export const traceRegistry = [];
 export function clearTraceRegistry() {
   traceRegistry.length = 0;
 }
+
+/**
+ * The block ids that can actually hold a breakpoint.
+ *
+ * Only a trace checkpoint can pause the runtime (glowRunner.js injects the
+ * pause loop alongside each `_phtr_` assignment), and a checkpoint exists only
+ * where the generator called tr() — seven block types. Before Tranche 3 the UI
+ * happily accepted a breakpoint on any block and then never fired it.
+ *
+ * Valid only after a code-generation pass; call it from the same place that
+ * reads `traceRegistry`.
+ */
+export function breakableIds() {
+  const out = new Set();
+  for (const e of traceRegistry) if (e.blockId) out.add(e.blockId);
+  return out;
+}

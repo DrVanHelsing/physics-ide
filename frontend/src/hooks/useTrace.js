@@ -23,11 +23,13 @@ export function useTrace() {
     clearTrace,
     recording,
     setRecording,
+    setIteration,
     recordBufferRef,
     recordingRef,
   } = useTraceContext();
 
-  const { breakpointsRef, setExecutingBlockId } = useDebugContext();
+  const { breakpointsRef, setPauseState, pauseStateRef, pauseAckTimerRef, setExecutingBlockId } =
+    useDebugContext();
   const { workspaceRef, setPaused }             = useSimulationContext();
 
   const highlightTimerRef = useRef(null);
@@ -69,6 +71,10 @@ export function useTrace() {
         }
         if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
         highlightTimerRef.current = setTimeout(() => {
+          /* Do NOT clear while paused: trace events stop arriving when the
+             runtime stops, so the highlight would vanish a quarter-second
+             after the pause and leave the student stopped at nowhere. */
+          if (pauseStateRef.current !== "running") return;
           setExecutingBlockId(null);
           try { workspaceRef.current?.highlightBlock(null); } catch (_) {}
         }, HIGHLIGHT_DURATION_MS);
@@ -79,8 +85,21 @@ export function useTrace() {
     let traceBatch = {};
     let traceTimer = null;
     const handleMessage = (event) => {
+      if (event.data?.type === "__phpause") {
+        if (event.data.paused) {
+          setPauseState("paused");
+          setPaused(true);
+          if (pauseAckTimerRef.current) clearTimeout(pauseAckTimerRef.current);
+        } else {
+          setPauseState("running");
+          setPaused(false);
+        }
+        if (typeof event.data.i === "number") setIteration(event.data.i);
+        return;
+      }
       if (event.data?.type === "__phtr") {
-        traceBatch[event.data.n] = { v: event.data.v, b: event.data.b || "" };
+        if (typeof event.data.i === "number") setIteration(event.data.i);
+        traceBatch[event.data.n] = { v: event.data.v, b: event.data.b || "", s: event.data.s || "loop" };
         if (!traceTimer) {
           traceTimer = setTimeout(() => {
             if (typeof window.__physide_trace_cb === "function") {

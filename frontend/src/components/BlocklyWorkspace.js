@@ -12,6 +12,7 @@ import * as dialogService from "../utils/export/dialogService";
 import { buildToolboxXml } from "../utils/blockly/toolbox";
 import { getBlocklyTheme, gridColourFor } from "../utils/blockly/blocklyTheme";
 import { BLOCK_PALETTE } from "../utils/blockly/blockPalette";
+import { ANCHOR_TYPES, planOrphanState, applyOrphanState, readTopBlocks } from "../utils/blockly/orphans";
 
 /* ── Block search bar component ────────────────────────── */
 function BlockSearch({ workspaceRef }) {
@@ -73,13 +74,19 @@ function BlockSearch({ workspaceRef }) {
       const block = ids && ids.length ? ws.getBlockById(ids[ids.length - 1]) : null;
       if (!block) return false;
 
-      const metrics = ws.getMetricsManager?.().getViewMetrics(true);
-      if (metrics) {
-        const xy = block.getRelativeToSurfaceXY();
-        block.moveBy(
-          metrics.left + metrics.width / 2 - xy.x - 40,
-          metrics.top + metrics.height / 2 - xy.y - 20,
-        );
+      /* An insert is the student asking for the block to be in their program.
+         The automatic adoption loop that used to do this is gone (Task 10), so
+         attach explicitly — and only here, never on a drag-aside. */
+      const attached = appendToSetup(ws, block);
+      if (!attached) {
+        const metrics = ws.getMetricsManager?.().getViewMetrics(true);
+        if (metrics) {
+          const xy = block.getRelativeToSurfaceXY();
+          block.moveBy(
+            metrics.left + metrics.width / 2 - xy.x - 40,
+            metrics.top + metrics.height / 2 - xy.y - 20,
+          );
+        }
       }
       block.select();
       return true;
@@ -149,6 +156,58 @@ function BlockSearch({ workspaceRef }) {
     </div>
   );
 }
+/**
+ * Attach `block` to the end of sim_start's SETUP statement input.
+ *
+ * Exported since Tranche 3 because explicit insertion — a block-search result,
+ * an empty-state starter chip — has to attach itself now that the automatic
+ * top-block adoption loop is gone (Task 10, product-contract.md:36). Returns
+ * false when there is no sim_start to attach to (a data-science or
+ * not-yet-anchored canvas), so callers can leave the block where it landed.
+ */
+export function appendToSetup(workspace, block) {
+  if (!workspace || !block) return false;
+
+  const allBlocks = workspace.getAllBlocks(false);
+  const startBlocks = allBlocks.filter((b) => b.type === "sim_start_block");
+  if (startBlocks.length === 0) return false;
+
+  const byYThenX = (a, b) => {
+    const pa = a.getRelativeToSurfaceXY();
+    const pb = b.getRelativeToSurfaceXY();
+    if (pa.y !== pb.y) return pa.y - pb.y;
+    return pa.x - pb.x;
+  };
+
+  const simStart = [...startBlocks].sort(byYThenX)[0];
+  const setupConnection = simStart.getInput("SETUP")?.connection || null;
+  if (!setupConnection) return false;
+
+  const endBlocks = allBlocks.filter((b) => b.type === "sim_end_block");
+  const simEnd = endBlocks.length > 0 ? [...endBlocks].sort(byYThenX)[0] : null;
+
+  if (block === simStart || block === simEnd) return false;
+  if (!block.previousConnection) return false;
+
+  if (block.previousConnection.isConnected()) {
+    block.previousConnection.disconnect();
+  }
+
+  const setupHead = simStart.getInputTargetBlock("SETUP");
+  if (!setupHead) {
+    setupConnection.connect(block.previousConnection);
+    return true;
+  }
+
+  let tail = setupHead;
+  while (tail.getNextBlock()) tail = tail.getNextBlock();
+  if (tail.nextConnection && !tail.nextConnection.isConnected()) {
+    tail.nextConnection.connect(block.previousConnection);
+    return true;
+  }
+  return false;
+}
+
 function normalizeSimulationStructure(workspace) {
   if (!workspace) return false;
 
@@ -172,54 +231,20 @@ function normalizeSimulationStructure(workspace) {
 
   let changed = false;
 
-  const getSetupTail = () => {
-    let node = simStart.getInputTargetBlock("SETUP");
-    if (!node) return null;
-    while (node.getNextBlock()) node = node.getNextBlock();
-    return node;
-  };
-
-  const appendToSetup = (block) => {
-    if (!block || block === simStart || block === simEnd) return;
-    if (!block.previousConnection) return;
-
-    if (block.previousConnection.isConnected()) {
-      block.previousConnection.disconnect();
-    }
-
-    const setupHead = simStart.getInputTargetBlock("SETUP");
-    if (!setupHead) {
-      setupConnection.connect(block.previousConnection);
-      changed = true;
-      return;
-    }
-
-    const tail = getSetupTail();
-    if (tail && tail.nextConnection && !tail.nextConnection.isConnected()) {
-      tail.nextConnection.connect(block.previousConnection);
-      changed = true;
-    }
-  };
-
   // Move any blocks currently chained after Simulation Start (except Sim End) into SETUP.
+  // This is a student's explicit gesture — dropping a block directly under the
+  // hat — not the automatic top-block adoption Task 10 removed.
   let chained = simStart.getNextBlock();
   while (chained && chained !== simEnd) {
     const next = chained.getNextBlock();
-    appendToSetup(chained);
+    if (appendToSetup(workspace, chained)) changed = true;
     chained = next;
-  }
-
-  // Move any other top-level statement blocks into SETUP.
-  const topBlocks = workspace.getTopBlocks(true);
-  for (const top of topBlocks) {
-    if (top === simStart || top === simEnd) continue;
-    appendToSetup(top);
   }
 
   // Simulation End must be the final top-level block after Simulation Start.
   if (simEnd && simEnd.previousConnection && simStart.nextConnection) {
     const endNext = simEnd.getNextBlock();
-    if (endNext) appendToSetup(endNext);
+    if (endNext && appendToSetup(workspace, endNext)) changed = true;
 
     if (simStart.getNextBlock() !== simEnd) {
       if (simEnd.previousConnection.isConnected()) {
@@ -240,32 +265,13 @@ function normalizeSimulationStructure(workspace) {
   return changed;
 }
 
-/* ── Disable orphaned blocks (data-science goal) ───────────────
-   MakeCode pattern: a data analysis is anchored by a ds_start_block
-   "hat". Any top-level block NOT rooted in that hat is disabled
-   (rendered grey, generates no code) so "in use vs unused" is visible.
-   No-op until at least one hat exists, so legacy DS projects that have
-   no hat yet are left fully enabled. Idempotent (guards on isEnabled)
-   so it can run inside the change listener without an event storm. */
-function disableOrphanedBlocks(workspace, goal) {
-  if (!workspace || goal !== "datascience") return false;
-
-  const tops = workspace.getTopBlocks(false);
-  const hasHat = tops.some((b) => b.type === "ds_start_block");
-  if (!hasHat) return false;
-
-  let changed = false;
-  for (const top of tops) {
-    const enable = top.type === "ds_start_block";
-    for (const b of top.getDescendants(false)) {
-      if (b.isShadow()) continue;
-      if (b.isEnabled() !== enable) {
-        b.setEnabled(enable);
-        changed = true;
-      }
-    }
-  }
-  return changed;
+/* ── Orphan handling, one behaviour for every goal ─────────────
+   docs/product-contract.md:36: top-level blocks outside the anchor hat are
+   greyed and ignored, so "in use vs unused" is visible. No goal check — a
+   physics canvas and a data canvas behave identically, and neither adopts. */
+function greyOrphanedBlocks(workspace) {
+  if (!workspace) return false;
+  return applyOrphanState(workspace, planOrphanState(readTopBlocks(workspace), ANCHOR_TYPES));
 }
 
 /* Scaffold, not content — a freshly seeded project must still read as "empty"
@@ -277,6 +283,10 @@ const FRAME_BLOCK_TYPES = new Set(["sim_start_block", "sim_end_block", "ds_start
 function countContentBlocks(workspace) {
   return workspace.getAllBlocks(false).filter((b) => !FRAME_BLOCK_TYPES.has(b.type)).length;
 }
+
+/** Stable empty Set — the safe default for the debug props below until
+ *  IDELayout threads the real ones through. */
+const EMPTY_BREAKPOINTS = new Set();
 
 function resizeBlocklyWorkspace(Blockly, workspace) {
   if (!workspace) return;
@@ -307,7 +317,20 @@ function decorateToolboxRows(workspace) {
   }
 }
 
-function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, onBlockCountChange, onScaleChange, isDark, goal = "physics", initialZoom }) {
+function BlocklyWorkspace({
+  initialXml, onWorkspaceReady, onWorkspaceChange, onBlockCountChange, onScaleChange,
+  isDark, goal = "physics", initialZoom,
+  /* Debug-mode props (optional). IDELayout threads the real ones now that
+     debug is a mode of the shell; the defaults keep the context-menu
+     breakpoint entry inert for any other mount (nothing reads as breakable
+     and toggling is a no-op). */
+  debugMode = false,
+  isBreakable = () => false,
+  toggleBreakpoint = () => {},
+  breakpoints = EMPTY_BREAKPOINTS,
+  breakableIds,
+  executingBlockId = null,
+}) {
   const hostRef = useRef(null);
   const workspaceRef = useRef(null);
   const [loadError, setLoadError] = useState("");
@@ -327,6 +350,12 @@ function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, onB
   const onScaleRef = useRef(onScaleChange);
   onScaleRef.current = onScaleChange;
   const lastScaleRef = useRef(null);
+
+  /* debugApiRef mirrors the debug props into a stable ref so the mount
+     effect's context-menu registration (registered once, deps []) never
+     closes over stale isBreakable/toggleBreakpoint/breakpoints. */
+  const debugApiRef = useRef({ isBreakable, toggleBreakpoint, breakpoints });
+  debugApiRef.current = { isBreakable, toggleBreakpoint, breakpoints };
 
   /* ── One-time workspace setup ──────────────────────────── */
   useEffect(() => {
@@ -385,6 +414,52 @@ function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, onB
     onReadyRef.current(workspace);
     decorateToolboxRows(workspace);
 
+    /* Right-click → breakpoint. A click-anywhere toggle would fight dragging
+       in the editable workspace, and the old one accepted breakpoints on
+       blocks that can never pause. This entry is DISABLED with a reason on
+       those, which is the whole point: the debugger stops lying.
+
+       ContextMenuRegistry is a MODULE-LEVEL SINGLETON, but this component
+       remounts — IDELayout keys BlocklyWorkspace with
+       `ws-${workspaceReloadKey}`, bumped by the "Analyse Run" flow — and each
+       mount's preconditionFn/displayText/callback close over THIS mount's
+       debugApiRef. Registering once-ever (the old `if (!getItem(...))`
+       guard) would leave every later mount's registration a no-op, freezing
+       the menu on the first mount's now-stale ref for the rest of the
+       session. So: clear any stale registration before registering fresh
+       (also guards StrictMode's mount→unmount→mount double-invoke), and
+       unregister again in this effect's cleanup so the NEXT mount starts
+       from a clean slate too. */
+    const BP_ITEM_ID = "physide_toggle_breakpoint";
+    if (Blockly.ContextMenuRegistry.registry.getItem(BP_ITEM_ID)) {
+      Blockly.ContextMenuRegistry.registry.unregister(BP_ITEM_ID);
+    }
+    Blockly.ContextMenuRegistry.registry.register({
+      id: BP_ITEM_ID,
+      scopeType: Blockly.ContextMenuRegistry.ScopeType.BLOCK,
+      weight: 20,
+      preconditionFn: (scope) =>
+        debugApiRef.current.isBreakable(scope.block.id) ? "enabled" : "disabled",
+      displayText: (scope) => {
+        const api = debugApiRef.current;
+        if (!api.isBreakable(scope.block.id)) {
+          return "Can't pause here — this block doesn't report a value";
+        }
+        return api.breakpoints.has(scope.block.id) ? "Remove breakpoint" : "Set breakpoint";
+      },
+      callback: (scope) => debugApiRef.current.toggleBreakpoint(scope.block.id),
+    });
+
+    /* Alt+click — the fast path for students who find right-click slow. */
+    const altClickHandler = (e) => {
+      if (!e.altKey) return;
+      const block = Blockly.common.getSelected();
+      if (!block) return;
+      e.preventDefault();
+      debugApiRef.current.toggleBreakpoint(block.id);
+    };
+    hostRef.current.addEventListener("click", altClickHandler);
+
     // The inject options above always start at a fixed 90% (startScale: 0.9);
     // push the localStorage-restored zoom (SimulationContext's blocklyZoom,
     // fed in as initialZoom) into the freshly-injected workspace so it
@@ -426,7 +501,7 @@ function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, onB
           normalizing = true;
           try {
             normalizeSimulationStructure(workspace);
-            disableOrphanedBlocks(workspace, goalRef.current);
+            greyOrphanedBlocks(workspace);
           } finally {
             normalizing = false;
           }
@@ -444,7 +519,7 @@ function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, onB
     workspace.addChangeListener(listener);
 
     normalizeSimulationStructure(workspace);
-    disableOrphanedBlocks(workspace, goalRef.current);
+    greyOrphanedBlocks(workspace);
     onCountRef.current?.(countContentBlocks(workspace));
 
     /* ── Custom constant popup: intercept __NEW__ on physics_const_block ── */
@@ -502,13 +577,62 @@ function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, onB
     });
 
     return () => {
+      hostRef.current?.removeEventListener("click", altClickHandler);
+      // So the NEXT mount (a remount, e.g. Analyse Run's key bump) registers
+      // fresh instead of finding this instance's stale entry still present.
+      if (Blockly.ContextMenuRegistry.registry.getItem(BP_ITEM_ID)) {
+        Blockly.ContextMenuRegistry.registry.unregister(BP_ITEM_ID);
+      }
       resizeObserver.disconnect();
       workspace.removeChangeListener(listener);
       workspace.removeChangeListener(constListener);
       workspace.dispose();
       workspaceRef.current = null;
+      /* And empty the SHARED ref too. handleWorkspaceReady (useSimulation.js)
+         wrote SimulationContext's workspaceRef when this workspace mounted and
+         nothing ever cleared it, so after a goal change or a project switch
+         IDELayout's onHighlight — the trace table's click-a-variable-to-find-
+         the-block gesture — was calling highlightBlock on a disposed
+         workspace and silently doing nothing, every time. */
+      onReadyRef.current?.(null);
     };
   }, []);
+
+  /* ── Breakpoint decorations ────────────────────────────────
+     Two markers, not one: a solid red outline where a breakpoint is SET, and
+     a hollow dashed outline on every block that CAN hold one while debug mode
+     is on. A student can now see the difference between "I didn't set it" and
+     "this block can never pause". These used to live on ReadOnlyBlockly — the
+     mirror DebugMode showed — which is exactly why the marks never appeared
+     on the blocks anyone was actually editing. */
+  useEffect(() => {
+    const ws = workspaceRef.current;
+    if (!ws) return;
+    for (const block of ws.getAllBlocks(false)) {
+      const g = block.getSvgRoot();
+      if (!g) continue;
+      const isBp = breakpoints.has(block.id);
+      g.classList.toggle("bp-block", isBp);
+      g.classList.toggle("bp-available", debugMode && !isBp && isBreakable(block.id));
+    }
+  }, [breakpoints, debugMode, isBreakable, breakableIds]);
+
+  /* ── Execution highlight (yellow glow on the running block) ──
+     Debug-mode only, like the .bp-available effect above it — and like the
+     Help text says. useTrace sets executingBlockId on every trace batch, so
+     without this guard an ORDINARY run would strobe the loud yellow stroke
+     ~10x/sec over Blockly's own highlight. Reading `null` when debug is off
+     also clears a glow left lit by leaving debug mode mid-highlight. */
+  useEffect(() => {
+    const ws = workspaceRef.current;
+    if (!ws) return;
+    const activeId = debugMode ? executingBlockId : null;
+    for (const block of ws.getAllBlocks(false)) {
+      const g = block.getSvgRoot();
+      if (!g) continue;
+      g.classList.toggle("block-executing", activeId != null && block.id === activeId);
+    }
+  }, [executingBlockId, debugMode]);
 
   /* ── Rebuild the toolbox when the project goal changes ─── */
   useEffect(() => {
@@ -517,7 +641,7 @@ function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, onB
     try {
       ws.updateToolbox(buildToolboxXml(goal));
       decorateToolboxRows(ws);
-      disableOrphanedBlocks(ws, goal);
+      greyOrphanedBlocks(ws);
     } catch (e) {
       console.warn("BlocklyWorkspace: could not rebuild toolbox for goal", goal, e);
     }
@@ -544,17 +668,18 @@ function BlocklyWorkspace({ initialXml, onWorkspaceReady, onWorkspaceChange, onB
   );
 }
 
-/* ── Read-only Blockly (for showing block reference alongside code) ── */
-function ReadOnlyBlockly({ xml, isDark, breakpoints, onBlockClick, executingBlockId }) {
+/* ── Read-only Blockly (for showing block reference alongside code) ──
+   Its debug role is gone: DebugMode used to render this mirror as its Blocks
+   panel and hang breakpoints, the execution highlight and a click-to-toggle
+   handler off it. Debug is a mode of the shell now, so all of that lives on
+   the editable workspace above and this is once again exactly what its name
+   says — a read-only reference view. */
+function ReadOnlyBlockly({ xml, isDark }) {
   const hostRef = useRef(null);
   const wsRef = useRef(null);
-  const onBlockClickRef = useRef(onBlockClick);
-  const bpDotsRef = useRef(new Map());  // blockId → SVG group element
-  useEffect(() => { onBlockClickRef.current = onBlockClick; }, [onBlockClick]);
 
   useEffect(() => {
     if (!hostRef.current) return undefined;
-    const dots = bpDotsRef.current;
 
     defineCustomBlocksAndGenerator(Blockly);
     const theme = getBlocklyTheme(isDark);
@@ -581,23 +706,6 @@ function ReadOnlyBlockly({ xml, isDark, breakpoints, onBlockClick, executingBloc
       }
     }
 
-    /* Blockly readOnly mode suppresses workspace change-events for clicks,
-       so we use a native DOM click handler on the SVG and walk up the
-       element tree to find the block's data-id attribute. */
-    const svg = ws.getParentSvg();
-    const domClickHandler = (e) => {
-      let el = e.target;
-      while (el && el !== svg) {
-        const blockId = el.getAttribute && el.getAttribute('data-id');
-        if (blockId) {
-          onBlockClickRef.current?.(blockId);
-          return;
-        }
-        el = el.parentElement;
-      }
-    };
-    if (svg) svg.addEventListener('click', domClickHandler);
-
     /* ── Keep Blockly SVG sized to its container at all times ── */
     const resizeObserver = new ResizeObserver(() => {
       requestAnimationFrame(() => {
@@ -611,9 +719,7 @@ function ReadOnlyBlockly({ xml, isDark, breakpoints, onBlockClick, executingBloc
     });
 
     return () => {
-      if (svg) svg.removeEventListener('click', domClickHandler);
       resizeObserver.disconnect();
-      dots.clear();
       ws.dispose();
       wsRef.current = null;
     };
@@ -627,53 +733,7 @@ function ReadOnlyBlockly({ xml, isDark, breakpoints, onBlockClick, executingBloc
     ws.setTheme(theme);
   }, [isDark]);
 
-  // ── Breakpoint red dots ──
-  useEffect(() => {
-    const ws = wsRef.current;
-    if (!ws) return;
-    const svg = ws.getParentSvg();
-    if (!svg) return;
-    const bpSet = breakpoints || new Set();
-    const dots = bpDotsRef.current;
-
-    // Remove highlight from blocks no longer breakpointed
-    for (const [bid, svgGroup] of dots) {
-      if (!bpSet.has(bid)) {
-        svgGroup.classList.remove('dm-bp-block');
-        dots.delete(bid);
-      }
-    }
-
-    // Add highlight to new breakpoints
-    for (const bid of bpSet) {
-      if (dots.has(bid)) continue;
-      const block = ws.getBlockById(bid);
-      if (!block) continue;
-      const svgGroup = block.getSvgRoot();
-      if (!svgGroup) continue;
-
-      svgGroup.classList.add('dm-bp-block');
-      dots.set(bid, svgGroup);
-    }
-  }, [breakpoints]);
-
-  // ── Execution highlight (yellow glow on running block) ──
-  useEffect(() => {
-    const ws = wsRef.current;
-    if (!ws) return;
-    const allBlocks = ws.getAllBlocks(false);
-    for (const block of allBlocks) {
-      const svgGroup = block.getSvgRoot();
-      if (!svgGroup) continue;
-      if (block.id === executingBlockId) {
-        svgGroup.classList.add('dm-block-executing');
-      } else {
-        svgGroup.classList.remove('dm-block-executing');
-      }
-    }
-  }, [executingBlockId]);
-
-  return <div ref={hostRef} className="blockly-host blockly-readonly" style={{ cursor: onBlockClick ? 'pointer' : undefined }} />;
+  return <div ref={hostRef} className="blockly-host blockly-readonly" />;
 }
 
 export default BlocklyWorkspace;

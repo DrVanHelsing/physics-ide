@@ -1,8 +1,8 @@
 /**
  * ChartOverlay — phase-A modal-style overlay for showing a chart from a Dataset.
  *
- * Modeled on the fullscreen-overlay pattern used by StartMenu, HelpPage, and
- * DebugMode. Phase C will extend with saved chart specs and per-goal layouts;
+ * Modeled on the fullscreen-overlay pattern used by StartMenu and HelpPage.
+ * Phase C will extend with saved chart specs and per-goal layouts;
  * for now this is the minimum needed to validate trace -> dataset -> chart.
  */
 import React, { useEffect, useMemo, useRef, useState } from "react";
