@@ -70,7 +70,6 @@ function migrateV1(raw) {
     goal: "physics",
     projectType: "custom",
     preferredEditor,
-    beginnerEnabled: false,
     title: "Recovered project",
     workspaceXml: raw.workspaceXml || "",
     python: raw.pythonCode || "",

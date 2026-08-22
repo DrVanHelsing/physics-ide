@@ -11,6 +11,13 @@
  *   State     – set var, set property, increment property, telemetry display
  *   Control   – forever loop, for range, if, if-else, rate, time step, comment
  *   Advanced  – raw Python code/expression
+ *
+ * Label voice (one rule, Tranche 3):
+ *   message0 is NATURAL LANGUAGE — "length of %1", not "mag( %1 )". The
+ *   Python form belongs on the first line of the tooltip, where a student
+ *   who wants to read the generated code can find it. Twelve blocks were
+ *   converted; a new block that names a Python function on its face is a
+ *   review comment.
  */
 
 import Blockly from './blocklyLib';
@@ -96,15 +103,15 @@ export function defineCustomBlocksAndGenerator(Blockly) {
        ══════════════════════════════════════════════════════ */
     {
       type: "vector_block",
-      message0: "vector( %1 , %2 , %3 )",
+      message0: "vector x %1  y %2  z %3",
       args0: [
         { type: "field_number", name: "X", value: 0 },
         { type: "field_number", name: "Y", value: 0 },
         { type: "field_number", name: "Z", value: 0 },
       ],
-      output: null,
+      output: "Vector",
       style: "values_blocks",
-      tooltip: "A 3D vector. Snap into pos, axis, size, velocity, or colour slots.",
+      tooltip: "vector(x, y, z) — A 3D vector. Snap into pos, axis, size, velocity, or colour slots.",
     },
     {
       type: "colour_block",
@@ -145,17 +152,17 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "values_blocks",
+      style: "state_blocks",
       tooltip: "Set a colour variable. Click the swatch to choose any colour.",
     },
     {
       type: "expr_block",
-      message0: "( %1 )",
+      message0: "expression %1",
       args0: [{ type: "field_input", name: "EXPR", text: "0" }],
       output: null,
       style: "values_blocks",
       tooltip:
-        "Type any expression. Snaps into number, vector, or colour slots.",
+        "Any Python expression. Type any expression. Snaps into number, vector, or colour slots.",
     },
 
     /* ── Physics expression blocks ─────────────────────── */
@@ -183,6 +190,11 @@ export function defineCustomBlocksAndGenerator(Blockly) {
         },
       ],
       inputsInline: true,
+      /* Deliberately untyped: the PROP dropdown spans vectors (pos, velocity,
+         axis, color), numbers (radius, opacity, mass) and booleans (visible),
+         so a fixed output would break more than it catches. The consuming
+         slots below accept ["Vector","Number"], which is where the real
+         guard lives. */
       output: null,
       style: "values_blocks",
       tooltip: "Read a property of an object variable: ball.velocity, ball.pos, ball.radius, etc.",
@@ -191,7 +203,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       type: "get_component_block",
       message0: "%1 . %2",
       args0: [
-        { type: "input_value", name: "VEC" },
+        { type: "input_value", name: "VEC", check: ["Vector", "Number"] },
         {
           type: "field_dropdown",
           name: "COMP",
@@ -205,21 +217,21 @@ export function defineCustomBlocksAndGenerator(Blockly) {
     },
     {
       type: "mag_block",
-      message0: "mag( %1 )",
-      args0: [{ type: "input_value", name: "VEC" }],
+      message0: "length of %1",
+      args0: [{ type: "input_value", name: "VEC", check: ["Vector", "Number"] }],
       inputsInline: true,
-      output: null,
+      output: "Number",
       style: "values_blocks",
-      tooltip: "Magnitude (scalar length) of a vector. E.g. snap in an object property block like ball.velocity to get speed.",
+      tooltip: "mag(v) — Magnitude (scalar length) of a vector. E.g. snap in an object property block like ball.velocity to get speed.",
     },
     {
       type: "norm_block",
-      message0: "norm( %1 )",
-      args0: [{ type: "input_value", name: "VEC" }],
+      message0: "direction of %1",
+      args0: [{ type: "input_value", name: "VEC", check: ["Vector", "Number"] }],
       inputsInline: true,
-      output: null,
+      output: "Vector",
       style: "values_blocks",
-      tooltip: "Unit vector in the direction of the input. Snap in an object property block like ball.pos to get its direction.",
+      tooltip: "norm(v) — Unit vector in the direction of the input. Snap in an object property block like ball.pos to get its direction.",
     },
 
     /* ── Variable read — snap any named variable into a slot ── */
@@ -289,7 +301,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       message0: "%1 = sphere  pos %2  radius %3  colour %4",
       args0: [
         { type: "field_variable", name: "NAME", variable: "ball" },
-        { type: "input_value", name: "POS" },
+        { type: "input_value", name: "POS", check: ["Vector", "Number"] },
         { type: "input_value", name: "RADIUS" },
         { type: "input_value", name: "COL" },
       ],
@@ -306,7 +318,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       message0: "%1 = sphere+trail  pos %2  radius %3  colour %4  trail_r %5  trail_col %6  keep %7",
       args0: [
         { type: "field_variable", name: "NAME", variable: "ball" },
-        { type: "input_value", name: "POS" },
+        { type: "input_value", name: "POS", check: ["Vector", "Number"] },
         { type: "input_value", name: "RADIUS" },
         { type: "input_value", name: "COL" },
         { type: "input_value", name: "TRAIL_R" },
@@ -326,7 +338,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       message0: "%1 = glowing sphere  pos %2  radius %3  colour %4  opacity %5",
       args0: [
         { type: "field_variable", name: "NAME", variable: "obj" },
-        { type: "input_value", name: "POS" },
+        { type: "input_value", name: "POS", check: ["Vector", "Number"] },
         { type: "input_value", name: "RADIUS" },
         { type: "input_value", name: "COL" },
         { type: "input_value", name: "OPACITY" },
@@ -344,8 +356,8 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       message0: "%1 = box  pos %2  size %3  colour %4",
       args0: [
         { type: "field_variable", name: "NAME", variable: "obj" },
-        { type: "input_value", name: "POS" },
-        { type: "input_value", name: "SIZE" },
+        { type: "input_value", name: "POS", check: ["Vector", "Number"] },
+        { type: "input_value", name: "SIZE", check: ["Vector", "Number"] },
         { type: "input_value", name: "COL" },
       ],
       inputsInline: true,
@@ -361,8 +373,8 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       message0: "%1 = box  pos %2  size %3  colour %4  opacity %5",
       args0: [
         { type: "field_variable", name: "NAME", variable: "obj" },
-        { type: "input_value", name: "POS" },
-        { type: "input_value", name: "SIZE" },
+        { type: "input_value", name: "POS", check: ["Vector", "Number"] },
+        { type: "input_value", name: "SIZE", check: ["Vector", "Number"] },
         { type: "input_value", name: "COL" },
         { type: "input_value", name: "OPACITY" },
       ],
@@ -379,8 +391,8 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       message0: "%1 = cylinder  pos %2  axis %3  radius %4  colour %5",
       args0: [
         { type: "field_variable", name: "NAME", variable: "obj" },
-        { type: "input_value", name: "POS" },
-        { type: "input_value", name: "AXIS" },
+        { type: "input_value", name: "POS", check: ["Vector", "Number"] },
+        { type: "input_value", name: "AXIS", check: ["Vector", "Number"] },
         { type: "input_value", name: "RADIUS" },
         { type: "input_value", name: "COL" },
       ],
@@ -397,8 +409,8 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       message0: "%1 = arrow  pos %2  axis %3  colour %4",
       args0: [
         { type: "field_variable", name: "NAME", variable: "obj" },
-        { type: "input_value", name: "POS" },
-        { type: "input_value", name: "AXIS" },
+        { type: "input_value", name: "POS", check: ["Vector", "Number"] },
+        { type: "input_value", name: "AXIS", check: ["Vector", "Number"] },
         { type: "input_value", name: "COL" },
       ],
       inputsInline: true,
@@ -414,8 +426,8 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       message0: "%1 = helix  pos %2  axis %3  radius %4  colour %5",
       args0: [
         { type: "field_variable", name: "NAME", variable: "obj" },
-        { type: "input_value", name: "POS" },
-        { type: "input_value", name: "AXIS" },
+        { type: "input_value", name: "POS", check: ["Vector", "Number"] },
+        { type: "input_value", name: "AXIS", check: ["Vector", "Number"] },
         { type: "input_value", name: "RADIUS" },
         { type: "input_value", name: "COL" },
       ],
@@ -432,8 +444,8 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       message0: "%1 = helix  pos %2  axis %3  radius %4  coils %5  thickness %6  colour %7",
       args0: [
         { type: "field_variable", name: "NAME", variable: "spring" },
-        { type: "input_value", name: "POS" },
-        { type: "input_value", name: "AXIS" },
+        { type: "input_value", name: "POS", check: ["Vector", "Number"] },
+        { type: "input_value", name: "AXIS", check: ["Vector", "Number"] },
         { type: "input_value", name: "RADIUS" },
         { type: "input_value", name: "COILS" },
         { type: "input_value", name: "THICK" },
@@ -452,7 +464,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       message0: "label %1  at %2",
       args0: [
         { type: "field_input", name: "TEXT", text: "hello" },
-        { type: "input_value", name: "POS" },
+        { type: "input_value", name: "POS", check: ["Vector", "Number"] },
       ],
       inputsInline: true,
       previousStatement: null,
@@ -467,7 +479,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       message0: "%1 = label  pos %2  text %3  height %4",
       args0: [
         { type: "field_variable", name: "NAME", variable: "telemetry" },
-        { type: "input_value", name: "POS" },
+        { type: "input_value", name: "POS", check: ["Vector", "Number"] },
         { type: "field_input", name: "TEXT", text: "" },
         { type: "input_value", name: "HEIGHT" },
       ],
@@ -483,7 +495,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       type: "local_light_block",
       message0: "local light  pos %1  colour %2",
       args0: [
-        { type: "input_value", name: "POS" },
+        { type: "input_value", name: "POS", check: ["Vector", "Number"] },
         { type: "input_value", name: "COL" },
       ],
       inputsInline: true,
@@ -501,7 +513,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       message0: "%1 .velocity = %2",
       args0: [
         { type: "field_variable", name: "OBJ", variable: "ball" },
-        { type: "input_value", name: "VEL" },
+        { type: "input_value", name: "VEL", check: ["Vector", "Number"] },
       ],
       inputsInline: true,
       previousStatement: null,
@@ -527,7 +539,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       message0: "%1 .velocity += %2 \u00d7 %3",
       args0: [
         { type: "field_variable", name: "OBJ", variable: "ball" },
-        { type: "input_value", name: "ACCEL" },
+        { type: "input_value", name: "ACCEL", check: ["Vector", "Number"] },
         { type: "input_value", name: "DT" },
       ],
       inputsInline: true,
@@ -633,12 +645,12 @@ export function defineCustomBlocksAndGenerator(Blockly) {
        ══════════════════════════════════════════════════════ */
     {
       type: "rate_block",
-      message0: "rate( %1 )",
+      message0: "run at %1 steps per second",
       args0: [{ type: "field_number", name: "N", value: 100, min: 1 }],
       previousStatement: null,
       nextStatement: null,
       style: "control_blocks",
-      tooltip: "Set animation speed (frames per second).",
+      tooltip: "rate(n) — Set animation speed (frames per second).",
     },
     {
       type: "forever_loop_block",
@@ -758,19 +770,19 @@ export function defineCustomBlocksAndGenerator(Blockly) {
        ══════════════════════════════════════════════════════ */
     {
       type: "python_raw_block",
-      message0: "code: %1",
+      message0: "run Python %1",
       args0: [{ type: "field_input", name: "CODE", text: "# custom" }],
       previousStatement: null,
       nextStatement: null,
-      style: "advanced_blocks",
-      tooltip: "Insert any Python statement.",
+      style: "raw_python_blocks",
+      tooltip: "Raw Python statement. Insert any Python statement.",
     },
     {
       type: "python_raw_expr_block",
       message0: "expr: %1",
       args0: [{ type: "field_input", name: "EXPR", text: "0" }],
       output: null,
-      style: "advanced_blocks",
+      style: "raw_python_blocks",
       tooltip: "Python expression that outputs a value. Use this only when no structured block covers your needs.",
     },
 
@@ -879,7 +891,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       ],
       message1: "%1",
       args1: [{ type: "input_statement", name: "BODY" }],
-      style: "data_science_blocks",
+      style: "load_data_blocks",
       tooltip:
         "Marks the start of a data analysis. Put your load / explore / chart blocks inside. Blocks left outside are greyed out and ignored.",
       hat: "cap",
@@ -888,27 +900,27 @@ export function defineCustomBlocksAndGenerator(Blockly) {
     /* ══ 3D Math blocks ═══════════════════════════════════════════════ */
     {
       type: "cross_product_block",
-      message0: "cross( %1 , %2 )",
+      message0: "cross product of %1 and %2",
       args0: [
-        { type: "input_value", name: "A" },
-        { type: "input_value", name: "B" },
+        { type: "input_value", name: "A", check: ["Vector", "Number"] },
+        { type: "input_value", name: "B", check: ["Vector", "Number"] },
       ],
       inputsInline: true,
-      output: null,
+      output: "Vector",
       style: "3d_math_blocks",
-      tooltip: "Cross product of two 3D vectors. Returns a vector perpendicular to both (right-hand rule).",
+      tooltip: "cross(a, b) — Cross product of two 3D vectors. Returns a vector perpendicular to both (right-hand rule).",
     },
     {
       type: "dot_product_block",
-      message0: "dot( %1 , %2 )",
+      message0: "dot product of %1 and %2",
       args0: [
-        { type: "input_value", name: "A" },
-        { type: "input_value", name: "B" },
+        { type: "input_value", name: "A", check: ["Vector", "Number"] },
+        { type: "input_value", name: "B", check: ["Vector", "Number"] },
       ],
       inputsInline: true,
-      output: null,
+      output: "Number",
       style: "3d_math_blocks",
-      tooltip: "Dot product of two vectors. Returns a scalar (used for work, projection, angle).",
+      tooltip: "dot(a, b) — Dot product of two vectors. Returns a scalar (used for work, projection, angle).",
     },
     {
       type: "math_trig_block",
@@ -936,21 +948,21 @@ export function defineCustomBlocksAndGenerator(Blockly) {
     /* ── Vector compose — input slots for variable-based vectors ── */
     {
       type: "vector_compose_block",
-      message0: "vector( %1 , %2 , %3 )",
+      message0: "build vector x %1  y %2  z %3",
       args0: [
         { type: "input_value", name: "X" },
         { type: "input_value", name: "Y" },
         { type: "input_value", name: "Z" },
       ],
       inputsInline: true,
-      output: null,
+      output: "Vector",
       style: "3d_math_blocks",
-      tooltip: "Build a vector from three expressions. Snap variables, numbers, or math blocks into x, y, z.",
+      tooltip: "vector(x, y, z) — Build a vector from three expressions. Snap variables, numbers, or math blocks into x, y, z.",
     },
     /* ── Min / Max / Pow — common physics math ─────────────── */
     {
       type: "math_min_block",
-      message0: "min( %1 , %2 )",
+      message0: "smaller of %1 and %2",
       args0: [
         { type: "input_value", name: "A" },
         { type: "input_value", name: "B" },
@@ -958,11 +970,11 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       output: null,
       style: "3d_math_blocks",
-      tooltip: "Returns the smaller of two values. Useful for clamping.",
+      tooltip: "min(a, b) — Returns the smaller of two values. Useful for clamping.",
     },
     {
       type: "math_max_block",
-      message0: "max( %1 , %2 )",
+      message0: "larger of %1 and %2",
       args0: [
         { type: "input_value", name: "A" },
         { type: "input_value", name: "B" },
@@ -970,7 +982,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       output: null,
       style: "3d_math_blocks",
-      tooltip: "Returns the larger of two values. Useful for floor clamping and safe divisors.",
+      tooltip: "max(a, b) — Returns the larger of two values. Useful for floor clamping and safe divisors.",
     },
     {
       type: "math_pow_block",
@@ -986,7 +998,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
     },
     {
       type: "math_clamp_block",
-      message0: "clamp( %1 , %2 , %3 )",
+      message0: "keep %1 between %2 and %3",
       args0: [
         { type: "input_value", name: "VAL" },
         { type: "input_value", name: "LO" },
@@ -995,7 +1007,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       output: null,
       style: "3d_math_blocks",
-      tooltip: "Clamp a value between low and high bounds: max(lo, min(val, hi)).",
+      tooltip: "clamp(value, lo, hi) — Clamp a value between low and high bounds: max(lo, min(val, hi)).",
     },
     {
       type: "rotate_object_block",
@@ -1057,7 +1069,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "load_data_blocks",
       tooltip: "Load a built-in dataset (planets, penguins, weather, pendulum, spring, free fall) into a variable.",
     },
     {
@@ -1070,7 +1082,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "load_data_blocks",
       tooltip: "Load a promoted simulation run by its label (copy the label from the Saved Traces panel).",
     },
     {
@@ -1082,7 +1094,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "load_data_blocks",
       tooltip: "Open a CSV file from your computer and load it as a dataset.",
     },
     {
@@ -1094,7 +1106,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "explore_blocks",
       tooltip: "Display the dataset as a scrollable table in the Data panel.",
     },
     {
@@ -1108,7 +1120,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "statistics_blocks",
       tooltip: "Calculate the mean of a numeric column and store it in a variable.",
     },
     {
@@ -1122,7 +1134,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "statistics_blocks",
       tooltip: "Calculate the median (middle value) of a numeric column.",
     },
     {
@@ -1136,7 +1148,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "statistics_blocks",
       tooltip: "Find the minimum value in a numeric column.",
     },
     {
@@ -1150,7 +1162,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "statistics_blocks",
       tooltip: "Find the maximum value in a numeric column.",
     },
     {
@@ -1164,7 +1176,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "statistics_blocks",
       tooltip: "Calculate the sum (total) of a numeric column.",
     },
     {
@@ -1178,7 +1190,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "statistics_blocks",
       tooltip: "Calculate how spread out the values are in a column (standard deviation).",
     },
     {
@@ -1192,7 +1204,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "explore_blocks",
       tooltip: "Display the first N rows of a dataset as a table.",
     },
     {
@@ -1205,7 +1217,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "explore_blocks",
       tooltip: "Count the total number of rows in a dataset.",
     },
     {
@@ -1219,7 +1231,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "explore_blocks",
       tooltip: "Count the number of distinct values in a column.",
     },
     /* ── Category 2: Exploring Data (remaining) ── */
@@ -1234,7 +1246,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "explore_blocks",
       tooltip: "Display the last N rows of a dataset as a table.",
     },
     {
@@ -1247,7 +1259,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "explore_blocks",
       tooltip: "Count the number of columns (variables) in a dataset.",
     },
     {
@@ -1260,7 +1272,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "explore_blocks",
       tooltip: "Get the names of all columns in a dataset as a list.",
     },
     {
@@ -1273,7 +1285,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "explore_blocks",
       tooltip: "Display all values in a single column.",
     },
     /* ── Category 3: Describing Data (remaining) ── */
@@ -1288,7 +1300,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "statistics_blocks",
       tooltip: "Find the most frequently occurring value in a column.",
     },
     {
@@ -1302,7 +1314,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "statistics_blocks",
       tooltip: "Calculate the range (max minus min) of a numeric column.",
     },
     {
@@ -1316,7 +1328,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "statistics_blocks",
       tooltip: "Count the number of non-missing values in a column.",
     },
     /* ── Category 4: Asking Questions (Filter / Sort / Group) ── */
@@ -1332,7 +1344,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "filter_sort_blocks",
       tooltip: "Keep only rows where a column equals a specific value.",
     },
     {
@@ -1347,7 +1359,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "filter_sort_blocks",
       tooltip: "Keep only rows where a column is greater than a value.",
     },
     {
@@ -1362,7 +1374,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "filter_sort_blocks",
       tooltip: "Keep only rows where a column is less than a value.",
     },
     {
@@ -1376,7 +1388,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "filter_sort_blocks",
       tooltip: "Sort the dataset by a column from smallest to largest.",
     },
     {
@@ -1390,7 +1402,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "filter_sort_blocks",
       tooltip: "Sort the dataset by a column from largest to smallest.",
     },
     {
@@ -1404,7 +1416,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "filter_sort_blocks",
       tooltip: "Remove rows that have a missing value in a specific column.",
     },
     {
@@ -1418,7 +1430,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "group_compare_blocks",
       tooltip: "Count how many rows belong to each group in a categorical column.",
     },
     {
@@ -1433,7 +1445,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "group_compare_blocks",
       tooltip: "Calculate the mean of a numeric column for each group in a categorical column.",
     },
     /* ── Category 5: Seeing Data (Charts) ── */
@@ -1449,7 +1461,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "charts_blocks",
       tooltip: "Draw a bar chart. Best for comparing values across categories.",
     },
     {
@@ -1464,7 +1476,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "charts_blocks",
       tooltip: "Draw a line chart. Best for showing change over an ordered variable (e.g. time).",
     },
     {
@@ -1479,7 +1491,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "charts_blocks",
       tooltip: "Draw a scatter plot. Best for exploring the relationship between two numeric columns.",
     },
     {
@@ -1493,7 +1505,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "charts_blocks",
       tooltip: "Draw a histogram showing the distribution of values in a numeric column.",
     },
     {
@@ -1508,7 +1520,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "charts_blocks",
       tooltip: "Draw a box plot showing spread and median. Leave group empty for a single box.",
     },
     /* ── Category 6: Communicating Findings ── */
@@ -1521,7 +1533,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "communicate_blocks",
       tooltip: "Add a plain-text annotation to the output.",
     },
     {
@@ -1534,7 +1546,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "communicate_blocks",
       tooltip: "Display a computed value with a custom label.",
     },
     {
@@ -1549,7 +1561,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "communicate_blocks",
       tooltip: "Display two computed values side-by-side for comparison.",
     },
     {
@@ -1561,7 +1573,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "communicate_blocks",
       tooltip: "State a conclusion based on your findings.",
     },
     {
@@ -1573,7 +1585,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "communicate_blocks",
       tooltip: "Download the dataset as a CSV file.",
     },
     {
@@ -1583,7 +1595,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "communicate_blocks",
       tooltip: "Reveal the Python code generated by the blocks above.",
     },
     /* ── D.5: Missing spec blocks ── */
@@ -1598,7 +1610,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "filter_sort_blocks",
       tooltip: "Find rows where a column has missing (empty) values.",
     },
     {
@@ -1613,7 +1625,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "explore_blocks",
       tooltip: "Read one value from a specific row and column.",
     },
     {
@@ -1626,7 +1638,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "statistics_blocks",
       tooltip: "Show mean, median, min, max, range, sum and spread for a column.",
     },
     {
@@ -1640,7 +1652,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "statistics_blocks",
       tooltip: "Compare all descriptive statistics for two columns side by side.",
     },
     {
@@ -1656,7 +1668,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "charts_blocks",
       tooltip: "Save the chart as a PNG image file.",
     },
     /* ── Phase E: Compound filters + identify-type ── */
@@ -1674,7 +1686,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "filter_sort_blocks",
       tooltip: "Filter rows where both conditions are true (AND logic).",
     },
     {
@@ -1691,7 +1703,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "filter_sort_blocks",
       tooltip: "Filter rows where at least one condition is true (OR logic).",
     },
     {
@@ -1705,7 +1717,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "explore_blocks",
       tooltip: "Find out the data type of a column (number, text, boolean).",
     },
 
@@ -1849,7 +1861,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "statistics_blocks",
       tooltip: "Calculate the p-th percentile of a column using linear interpolation.",
     },
     {
@@ -1863,10 +1875,38 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       inputsInline: true,
       previousStatement: null,
       nextStatement: null,
-      style: "data_science_blocks",
+      style: "statistics_blocks",
       tooltip: "Interquartile range: Q3 − Q1 (75th percentile minus 25th percentile).",
     },
   ]);
+
+  /* ──────────────────────────────────────────────────────────
+     WIDEN BUILT-IN math_arithmetic — VPython's +, -, *, / genuinely
+     operate on scalars AND vectors (vector±vector, scalar×vector,
+     vector/scalar all overload cleanly at runtime), but Blockly's
+     stock math_arithmetic block hardcodes check:"Number" on its A/B
+     inputs and output:"Number" — that describes a generic calculator,
+     not this product's arithmetic domain. Once the vector-producing
+     blocks above carry real output:"Vector" typing (Task 9), that
+     Number-only check silently rejects a legitimate `scalar * norm(vec)`
+     or `vector + vector` connection: domToWorkspace() doesn't throw on
+     a rejected connection, it just drops the child block off the tree,
+     and the generator's valueToCode() falls back to a default of "0"
+     for the vanished input. That is exactly what broke the "Sun, Earth
+     & Moon" orbit template during Task 9 salvage — every gravitational
+     acceleration term and the moon's velocity offset silently became
+     `* 0` / `+ 0`, i.e. zero gravity, with no error anywhere. Widening
+     the built-in block's checks to ["Number","Vector"] (controller
+     ruling, Task 9 salvage) restores those connections without
+     reverting the new producer typings or touching template XML.
+     ────────────────────────────────────────────────────────── */
+  const builtinArithmeticInit = Blockly.Blocks["math_arithmetic"].init;
+  Blockly.Blocks["math_arithmetic"].init = function () {
+    builtinArithmeticInit.call(this);
+    this.getInput("A").connection.setCheck(["Number", "Vector"]);
+    this.getInput("B").connection.setCheck(["Number", "Vector"]);
+    this.outputConnection.setCheck(["Number", "Vector"]);
+  };
 
   /* ── physics_const_block — dynamic dropdown with custom constants ── */
   Blockly.Blocks["physics_const_block"] = {
