@@ -162,7 +162,7 @@ export function defineCustomBlocksAndGenerator(Blockly) {
       output: null,
       style: "values_blocks",
       tooltip:
-        "Any Python expression. ",
+        "Any Python expression. Type any expression. Snaps into number, vector, or colour slots.",
     },
 
     /* ── Physics expression blocks ─────────────────────── */
