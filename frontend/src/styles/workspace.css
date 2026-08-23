@@ -437,16 +437,59 @@
   padding: 6px 10px !important;
   box-shadow: var(--shadow-lg) !important;
 }
+/* ── Blockly menus (right-click context menu, widget-level dropdowns) ──
+   Blockly ships these with HARDCODED light-mode colours and no theme hook:
+
+     .blocklyWidgetDiv .blocklyMenu { background: #fff }
+     .blocklyMenuItem               { color: #000 }
+     .blocklyMenuItemDisabled       { color: #ccc }
+
+   The item rule here used to be `.blocklyContextMenu .goog-menuitem`, a
+   Closure-library class name Blockly stopped emitting — Blockly 11 uses
+   `.blocklyMenuItem`. So the override matched nothing, and no rule of ours
+   ever set a text colour. We DID override the background to a themed one,
+   which produced the actual symptom: in dark mode, enabled items rendered
+   #000 on a dark panel (all but invisible) beside disabled items at #ccc
+   (near-white) — the "some white, some black" report. Light mode was wrong
+   the other way, with #ccc disabled text washed out on a pale panel.
+
+   Both are fixed by theming the real selectors. Every colour below is a
+   token, so it follows data-theme in both directions. */
 .blocklyContextMenu {
   border-radius: var(--radius) !important;
   border: 1px solid var(--border) !important;
   box-shadow: var(--shadow-lg) !important;
   background: var(--bg-surface) !important;
 }
-.blocklyContextMenu .goog-menuitem {
+/* Catches the context menu AND any other widget-level menu, both of which
+   Blockly paints #fff. Dropdowns opened from a field live in
+   .blocklyDropDownDiv instead and inherit the block's own themed colours,
+   so they are deliberately left alone. */
+.blocklyWidgetDiv .blocklyMenu {
+  background: var(--bg-surface) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius) !important;
+  box-shadow: var(--shadow-lg) !important;
   font-family: var(--font) !important;
-  font-size: 12px !important;
-  padding: 4px 12px !important;
+  font-size: var(--fs-sm) !important;
+}
+.blocklyWidgetDiv .blocklyMenuItem {
+  color: var(--text) !important;
+  padding: var(--space-1) var(--space-3) !important;
+}
+/* Disabled entries must read as unavailable but still legible — this is the
+   half that rendered near-white before. Blockly disables the breakpoint
+   entry on non-breakable blocks with a reason, so it is genuinely read. */
+.blocklyWidgetDiv .blocklyMenuItemDisabled {
+  color: var(--text-muted) !important;
+  cursor: default !important;
+}
+.blocklyWidgetDiv .blocklyMenuItemHighlight,
+.blocklyWidgetDiv .blocklyMenuItem:hover:not(.blocklyMenuItemDisabled) {
+  background-color: var(--bg-hover) !important;
+}
+.blocklyWidgetDiv .blocklyMenuItemDisabled:hover {
+  background-color: transparent !important;
 }
 .blocklyMainBackground + .blocklyGridPattern line {
   stroke: var(--border) !important;
