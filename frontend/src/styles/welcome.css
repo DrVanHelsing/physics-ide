@@ -267,6 +267,21 @@
 .welcome-keys .tb-kbd { display: inline-flex; align-items: center; }
 .welcome-keys__plus { color: var(--text-dim); }
 
+/* AA, and the second half of a fix Task 11 only half-made. .tb-kbd paints
+   --text-muted (chrome.css:171) at --fs-2xs. Against the composite of
+   --key-bg over --bg-base that measures about 2.5:1 on light and 2.6:1 on
+   dark — both under the 4.5:1 AA floor, and 10px is not large text. Inside
+   the IDE header a keycap is a secondary hint sitting beside a labelled
+   button; on this page the glyph IS the information (Ctrl, Enter, Esc, S,
+   Space, F10, Shift), so it moves onto --text-dim, which computes to about
+   5.7:1 light and 5.2:1 dark on the same composite. This is the same move
+   .welcome-subline and .welcome-keys__plus already made and the keycaps
+   were left out of. Scoped to this page on purpose: chrome.css is not
+   Lane W's and the IDE's own usage is fine as it stands. The two selectors
+   cover both sites — the §4 row and the §5 keycaps set inline in prose. */
+.welcome-keys .tb-kbd,
+.welcome-section p .tb-kbd { color: var(--text-dim); }
+
 /* ── §7 pipeline stages ───────────────────────────────────── */
 .welcome-grid {
   display: grid;
