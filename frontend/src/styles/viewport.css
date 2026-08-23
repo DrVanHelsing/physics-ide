@@ -66,8 +66,12 @@
   margin: 0;
   text-align: center;
 }
+/* --accent-blue, not --accent-bright. This is the emphasised word in "Press
+   Run in the toolbar" over the near-white idle panel, and --accent-bright
+   lands at 3.87:1 in light mode — under the floor for 13px text.
+   --accent-blue clears it in both themes (7.71 light, 6.27 dark). */
 .canvas-idle-hint strong {
-  color: var(--accent-bright);
+  color: var(--accent-blue);
   font-weight: var(--fw-semibold);
 }
 

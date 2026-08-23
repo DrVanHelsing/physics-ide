@@ -142,6 +142,44 @@ export const VIEWPORT_THEME = {
   light: { bg: "#f2f4f8", text: "#111827", link: "#1d4ed8" },
 };
 
+/** The label colours this app is allowed to overwrite when the theme flips.
+ *
+ *  A telemetry label is drawn INSIDE the 3D scene by the student's own
+ *  program, so it cannot read a CSS variable — the generator emits a literal
+ *  `color=color.white` (blocklyGenerator.js, label_block / label_full_block).
+ *  In dark mode that is right; in light mode the scene background is #f2f4f8
+ *  and white-on-near-white is about 1.05:1, i.e. invisible. That is the bug.
+ *
+ *  We cannot fix it at generation time: exported .py files must stay valid
+ *  standalone VPython, so the emitted colour has to be a literal and cannot
+ *  reference anything this app defines. So the runtime rethemes instead —
+ *  the same way it already rethemes scene.background.
+ *
+ *  The set below is what makes that safe. Only a label still wearing the
+ *  GENERATOR'S DEFAULT (white) or a colour WE previously assigned is
+ *  repainted. A student who chose their own colour keeps it, in both themes.
+ */
+const RETHEMEABLE_LABEL_COLOURS = new Set([
+  "#ffffff",
+  VIEWPORT_THEME.dark.text.toLowerCase(),
+  VIEWPORT_THEME.light.text.toLowerCase(),
+]);
+
+/** Pure. GlowScript colours are vec(r,g,b) floats in 0..1. */
+export function labelColourToHex(c) {
+  if (!c || typeof c.x !== "number") return null;
+  const h = (v) => Math.round(Math.min(1, Math.max(0, v)) * 255).toString(16).padStart(2, "0");
+  return `#${h(c.x)}${h(c.y)}${h(c.z)}`;
+}
+
+/** Pure: the colour a label should take for this theme, or null to leave it
+ *  alone. Exported so the decision is unit-testable without a live scene. */
+export function nextLabelColour(currentHex, isDark) {
+  if (!currentHex) return null;
+  if (!RETHEMEABLE_LABEL_COLOURS.has(currentHex.toLowerCase())) return null;
+  return (isDark ? VIEWPORT_THEME.dark : VIEWPORT_THEME.light).text;
+}
+
 /** Pure: the runtime frame's stylesheet for a given theme. Injected at frame
  *  creation and re-injected on every theme toggle, so a running simulation
  *  rethemes with the panes around it instead of staying in the old theme. */
@@ -756,7 +794,18 @@ export function applyRuntimeTheme(isDark) {
     const scene = getRuntimeScene();
     if (scene && typeof win.vec === "function") {
       const n = (h) => parseInt(h, 16) / 255;
-      scene.background = win.vec(n(theme.bg.slice(1, 3)), n(theme.bg.slice(3, 5)), n(theme.bg.slice(5, 7)));
+      const toVec = (hex) => win.vec(n(hex.slice(1, 3)), n(hex.slice(3, 5)), n(hex.slice(5, 7)));
+      scene.background = toVec(theme.bg);
+
+      /* Telemetry labels live inside the scene, so no stylesheet reaches
+         them — see nextLabelColour for why this is done here and why it
+         only ever repaints a default. */
+      const objects = Array.isArray(scene.objects) ? scene.objects : [];
+      for (const obj of objects) {
+        if (!obj || typeof obj.text !== "string") continue;
+        const next = nextLabelColour(labelColourToHex(obj.color), isDark);
+        if (next) obj.color = toVec(next);
+      }
     }
     return true;
   } catch (err) {
