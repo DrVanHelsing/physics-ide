@@ -23,7 +23,12 @@
  * expression-statement) rather than assumed.
  */
 import { describe, test, expect } from "vitest";
-import { injectFrameBoundaries } from "../glowRunner";
+import {
+  injectFrameBoundaries,
+  labelColourToHex,
+  nextLabelColour,
+  VIEWPORT_THEME,
+} from "../glowRunner";
 
 const BOOKKEEPING =
   "window.__physide_iter=(window.__physide_iter||0)+1;" +
@@ -127,5 +132,50 @@ describe("injectFrameBoundaries — Task 15 fix round 2 regression", () => {
   test("defensive: rate( with unbalanced parens is left untouched rather than corrupting the file", () => {
     const source = "var weird = rate(240;"; // malformed on purpose
     expect(injectFrameBoundaries(source, BOOKKEEPING)).toBe(source);
+  });
+});
+
+/* ─────────────────────────────────────────────────────────────
+   Telemetry label colours.
+
+   A telemetry label is drawn inside the 3D scene, so no stylesheet
+   reaches it; the generator emits a literal `color=color.white`,
+   which is invisible on light mode's #f2f4f8 background. The runtime
+   repaints it — but only when it is still wearing a colour we own.
+   ───────────────────────────────────────────────────────────── */
+describe("telemetry label retheming", () => {
+  test("labelColourToHex converts GlowScript's 0..1 vec to hex", () => {
+    expect(labelColourToHex({ x: 1, y: 1, z: 1 })).toBe("#ffffff");
+    expect(labelColourToHex({ x: 0, y: 0, z: 0 })).toBe("#000000");
+    // clamps rather than producing junk
+    expect(labelColourToHex({ x: 1.4, y: -0.2, z: 0.5 })).toBe("#ff0080");
+    expect(labelColourToHex(null)).toBeNull();
+    expect(labelColourToHex({})).toBeNull();
+  });
+
+  test("the generator's white default is repainted for the active theme", () => {
+    expect(nextLabelColour("#ffffff", false)).toBe(VIEWPORT_THEME.light.text);
+    expect(nextLabelColour("#ffffff", true)).toBe(VIEWPORT_THEME.dark.text);
+  });
+
+  test("a colour we previously assigned is repainted again on the next flip", () => {
+    // light -> dark -> light must not strand a label in the wrong theme
+    expect(nextLabelColour(VIEWPORT_THEME.light.text, true)).toBe(VIEWPORT_THEME.dark.text);
+    expect(nextLabelColour(VIEWPORT_THEME.dark.text, false)).toBe(VIEWPORT_THEME.light.text);
+  });
+
+  test("a colour the STUDENT chose is never touched", () => {
+    // This is the whole safety property: only defaults and our own values
+    // are repaintable. A deliberate colour survives both themes.
+    for (const chosen of ["#ff0000", "#00ff00", "#123456", "#cd3131"]) {
+      expect(nextLabelColour(chosen, true)).toBeNull();
+      expect(nextLabelColour(chosen, false)).toBeNull();
+    }
+  });
+
+  test("case-insensitive, and null input is left alone", () => {
+    expect(nextLabelColour("#FFFFFF", false)).toBe(VIEWPORT_THEME.light.text);
+    expect(nextLabelColour(VIEWPORT_THEME.dark.text.toUpperCase(), false)).toBe(VIEWPORT_THEME.light.text);
+    expect(nextLabelColour(null, false)).toBeNull();
   });
 });

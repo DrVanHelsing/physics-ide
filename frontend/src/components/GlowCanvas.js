@@ -44,6 +44,10 @@ function GlowCanvas({ running, booting, onStatus, children }) {
     applyRuntimeTheme(isDark);
   }, [isDark, running]);
 
+  /* onReady below is captured once, so it must not close over `isDark`. */
+  const isDarkRef = useRef(isDark);
+  isDarkRef.current = isDark;
+
   /* precodedExamples.js authors explanatory scene.title / scene.caption text
      that the runtime's overflow:hidden pushes out of view. Read it back and
      render it in React chrome instead of losing it.
@@ -52,7 +56,18 @@ function GlowCanvas({ running, booting, onStatus, children }) {
      not milliseconds), so this polls (useRuntimeReady, ~9s at 60 tries) the
      same way ViewportControls waits for the engine, and reads the meta once
      the scene actually exists. */
-  useRuntimeReady({ enabled: running, tries: 60, onReady: () => setSceneMeta(getSceneMeta()) });
+  useRuntimeReady({
+    enabled: running,
+    tries: 60,
+    onReady: () => {
+      setSceneMeta(getSceneMeta());
+      /* Re-theme once the scene actually exists. The effect above fires when
+         `running` flips, which is BEFORE the runtime has finished loading its
+         CDN scripts and created the scene — so at that moment there are no
+         telemetry labels to recolour yet. Setup-time labels exist by now. */
+      applyRuntimeTheme(isDarkRef.current);
+    },
+  });
   useEffect(() => {
     if (!running) setSceneMeta({ title: "", caption: "" });
   }, [running]);

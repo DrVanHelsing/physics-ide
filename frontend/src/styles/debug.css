@@ -243,11 +243,16 @@
   font-family: var(--mono);
   table-layout: fixed;
 }
+/* --text-dim, not --text-muted. These are 10px uppercase column headings on
+   --bg-titlebar, and --text-muted fails AA badly against it in BOTH themes:
+   1.97:1 light (#9e9e9e on #dddddd) and 2.37:1 dark (#6a6a6a on #323233).
+   --text-dim clears the 4.5:1 floor on both (4.56 / 4.72) while staying
+   quieter than body text, which is what a column heading wants. */
 .trace-th {
   position: sticky;
   top: 0;
   background: var(--bg-titlebar);
-  color: var(--text-muted);
+  color: var(--text-dim);
   font-size: var(--fs-2xs);
   font-weight: 600;
   text-transform: var(--label-transform);
@@ -263,16 +268,19 @@
 
 /* Section separators */
 .trace-section-row td { padding: 0; }
+/* Same correction as .trace-th, and the opacity goes with it: 0.75 on top of
+   --text-muted took these to 1.63:1 light / 2.0:1 dark — the worst text in
+   the drawer. Quietness comes from the token and the size, not from washing
+   the colour out. */
 .trace-section-label {
   display: block;
   font-size: var(--fs-2xs);
   font-weight: 700;
   text-transform: var(--label-transform);
   letter-spacing: var(--label-tracking);
-  color: var(--text-muted);
+  color: var(--text-dim);
   padding: 5px 8px 2px;
   background: color-mix(in srgb, var(--bg-titlebar) 70%, transparent);
-  opacity: 0.75;
 }
 
 /* Setup / constants — collapsible section header */
@@ -285,12 +293,10 @@
   border: none;
   padding: 0 8px;
   cursor: pointer;
-  color: var(--text-muted);
-  opacity: 0.75;
-  transition: opacity 0.15s, color 0.15s;
+  color: var(--text-dim);
+  transition: color 0.15s;
 }
 .trace-section-toggle:hover {
-  opacity: 1;
   color: var(--text);
 }
 .trace-section-toggle .trace-section-label {
