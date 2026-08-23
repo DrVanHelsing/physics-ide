@@ -65,7 +65,7 @@ function PeopleBody({ classData }) {
   }
 
   return (
-    <div className="classes-body">
+    <div className="page-body">
       {isTeacher ? <JoinPanel classData={classData} onChanged={refresh} /> : null}
       {isTeacher && waiting.length > 0 ? (
         <div>

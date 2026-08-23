@@ -17,12 +17,21 @@
    AUTH & ACCOUNT SCREENS (Plan 2)
    ============================================================ */
 .auth-page {
+  position: relative;
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
   background: var(--bg-base);
   padding: var(--space-6);
+}
+/* Top-right corner, off the centred card — spec §18 D9: an evaluating
+   teacher should be able to see both themes before ever creating an
+   account, so the toggle cannot wait behind sign-in. */
+.auth-page__theme {
+  position: absolute;
+  top: var(--space-4);
+  right: var(--space-4);
 }
 .auth-card {
   width: 100%;
@@ -138,16 +147,43 @@
   border-color: var(--btn-primary-bg-hover);
   color: var(--on-accent);
 }
-/* ---- Admin console (Plan 2) ---- */
-.admin-page { min-height: 100vh; background: var(--bg-base); color: var(--text); }
-.admin-header {
-  padding: var(--space-5) var(--space-6) 0;
-  border-bottom: 1px solid var(--border);
+/* ---- Portal page shell (Admin / Classes) ----
+   One shell for both — .admin-page/.admin-header/.admin-body and
+   .classes-page/.classes-header/.classes-body were byte-for-byte
+   duplicates once Task 4 tokenised both to the same values. PortalHeader
+   (components/layout/PortalHeader.js) is the one header every portal
+   screen now mounts; it also carries the theme toggle and the account
+   control off the .page-header__bar zone, so light mode is reachable
+   from every portal route, not only the IDE (spec §18 D9). */
+.page { min-height: 100vh; background: var(--bg-base); color: var(--text); }
+.page-header {
   background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 var(--space-6);
 }
-.admin-header h1 { font-size: var(--fs-2xl); color: var(--text-bright); margin: var(--space-3) 0 var(--space-3); }
+.page-header__bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: var(--header-h);
+  min-height: var(--header-h);
+}
+.page-header__spacer { flex: 1; min-width: 0; }
+.page-header__title {
+  margin: var(--space-3) 0;
+  font-size: var(--fs-2xl);
+  color: var(--text-bright);
+}
+.page-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: 1000px;
+  padding: var(--space-5) var(--space-6);
+}
+
+/* ---- Admin console (Plan 2) ---- */
 .admin-tab--on { color: var(--text-bright); border-bottom-color: var(--accent); }
-.admin-body { padding: var(--space-5) var(--space-6); display: flex; flex-direction: column; gap: var(--space-4); max-width: 1000px; }
 .admin-cap { display: flex; align-items: center; gap: var(--space-3); font-size: var(--fs-lg); }
 .admin-cap-input { width: 90px; }
 .admin-table { width: 100%; border-collapse: collapse; font-size: var(--fs-md); }
@@ -215,14 +251,6 @@
 }
 
 /* ---- Classes (Plan 3) ---- */
-.classes-page { min-height: 100vh; background: var(--bg-base); color: var(--text); }
-.classes-header {
-  padding: var(--space-5) var(--space-6) 0;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg-surface);
-}
-.classes-header h1 { font-size: var(--fs-2xl); color: var(--text-bright); margin: var(--space-3) 0 var(--space-3); }
-.classes-body { padding: var(--space-5) var(--space-6); display: flex; flex-direction: column; gap: var(--space-4); max-width: 1000px; }
 .classes-actions { display: flex; gap: var(--space-2); }
 .classes-newform { max-width: 420px; }
 .classes-wall { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--space-3); }
@@ -319,20 +347,18 @@
    These screens (admin, classes, profile, auth) had zero responsive
    handling and are the ones most likely to open on a Chromebook.
 
-   Placement note: this block MUST stay after the admin/classes base rules
-   (.admin-header, .admin-body, .classes-header, .classes-body, .classes-wall
-   — see "Admin console (Plan 2)" / "Classes (Plan 3)" further up the file).
-   Those base rules are unconditional (no media query) and equal-specificity,
-   so CSS resolves the conflict by source order — if this block sits above
-   them, they win outright and every rule below except .admin-tabs becomes
-   dead code, even while the media query matches. Keep this at (or below) the
-   end of the file, never above the admin/classes selector definitions.
+   Placement note: this block MUST stay after the portal shell base rules
+   (.page-header, .page-body, .classes-wall — see "Portal page shell" /
+   "Classes (Plan 3)" further up the file). Those base rules are
+   unconditional (no media query) and equal-specificity, so CSS resolves
+   the conflict by source order — if this block sits above them, they win
+   outright and every rule below except .admin-tabs becomes dead code,
+   even while the media query matches. Keep this at (or below) the end of
+   the file, never above the portal shell selector definitions.
    ═══════════════════════════════════════════════════════════ */
 @media (max-width: 1024px) {
-  .admin-header,
-  .admin-body,
-  .classes-header,
-  .classes-body { padding-left: var(--space-4); padding-right: var(--space-4); }
+  .page-header,
+  .page-body    { padding-left: var(--space-4); padding-right: var(--space-4); }
   .classes-wall { grid-template-columns: 1fr; }
   .tabs,
   .admin-tabs   { overflow-x: auto; }

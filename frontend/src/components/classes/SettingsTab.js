@@ -34,7 +34,7 @@ function SettingsBody({ classData }) {
   });
 
   return (
-    <div className="classes-body">
+    <div className="page-body">
       <form
         className="auth-form classes-newform"
         onSubmit={(e) => {

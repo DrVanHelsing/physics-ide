@@ -3,19 +3,15 @@ import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../utils/api/client";
 import { useMe } from "../../auth/useAuth";
+import PortalHeader from "../layout/PortalHeader";
 
 export default function ClassesHome() {
   const { data: me, isLoading } = useMe();
   if (isLoading) return null;
   if (!me) return <Navigate to="/auth/signin" replace />;
   return (
-    <div className="classes-page">
-      <header className="classes-header">
-        <Link to="/" className="auth-brand">
-          Physics<span>IDE</span>
-        </Link>
-        <h1>My classes</h1>
-      </header>
+    <div className="page">
+      <PortalHeader title="My classes" />
       <ClassWall me={me} />
     </div>
   );
@@ -44,7 +40,7 @@ function ClassWall({ me }) {
   const canCreate = me.isTeacher || me.role === "admin";
 
   return (
-    <div className="classes-body">
+    <div className="page-body">
       <div className="classes-actions">
         {canCreate ? (
           <button className="btn" type="button" onClick={() => setCreating((v) => !v)}>

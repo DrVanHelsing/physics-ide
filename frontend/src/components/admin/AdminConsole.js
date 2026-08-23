@@ -1,9 +1,10 @@
 import React, { useRef, useState } from "react";
-import { Link, Navigate } from "react-router-dom";
+import { Navigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../utils/api/client";
 import { useMe } from "../../auth/useAuth";
 import { CheckIcon, AlertTriangleIcon, SearchIcon, XIcon } from "../Icons";
+import PortalHeader from "../layout/PortalHeader";
 
 const TABS = ["People", "Classes", "Emails", "Health"];
 
@@ -41,34 +42,33 @@ export default function AdminConsole() {
   }
 
   return (
-    <div className="admin-page">
-      <header className="admin-header">
-        <Link to="/" className="auth-brand">
-          Physics<span>IDE</span>
-        </Link>
-        <h1>Admin console</h1>
-        <nav className="tabs" role="tablist" aria-label="Admin sections">
-          {TABS.map((t) => (
-            <button
-              key={t}
-              ref={(el) => {
-                tabRefs.current[t] = el;
-              }}
-              type="button"
-              role="tab"
-              id={`admin-tab-${t}`}
-              aria-controls="admin-panel"
-              aria-selected={t === tab}
-              tabIndex={t === tab ? 0 : -1}
-              className={t === tab ? "tab tab--on" : "tab"}
-              onClick={() => selectTab(t)}
-              onKeyDown={onTabKeyDown}
-            >
-              {t}
-            </button>
-          ))}
-        </nav>
-      </header>
+    <div className="page">
+      <PortalHeader
+        title="Admin console"
+        nav={
+          <nav className="tabs" role="tablist" aria-label="Admin sections">
+            {TABS.map((t) => (
+              <button
+                key={t}
+                ref={(el) => {
+                  tabRefs.current[t] = el;
+                }}
+                type="button"
+                role="tab"
+                id={`admin-tab-${t}`}
+                aria-controls="admin-panel"
+                aria-selected={t === tab}
+                tabIndex={t === tab ? 0 : -1}
+                className={t === tab ? "tab tab--on" : "tab"}
+                onClick={() => selectTab(t)}
+                onKeyDown={onTabKeyDown}
+              >
+                {t}
+              </button>
+            ))}
+          </nav>
+        }
+      />
       <div role="tabpanel" id="admin-panel" aria-labelledby={`admin-tab-${tab}`}>
         {tab === "People" ? <PeopleTab /> : null}
         {tab === "Classes" ? <ClassesTab /> : null}
@@ -101,7 +101,7 @@ function PeopleTab() {
   });
 
   return (
-    <div className="admin-body">
+    <div className="page-body">
       {capQuery.data ? (
         <div className="admin-cap">
           <strong>
@@ -205,7 +205,7 @@ function EmailsTab() {
     queryFn: () => api("/api/admin/emails?limit=200"),
   });
   return (
-    <div className="admin-body">
+    <div className="page-body">
       <p className="auth-text auth-text--dim">
         The pretend inbox: every email the system would have sent, exactly as it would look.
       </p>
@@ -260,7 +260,7 @@ function ClassesTab() {
     queryFn: () => api("/api/admin/classes"),
   });
   return (
-    <div className="admin-body">
+    <div className="page-body">
       <p className="auth-text auth-text--dim">
         Every class on the site — visibility, not management.
       </p>
@@ -302,7 +302,7 @@ export function HealthTab() {
   });
   const h = healthQuery.data;
   return (
-    <div className="admin-body">
+    <div className="page-body">
       {h ? (
         <div className="card">
           <ul className="admin-health">
