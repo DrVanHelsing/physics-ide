@@ -57,7 +57,7 @@ export default function AdminConsole() {
               type="button"
               role="tab"
               id={`admin-tab-${t}`}
-              aria-controls={`admin-panel-${t}`}
+              aria-controls="admin-panel"
               aria-selected={t === tab}
               tabIndex={t === tab ? 0 : -1}
               className={t === tab ? "tab tab--on" : "tab"}
@@ -69,7 +69,7 @@ export default function AdminConsole() {
           ))}
         </nav>
       </header>
-      <div role="tabpanel" id={`admin-panel-${tab}`} aria-labelledby={`admin-tab-${tab}`}>
+      <div role="tabpanel" id="admin-panel" aria-labelledby={`admin-tab-${tab}`}>
         {tab === "People" ? <PeopleTab /> : null}
         {tab === "Classes" ? <ClassesTab /> : null}
         {tab === "Emails" ? <EmailsTab /> : null}

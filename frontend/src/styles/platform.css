@@ -303,6 +303,16 @@
   color: var(--text-bright);
   box-shadow: var(--shadow-lg);
 }
+/* Fix-round: SyncProvider now mounts this node for the app's whole
+   lifetime so its role="status" region exists before content ever lands
+   in it (reliable announcement). While there is nothing to show, it has
+   no children — collapse its chrome so an empty prompt is not a floating
+   bordered dot at the top of every screen. */
+.guest-import:empty {
+  border: none;
+  padding: 0;
+  box-shadow: none;
+}
 
 /* ═══════════════════════════════════════════════════════════
    PLATFORM SCREENS — the stated minimum viewport is 1024px.
