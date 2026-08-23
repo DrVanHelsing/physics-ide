@@ -66,6 +66,47 @@
 .pane-header--code     { border-top: 2px solid var(--cat-objects); padding-top: 0; }
 .pane-header--viewport { border-top: 2px solid var(--cat-data-science); padding-top: 0; }
 
+/* ── Simulation controls, docked in the viewport's own header ──────
+   Run/Stop plus the whole debug group live here now (SimControls.js).
+   They were in the app header, which is adaptive; the debug group is
+   deliberately non-collapsible, so turning debug on pushed six more
+   controls into an already-full row and squashed the bar. The title
+   is allowed to shrink and ellipse, the controls never are — a
+   student mid-step must not lose Next frame to a truncation. */
+.pane-header--viewport {
+  justify-content: space-between;
+  gap: var(--space-3);
+  overflow: visible;
+}
+.pane-header__title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.sim-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex: 0 0 auto;
+}
+.sim-controls__sep {
+  width: 1px;
+  height: var(--space-4);
+  margin: 0 var(--space-1);
+  background: var(--border);
+}
+/* Below the 1280px stage-1 threshold the header text is the first thing
+   that can go: the icons still name every control through their titles,
+   and the controls themselves are what the student is reaching for. */
+@media (max-width: 1280px) {
+  .pane-header--viewport .pane-header__title { display: none; }
+  .sim-controls .tb-btn--subtle .tb-btn-label { font-size: var(--fs-xs); }
+}
+
 /* ═══════════════════════════════════════════════════════════
    BLOCKLY HOST
    ═══════════════════════════════════════════════════════════ */

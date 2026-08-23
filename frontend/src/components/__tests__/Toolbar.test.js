@@ -67,29 +67,8 @@ describe("Toolbar — navigation group", () => {
 });
 
 describe("Toolbar — simulation group", () => {
-  test("Run fires onRun; Stop is absent while idle", () => {
-    const { container, h } = render();
-    click(byTitle(container, "Run simulation (Ctrl+Enter)"));
-    expect(h.onRun).toHaveBeenCalledTimes(1);
-    expect(byText(container, "Stop")).toBeNull();
-  });
 
-  test("Stop is enabled and wired while running; Run is gone", () => {
-    const { container, h } = render({ running: true });
-    expect(byText(container, "Run")).toBeNull();
-    const stop = byText(container, "Stop");
-    expect(stop.disabled).toBe(false);
-    click(stop);
-    expect(h.onStop).toHaveBeenCalledTimes(1);
-  });
 
-  test("booting shows both Run (disabled, acknowledged) and Stop", () => {
-    const { container } = render({ booting: true });
-    const run = byTitle(container, "Starting simulation…");
-    expect(run).not.toBeNull();
-    expect(run.disabled).toBe(true);
-    expect(byText(container, "Stop")).not.toBeNull();
-  });
 
   test("a data-science project shows no simulation controls", () => {
     const { container } = render({ goal: "datascience" });

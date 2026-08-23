@@ -6,15 +6,24 @@ const ev = (over) => ({
 });
 
 describe("matchHotkey", () => {
-  test("Ctrl+Enter and Cmd+Enter run", () => {
-    expect(matchHotkey(ev({ key: "Enter", ctrlKey: true }))).toBe("run");
-    expect(matchHotkey(ev({ key: "Enter", metaKey: true }))).toBe("run");
+  /* runToggle, not run: Run and Stop are one button in the viewport header,
+     and the keyboard matches it. Mapping Ctrl+Enter to run only meant that
+     pressing it mid-simulation called handleRun on a live session and did
+     nothing observable — which is how it was reported. */
+  test("Ctrl+Enter and Cmd+Enter toggle the run", () => {
+    expect(matchHotkey(ev({ key: "Enter", ctrlKey: true }))).toBe("runToggle");
+    expect(matchHotkey(ev({ key: "Enter", metaKey: true }))).toBe("runToggle");
   });
 
-  test("F5 runs, but only unmodified", () => {
-    expect(matchHotkey(ev({ key: "F5" }))).toBe("run");
+  test("F5 toggles the run, but only unmodified", () => {
+    expect(matchHotkey(ev({ key: "F5" }))).toBe("runToggle");
     expect(matchHotkey(ev({ key: "F5", ctrlKey: true }))).toBeNull();
     expect(matchHotkey(ev({ key: "F5", shiftKey: true }))).toBeNull();
+  });
+
+  test("Escape stays stop-only — it must never START a simulation", () => {
+    expect(matchHotkey(ev({ key: "Escape" }))).toBe("stop");
+    expect(matchHotkey(ev({ key: "Escape" }))).not.toBe("runToggle");
   });
 
   test("Ctrl+S and Cmd+S save, in either letter case", () => {

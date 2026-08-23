@@ -66,6 +66,7 @@ import { useTrace }       from "../../hooks/useTrace";
 import { useExport }      from "../../hooks/useExport";
 import { useSplitPane }   from "../../hooks/useSplitPane";
 import { useProject }     from "../../hooks/useProject";
+import SimControls       from "../SimControls";
 import { useHotkeys }     from "../../hooks/useHotkeys";
 import { useDebugHotkeys } from "../../hooks/useDebugHotkeys";
 import { useRunErrorBanner } from "../../hooks/useRunErrorBanner";
@@ -292,7 +293,17 @@ export default function IDELayout() {
 
   useHotkeys({
     enabled: !showStart && !showHelp && !showTraceDialog && !chartDataset,
-    onRun: sim.handleRun,
+    /* One key, one behaviour, matching the single Run/Stop button in the
+       viewport header. Previously this was `onRun: sim.handleRun`, so
+       Ctrl+Enter during a run called handleRun on a live session and looked
+       broken. Booting is deliberately a no-op rather than a stop: the button
+       is disabled in that window too, and cancelling a start the student has
+       not seen begin is not what the key is for. */
+    onRunToggle: sim.booting
+      ? undefined
+      : sim.running
+        ? sim.handleStop
+        : sim.handleRun,
     onStop: sim.running ? sim.handleStop : undefined,
     onSave: handleSaveProject,
   });
@@ -436,6 +447,31 @@ export default function IDELayout() {
   }
 
   /* ── Main IDE shell ──────────────────────────────────── */
+  /* Every simulation control, rendered into the viewport's own header. It
+     left the app header because the debug group is deliberately
+     non-collapsible, so turning debug on forced six more controls into an
+     already-full row and squashed the bar. */
+  const simControls = (
+    <SimControls
+      running={running}
+      booting={sim.booting}
+      onRun={sim.handleRun}
+      onStop={sim.handleStop}
+      debugMode={dbg.debugMode}
+      paused={paused}
+      pauseState={dbg.pauseState}
+      iteration={iteration}
+      recording={trc.recording}
+      breakpointCount={dbg.breakpoints.size}
+      onPause={dbg.handlePause}
+      onResume={dbg.handleResume}
+      onStepFrame={dbg.handleStepFrame}
+      onStepValue={dbg.handleStep}
+      onStartRecord={trc.handleStartRecord}
+      onStopRecord={trc.handleStopRecord}
+    />
+  );
+
   return (
     <div className="app-shell">
       <VariableDialog />
@@ -624,7 +660,10 @@ export default function IDELayout() {
           >
             <div className="hybrid-viewport">
               <div className="pane-header pane-header--viewport">
-                <GlobeIcon size={14} /> 3D Viewport
+                <span className="pane-header__title">
+                  <GlobeIcon size={14} /> 3D Viewport
+                </span>
+                {simControls}
               </div>
               <GlowCanvas running={running} booting={sim.booting} onStatus={setStatus}>
                 {debugDrawer}
@@ -644,7 +683,10 @@ export default function IDELayout() {
         ) : (
           <section className={`canvas-pane${viewportHidden ? " canvas-pane--hidden" : ""}`}>
             <div className="pane-header pane-header--viewport">
-              <GlobeIcon size={14} /> 3D Viewport
+              <span className="pane-header__title">
+                <GlobeIcon size={14} /> 3D Viewport
+              </span>
+              {simControls}
             </div>
             <GlowCanvas running={running} booting={sim.booting} onStatus={setStatus}>
               {debugDrawer}

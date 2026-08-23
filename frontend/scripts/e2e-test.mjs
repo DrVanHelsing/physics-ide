@@ -1670,14 +1670,19 @@ try {
     "onDrop clearing that state are unit-tested directly (WorkspaceTrash.test.js — " +
     "drives the real TrashZone.onDragEnter/onDragExit/onDrop). Toolbox-rail " +
     "tint-and-delete is Blockly's own stock delete-area behaviour, unmodified by " +
-    "this app. Ctrl+Z restore is NOT unit-tested (it's Blockly's own keyboard " +
-    "shortcut, not WorkspaceTrash.js logic) and is NOT forced live here (nothing " +
-    "was actually deleted by this drag) — manual verification pending. " +
-    "Puppeteer's synthetic pointer input reproduces Blockly's gesture recognition " +
-    "and the delete-area's registration + on-screen geometry (both proven above, " +
-    "matching the real trashcan position pixel-for-pixel) but did not trigger the " +
-    "final onDragEnter/onDrop callback despite confirmed overlap — recorded as an " +
-    "e2e-harness limitation in task-15-report.md, not a product defect.");
+    "this app. Ctrl+Z restore is Blockly's own keyboard shortcut, not " +
+    "WorkspaceTrash.js logic, and is verified manually. " +
+    "CORRECTION: this note previously recorded the drag reaching the can without " +
+    "firing onDragEnter/onDrop as 'an e2e-harness limitation, not a product " +
+    "defect'. That was wrong, and the browser pass proved it — the trashcan " +
+    "deleted nothing for real users either. Blockly reads delete areas from a " +
+    "CACHE (WorkspaceSvg.dragTargetAreas, refilled only by recordDragTargets(), " +
+    "which it calls at injection and on resize but NEVER at drag start), and " +
+    "WorkspaceTrash registered its zone in response to the drag starting — always " +
+    "one step too late. Fixed by registering at mount and re-recording; the " +
+    "harness had been reporting a real bug all along. Treat a 'harness " +
+    "limitation' that matches a plausible product failure as unproven until the " +
+    "product path itself is checked.");
 } catch (e) {
   check('C3: Trashcan', false, e.message);
 }

@@ -1,7 +1,5 @@
 import React, { useRef } from "react";
 import {
-  PlayIcon,
-  StopIcon,
   DownloadIcon,
   UploadIcon,
   TrashIcon,
@@ -20,9 +18,6 @@ import {
   SaveIcon,
   MenuIcon,
   MoreHorizontalIcon,
-  PauseIcon,
-  StepForwardIcon,
-  RecordIcon,
 } from "./Icons";
 import { MOD_LABEL } from "../utils/hotkeys";
 import DropdownMenu from "./common/DropdownMenu";
@@ -40,8 +35,6 @@ export const HEADER_STAGE1_QUERY = "(max-width: 1280px)";
 export const HEADER_STAGE2_QUERY = "(max-width: 1120px)";
 
 function Toolbar({
-  onRun,
-  onStop,
   onExportPy,
   onExportBlocks,
   onExportBlocksPdf,
@@ -69,21 +62,10 @@ function Toolbar({
   projectTitle,
   onRenameProject,
   onSave,
-  /* ── Debug group (Plan 4 Task 17). Debug is a MODE of this shell now, not
-     a separate screen with its own button vocabulary, so its controls are
-     .tb-btn like everything else and live at the end of the view zone. */
+  /* Debug is a MODE of this shell, not a separate screen. `debugMode` stays
+     because visibleControls() keys the `trace`/`debug` view-zone entries off
+     it; the debug CONTROLS themselves moved to SimControls. */
   debugMode = false,
-  paused = false,
-  pauseState = "running",
-  iteration = 0,
-  recording = false,
-  breakpointCount = 0,
-  onPause,
-  onResume,
-  onStepFrame,
-  onStepValue,
-  onStartRecord,
-  onStopRecord,
   children,
 }) {
   const stage1 = useMediaQuery(HEADER_STAGE1_QUERY);
@@ -125,19 +107,6 @@ function Toolbar({
     if (file && onImportProject) onImportProject(file);
   };
 
-  /* ── The pause readout, in two lengths ──────────────────────────────
-     Stage 2 is active AT the declared 1024px floor, so "hide it there" and
-     "hide it on every supported narrow screen" are the same sentence. The
-     short form keeps both facts the chip exists to carry — the pause STATE
-     and the iteration NUMBER — and only drops the word "iteration", which
-     the title attribute restores on hover. */
-  const pauseLabel =
-    pauseState === "paused"
-      ? { full: `Paused · iteration ${iteration}`, short: `Paused · ${iteration}` }
-      : pauseState === "pausing"
-        ? { full: "Pausing…", short: "Pausing…" }
-        : { full: `iteration ${iteration}`, short: `${iteration}` };
-
   /* ── Primary- and file-zone controls: each key renders its own JSX
      directly — today's markup, relocated verbatim, not redesigned. A
      renderer may still return null for a key the matrix says exists but
@@ -146,33 +115,8 @@ function Toolbar({
      own always-rendered slot) owns that internals; the key only exists so
      the matrix records which wrapper state Toolbar conceptually asked for. */
   const CONTROL_RENDERERS = {
-    run: () => (
-      <button
-        type="button"
-        className={`tb-btn tb-btn--run${runState === "booting" ? " tb-btn--disabled" : ""}`}
-        onClick={runState === "booting" ? undefined : onRun}
-        disabled={runState === "booting"}
-        title={runState === "booting" ? "Starting simulation…" : `Run simulation (${MOD_LABEL}+Enter)`}
-      >
-        <PlayIcon size={13} />
-        <span className="tb-btn-label">Run</span>
-        {/* The shortcut chip is decorative — the title attribute already states
-           it. Drop it at stage 2, where the bar is at its tightest. */}
-        {!stage2 && <kbd className="tb-kbd">{MOD_LABEL}+Enter</kbd>}
-      </button>
-    ),
-    stop: () => (
-      <button
-        type="button"
-        className={`tb-btn tb-btn--stop${running ? "" : " tb-btn--disabled"}`}
-        onClick={running ? onStop : undefined}
-        disabled={!running}
-        title={running ? "Stop simulation" : "No simulation running"}
-      >
-        <StopIcon size={13} />
-        <span className="tb-btn-label">Stop</span>
-      </button>
-    ),
+    /* `run` and `stop` used to render here. Every simulation control lives in
+       the viewport pane header now — see components/SimControls.js. */
     modeToggle: () => children ?? null,
     save: () =>
       onSave ? (
@@ -370,71 +314,13 @@ function Toolbar({
           </DropdownMenu>
         )}
 
-        {/* ── Debug controls (only while debug mode is on) ──
-           Deliberately NOT collapsible: a student mid-step cannot lose Next
-           frame into an overflow menu, so stage 2 shortens this group (see
-           .tb-chip--quiet in chrome.css) rather than hiding it. */}
-        {debugMode && (
-          <>
-            <span className="app-header__sep" />
-            <button
-              type="button"
-              className="tb-btn"
-              onClick={paused ? onResume : onPause}
-              disabled={!running}
-              title={paused ? "Resume (Space)" : "Pause (Space)"}
-            >
-              {paused ? <PlayIcon size={13} /> : <PauseIcon size={13} />}
-              <span className="tb-btn-label">{paused ? "Resume" : "Pause"}</span>
-            </button>
-            <button
-              type="button"
-              className="tb-btn tb-btn--primary-ghost"
-              onClick={onStepFrame}
-              disabled={!running}
-              title="Advance one animation frame (F10)"
-            >
-              <StepForwardIcon size={13} />
-              <span className="tb-btn-label">Next frame</span>
-            </button>
-            <button
-              type="button"
-              className="tb-btn tb-btn--subtle"
-              onClick={onStepValue}
-              disabled={!running}
-              title="Advance to the next reported value (Shift+F10)"
-            >
-              <span className="tb-btn-label">Next value</span>
-            </button>
-            <button
-              type="button"
-              className={`tb-btn${recording ? " tb-btn--active" : ""}`}
-              onClick={recording ? onStopRecord : onStartRecord}
-              title={recording ? "Stop recording" : "Record every value to CSV"}
-            >
-              <RecordIcon size={12} />
-              <span className="tb-btn-label">{recording ? "Stop Rec" : "Record"}</span>
-            </button>
-            {breakpointCount > 0 && (
-              <span className="tb-chip" title={`${breakpointCount} breakpoint${breakpointCount === 1 ? "" : "s"} set`}>
-                {breakpointCount} bp
-              </span>
-            )}
-            {/* The pause readout — this plan's visible proof that a pause
-                actually took, and the aria-live region that announces it.
-                Stage 2 (active AT the 1024px floor) used to hide it outright
-                in CSS, so the narrowest supported viewport got neither the
-                text nor the announcement. It shortens instead, and stays one
-                text node so what is announced is exactly what is shown. */}
-            <span
-              className="tb-chip tb-chip--quiet"
-              aria-live="polite"
-              title={pauseLabel.full}
-            >
-              {stage2 ? pauseLabel.short : pauseLabel.full}
-            </span>
-          </>
-        )}
+        {/* The debug group (Pause / Next frame / Next value / Record and the
+           two chips) used to render here behind a bare `{debugMode && …}`.
+           It was deliberately non-collapsible — a student mid-step must not
+           lose Next frame into an overflow menu — so turning debug on forced
+           six more controls into an already-full row and squashed the bar.
+           It moved to the viewport pane header with the rest of the sim
+           controls; see components/SimControls.js. */}
       </div>
 
       {/* ── Zone 3 — file: save, workspace, import/export ── */}
