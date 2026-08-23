@@ -294,6 +294,16 @@
   border-radius: var(--radius) !important;
   line-height: 1.4 !important;
   transition: background 100ms ease !important;
+  /* Blockly stamps its OWN category indicator inline on every row —
+     `border-left: 8px solid <category fill>` from ToolboxCategory's colour
+     border — which was never suppressed when the rail was restyled. The
+     result was two indicators of the same fact on every row, in two
+     different shades of the one hue (the border uses --cat, the dot below
+     uses --cat-bright), so it read as a mismatch rather than emphasis.
+     The dot is the one that stays: it matches the flyout's language and
+     leaves --cat free to fill the pill on the selected row. Inline styles
+     need !important to override. */
+  border-left: none !important;
 }
 .blocklyTreeRow::before {
   content: "";

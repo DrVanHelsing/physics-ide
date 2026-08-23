@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import {
   BLOCK_PALETTE, CATEGORY_NAMES, getCategoryColour, styleNameFor,
   categoryStyleNameFor, cssVarFor, brightFor, paletteCssText,
-  blockStylesFromPalette, categoryStylesFromPalette,
+  blockStylesFromPalette, categoryStylesFromPalette, STOCK_STYLE_ALIASES,
   relativeLuminance, contrastRatio, hueOf,
 } from "../blockPalette";
 
@@ -111,6 +111,76 @@ describe("Task 8 consumers", () => {
     // the old pastel Tailwind-300 hues this task removed must not come back
     for (const hex of ["7dd3fc", "f9a8d4", "fcd34d", "86efac", "c4b5fd"]) {
       expect(gravitySrc).not.toContain(hex);
+    }
+  });
+});
+
+/* ─────────────────────────────────────────────────────────────
+   Stock Blockly blocks must adopt OUR palette, not Blockly's.
+
+   These tests deliberately re-derive the style names from Blockly
+   itself rather than restating the alias map, so they keep their
+   value across a Blockly upgrade: if a future version renames a
+   style or introduces a new one, the first test fails with the
+   real name rather than silently passing.
+   ───────────────────────────────────────────────────────────── */
+describe("stock Blockly block styles adopt the palette", () => {
+  /** Style names the shipped stock blocks actually reference. */
+  async function stockStyleNames() {
+    const ns = await import("blockly/core");
+    await import("blockly/blocks");
+    const B = ns.default ?? ns;
+    const found = new Set();
+    for (const [type, def] of Object.entries(B.Blocks)) {
+      if (!def || typeof def.init !== "function") continue;
+      let style = null;
+      const probe = new Proxy(
+        {
+          type,
+          workspace: {},
+          jsonInit(json) { if (json && json.style) style = json.style; },
+          setStyle(s) { style = s; },
+        },
+        {
+          // Any builder method the block calls that we have not stubbed
+          // returns the probe itself, so chained init() bodies run to
+          // completion instead of throwing halfway and losing the style.
+          get: (t, k) => (k in t ? t[k] : () => probe),
+        },
+      );
+      try { def.init.call(probe); } catch { /* block needs more of Blockly than we stub; skip */ }
+      if (style) found.add(style);
+    }
+    return found;
+  }
+
+  test("every style name stock blocks use is defined by our theme", async () => {
+    const styles = blockStylesFromPalette();
+    const stock = await stockStyleNames();
+    // Guard the guard: if the probe stopped finding anything, this test
+    // would pass vacuously.
+    expect(stock.size).toBeGreaterThanOrEqual(6);
+    const missing = [...stock].filter((name) => !styles[name]);
+    expect(missing).toEqual([]);
+  });
+
+  test("the aliases resolve to their category's real palette colour", () => {
+    const styles = blockStylesFromPalette();
+    for (const [blocklyName, category] of Object.entries(STOCK_STYLE_ALIASES)) {
+      expect(BLOCK_PALETTE[category], `${category} must exist in the palette`).toBeTruthy();
+      expect(styles[blocklyName].colourPrimary).toBe(BLOCK_PALETTE[category].fill);
+    }
+    // The four that matter, spelled out — Lists/Loops/Functions are what
+    // made the whole Advanced drawer look mis-coloured.
+    expect(styles.list_blocks.colourPrimary).toBe(BLOCK_PALETTE.Lists.fill);
+    expect(styles.loop_blocks.colourPrimary).toBe(BLOCK_PALETTE.Loops.fill);
+    expect(styles.procedure_blocks.colourPrimary).toBe(BLOCK_PALETTE.Functions.fill);
+    expect(styles.variable_blocks.colourPrimary).toBe(BLOCK_PALETTE.Variables.fill);
+  });
+
+  test("an alias never silently shadows a name the slugs already produce", () => {
+    for (const name of Object.keys(STOCK_STYLE_ALIASES)) {
+      expect(CATEGORY_NAMES.map(styleNameFor)).not.toContain(name);
     }
   });
 });

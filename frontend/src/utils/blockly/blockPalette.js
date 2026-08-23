@@ -292,15 +292,47 @@ function paletteCssText() {
   return `:root {\n  ${vars};\n}`;
 }
 
+/* Stock Blockly blocks (controls_*, text_*, lists_*, math_*, variables_*,
+   procedures_*) carry style names chosen by Blockly, not by us — and four of
+   them do not match what our slugs generate:
+
+     Blockly says          our slug produces      blocks affected
+     list_blocks           lists_blocks           13
+     loop_blocks           loops_blocks            6
+     procedure_blocks      functions_blocks        5
+     variable_blocks       variables_blocks        3
+     variable_dynamic_blocks   (nothing)           2
+
+   A theme lookup that misses falls back to Blockly's Classic palette, so
+   those 29 blocks rendered in stock Blockly colours while the drawer they
+   sit in was tinted from ours. It read as arbitrary because `text_blocks`,
+   `logic_blocks` and `math_blocks` happen to agree by coincidence and so
+   looked correct — but Lists, Loops and Functions are ENTIRELY stock, which
+   is why the whole Advanced drawer looked mis-coloured.
+
+   Aliasing here rather than renaming the slugs is deliberate: the slugs also
+   generate the `--cat-*` CSS variables and the `*_category` toolbox styles,
+   both of which are already correct and referenced elsewhere. */
+const STOCK_STYLE_ALIASES = {
+  list_blocks: "Lists",
+  loop_blocks: "Loops",
+  procedure_blocks: "Functions",
+  variable_blocks: "Variables",
+  variable_dynamic_blocks: "Variables",
+};
+
 function blockStylesFromPalette() {
   const styles = {};
+  const styleFor = (entry) => ({
+    colourPrimary: entry.fill,
+    colourSecondary: entry.secondary,
+    colourTertiary: entry.tertiary,
+  });
   for (const name of CATEGORY_NAMES) {
-    const entry = BLOCK_PALETTE[name];
-    styles[styleNameFor(name)] = {
-      colourPrimary: entry.fill,
-      colourSecondary: entry.secondary,
-      colourTertiary: entry.tertiary,
-    };
+    styles[styleNameFor(name)] = styleFor(BLOCK_PALETTE[name]);
+  }
+  for (const [blocklyStyleName, category] of Object.entries(STOCK_STYLE_ALIASES)) {
+    styles[blocklyStyleName] = styleFor(BLOCK_PALETTE[category]);
   }
   return styles;
 }
@@ -324,6 +356,7 @@ function categoryStylesFromPalette() {
 export {
   BLOCK_PALETTE,
   CATEGORY_NAMES,
+  STOCK_STYLE_ALIASES,
   getCategoryColour,
   styleNameFor,
   categoryStyleNameFor,
