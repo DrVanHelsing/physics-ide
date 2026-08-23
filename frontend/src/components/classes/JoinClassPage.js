@@ -56,13 +56,23 @@ export default function JoinClassPage() {
 
   return (
     <AuthLayout title="Join a class" footer={<Link to="/classes">My classes</Link>}>
-      {result ? (
-        <p className="auth-text">
-          {result.status === "active"
+      {/* Always mounted (visually hidden until there is a result) — a status
+          region that arrives already carrying its text is not reliably
+          announced. This one exists from first render, so by the time the
+          900ms redirect below fires, a screen reader has already had the
+          region "in view" for as long as the message has been true. */}
+      <p
+        className={result ? "auth-text" : "auth-text sr-only"}
+        role="status"
+        aria-live="polite"
+      >
+        {result
+          ? result.status === "active"
             ? `You're in ${result.className}! Taking you there…`
-            : `Request sent — ${result.className}'s teacher will approve you.`}
-        </p>
-      ) : (
+            : `Request sent — ${result.className}'s teacher will approve you.`
+          : ""}
+      </p>
+      {result ? null : (
         <form
           className="auth-form"
           onSubmit={(e) => {

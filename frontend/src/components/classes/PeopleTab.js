@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import QRCode from "qrcode";
 import { api } from "../../utils/api/client";
+import { CheckIcon } from "../Icons";
 import ClassChrome from "./ClassChrome";
 
 export default function PeopleTab() {
@@ -241,7 +242,7 @@ function JoinPanel({ classData, onChanged }) {
                 setTimeout(() => setCopied(false), 1500);
               }}
             >
-              {copied ? "Copied!" : "Copy join link"}
+              Copy join link
             </button>
             <button
               className="btn"
@@ -251,6 +252,20 @@ function JoinPanel({ classData, onChanged }) {
             >
               Regenerate code
             </button>
+            {/* Always mounted (empty when !copied) so the live region exists
+                before its content does — a status element inserted at the same
+                moment as its text is not reliably announced. */}
+            <span
+              className={copied ? "badge badge--success" : undefined}
+              role="status"
+              aria-live="polite"
+            >
+              {copied ? (
+                <>
+                  <CheckIcon size={12} /> Copied!
+                </>
+              ) : null}
+            </span>
           </div>
           <p className="auth-text auth-text--dim" style={{ marginTop: 6 }}>
             Joining is {classData.joinMode === "open" ? "open" : classData.joinMode === "approval" ? "by approval" : "paused"} — change it in Settings.

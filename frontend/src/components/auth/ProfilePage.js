@@ -93,7 +93,11 @@ export default function ProfilePage() {
           Change password
         </button>
       </form>
-      {msg ? <p className="auth-text" style={{ marginTop: 12 }}>{msg}</p> : null}
+      {msg ? (
+        <p className="auth-text" style={{ marginTop: 12 }} role="status" aria-live="polite">
+          {msg}
+        </p>
+      ) : null}
       {error ? <div className="auth-error" style={{ marginTop: 12 }}>{error}</div> : null}
     </AuthLayout>
   );

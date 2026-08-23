@@ -56,7 +56,12 @@ export default function SyncChip() {
   if (!me) return null;
   const Icon = ICONS[state] ?? CheckIcon;
   return (
-    <span className={`sync-chip sync-chip--${state}`} title={lastError || DEFAULT_TITLE}>
+    <span
+      className={`sync-chip sync-chip--${state}`}
+      title={lastError || DEFAULT_TITLE}
+      role="status"
+      aria-live="polite"
+    >
       <Icon size={12} />
       Saved on this computer · {LABELS[state] ?? "Synced"}
     </span>

@@ -62,13 +62,24 @@ export default function InviteLandingPage() {
   }
   return (
     <AuthLayout title="You're invited" footer={<Link to="/classes">My classes</Link>}>
-      {state === "working" ? <p className="auth-text">One moment…</p> : null}
-      {state === "done" ? <p className="auth-text">{message}</p> : null}
-      {state === "failed" ? (
+      {/* One persistent element carries both "working" and "done" — the
+          region must already exist when the redirect-triggering message
+          lands, or nothing announces it. Swapping in a freshly-mounted
+          paragraph for the success text would not satisfy that. */}
+      {state !== "failed" ? (
+        <p
+          className="auth-text"
+          role="status"
+          aria-live="polite"
+          aria-busy={state === "working"}
+        >
+          {state === "working" ? "One moment…" : message}
+        </p>
+      ) : (
         <div className="alert alert--danger" role="alert">
           {message}
         </div>
-      ) : null}
+      )}
     </AuthLayout>
   );
 }

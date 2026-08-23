@@ -54,12 +54,13 @@ export default function ClassChrome({ tab, children }) {
           {c.name}
           {c.archived ? <span className="class-archived-badge">archived</span> : null}
         </h1>
-        <nav className="admin-tabs">
+        <nav className="tabs">
           {tabs.map((t) => (
             <Link
               key={t.key}
               to={t.to}
-              className={t.key === tab ? "admin-tab admin-tab--on" : "admin-tab"}
+              className="tab"
+              aria-current={t.key === tab ? "page" : undefined}
             >
               {t.label}
             </Link>
