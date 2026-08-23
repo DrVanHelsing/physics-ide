@@ -7,14 +7,24 @@
  * The Export dropdown's "Copy Code to Clipboard" remains the only copy path.
  */
 
-/** @returns {"run"|"save"|"stop"|null} */
+/**
+ * `runToggle` rather than `run`: the Run and Stop buttons are ONE button in
+ * the viewport header now, and the keyboard matches it. Ctrl/Cmd+Enter used
+ * to map to run only, so pressing it while a simulation was already running
+ * called handleRun on a live session and appeared to do nothing at all —
+ * which is exactly how it was reported. Escape stays stop-only: it is the
+ * universal "get me out", and a key that could START a simulation by accident
+ * is not what anyone reaches for Escape expecting.
+ *
+ * @returns {"runToggle"|"save"|"stop"|null}
+ */
 export function matchHotkey(e) {
   const mod = Boolean(e.ctrlKey || e.metaKey);
   const plainMod = mod && !e.shiftKey && !e.altKey;
   const bare = !mod && !e.shiftKey && !e.altKey;
 
-  if (plainMod && e.key === "Enter") return "run";
-  if (bare && e.key === "F5") return "run";
+  if (plainMod && e.key === "Enter") return "runToggle";
+  if (bare && e.key === "F5") return "runToggle";
   if (plainMod && (e.key === "s" || e.key === "S")) return "save";
   if (bare && e.key === "Escape") return "stop";
   return null;

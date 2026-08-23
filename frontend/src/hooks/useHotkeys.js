@@ -9,9 +9,9 @@
 import { useEffect, useRef } from "react";
 import { matchHotkey, isTypingTarget } from "../utils/hotkeys";
 
-export function useHotkeys({ enabled = true, onRun, onStop, onSave }) {
+export function useHotkeys({ enabled = true, onRunToggle, onStop, onSave }) {
   const handlersRef = useRef(null);
-  handlersRef.current = { run: onRun, stop: onStop, save: onSave };
+  handlersRef.current = { runToggle: onRunToggle, stop: onStop, save: onSave };
 
   useEffect(() => {
     if (!enabled) return undefined;

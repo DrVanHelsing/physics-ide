@@ -73,11 +73,6 @@
 
 /* Run is already the filled primary (Plan 1 Task 6). Its shortcut chip just
    needs to sit on that fill instead of on the bar. */
-.tb-btn--run .tb-kbd {
-  color: var(--on-accent);
-  background: color-mix(in srgb, var(--on-accent) 14%, transparent);
-  border-color: color-mix(in srgb, var(--on-accent) 22%, transparent);
-}
 .tb-btn--account { color: var(--text-dim); max-width: 18ch; }
 .tb-btn--account .tb-btn-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 

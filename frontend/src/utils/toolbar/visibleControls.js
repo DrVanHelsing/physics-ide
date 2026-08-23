@@ -2,10 +2,13 @@
  * The adaptive header's single source of truth: given the project's axes,
  * which control keys exist in which zone. Every keyed control in the header
  * comes from these lists — no scattered `showX &&` conditionals in the
- * component. The one exception is the debug group (Pause / Next frame / Next
- * value / Record and the two chips), which Toolbar renders inline behind a
- * bare `{debugMode && …}`: it is a single block that exists or does not, with
- * no per-control visibility to decide and no place in any zone's ordering.
+ * component.
+ *
+ * There is no longer an exception for the debug group. It used to be rendered
+ * inline by Toolbar behind a bare `{debugMode && …}` because it had no place
+ * in any zone's ordering; it now lives in the viewport pane header with the
+ * rest of the simulation controls (components/SimControls.js), so the header
+ * really is nothing but these three lists.
  *
  * The zoom slider is intentionally absent from every configuration: the
  * on-canvas cluster owns zoom now (Task 11). `trace`/`debug` were reserved
@@ -15,7 +18,14 @@
 
 const SIM_GOALS = new Set(["physics", "hybrid"]);
 
-export const PRIMARY_KEYS = ["run", "stop", "modeToggle"];
+/* `run` and `stop` are gone from here: every simulation control now lives in
+   the viewport's own pane header (components/SimControls.js), as one Run/Stop
+   toggle rather than two mutually-exclusive buttons. The header keeps what
+   acts on the PROJECT — menu, save, editor mode, help, account — and the
+   debug group moved with them, which is what actually cured the squash: that
+   group is deliberately non-collapsible, so turning debug on used to force
+   six more controls into an already-full row. */
+export const PRIMARY_KEYS = ["modeToggle"];
 export const VIEW_KEYS = ["viewport", "trace", "debug", "reset", "clear", "help"];
 export const FILE_KEYS = ["save", "fileMenu", "themeToggle", "signIn", "account"];
 
@@ -29,11 +39,7 @@ export function visibleControls({
   const sim = SIM_GOALS.has(goal);
   const live = runState !== "idle";
   return {
-    primary: [
-      ...(sim && runState !== "running" ? ["run"] : []),
-      ...(sim && runState !== "idle" ? ["stop"] : []),
-      "modeToggle",
-    ],
+    primary: ["modeToggle"],
     view: [
       // zoom slider intentionally absent from every configuration — the
       // on-canvas cluster owns zoom (Task 11).

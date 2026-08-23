@@ -92,52 +92,14 @@ describe("header collapse — stage 2 (<= 1120px)", () => {
     expect(onDebugMode).toHaveBeenCalledTimes(1);
   });
 
-  test("Run, Save, File and the project title never collapse", () => {
+  test("Save, File and the project title never collapse", () => {
     setViewport(HEADER_STAGE1_QUERY, HEADER_STAGE2_QUERY);
     const { container } = render({ onSave: vi.fn(), projectTitle: "Orbits" });
-    expect(byText(container, "Run")).not.toBeNull();
+    // Run/Stop and the pause readout are no longer the header's to collapse —
+    // they moved to the viewport pane header (SimControls.test.js).
     expect(byText(container, "Save")).not.toBeNull();
     expect(byText(container, "File")).not.toBeNull();
     expect(container.querySelector(".project-title")).not.toBeNull();
   });
 
-  // Stop only exists once a sim is booting or running (visibleControls, Task
-  // 10) — it never collapses into the overflow menu either, once it exists.
-  test("Stop never collapses once a simulation is live", () => {
-    setViewport(HEADER_STAGE1_QUERY, HEADER_STAGE2_QUERY);
-    const { container } = render({ running: true });
-    expect(byText(container, "Stop")).not.toBeNull();
-  });
-
-  /* Stage 2 is active AT the declared 1024px floor. Hiding the pause readout
-     here (as CSS used to) took the visible proof that a pause took, and the
-     aria-live region announcing it, away from every supported narrow screen.
-     It shortens now — it never disappears. */
-  test("the pause readout survives, shortened, and keeps announcing", () => {
-    setViewport(HEADER_STAGE1_QUERY, HEADER_STAGE2_QUERY);
-    const { container } = render({
-      running: true, debugMode: true, paused: true, pauseState: "paused", iteration: 42,
-    });
-    const chip = container.querySelector(".tb-chip--quiet");
-    expect(chip).not.toBeNull();
-    expect(chip.getAttribute("aria-live")).toBe("polite");
-    expect(chip.textContent).toBe("Paused · 42");
-    // The word the short form drops is still reachable on hover.
-    expect(chip.getAttribute("title")).toBe("Paused · iteration 42");
-  });
-
-  test("Pausing… is never abbreviated away at stage 2", () => {
-    setViewport(HEADER_STAGE1_QUERY, HEADER_STAGE2_QUERY);
-    const { container } = render({ running: true, debugMode: true, pauseState: "pausing" });
-    expect(container.querySelector(".tb-chip--quiet").textContent).toBe("Pausing…");
-  });
-});
-
-describe("the pause readout at full width", () => {
-  test("spells out the iteration", () => {
-    const { container } = render({
-      running: true, debugMode: true, paused: true, pauseState: "paused", iteration: 42,
-    });
-    expect(container.querySelector(".tb-chip--quiet").textContent).toBe("Paused · iteration 42");
-  });
 });

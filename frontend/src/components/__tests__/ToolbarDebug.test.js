@@ -1,8 +1,9 @@
 /**
- * Task 17 — debug is a mode of the shell. Its controls are .tb-btn buttons at
- * the end of the header's view zone, not a second button vocabulary on a
- * separate screen, and the Trace toggle Plan 2 deliberately left unwired
- * finally has a handler.
+ * Debug is a MODE of the shell, not a separate screen with its own button
+ * vocabulary. What remains here are the header's two debug-related TOGGLES —
+ * Trace and Debug/Exit Debug — which still live in the view zone. The debug
+ * CONTROLS they reveal (Pause / Next frame / Next value / Record and the two
+ * chips) moved to the viewport pane header; see SimControls.test.js.
  */
 import { describe, test, expect, vi, afterEach, beforeEach } from "vitest";
 import React from "react";
@@ -35,76 +36,14 @@ function render(props = {}) {
 }
 
 describe("Toolbar debug group", () => {
-  test("is absent until debug mode is on", () => {
-    const container = render({ debugMode: false, running: true });
-    expect(byText(container, "Next frame")).toBeNull();
-    expect(byText(container, "Record")).toBeNull();
-  });
 
-  test("Next frame is the dominant control and fires onStepFrame", () => {
-    const onStepFrame = vi.fn();
-    const container = render({ debugMode: true, running: true, onStepFrame });
-    const btn = byText(container, "Next frame");
-    expect(btn).toBeTruthy();
-    expect(btn.className).toContain("tb-btn--primary-ghost");
-    // Not a second filled primary — Run owns that role.
-    expect(btn.className).not.toContain("tb-btn--run");
-    click(btn);
-    expect(onStepFrame).toHaveBeenCalledTimes(1);
-  });
 
-  test("Next value is the secondary step and fires onStepValue", () => {
-    const onStepValue = vi.fn();
-    const container = render({ debugMode: true, running: true, onStepValue });
-    click(byText(container, "Next value"));
-    expect(onStepValue).toHaveBeenCalledTimes(1);
-  });
 
-  test("Pause flips to Resume when paused", () => {
-    const onResume = vi.fn();
-    const container = render({ debugMode: true, running: true, paused: true, onResume });
-    expect(byText(container, "Pause")).toBeNull();
-    click(byText(container, "Resume"));
-    expect(onResume).toHaveBeenCalledTimes(1);
-  });
 
-  test("step controls are disabled when nothing is running", () => {
-    const container = render({ debugMode: true, running: false });
-    expect(byText(container, "Next frame").disabled).toBe(true);
-    expect(byText(container, "Next value").disabled).toBe(true);
-  });
 
-  test("Record toggles to Stop Rec and fires the matching handler", () => {
-    const onStartRecord = vi.fn();
-    const onStopRecord = vi.fn();
-    let container = render({ debugMode: true, running: true, onStartRecord, onStopRecord });
-    click(byText(container, "Record"));
-    expect(onStartRecord).toHaveBeenCalledTimes(1);
 
-    container = render({ debugMode: true, running: true, recording: true, onStartRecord, onStopRecord });
-    const stop = byText(container, "Stop Rec");
-    expect(stop.className).toContain("tb-btn--active");
-    click(stop);
-    expect(onStopRecord).toHaveBeenCalledTimes(1);
-  });
 
-  test("the pause chip says Pausing… before the runtime acknowledges", () => {
-    const container = render({ debugMode: true, running: true, pauseState: "pausing" });
-    expect(container.textContent).toContain("Pausing…");
-    expect(container.textContent).not.toContain("Paused ·");
-  });
 
-  test("the pause chip reports the iteration once the runtime acknowledges", () => {
-    const container = render({ debugMode: true, running: true, pauseState: "paused", iteration: 42 });
-    expect(container.textContent).toContain("Paused · iteration 42");
-  });
-
-  test("the breakpoint chip appears only when breakpoints are set", () => {
-    let container = render({ debugMode: true, running: true, breakpointCount: 0 });
-    expect(container.textContent).not.toContain("bp");
-    container = render({ debugMode: true, running: true, breakpointCount: 3 });
-    expect(container.textContent).toContain("3 bp");
-  });
 
   test("the Trace toggle is wired and reflects traceVisible", () => {
     /* Plan 2 Task 9 Step 3 kept this control unwired specifically for Task 17

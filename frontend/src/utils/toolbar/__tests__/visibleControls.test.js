@@ -5,10 +5,19 @@ const base = { mode: "blocks", goal: "physics", role: "user", isTeacher: false, 
 const v = (over) => visibleControls({ ...base, ...over });
 
 describe("visibleControls", () => {
-  test("run/stop lifecycle", () => {
-    expect(v({ runState: "idle" }).primary).toEqual(["run", "modeToggle"]);
-    expect(v({ runState: "booting" }).primary).toEqual(["run", "stop", "modeToggle"]);
-    expect(v({ runState: "running" }).primary).toEqual(["stop", "modeToggle"]);
+  /* The header no longer carries run/stop at ANY run state — every sim
+     control moved to the viewport pane header (components/SimControls.js),
+     as one toggle rather than two mutually-exclusive buttons. Asserted
+     across the whole lifecycle so a re-introduction here fails loudly. */
+  test("the header carries no run/stop at any point in the lifecycle", () => {
+    for (const runState of ["idle", "booting", "running"]) {
+      const out = v({ runState });
+      expect(out.primary).toEqual(["modeToggle"]);
+      for (const zone of Object.values(out)) {
+        expect(zone).not.toContain("run");
+        expect(zone).not.toContain("stop");
+      }
+    }
   });
   test("datascience goal hides every sim control", () => {
     const out = v({ goal: "datascience", runState: "running" });
@@ -18,7 +27,12 @@ describe("visibleControls", () => {
     expect(out.view).not.toContain("debug");
   });
   test("hybrid goal behaves like physics", () => {
-    expect(v({ goal: "hybrid" }).primary).toContain("run");
+    // Both sim goals get the viewport/trace/debug view slots; neither gets
+    // run/stop in the header any more, so the view zone is the tell.
+    expect(v({ goal: "hybrid" }).view).toContain("viewport");
+    expect(v({ goal: "hybrid", runState: "running" }).view).toEqual(
+      v({ goal: "physics", runState: "running" }).view,
+    );
   });
   test("zoom never appears in any configuration", () => {
     for (const goal of ["physics", "datascience", "hybrid"])
