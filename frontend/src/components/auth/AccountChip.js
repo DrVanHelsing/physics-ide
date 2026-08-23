@@ -13,11 +13,11 @@ export default function AccountChip() {
   if (!me) {
     return (
       <div className="account-chip">
-        <div className="account-chip-head">ACCOUNT</div>
-        <Link className="account-chip-btn" to="/auth/signin">
+        <div className="account-chip-head">Account</div>
+        <Link className="nav-row" to="/auth/signin">
           Sign in
         </Link>
-        <Link className="account-chip-btn account-chip-btn--primary" to="/auth/signup">
+        <Link className="nav-row nav-row--primary" to="/auth/signup">
           Create account
         </Link>
       </div>
@@ -26,24 +26,24 @@ export default function AccountChip() {
 
   return (
     <div className="account-chip">
-      <div className="account-chip-head">ACCOUNT</div>
+      <div className="account-chip-head">Account</div>
       <div className="account-chip-name" title={me.email}>
         {me.name}
         {!me.emailConfirmed ? <span className="account-chip-badge">unconfirmed</span> : null}
       </div>
-      <Link className="account-chip-btn" to="/classes">
+      <Link className="nav-row" to="/classes">
         My classes
       </Link>
-      <Link className="account-chip-btn" to="/profile">
+      <Link className="nav-row" to="/profile">
         Profile
       </Link>
       {me.role === "admin" ? (
-        <Link className="account-chip-btn" to="/admin">
+        <Link className="nav-row" to="/admin">
           Admin console
         </Link>
       ) : null}
       <button
-        className="account-chip-btn"
+        className="nav-row"
         type="button"
         disabled={signout.isPending}
         onClick={() => {

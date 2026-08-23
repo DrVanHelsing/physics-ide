@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import QRCode from "qrcode";
 import { api } from "../../utils/api/client";
+import { CheckIcon } from "../Icons";
 import ClassChrome from "./ClassChrome";
 
 export default function PeopleTab() {
@@ -64,11 +65,11 @@ function PeopleBody({ classData }) {
   }
 
   return (
-    <div className="classes-body">
+    <div className="page-body">
       {isTeacher ? <JoinPanel classData={classData} onChanged={refresh} /> : null}
       {isTeacher && waiting.length > 0 ? (
         <div>
-          <h2 className="auth-title">Waiting to join</h2>
+          <h2 className="section-title">Waiting to join</h2>
           <table className="admin-table">
             <tbody>
               {waiting.map((m) => (
@@ -77,7 +78,7 @@ function PeopleBody({ classData }) {
                   <td>{m.email}</td>
                   <td className="admin-actions">
                     <button
-                      className="admin-btn"
+                      className="btn"
                       type="button"
                       onClick={() =>
                         act.mutate({ path: `/api/classes/${id}/members/${m.userId}/approve` })
@@ -86,7 +87,7 @@ function PeopleBody({ classData }) {
                       Approve
                     </button>
                     <button
-                      className="admin-btn"
+                      className="btn btn--danger"
                       type="button"
                       onClick={() =>
                         act.mutate({ path: `/api/classes/${id}/members/${m.userId}/deny` })
@@ -101,8 +102,8 @@ function PeopleBody({ classData }) {
           </table>
         </div>
       ) : null}
-      <h2 className="auth-title">Roster</h2>
-      {act.error ? <div className="auth-error">{act.error.message}</div> : null}
+      <h2 className="section-title">Roster</h2>
+      {act.error ? <div className="alert alert--danger">{act.error.message}</div> : null}
       <table className="admin-table">
         <thead>
           <tr>
@@ -125,7 +126,7 @@ function PeopleBody({ classData }) {
                 {isTeacher ? (
                   <td className="admin-actions">
                     <button
-                      className="admin-btn"
+                      className="btn btn--danger"
                       type="button"
                       onClick={() =>
                         act.mutate({
@@ -144,7 +145,7 @@ function PeopleBody({ classData }) {
       </table>
       {isTeacher ? (
         <>
-          <h2 className="auth-title">Invite by email</h2>
+          <h2 className="section-title">Invite by email</h2>
           <form className="auth-form classes-newform" onSubmit={sendInvites}>
             <label className="auth-label">
               Email addresses (comma, space, or line separated)
@@ -164,13 +165,17 @@ function PeopleBody({ classData }) {
               </select>
             </label>
             {inviteNote ? <p className="auth-text auth-text--dim">{inviteNote}</p> : null}
-            <button className="auth-submit" type="submit" disabled={!emailsRaw.trim() || invite.isPending}>
+            <button
+              className="btn btn--primary btn--lg btn--block"
+              type="submit"
+              disabled={!emailsRaw.trim() || invite.isPending}
+            >
               Send invites
             </button>
           </form>
           {(invitesQuery.data?.invites ?? []).length > 0 ? (
             <>
-              <h2 className="auth-title">Pending invites</h2>
+              <h2 className="section-title">Pending invites</h2>
               <table className="admin-table">
                 <tbody>
                   {invitesQuery.data.invites.map((i) => (
@@ -179,14 +184,14 @@ function PeopleBody({ classData }) {
                       <td>{i.role === "ta" ? "assistant" : i.role}</td>
                       <td className="admin-actions">
                         <button
-                          className="admin-btn"
+                          className="btn"
                           type="button"
                           onClick={() => act.mutate({ path: `/api/invites/${i.id}/resend` })}
                         >
                           Resend
                         </button>
                         <button
-                          className="admin-btn"
+                          className="btn btn--danger"
                           type="button"
                           onClick={() => act.mutate({ path: `/api/invites/${i.id}/revoke` })}
                         >
@@ -223,13 +228,13 @@ function JoinPanel({ classData, onChanged }) {
 
   return (
     <div>
-      <h2 className="auth-title">Joining</h2>
+      <h2 className="section-title">Joining</h2>
       <div className="join-panel">
         <div>
           <div className="join-code-big">{classData.joinCode}</div>
           <div className="classes-actions" style={{ marginTop: 8 }}>
             <button
-              className="admin-btn"
+              className="btn"
               type="button"
               onClick={async () => {
                 await navigator.clipboard.writeText(joinUrl);
@@ -237,16 +242,30 @@ function JoinPanel({ classData, onChanged }) {
                 setTimeout(() => setCopied(false), 1500);
               }}
             >
-              {copied ? "Copied!" : "Copy join link"}
+              Copy join link
             </button>
             <button
-              className="admin-btn"
+              className="btn"
               type="button"
               onClick={() => regen.mutate()}
               disabled={regen.isPending}
             >
               Regenerate code
             </button>
+            {/* Always mounted (empty when !copied) so the live region exists
+                before its content does — a status element inserted at the same
+                moment as its text is not reliably announced. */}
+            <span
+              className={copied ? "badge badge--success" : undefined}
+              role="status"
+              aria-live="polite"
+            >
+              {copied ? (
+                <>
+                  <CheckIcon size={12} /> Copied!
+                </>
+              ) : null}
+            </span>
           </div>
           <p className="auth-text auth-text--dim" style={{ marginTop: 6 }}>
             Joining is {classData.joinMode === "open" ? "open" : classData.joinMode === "approval" ? "by approval" : "paused"} — change it in Settings.

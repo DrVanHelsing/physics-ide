@@ -102,8 +102,12 @@ export default function SignUpPage() {
             I agree that my name, email address and school work are stored so this site can run.
           </span>
         </label>
-        {error ? <div className="auth-error">{error}</div> : null}
-        <button className="auth-submit" type="submit" disabled={signup.isPending}>
+        {error ? <div className="alert alert--danger">{error}</div> : null}
+        <button
+          className="btn btn--primary btn--lg btn--block"
+          type="submit"
+          disabled={signup.isPending}
+        >
           {signup.isPending ? "Creating…" : "Create account"}
         </button>
       </form>

@@ -42,7 +42,7 @@ export default function ForgotPage() {
             />
           </label>
           {error ? <div className="auth-error">{error}</div> : null}
-          <button className="auth-submit" type="submit">
+          <button className="btn btn--primary btn--lg btn--block" type="submit">
             Email me a reset link
           </button>
         </form>

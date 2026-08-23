@@ -53,7 +53,11 @@ export default function SignInPage() {
           />
         </label>
         {error ? <div className="auth-error">{error}</div> : null}
-        <button className="auth-submit" type="submit" disabled={signin.isPending}>
+        <button
+          className="btn btn--primary btn--lg btn--block"
+          type="submit"
+          disabled={signin.isPending}
+        >
           {signin.isPending ? "Signing in…" : "Sign in"}
         </button>
       </form>

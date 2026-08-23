@@ -45,8 +45,11 @@ export default function ProfilePage() {
   return (
     <AuthLayout title="Profile & settings">
       <p className="auth-text">
-        {me.email} · {me.role === "admin" ? "site admin" : me.isTeacher ? "teacher" : "student"}
-        {!me.emailConfirmed ? " · email not yet confirmed" : ""}
+        {me.email}
+        <span className="badge badge--accent">
+          {me.role === "admin" ? "site admin" : me.isTeacher ? "teacher" : "student"}
+        </span>
+        {!me.emailConfirmed ? <span className="badge badge--warning">unconfirmed</span> : null}
       </p>
       <form className="auth-form" onSubmit={saveName}>
         <label className="auth-label">
@@ -57,7 +60,11 @@ export default function ProfilePage() {
             onChange={(e) => setName(e.target.value)}
           />
         </label>
-        <button className="auth-submit" type="submit" disabled={name === null || name === me.name}>
+        <button
+          className="btn btn--primary btn--lg btn--block"
+          type="submit"
+          disabled={name === null || name === me.name}
+        >
           Save name
         </button>
       </form>
@@ -82,11 +89,15 @@ export default function ProfilePage() {
             autoComplete="new-password"
           />
         </label>
-        <button className="auth-submit" type="submit">
+        <button className="btn btn--primary btn--lg btn--block" type="submit">
           Change password
         </button>
       </form>
-      {msg ? <p className="auth-text" style={{ marginTop: 12 }}>{msg}</p> : null}
+      {msg ? (
+        <p className="auth-text" style={{ marginTop: 12 }} role="status" aria-live="polite">
+          {msg}
+        </p>
+      ) : null}
       {error ? <div className="auth-error" style={{ marginTop: 12 }}>{error}</div> : null}
     </AuthLayout>
   );
