@@ -19,7 +19,17 @@
  *                          blocks. The other seven are the two parent drawers
  *                          (Data Science, Advanced) and five stock-only ones
  *                          (Variables, Functions, Loops, Text, Lists).
- *   31 standard blocks   151 toolbox ids − 120 registry ids
+ *   31 standard blocks   151 toolbox ids − 120 registry ids. They are NOT all
+ *                          in the Advanced drawer. Re-derived by walking the
+ *                          toolbox with a category stack: 23 are (Loops 4,
+ *                          Text 11, Lists 8) and 8 are not — logic_null and
+ *                          logic_ternary sit in the top-level Logic drawer
+ *                          (toolbox.js:243-244) and math_number_property,
+ *                          math_round, math_on_list, math_modulo,
+ *                          math_random_int, math_random_float in the top-level
+ *                          Math drawer (:252-260). §3's copy says 23 / 8; an
+ *                          earlier draft said "in the Advanced drawer" and was
+ *                          wrong about a quarter of them.
  *   18 worked projects   precodedExamples.js EXAMPLES = 4; blockTemplates.js
  *                          BLOCK_TEMPLATES = 4, DS_TEMPLATES = 10 (7 data-science
  *                          + 3 hybrid analyses), HYBRID_TOPICS = 3 → 4+4+7+3
@@ -110,7 +120,12 @@ const PYTHON = [
   [["  ball.pos = ball.pos + ball.velocity * 0.01", null]],
 ];
 
-/* §7 — the pipeline, one short line each. Every stage is a real drawer. */
+/* §7 — the pipeline, one short line each. These are reading labels, NOT drawer
+   names — only Explore, Uncertainty and Communicate are also drawers, and Chart
+   is the Charts drawer minus its plural. Describe is the Statistics drawer,
+   Relationships is Analyzing Relationships, Linearise is Transforming Data, and
+   Shape spans two (Filter & Sort, Group & Compare). The rendered copy makes no
+   drawer claim; do not add one here or there. */
 const PIPELINE = [
   ["Explore", "Show the table, the first or last N rows, one column, one cell; count rows, columns and unique values; name a column's type."],
   ["Describe", "Mean, median, mode, min, max, range, sum, count, standard deviation, percentile, interquartile range — or every statistic for a column at once."],
@@ -240,9 +255,10 @@ export default function WelcomePage() {
         <h2 id="s-editor">Start with blocks. Move to Python when you&rsquo;re ready.</h2>
         <p>
           151 block types: <strong>120 purpose-built for physics and data across 19
-          drawers</strong>, plus 31 standard Blockly blocks in the Advanced drawer. The
-          toolbox filters itself to the project&rsquo;s goal — a physics project never
-          shows data blocks; a data project never shows Objects or Motion.
+          drawers</strong>, plus 31 standard Blockly blocks — 23 of them in the Advanced
+          drawer, the other eight in Logic and Math. The toolbox filters itself to the
+          project&rsquo;s goal — a physics project never shows data blocks; a data
+          project never shows Objects or Motion.
         </p>
         <p>
           Search the whole library by name or keyword from the box above the canvas.
@@ -362,10 +378,10 @@ export default function WelcomePage() {
         <h2 id="s-data">A full data pipeline, in the same blocks.</h2>
         <p>
           <strong>Load</strong> one of six built-in datasets, each shipping with a
-          description of every column — Planets (9 rows), Palmer Penguins (30), Weather,
-          Cape Town vs Johannesburg (28), Pendulum lab measurements (56), Spring /
-          Hooke&rsquo;s law (8), Free fall (12) — or your own CSV, or a dataset promoted
-          from a run.
+          description of every column — Planets (9 rows), Palmer Penguins (30),
+          Weather / Cape Town vs Johannesburg (28), Pendulum lab measurements (56),
+          Spring / Hooke&rsquo;s law (8), Free fall (12) — or your own CSV, or a dataset
+          promoted from a run.
         </p>
         <div className="welcome-grid">
           {PIPELINE.map(([name, line]) => (
@@ -479,10 +495,11 @@ export default function WelcomePage() {
         <Eyebrow Icon={GraduationCapIcon}>For teachers</Eyebrow>
         <h2 id="s-class">Classes today. Assignments next.</h2>
         <p>
-          Anyone can sign up as a teacher — one checkbox at signup, no approval queue.
-          Create a class with a name and an optional subject or year label. There are four
-          ways in: a short join code (like <code>KQ4-7PM</code>), a copyable link, a QR code
-          for the board, and email invites you can paste as a whole list. Invite people as
+          Anyone can sign up as a teacher — choose <strong>I&rsquo;m a teacher</strong> on
+          the signup form, no approval queue. Create a class with a name and an optional
+          subject or year label. There are four ways in: a short join code (like
+          <code>KQ4-7PM</code>), a copyable link, a QR code for the board, and email
+          invites you can paste as a whole list. Invite people as
           students, teaching assistants or co-teachers; pending invites can be resent or
           revoked.
         </p>
@@ -498,9 +515,10 @@ export default function WelcomePage() {
         <div className="card card--panel welcome-notbuilt">
           <h3>Not yet built.</h3>
           <p>
-            Assignments, submissions, marking and feedback are designed but not shipped. A
-            class today holds its roster, its join settings and its people — the Assignments
-            tab says so itself. When marking arrives it will be announced here.
+            Assignments, submissions, marking, feedback and a gradebook are designed but
+            not shipped. A class today holds its roster, its join settings and its people
+            — the Assignments tab says so itself. When marking arrives it will be
+            announced here.
           </p>
         </div>
 

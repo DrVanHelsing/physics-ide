@@ -31,10 +31,26 @@ describe("the front page", () => {
     unmount();
   });
 
-  test("a CTA stamps the session pass before navigating", () => {
+  test("every CTA stamps the session pass before navigating — all six, clicked", () => {
+    /* The grep test above proves no CTA uses a bare <Link>; only a click proves
+       the handler that IS wired stamps the pass. A source grep cannot see a
+       computed path, and a footer button that forgot go() sends the visitor to
+       "/" where WelcomeGate bounces them straight back here — the exact
+       infinite-loop the brief names as the easiest way to break this page.
+       So: both hero and footer, primary, secondary and ghost. */
     const { container, unmount } = mount();
-    click(byText(container, "Use the IDE — no account needed"));
-    expect(sessionStorage.getItem(WELCOME_PASSED_SESSION_KEY)).toBe("1");
+    const ctas = [
+      ...container.querySelectorAll(".welcome-hero button"),
+      ...container.querySelectorAll(".welcome-foot button"),
+    ];
+    expect(ctas).toHaveLength(6); // 3 hero doors + footer primary + 2 quiet links
+    expect(ctas).toContain(byText(container, "Open the IDE"));
+    for (const cta of ctas) {
+      sessionStorage.clear();
+      expect(sessionStorage.getItem(WELCOME_PASSED_SESSION_KEY)).toBeNull();
+      click(cta);
+      expect(sessionStorage.getItem(WELCOME_PASSED_SESSION_KEY)).toBe("1");
+    }
     unmount();
   });
 
@@ -75,9 +91,15 @@ describe("the front page", () => {
   });
 
   test("the non-claims list is honoured — no promise the product cannot keep", () => {
+    /* Every entry here bans a PROMISE, not a word. The bare /gradebook/i this
+       list shipped with banned the truthful "…and a gradebook are designed but
+       not shipped" as well as "our gradebook lets you…", which made the one
+       honest denial on the page unwritable — a test that forbids truth-telling
+       is the wrong shape. Verb-anchored, it still catches the claim. */
     const banned = [
       /version history/i, /restore a previous/i, /roll ?back/i,
-      /assignment[s]? (are|is) (available|here)/i, /marking is/i, /gradebook/i,
+      /assignment[s]? (are|is) (available|here)/i, /marking is/i,
+      /gradebook (is|lets|gives|includes)/i,
       /exam mode/i, /lockdown/i, /collision/i, /cloud/i,
       /we('| ha)?ve sent/i, /check your inbox/i,
       /every run captures/i, /unlimited/i, /schools? (use|trust)/i,

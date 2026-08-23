@@ -34,6 +34,17 @@ describe("welcome.css — built from the ramp, not from pixels", () => {
     }
   });
 
+  test("the skip link is actually revealed on focus, not merely not-overridden", () => {
+    /* The three assertions above are all negative and all pass over an EMPTY
+       set: delete .welcome-skip:focus-visible and this file stays green while
+       the skip link is off-screen forever. This is the positive half — both
+       ends of the affordance, the hiding and the reveal. */
+    expect(CSS).toMatch(/\.welcome-skip\s*\{[^}]*transform:\s*translateY\(-/);
+    expect(CSS).toMatch(/\.welcome-skip:focus-visible/);
+    const reveal = CSS.match(/\.welcome-skip:focus-visible[^{]*\{[^}]*\}/)[0];
+    expect(reveal).toMatch(/transform:\s*none/);
+  });
+
   test("no hardcoded hex — colour comes from tokens", () => {
     expect(CSS).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
   });
