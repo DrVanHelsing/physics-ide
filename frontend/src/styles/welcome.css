@@ -365,10 +365,32 @@
   font-size: var(--fs-md);
   color: var(--text-dim);
 }
-/* The native slider, themed the one line it takes. A real .range primitive
-   now exists; adopting it here is a markup change and belongs with Task 12,
-   which is already moving this component's Play/Pause button. */
-.welcome-playground__controls input[type="range"] { width: 200px; accent-color: var(--accent); }
+/* GravityPlayground.js now renders className="range" (Task 12) — the
+   shared .range primitive (primitives.css) supplies the themed track and
+   thumb; only the width is a page-specific override. */
+.welcome-playground__controls .range { width: 200px; }
+.welcome-playground__value {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--fw-semibold);
+  color: var(--text-bright);
+}
+/* UNVERIFIED IN A BROWSER, arithmetic only (no browser is available to this
+   task): .range's WebKit thumb centring undershoots by 2px. Standard WebKit
+   centring is (track-height − thumb-height) / 2 = (--space-1 − --space-4)
+   / 2 = (4px − 16px) / 2 = −6px; the shipped primitive uses
+   calc(-1 * var(--space-2) + var(--space-1)) = −8px + 4px = −4px. Firefox
+   needs no equivalent fix — ::-moz-range-thumb centres itself on the track
+   without a margin hack; only WebKit lays the thumb out like an ordinary
+   box aligned to the track's top edge, which is why only WebKit carries a
+   margin-top rule at all. primitives.css is Foundation/Task-13's file, not
+   Lane W's — this corrects only the one shipped .range consumer (this
+   playground); Task 13 should apply the same corrected formula to the
+   primitive itself, after which this override is redundant and may be
+   deleted. */
+.welcome-playground__controls .range::-webkit-slider-thumb {
+  margin-top: calc((var(--space-1) - var(--space-4)) / 2);
+}
 .welcome-playground__hint { font-size: var(--fs-sm); opacity: 0.8; }
 
 /* ── §12 the honesty blocks ───────────────────────────────── */
@@ -402,17 +424,6 @@
   margin-top: var(--space-4);
 }
 
-/* ── Legacy button alias ──────────────────────────────────
-   .welcome-btn / --small are still rendered by GravityPlayground.js. Task 12
-   moves that markup to .btn/.btn--sm and retires these two rules; deleting
-   them first would ship a live, unstyled Play/Pause button. */
-.welcome-btn:hover { transform: translateY(-1px); }
-.welcome-btn--small {
-  min-height: var(--control-h-sm);
-  padding: var(--btn-pad-sm);
-  font-size: var(--fs-sm);
-}
-
 /* ── Scroll reveal ────────────────────────────────────────
    240ms rather than the old 500ms: 0.5s was a fourth duration in a
    three-duration system. Retimed, still a reveal — the 14px rise is what
@@ -433,8 +444,9 @@
   .welcome-orbit__path { animation: none; }
   .welcome-reveal { opacity: 1; transform: none; transition: none; }
   .welcome-skip { transition: none; }
-  .welcome-btn { transition: none; }
-  .welcome-btn:hover { transform: none; }
+  /* The Play/Pause button is .btn/.btn--sm now (Task 12) — no page-level
+     hover-lift transform ships on .btn (primitives.css), so there is
+     nothing left here to guard. */
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -452,13 +464,25 @@
 }
 
 @media (max-width: 1024px) {
+  /* 6vw is a viewport unit, not a ramp value — the metric linter does not
+     cover vw and this clamp() is exempt by construction (its other two
+     arguments are var()s, so nothing here is a literal). */
   .welcome-hero h1 { font-size: clamp(var(--fs-2xl), 6vw, var(--fs-hero)); }
   .welcome-band { grid-template-columns: 1fr; }
+  /* Section rhythm steps down to --space-7 at the floor, per the plan's
+     Task 12 (and the task-12-report's note on it): the single-column
+     layout below 1024px reads as a materially shorter beat than the
+     three/two-column layouts above it, so the rhythm should read as more
+     than one rung's difference. This was corrected from an initial
+     --space-8 left by Task 11's draft of this block — not itself part of
+     Task 11's stated scope, and one rung short of both the brief and the
+     master plan's explicit "(--space-9 → --space-7)". Not verified in a
+     browser; a visual check belongs in Step 6 of the human browser pass. */
   .welcome-band,
   .welcome-section,
   .welcome-numbers,
   .welcome-play,
-  .welcome-foot { margin-top: var(--space-8); }
+  .welcome-foot { margin-top: var(--space-7); }
   .welcome-grid { grid-template-columns: 1fr; }
   .welcome-compare { grid-template-columns: 1fr; }
   .welcome-keys { gap: var(--space-4); }
@@ -478,7 +502,7 @@
   .welcome-cta .btn { width: 100%; }
   .welcome-numbers { grid-template-columns: repeat(2, 1fr); }
   .welcome-playground__canvas { height: 180px; }
-  .welcome-playground__controls input[type="range"] { width: 100%; }
+  .welcome-playground__controls .range { width: 100%; }
   /* At this width the student who scanned the QR needs one sentence more
      than any other on the page. */
   .welcome .welcome-foot__scope {
