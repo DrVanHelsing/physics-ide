@@ -109,27 +109,42 @@ export default function GravityPlayground() {
 
   return (
     <div className="welcome-playground">
-      <canvas ref={canvasRef} className="welcome-playground__canvas" onPointerDown={drop} />
+      <canvas
+        ref={canvasRef}
+        className="welcome-playground__canvas"
+        onPointerDown={drop}
+        role="img"
+        aria-label="A box of coloured balls falling and bouncing under the gravity you set."
+      />
       <div className="welcome-playground__controls">
         <button
-          className="welcome-btn welcome-btn--small"
+          className="btn btn--sm"
           type="button"
           aria-pressed={running}
           onClick={() => setRunning((r) => !r)}
         >
           {running ? "Pause" : "Play"}
         </button>
-        <label htmlFor="welcome-gravity">Gravity: {gravity.toFixed(1)} m/s²</label>
+        <label htmlFor="welcome-gravity">Gravity</label>
+        <span className="welcome-playground__value">{gravity.toFixed(1)} m/s²</span>
         <input
           id="welcome-gravity"
+          className="range"
           type="range"
           min="0"
           max="30"
           step="0.1"
           value={gravity}
           onChange={(e) => setGravity(Number(e.target.value))}
+          aria-valuetext={`${gravity.toFixed(1)} metres per second squared`}
         />
-        <span className="welcome-playground__hint">Click anywhere in the box to drop a ball.</span>
+        {/* Honest, not invented: the click-to-drop gesture has no keyboard
+            equivalent and is decorative. The slider above is the one
+            control that matters and it is fully keyboard-operable. */}
+        <span className="welcome-playground__hint">
+          Click anywhere in the box to drop a ball — a decorative touch with no keyboard
+          equivalent. The gravity slider above is the control that matters.
+        </span>
       </div>
     </div>
   );

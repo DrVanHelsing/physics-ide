@@ -6,77 +6,508 @@
    primitives.css, so it may override either; nothing in the
    portal may rely on overriding it.
 
-   The responsive region at the end of this file must stay at the
-   end, for the same reason platform.css documents at its own:
-   the base rules here are unconditional and equal-specificity,
-   so source order decides.
-   ═══════════════════════════════════════════════════════════ */
-/* ---- Welcome screen (Plan 4, user-requested) ---- */
-.welcome { min-height: 100vh; overflow-x: hidden; padding: 48px 20px 64px; color: var(--text-bright); }
-.welcome-hero { max-width: 760px; margin: 0 auto; text-align: center; }
-.welcome-hero h1 { font-size: 44px; margin: 18px 0 6px; letter-spacing: 0.5px; }
-.welcome-tagline { color: var(--text-dim); font-size: 17px; margin: 0 0 26px; }
+   Rebuilt onto the token ramp in Plan 5 Task 11, when the page
+   grew from one screen to nine. Ten pre-token violations
+   (44px / 17px / 22px / 16px / 13px / 1.55 / 8px / 0.5s /
+   48-20-64 / 56-64-72) are gone; welcomeTokens.test.js is what
+   stops them coming back.
 
+   The reduced-motion block and the responsive region at the end
+   of this file must STAY at the end, for the same reason
+   platform.css documents at its own: the base rules here are
+   unconditional and equal-specificity, so source order decides.
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Page shell ───────────────────────────────────────────── */
+.welcome {
+  position: relative;
+  min-height: 100vh;
+  overflow-x: hidden;
+  padding: var(--space-8) var(--space-5) var(--space-9);
+  /* Body text is --text; --text-bright is for headings. */
+  color: var(--text);
+}
+
+/* The page is nine screens long and the three doors are at the top, so a
+   keyboard visitor gets a way past the hero. Off-viewport until focused —
+   this moves the link, it does not touch the one global focus ring (D8). */
+.welcome-skip {
+  position: fixed;
+  top: var(--space-2);
+  left: var(--space-2);
+  z-index: var(--z-toast);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+  color: var(--text-bright);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-hl);
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  transform: translateY(-400%);
+  transition: transform var(--transition);
+}
+.welcome-skip:focus-visible { transform: none; }
+
+/* A visitor evaluating the product can see both themes before committing. */
+.welcome-toolbar {
+  position: absolute;
+  top: var(--space-5);
+  right: var(--space-5);
+}
+
+/* The only visually-hidden treatment in the product. Two sections carry a
+   heading for the landmark and not for the eye (§2, §10). */
+.welcome-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ── Hero ─────────────────────────────────────────────────── */
+.welcome-hero { max-width: 760px; margin: 0 auto; text-align: center; }
+.welcome-hero h1 {
+  font-size: var(--fs-hero);
+  /* Tracking dropped rather than converted (Decision 2): --fs-hero is already
+     set at a display size and 0.5px of positive tracking on it read as a logo,
+     not as type. */
+  margin: var(--space-5) 0 var(--space-2);
+  color: var(--text-bright);
+}
+.welcome-tagline {
+  font-size: var(--fs-xl);
+  line-height: var(--lh-normal);
+  color: var(--text-dim);
+  margin: 0 0 var(--space-3);
+}
+.welcome-subline {
+  font-size: var(--fs-lg);
+  /* --text-dim, not --text-muted: this is a sentence a visitor reads, and
+     --text-muted on the light theme's white ground is a 2.6:1 grey. */
+  color: var(--text-dim);
+  margin: 0 0 var(--space-6);
+}
+.welcome-cta { display: flex; gap: var(--space-3); justify-content: center; flex-wrap: wrap; }
+.welcome-reassure {
+  font-size: var(--fs-md);
+  color: var(--text-dim);
+  margin: var(--space-4) 0 0;
+}
+
+/* Decorative orbit. Every literal below is a figure's geometry — a circle's
+   diameter and the half-width centring of an absolutely positioned ring —
+   not a value on the spacing ramp. Each rule is exempted on its own line. */
 .welcome-orbit { position: relative; width: 150px; height: 150px; margin: 0 auto; }
-.welcome-orbit__sun {
-  position: absolute; top: 50%; left: 50%; width: 26px; height: 26px; margin: -13px;
-  border-radius: 50%; background: var(--yellow);
-  box-shadow: 0 0 24px 4px color-mix(in srgb, var(--yellow) 35%, transparent);
-}
+/* metric-exempt: decorative orbit geometry — a figure, not a ramp value */
+.welcome-orbit__sun { position: absolute; top: 50%; left: 50%; width: 26px; height: 26px; margin: -13px; border-radius: 50%; background: var(--yellow); box-shadow: 0 0 24px 4px color-mix(in srgb, var(--yellow) 35%, transparent); }
 .welcome-orbit__path {
-  position: absolute; top: 50%; left: 50%; border: 1px dashed var(--text-dim);
-  border-radius: 50%; opacity: 0.6; animation: welcome-spin linear infinite;
+  position: absolute; top: 50%; left: 50%;
+  border: 1px dashed var(--text-dim);
+  border-radius: 50%;
+  opacity: 0.6;
+  animation: welcome-spin linear infinite;
 }
+/* metric-exempt: decorative orbit geometry — a figure, not a ramp value */
 .welcome-orbit__path--a { width: 90px; height: 90px; margin: -45px; animation-duration: 7s; }
+/* metric-exempt: decorative orbit geometry — a figure, not a ramp value */
 .welcome-orbit__path--b { width: 146px; height: 146px; margin: -73px; animation-duration: 13s; }
-.welcome-orbit__path i {
-  position: absolute; top: -5px; left: 50%; width: 10px; height: 10px; margin-left: -5px;
-  border-radius: 50%; background: var(--accent-bright); display: block;
-}
+/* metric-exempt: decorative orbit geometry — a figure, not a ramp value */
+.welcome-orbit__path i { position: absolute; top: -5px; left: 50%; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%; background: var(--accent-bright); display: block; }
 @keyframes welcome-spin { to { transform: rotate(360deg); } }
 
-.welcome-cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
-.welcome-btn:hover { transform: translateY(-1px); }
-.welcome-btn--small {
-  min-height: var(--control-h-sm);
-  padding: var(--btn-pad-sm);
+/* ── Section furniture ────────────────────────────────────
+   Section rhythm is --space-9 across §2–§13 (Decision 1). Every section sets
+   --welcome-cat to a category token, resolved by name — the identity ramp the
+   pane headers already use (workspace.css:65-67). --cat-*-bright is
+   decorative only and never appears here; the reserved red band is off
+   limits on this page entirely. */
+.welcome-band,
+.welcome-section,
+.welcome-numbers,
+.welcome-play,
+.welcome-foot { margin: var(--space-9) auto 0; }
+
+.welcome-section { max-width: 980px; }
+.welcome-section > p,
+.welcome-band p { max-width: 72ch; }
+.welcome-section h2,
+.welcome-play h2 {
+  font-size: var(--fs-2xl);
+  line-height: var(--lh-tight);
+  color: var(--text-bright);
+  margin: 0 0 var(--space-4);
+}
+.welcome-section p,
+.welcome-band p {
+  font-size: var(--fs-lg);
+  line-height: var(--lh-normal);
+  color: var(--text-dim);
+  margin: 0 0 var(--space-4);
+}
+/* Inline code in prose only — never the <code> inside .welcome-code's <pre>. */
+.welcome-section p code {
+  padding: var(--space-0) var(--space-1);
+  font-family: var(--mono);
+  font-size: var(--fs-md);
+  color: var(--text-bright);
+  background: var(--bg-input);
+  border-radius: var(--radius-sm);
+}
+
+/* The micro-label system, not hand-written uppercase and letterspacing.
+   The section's own glyph in --welcome-cat is the category mark the brief
+   asks for — the same job as a dot, carrying more information.
+
+   Chained to .welcome (0-2-0) on purpose: the prose rules above are `.welcome-
+   section p` (0-1-1), so a bare `.welcome-eyebrow` would lose to them on every
+   property they share. The same applies to the three other classed paragraphs
+   below — .welcome-compare__label, .welcome-note and .welcome-foot__scope. */
+.welcome .welcome-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-2);
+  font-size: var(--label-fs);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-tracking);
+  text-transform: var(--label-transform);
+  color: var(--label-color);
+}
+.welcome-eyebrow__mark { display: inline-flex; color: var(--welcome-cat, var(--accent)); }
+
+.welcome-section--values        { --welcome-cat: var(--cat-values); }
+.welcome-section--objects       { --welcome-cat: var(--cat-objects); }
+.welcome-section--motion        { --welcome-cat: var(--cat-motion); }
+.welcome-section--control       { --welcome-cat: var(--cat-control); }
+.welcome-section--data-science  { --welcome-cat: var(--cat-data-science); }
+.welcome-section--logic         { --welcome-cat: var(--cat-logic); }
+.welcome-section--advanced      { --welcome-cat: var(--cat-advanced); }
+.welcome-section--communicate   { --welcome-cat: var(--cat-communicate); }
+
+/* ── §2 "What it is" band ─────────────────────────────────── */
+.welcome-band {
+  max-width: 980px;
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(3, 1fr);
+  padding: var(--space-5) 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.welcome-band p { margin: 0; }
+.welcome-band strong { display: block; color: var(--text-bright); }
+
+/* ── §3 blocks ↔ Python ───────────────────────────────────── */
+.welcome-compare {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: 1fr 1fr;
+  margin-top: var(--space-5);
+}
+/* min-width: 0 or the grid track refuses to shrink below its content and the
+   code block's overflow-x never engages — long Python lines widen the page. */
+.welcome-compare__side { min-width: 0; }
+.welcome .welcome-compare__label {
+  font-size: var(--label-fs);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-tracking);
+  color: var(--label-color);
+  margin: 0 0 var(--space-2);
+}
+.welcome-code {
+  margin: 0;
+  padding: var(--space-3);
+  font-family: var(--mono);
   font-size: var(--fs-sm);
+  line-height: var(--lh-normal);
+  color: var(--text);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow-x: auto;
+}
+.welcome-code--blocks { display: flex; flex-direction: column; gap: var(--space-1); }
+.welcome-code__row--d1 { padding-left: var(--space-4); }
+/* Blocks read as blocks: a pill in the drawer's own colour, not a code line. */
+.welcome-code__chip {
+  display: inline-block;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  color: var(--text-bright);
+  background: color-mix(in srgb, var(--welcome-cat, var(--accent)) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--welcome-cat, var(--accent)) 40%, transparent);
+}
+/* Hand-spanned, no highlighting library (Budget §4.4). Two accents, both
+   already in the palette as the editor's own keyword and call colours. */
+.welcome-tok--k { color: var(--accent-blue); }
+.welcome-tok--f { color: var(--accent-green); }
+
+/* ── §4 keycap row ────────────────────────────────────────
+   .tb-kbd is the IDE header's own treatment (chrome.css:165) and sets no
+   `display`, so it inherits `inline` here. On an inline box, vertical
+   padding does not grow the line box — it bleeds over the lines above and
+   below. Inside the header the keycap's ancestor is `.tb-btn`
+   (display: inline-flex), which blockifies it and hides the problem; outside
+   one, the treatment needs this wrapper. That is the whole of the
+   dependency, and this is the fix. */
+.welcome-keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-5);
+  margin: var(--space-5) 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--fs-md);
+  color: var(--text-dim);
+}
+.welcome-keys > li { display: flex; align-items: center; gap: var(--space-2); }
+.welcome-keys .tb-kbd { display: inline-flex; align-items: center; }
+.welcome-keys__plus { color: var(--text-dim); }
+
+/* AA, and the second half of a fix Task 11 only half-made. .tb-kbd paints
+   --text-muted (chrome.css:171) at --fs-2xs. Against the composite of
+   --key-bg over --bg-base that measures about 2.5:1 on light and 2.6:1 on
+   dark — both under the 4.5:1 AA floor, and 10px is not large text. Inside
+   the IDE header a keycap is a secondary hint sitting beside a labelled
+   button; on this page the glyph IS the information (Ctrl, Enter, Esc, S,
+   Space, F10, Shift), so it moves onto --text-dim, which computes to about
+   5.7:1 light and 5.2:1 dark on the same composite. This is the same move
+   .welcome-subline and .welcome-keys__plus already made and the keycaps
+   were left out of. Scoped to this page on purpose: chrome.css is not
+   Lane W's and the IDE's own usage is fine as it stands. The two selectors
+   cover both sites — the §4 row and the §5 keycaps set inline in prose. */
+.welcome-keys .tb-kbd,
+.welcome-section p .tb-kbd { color: var(--text-dim); }
+
+/* ── §7 pipeline stages ───────────────────────────────────── */
+.welcome-grid {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  margin: 0 0 var(--space-5);
+}
+.welcome-stage h3 {
+  font-size: var(--fs-xl);
+  color: var(--text-bright);
+  margin: 0 0 var(--space-2);
+}
+.welcome-stage p {
+  font-size: var(--fs-md);
+  line-height: var(--lh-normal);
+  color: var(--text-dim);
+  margin: 0;
 }
 
-.welcome-features {
-  max-width: 980px; margin: 56px auto 0; display: grid; gap: 16px;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+/* ── §8 hybrid topic chips ────────────────────────────────── */
+.welcome-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-5);
+  padding: 0;
+  list-style: none;
 }
-.welcome-card { padding: var(--space-5); }
-.welcome-card__icon { display: inline-flex; color: var(--accent-bright); }
-.welcome-card__icon svg { width: 28px; height: 28px; }
-.welcome-card h2 { font-size: 16px; margin: 10px 0 6px; }
-.welcome-card p { font-size: 13px; color: var(--text-dim); line-height: 1.55; margin: 0; }
+.welcome-chips .badge { margin-left: 0; font-size: var(--fs-sm); padding: var(--space-1) var(--space-3); }
 
-.welcome-play { max-width: 760px; margin: 64px auto 0; text-align: center; }
-.welcome-play h2 { font-size: 22px; margin-bottom: 4px; }
-.welcome-play p { color: var(--text-dim); font-size: 14px; margin-top: 0; }
-.welcome-playground { margin-top: 14px; }
+/* ── §9 the conflict sentence, set apart ──────────────────── */
+.welcome .welcome-note {
+  padding: var(--space-3) var(--space-4);
+  border-left: 2px solid var(--welcome-cat, var(--accent));
+  background: var(--card-bg);
+  color: var(--text);
+}
+
+/* ── §10 numbers strip ────────────────────────────────────
+   Following .tb-chip--quiet (chrome.css:259): mono, tabular, quiet. */
+.welcome-numbers {
+  max-width: 980px;
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(6, 1fr);
+}
+.welcome-stat { display: flex; flex-direction: column; gap: var(--space-1); text-align: center; }
+.welcome-stat__n {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-3xl);
+  font-weight: var(--fw-semibold);
+  line-height: var(--lh-tight);
+  color: var(--text-bright);
+}
+.welcome-stat__label { font-size: var(--fs-sm); color: var(--text-dim); }
+
+/* ── §11 playground ───────────────────────────────────────── */
+.welcome-play { max-width: 760px; text-align: center; }
+.welcome-play .welcome-eyebrow { justify-content: center; }
+.welcome-play h2 { margin-bottom: var(--space-1); }
+.welcome-play p { color: var(--text-dim); font-size: var(--fs-lg); margin-top: 0; }
+.welcome-playground { margin-top: var(--space-4); }
 .welcome-playground__canvas {
-  width: 100%; height: 260px; display: block; border-radius: 8px;
-  background: var(--bg-surface); border: 1px solid var(--card-border);
-  cursor: crosshair; touch-action: none;
+  width: 100%;
+  height: 260px;
+  display: block;
+  border-radius: var(--radius);
+  background: var(--bg-surface);
+  border: 1px solid var(--card-border);
+  cursor: crosshair;
+  touch-action: none;
 }
 .welcome-playground__controls {
-  display: flex; gap: 12px; align-items: center; justify-content: center;
-  flex-wrap: wrap; margin-top: 10px; font-size: 13px; color: var(--text-dim);
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: var(--space-3);
+  font-size: var(--fs-md);
+  color: var(--text-dim);
 }
-.welcome-playground__controls input[type="range"] { width: 200px; }
-.welcome-playground__hint { font-size: 12px; opacity: 0.8; }
+/* GravityPlayground.js now renders className="range" (Task 12) — the
+   shared .range primitive (primitives.css) supplies the themed track and
+   thumb; only the width is a page-specific override. */
+.welcome-playground__controls .range { width: 200px; }
+.welcome-playground__value {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--fw-semibold);
+  color: var(--text-bright);
+}
+/* UNVERIFIED IN A BROWSER, arithmetic only (no browser is available to this
+   task): .range's WebKit thumb centring undershoots by 2px. Standard WebKit
+   centring is (track-height − thumb-height) / 2 = (--space-1 − --space-4)
+   / 2 = (4px − 16px) / 2 = −6px; the shipped primitive uses
+   calc(-1 * var(--space-2) + var(--space-1)) = −8px + 4px = −4px. Firefox
+   needs no equivalent fix — ::-moz-range-thumb centres itself on the track
+   without a margin hack; only WebKit lays the thumb out like an ordinary
+   box aligned to the track's top edge, which is why only WebKit carries a
+   margin-top rule at all. primitives.css is Foundation/Task-13's file, not
+   Lane W's — this corrects only the one shipped .range consumer (this
+   playground); Task 13 should apply the same corrected formula to the
+   primitive itself, after which this override is redundant and may be
+   deleted. */
+.welcome-playground__controls .range::-webkit-slider-thumb {
+  margin-top: calc((var(--space-1) - var(--space-4)) / 2);
+}
+.welcome-playground__hint { font-size: var(--fs-sm); opacity: 0.8; }
 
-.welcome-foot { max-width: 640px; margin: 72px auto 0; text-align: center; }
-.welcome-foot p { color: var(--text-dim); font-size: 14px; }
+/* ── §12 the honesty blocks ───────────────────────────────── */
+.welcome-notbuilt { margin: 0 0 var(--space-5); }
+.welcome-notbuilt h3 {
+  font-size: var(--fs-xl);
+  color: var(--text-bright);
+  margin: 0 0 var(--space-2);
+}
+.welcome-notbuilt p { font-size: var(--fs-md); line-height: var(--lh-normal); color: var(--text); margin: 0; }
+.welcome-privacy h3 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-xl);
+  color: var(--text-bright);
+  margin: 0 0 var(--space-2);
+}
+.welcome-privacy__mark { display: inline-flex; color: var(--welcome-cat, var(--accent)); }
+.welcome-privacy p { font-size: var(--fs-md); line-height: var(--lh-normal); color: var(--text-dim); margin: 0; }
 
-.welcome-reveal { opacity: 0; transform: translateY(14px); transition: opacity 0.5s ease, transform 0.5s ease; }
+/* ── §13 footer ───────────────────────────────────────────── */
+.welcome-foot { max-width: 640px; text-align: center; }
+.welcome-foot p { color: var(--text-dim); font-size: var(--fs-lg); margin: 0 0 var(--space-3); }
+.welcome .welcome-foot__scope { color: var(--text); }
+.welcome-foot__links {
+  display: flex;
+  gap: var(--space-2);
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: var(--space-4);
+}
+
+/* ── Scroll reveal ────────────────────────────────────────
+   240ms rather than the old 500ms: 0.5s was a fourth duration in a
+   three-duration system. Retimed, still a reveal — the 14px rise is what
+   reads as motion, and it now resolves about as fast as the eye lands. */
+.welcome-reveal {
+  opacity: 0;
+  transform: translateY(14px);
+  transition: opacity var(--transition-slow), transform var(--transition-slow);
+}
 .welcome-reveal.is-on { opacity: 1; transform: none; }
 
+/* ═══════════════════════════════════════════════════════════
+   REDUCED MOTION — degrade, don't delete.
+   The orbit keeps its shape and stops turning; reveals resolve to their
+   final state instead of never arriving; the playground still drops balls.
+   ═══════════════════════════════════════════════════════════ */
 @media (prefers-reduced-motion: reduce) {
   .welcome-orbit__path { animation: none; }
   .welcome-reveal { opacity: 1; transform: none; transition: none; }
-  .welcome-btn { transition: none; }
+  .welcome-skip { transition: none; }
+  /* The Play/Pause button is .btn/.btn--sm now (Task 12) — no page-level
+     hover-lift transform ships on .btn (primitives.css), so there is
+     nothing left here to guard. */
+}
+
+/* ═══════════════════════════════════════════════════════════
+   RESPONSIVE — must stay last in this file.
+   The page had none at all before: a 44px hero, a 260px canvas and a
+   minmax(260px) grid with no small-screen handling anywhere. 1024px is the
+   IDE's stated floor and nothing load-bearing disappears at it. Below 720px
+   is a deliberate exception — a student scanning a projected QR code lands
+   here on a phone, and this is the only surface of the product a phone will
+   realistically load.
+   ═══════════════════════════════════════════════════════════ */
+@media (max-width: 1280px) {
+  .welcome-grid { grid-template-columns: repeat(2, 1fr); }
+  .welcome-numbers { grid-template-columns: repeat(3, 1fr); }
+}
+
+@media (max-width: 1024px) {
+  /* 6vw is a viewport unit, not a ramp value — the metric linter does not
+     cover vw and this clamp() is exempt by construction (its other two
+     arguments are var()s, so nothing here is a literal). */
+  .welcome-hero h1 { font-size: clamp(var(--fs-2xl), 6vw, var(--fs-hero)); }
+  .welcome-band { grid-template-columns: 1fr; }
+  /* Section rhythm steps down to --space-7 at the floor, per the plan's
+     Task 12 (and the task-12-report's note on it): the single-column
+     layout below 1024px reads as a materially shorter beat than the
+     three/two-column layouts above it, so the rhythm should read as more
+     than one rung's difference. This was corrected from an initial
+     --space-8 left by Task 11's draft of this block — not itself part of
+     Task 11's stated scope, and one rung short of both the brief and the
+     master plan's explicit "(--space-9 → --space-7)". Not verified in a
+     browser; a visual check belongs in Step 6 of the human browser pass. */
+  .welcome-band,
+  .welcome-section,
+  .welcome-numbers,
+  .welcome-play,
+  .welcome-foot { margin-top: var(--space-7); }
+  .welcome-grid { grid-template-columns: 1fr; }
+  .welcome-compare { grid-template-columns: 1fr; }
+  .welcome-keys { gap: var(--space-4); }
+}
+
+@media (max-width: 720px) {
+  /* The student who scanned a projected QR code must reach all three doors
+     without scrolling, so the hero gives back the space it can: less top
+     padding, a smaller tagline, and the decorative orbit scaled into a
+     96px box (its children are a fixed figure, so it scales rather than
+     re-laying out). Nothing load-bearing goes; only air. */
+  .welcome { padding-top: var(--space-5); }
+  .welcome-orbit { width: 96px; height: 96px; transform: scale(0.64); }
+  .welcome-hero h1 { margin-top: var(--space-3); }
+  .welcome-tagline { font-size: var(--fs-lg); }
+  .welcome-cta { flex-direction: column; align-items: stretch; }
+  .welcome-cta .btn { width: 100%; }
+  .welcome-numbers { grid-template-columns: repeat(2, 1fr); }
+  .welcome-playground__canvas { height: 180px; }
+  .welcome-playground__controls .range { width: 100%; }
+  /* At this width the student who scanned the QR needs one sentence more
+     than any other on the page. */
+  .welcome .welcome-foot__scope {
+    font-size: var(--fs-xl);
+    font-weight: var(--fw-semibold);
+    color: var(--text-bright);
+  }
 }
