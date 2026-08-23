@@ -24,6 +24,11 @@ vi.mock("react-router-dom", () => ({
   ),
   Navigate: () => null,
 }));
+/* AdminConsole now mounts PortalHeader, which mounts HeaderAccount —
+   HeaderAccount calls useSignout()/useNavigate(), neither stubbed above, so
+   stub the whole component out the way PortalHeader.test.js does; its own
+   behaviour is covered by HeaderAccount.test.js. */
+vi.mock("../../auth/HeaderAccount", () => ({ default: () => null }));
 
 function type(input, value) {
   act(() => {
