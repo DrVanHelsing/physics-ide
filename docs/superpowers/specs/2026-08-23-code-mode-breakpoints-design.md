@@ -147,7 +147,33 @@ That gate cannot coexist with the greying rule, which requires *keeping* an id t
 1. Removal stays unconditional — an old project's stale breakpoints can always be cleared.
 2. A breakpoint that cannot fire is never sent to the runtime; today's guarantee ("a breakpoint can never be set where it cannot fire") becomes "a breakpoint never *fires* where it cannot fire", which is the property that actually mattered.
 
-**Block mode is affected by this change** — it shares `toggleBreakpoint`. Today the block UI relies on the storage gate to refuse a breakpoint on a non-breakable block. After the change it must refuse at the call site (`BlocklyWorkspace.js`'s context-menu entry is already `disabled with a reason` on non-breakable blocks, so the affordance already exists) or accept-and-grey like code mode. **The plan must make this explicit and test block mode's behaviour either way** — this is the one place the feature can regress something that currently works.
+**Block mode is affected by this change** — it shares `toggleBreakpoint`. Today the block UI relies on the storage gate to refuse a breakpoint on a non-breakable block.
+
+**RULING: both editors accept-and-grey. One rule, two surfaces.**
+
+- A block that has **never** been breakable still refuses at the call site, unchanged — `BlocklyWorkspace.js`'s context-menu entry is already `disabled with a reason`, which explains itself better than a silent reducer refusal ever did.
+- A block that **was** breakable and stopped being one (dragged out of the loop, disconnected) keeps its marker, greyed, and revives when reconnected — exactly the code-mode rule, and for the same reason: a student rearranging their workspace must not silently lose their place.
+
+Rejected: leaving block mode on the storage gate. Two editors with different memories of the same action is the kind of split §18 exists to prevent, and the greying rule is as useful when dragging a block as when commenting a line.
+
+**This is the one place the feature can regress something that currently works, so the plan must test block mode on both sides of the change.** Note `breakableIds` for blocks is only valid after a code-generation pass (`traceRegistry` is populated there); the plan must confirm a block breakpoint set before the first generation does not render as spuriously unverified.
+
+---
+
+## 5a. Pause, Resume, Next value and Next frame already work in code mode
+
+Worth stating plainly, because it is the difference between "build a debugger" and "add one missing input", and because the plan must not disturb any of it:
+
+| Control | Mechanism | Code mode |
+|---|---|---|
+| Pause / Resume | flips `window.__physide_paused` inside the injected checkpoint wrapper | **works** — the wrapper is injected around every `_phtr_` assignment, and in code mode those come from the instrumentor |
+| Next value (`handleStep`) | decrements `window.__physide_steps` at the same checkpoints | **works**, same path |
+| Next frame (`handleStepFrame`) | `injectFrameBoundaries` wraps the `rate()` statement (`glowRunner.js:512-517`) | **works** — `rate()` is VPython source and is present in code projects too |
+| Iteration readout | `window.__physide_iter` incremented at the frame boundary (`glowRunner.js:514`) | **works** — injected into compiled JS regardless of mode |
+
+So a code project can already be paused and stepped today. The only thing it cannot do is **stop at a line the student chose** — which is precisely and only what this feature adds.
+
+One shared honest limit, unchanged by this work: a program with no `rate()` has no frame boundary, so "Next frame" has nothing to advance, and a program with no traced values never posts a `__phpause` ack. `handleStepFrame`/`handlePause` already arm an ack-timeout fallback for exactly this (`useDebug.js:39-41,81-88`) rather than leaving the UI stuck at "pausing". Block mode degrades identically.
 
 ---
 
