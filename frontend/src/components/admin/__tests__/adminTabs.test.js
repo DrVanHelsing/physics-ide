@@ -73,6 +73,20 @@ describe("AdminConsole tabs — real ARIA tablist, not attributes alone", () => 
     expect(panel.getAttribute("aria-labelledby")).toBe(selected[0].id);
   });
 
+  test("every tab's aria-controls resolves to the real, currently-rendered tabpanel — not just the selected one", () => {
+    const container = render();
+    const tabs = [...container.querySelectorAll('[role="tab"]')];
+    const panel = container.querySelector('[role="tabpanel"]');
+    expect(tabs.length).toBe(4);
+    tabs.forEach((t) => {
+      const controlsId = t.getAttribute("aria-controls");
+      expect(controlsId).toBeTruthy();
+      const target = document.getElementById(controlsId);
+      expect(target).not.toBeNull();
+      expect(target).toBe(panel);
+    });
+  });
+
   test("roving tabIndex: only the selected tab is in the sequential tab order", () => {
     const container = render();
     const tabs = [...container.querySelectorAll('[role="tab"]')];
