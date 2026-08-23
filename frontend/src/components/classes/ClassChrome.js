@@ -3,6 +3,7 @@ import { Link, Navigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../../utils/api/client";
 import { useMe } from "../../auth/useAuth";
+import PortalHeader from "../layout/PortalHeader";
 
 /**
  * Shell for /classes/:id — header, tab nav, and the class query.
@@ -22,10 +23,12 @@ export default function ClassChrome({ tab, children }) {
   if (!me) return <Navigate to="/auth/signin" replace />;
   if (classQuery.error) {
     return (
-      <div className="classes-page">
-        <div className="classes-body">
-          <div className="auth-error">{classQuery.error.message}</div>
-          <Link className="admin-btn" to="/classes">
+      <div className="page">
+        <div className="page-body">
+          <div className="alert alert--danger" role="alert">
+            {classQuery.error.message}
+          </div>
+          <Link className="btn" to="/classes">
             Back to my classes
           </Link>
         </div>
@@ -43,27 +46,30 @@ export default function ClassChrome({ tab, children }) {
   ].filter((t) => t.show);
 
   return (
-    <div className="classes-page">
-      <header className="classes-header">
-        <Link to="/classes" className="auth-brand">
-          Physics<span>IDE</span>
-        </Link>
-        <h1>
-          {c.name}
-          {c.archived ? <span className="class-archived-badge">archived</span> : null}
-        </h1>
-        <nav className="admin-tabs">
-          {tabs.map((t) => (
-            <Link
-              key={t.key}
-              to={t.to}
-              className={t.key === tab ? "admin-tab admin-tab--on" : "admin-tab"}
-            >
-              {t.label}
-            </Link>
-          ))}
-        </nav>
-      </header>
+    <div className="page">
+      <PortalHeader
+        home="/classes"
+        title={
+          <>
+            {c.name}
+            {c.archived ? <span className="class-archived-badge">archived</span> : null}
+          </>
+        }
+        nav={
+          <nav className="tabs">
+            {tabs.map((t) => (
+              <Link
+                key={t.key}
+                to={t.to}
+                className="tab"
+                aria-current={t.key === tab ? "page" : undefined}
+              >
+                {t.label}
+              </Link>
+            ))}
+          </nav>
+        }
+      />
       {children(c, me)}
     </div>
   );
@@ -73,8 +79,8 @@ export function AssignmentsStub() {
   return (
     <ClassChrome tab="assignments">
       {() => (
-        <div className="classes-body">
-          <p className="auth-text auth-text--dim">
+        <div className="page-body">
+          <p className="empty">
             Assignments arrive in a later update. For now this class holds its roster and settings.
           </p>
         </div>

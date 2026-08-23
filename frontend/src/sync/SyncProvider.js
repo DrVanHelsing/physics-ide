@@ -243,14 +243,15 @@ export default function SyncProvider({ children }) {
 
   return (
     <>
-      {importPrompt && (
-        <GuestImportPrompt
-          count={importPrompt.count}
-          onAccept={handleAcceptImport}
-          onDecline={handleDeclineImport}
-          busy={importBusy}
-        />
-      )}
+      {/* Always mounted (see GuestImportPrompt's own comment) — only its
+          content is conditional on importPrompt. */}
+      <GuestImportPrompt
+        open={!!importPrompt}
+        count={importPrompt?.count ?? 0}
+        onAccept={handleAcceptImport}
+        onDecline={handleDeclineImport}
+        busy={importBusy}
+      />
       {children}
     </>
   );

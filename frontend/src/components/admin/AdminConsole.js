@@ -1,43 +1,80 @@
-import React, { useState } from "react";
-import { Link, Navigate } from "react-router-dom";
+import React, { useRef, useState } from "react";
+import { Navigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../utils/api/client";
 import { useMe } from "../../auth/useAuth";
+import { CheckIcon, AlertTriangleIcon, SearchIcon, XIcon } from "../Icons";
+import PortalHeader from "../layout/PortalHeader";
 
 const TABS = ["People", "Classes", "Emails", "Health"];
 
 export default function AdminConsole() {
   const { data: me, isLoading } = useMe();
   const [tab, setTab] = useState("People");
+  const tabRefs = useRef({});
 
   if (isLoading) return null;
   if (!me) return <Navigate to="/auth/signin" replace />;
   if (me.role !== "admin") return <Navigate to="/" replace />;
 
+  /* Roving tabindex (WAI-ARIA tabs pattern): the arrow key both selects and
+     moves DOM focus, so the ring lands on the tab that is now active. */
+  function selectTab(next) {
+    setTab(next);
+    tabRefs.current[next]?.focus();
+  }
+
+  function onTabKeyDown(e) {
+    const idx = TABS.indexOf(tab);
+    if (e.key === "ArrowRight") {
+      e.preventDefault();
+      selectTab(TABS[(idx + 1) % TABS.length]);
+    } else if (e.key === "ArrowLeft") {
+      e.preventDefault();
+      selectTab(TABS[(idx - 1 + TABS.length) % TABS.length]);
+    } else if (e.key === "Home") {
+      e.preventDefault();
+      selectTab(TABS[0]);
+    } else if (e.key === "End") {
+      e.preventDefault();
+      selectTab(TABS[TABS.length - 1]);
+    }
+  }
+
   return (
-    <div className="admin-page">
-      <header className="admin-header">
-        <Link to="/" className="auth-brand">
-          Physics<span>IDE</span>
-        </Link>
-        <h1>Admin console</h1>
-        <nav className="admin-tabs">
-          {TABS.map((t) => (
-            <button
-              key={t}
-              type="button"
-              className={t === tab ? "admin-tab admin-tab--on" : "admin-tab"}
-              onClick={() => setTab(t)}
-            >
-              {t}
-            </button>
-          ))}
-        </nav>
-      </header>
-      {tab === "People" ? <PeopleTab /> : null}
-      {tab === "Classes" ? <ClassesTab /> : null}
-      {tab === "Emails" ? <EmailsTab /> : null}
-      {tab === "Health" ? <HealthTab /> : null}
+    <div className="page">
+      <PortalHeader
+        title="Admin console"
+        nav={
+          <nav className="tabs" role="tablist" aria-label="Admin sections">
+            {TABS.map((t) => (
+              <button
+                key={t}
+                ref={(el) => {
+                  tabRefs.current[t] = el;
+                }}
+                type="button"
+                role="tab"
+                id={`admin-tab-${t}`}
+                aria-controls="admin-panel"
+                aria-selected={t === tab}
+                tabIndex={t === tab ? 0 : -1}
+                className={t === tab ? "tab tab--on" : "tab"}
+                onClick={() => selectTab(t)}
+                onKeyDown={onTabKeyDown}
+              >
+                {t}
+              </button>
+            ))}
+          </nav>
+        }
+      />
+      <div role="tabpanel" id="admin-panel" aria-labelledby={`admin-tab-${tab}`}>
+        {tab === "People" ? <PeopleTab /> : null}
+        {tab === "Classes" ? <ClassesTab /> : null}
+        {tab === "Emails" ? <EmailsTab /> : null}
+        {tab === "Health" ? <HealthTab /> : null}
+      </div>
     </div>
   );
 }
@@ -64,7 +101,7 @@ function PeopleTab() {
   });
 
   return (
-    <div className="admin-body">
+    <div className="page-body">
       {capQuery.data ? (
         <div className="admin-cap">
           <strong>
@@ -79,7 +116,7 @@ function PeopleTab() {
             onChange={(e) => setCapInput(Number(e.target.value))}
           />
           <button
-            className="admin-btn"
+            className="btn"
             type="button"
             disabled={capInput === null || capInput === capQuery.data.cap}
             onClick={() => saveCap.mutate(capInput)}
@@ -88,13 +125,30 @@ function PeopleTab() {
           </button>
         </div>
       ) : null}
-      <input
-        className="auth-input"
-        placeholder="Search by name or email…"
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-      />
-      {act.error ? <div className="auth-error">{act.error.message}</div> : null}
+      <div className="admin-search-box">
+        <span className="admin-search-icon" aria-hidden="true">
+          <SearchIcon size={13} />
+        </span>
+        <input
+          className="auth-input admin-search-input"
+          type="text"
+          placeholder="Search by name or email…"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          aria-label="Search by name or email"
+        />
+        {q ? (
+          <button
+            type="button"
+            className="admin-search-clear"
+            onClick={() => setQ("")}
+            aria-label="Clear search"
+          >
+            <XIcon size={13} />
+          </button>
+        ) : null}
+      </div>
+      {act.error ? <div className="alert alert--danger">{act.error.message}</div> : null}
       <div className="admin-table-wrap">
         <table className="admin-table">
           <thead>
@@ -118,20 +172,20 @@ function PeopleTab() {
                 </td>
                 <td className="admin-actions">
                   {u.active ? (
-                    <button className="admin-btn" type="button" onClick={() => act.mutate({ id: u.id, action: "deactivate" })}>
+                    <button className="btn btn--danger" type="button" onClick={() => act.mutate({ id: u.id, action: "deactivate" })}>
                       Deactivate
                     </button>
                   ) : (
-                    <button className="admin-btn" type="button" onClick={() => act.mutate({ id: u.id, action: "reactivate" })}>
+                    <button className="btn" type="button" onClick={() => act.mutate({ id: u.id, action: "reactivate" })}>
                       Reactivate
                     </button>
                   )}
                   {!u.emailConfirmed ? (
-                    <button className="admin-btn" type="button" onClick={() => act.mutate({ id: u.id, action: "resend-confirmation" })}>
+                    <button className="btn" type="button" onClick={() => act.mutate({ id: u.id, action: "resend-confirmation" })}>
                       Resend confirmation
                     </button>
                   ) : null}
-                  <button className="admin-btn" type="button" onClick={() => act.mutate({ id: u.id, action: "send-reset" })}>
+                  <button className="btn" type="button" onClick={() => act.mutate({ id: u.id, action: "send-reset" })}>
                     Send reset
                   </button>
                 </td>
@@ -151,7 +205,7 @@ function EmailsTab() {
     queryFn: () => api("/api/admin/emails?limit=200"),
   });
   return (
-    <div className="admin-body">
+    <div className="page-body">
       <p className="auth-text auth-text--dim">
         The pretend inbox: every email the system would have sent, exactly as it would look.
       </p>
@@ -167,7 +221,19 @@ function EmailsTab() {
           <tbody>
             {(emailsQuery.data?.emails ?? []).map((m) => (
               <React.Fragment key={m.id}>
-                <tr className="admin-mail-row" onClick={() => setOpenId(openId === m.id ? null : m.id)}>
+                <tr
+                  className="admin-mail-row"
+                  tabIndex={0}
+                  role="button"
+                  aria-expanded={openId === m.id}
+                  onClick={() => setOpenId(openId === m.id ? null : m.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      if (e.key === " ") e.preventDefault();
+                      setOpenId(openId === m.id ? null : m.id);
+                    }
+                  }}
+                >
                   <td>{new Date(m.createdAt).toLocaleString()}</td>
                   <td>{m.toEmail}</td>
                   <td>{m.subject}</td>
@@ -194,7 +260,7 @@ function ClassesTab() {
     queryFn: () => api("/api/admin/classes"),
   });
   return (
-    <div className="admin-body">
+    <div className="page-body">
       <p className="auth-text auth-text--dim">
         Every class on the site — visibility, not management.
       </p>
@@ -229,23 +295,37 @@ function ClassesTab() {
   );
 }
 
-function HealthTab() {
+export function HealthTab() {
   const healthQuery = useQuery({
     queryKey: ["admin", "health"],
     queryFn: () => api("/api/admin/health"),
   });
   const h = healthQuery.data;
   return (
-    <div className="admin-body">
+    <div className="page-body">
       {h ? (
-        <ul className="admin-health">
-          <li>API: {h.ok ? "running" : "trouble"}</li>
-          <li>Database: {h.db}</li>
-          <li>
-            Accounts: {h.users} of {h.cap}
-          </li>
-          <li>Emails logged: {h.emailsLogged}</li>
-        </ul>
+        <div className="card">
+          <ul className="admin-health">
+            <li>
+              API:{" "}
+              <span className={`badge ${h.ok ? "badge--success" : "badge--danger"}`}>
+                {h.ok ? <CheckIcon size={12} /> : <AlertTriangleIcon size={12} />}
+                {h.ok ? "running" : "trouble"}
+              </span>
+            </li>
+            <li>
+              Database:{" "}
+              <span className={`badge ${h.db === "ok" ? "badge--success" : "badge--danger"}`}>
+                {h.db === "ok" ? <CheckIcon size={12} /> : <AlertTriangleIcon size={12} />}
+                {h.db}
+              </span>
+            </li>
+            <li>
+              Accounts: {h.users} of {h.cap}
+            </li>
+            <li>Emails logged: {h.emailsLogged}</li>
+          </ul>
+        </div>
       ) : (
         <p className="auth-text">Loading…</p>
       )}

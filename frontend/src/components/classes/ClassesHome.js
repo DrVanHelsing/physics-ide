@@ -3,19 +3,15 @@ import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../utils/api/client";
 import { useMe } from "../../auth/useAuth";
+import PortalHeader from "../layout/PortalHeader";
 
 export default function ClassesHome() {
   const { data: me, isLoading } = useMe();
   if (isLoading) return null;
   if (!me) return <Navigate to="/auth/signin" replace />;
   return (
-    <div className="classes-page">
-      <header className="classes-header">
-        <Link to="/" className="auth-brand">
-          Physics<span>IDE</span>
-        </Link>
-        <h1>My classes</h1>
-      </header>
+    <div className="page">
+      <PortalHeader title="My classes" />
       <ClassWall me={me} />
     </div>
   );
@@ -44,14 +40,14 @@ function ClassWall({ me }) {
   const canCreate = me.isTeacher || me.role === "admin";
 
   return (
-    <div className="classes-body">
+    <div className="page-body">
       <div className="classes-actions">
         {canCreate ? (
-          <button className="admin-btn" type="button" onClick={() => setCreating((v) => !v)}>
+          <button className="btn" type="button" onClick={() => setCreating((v) => !v)}>
             New class
           </button>
         ) : null}
-        <Link className="admin-btn" to="/join">
+        <Link className="btn" to="/join">
           Join a class
         </Link>
       </div>
@@ -76,8 +72,12 @@ function ClassWall({ me }) {
               onChange={(e) => setSubjectLabel(e.target.value)}
             />
           </label>
-          {error ? <div className="auth-error">{error}</div> : null}
-          <button className="auth-submit" type="submit" disabled={!name.trim() || create.isPending}>
+          {error ? <div className="alert alert--danger">{error}</div> : null}
+          <button
+            className="btn btn--primary btn--lg btn--block"
+            type="submit"
+            disabled={!name.trim() || create.isPending}
+          >
             Create class
           </button>
         </form>
@@ -94,7 +94,7 @@ function ClassWall({ me }) {
           </Link>
         ))}
         {active.length === 0 && !classesQuery.isLoading ? (
-          <p className="auth-text auth-text--dim">
+          <p className="empty empty--full">
             {canCreate
               ? "No classes yet — create your first one."
               : "No classes yet — join one with a code from your teacher."}

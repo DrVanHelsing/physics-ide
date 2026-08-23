@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useMe } from "../auth/useAuth";
 import { getGlobalSyncEngine } from "../utils/sync/syncEngine";
+import { CheckIcon, RefreshIcon, ZapOffIcon, AlertTriangleIcon } from "../components/Icons";
 
 const LABELS = {
   idle: "Synced",
@@ -8,6 +9,16 @@ const LABELS = {
   syncing: "Syncing…",
   offline: "Waiting for connection",
   error: "Sync error",
+};
+
+/* Colour is never the only channel (D13) — each state also carries a glyph
+   that agrees with its word, so the chip reads the same in greyscale. */
+const ICONS = {
+  idle: CheckIcon,
+  synced: CheckIcon,
+  syncing: RefreshIcon,
+  offline: ZapOffIcon,
+  error: AlertTriangleIcon,
 };
 
 const DEFAULT_TITLE = "Your work saves locally first and syncs to your account.";
@@ -43,8 +54,15 @@ export default function SyncChip() {
   }, [me]);
 
   if (!me) return null;
+  const Icon = ICONS[state] ?? CheckIcon;
   return (
-    <span className={`sync-chip sync-chip--${state}`} title={lastError || DEFAULT_TITLE}>
+    <span
+      className={`sync-chip sync-chip--${state}`}
+      title={lastError || DEFAULT_TITLE}
+      role="status"
+      aria-live="polite"
+    >
+      <Icon size={12} />
       Saved on this computer · {LABELS[state] ?? "Synced"}
     </span>
   );

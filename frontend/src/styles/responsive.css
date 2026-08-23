@@ -20,6 +20,20 @@
   .block-search-input    { min-height: 32px; }
   .start-project-delete  { min-width: 28px; min-height: 28px; }
   .project-title         { min-height: 24px; }
+
+  /* The portal was absent from this block entirely: on the shared classroom
+     Chromebook this product targets, Approve / Deny / Remove / Archive were
+     all sub-32px. Spec §18 D12: the coarse-pointer rule must name the
+     portal's classes, not only the IDE's. */
+  .btn           { min-height: 32px; }
+  .btn--sm       { min-height: 32px; padding: var(--space-1) var(--space-2); }
+  .input,
+  .auth-input    { min-height: 32px; }
+  .tab,
+  .admin-tab     { min-height: 36px; }
+  .auth-door     { min-height: 36px; }
+  .class-card    { padding: var(--space-5); }
+  .range         { height: 36px; }
 }
 
 /* The dividers are focusable separators now. Plan 1's global :focus-visible
