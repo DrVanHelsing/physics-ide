@@ -77,9 +77,15 @@ describe("welcome.css — built from the ramp, not from pixels", () => {
     expect(strays).toEqual([]);
   });
 
-  test("the playground's Play/Pause alias survives until Task 12 moves the markup", () => {
-    // GravityPlayground.js still renders .welcome-btn .welcome-btn--small.
-    // Deleting these rules before the markup moves ships an unstyled button.
-    expect(CSS).toMatch(/\.welcome-btn--small/);
+  test("the playground's Play/Pause alias is retired — Task 12 moved the markup", () => {
+    // GravityPlayground.js now renders .btn .btn--sm; the page-only
+    // .welcome-btn / .welcome-btn--small rules are dead and gone. (The
+    // base .welcome-btn aliases in primitives.css are Task 13's to delete.)
+    expect(CSS).not.toMatch(/\.welcome-btn\b/);
+  });
+
+  test("the slider is the shared .range primitive, not a bare input[type=range]", () => {
+    expect(CSS).toMatch(/\.welcome-playground__controls \.range\b/);
+    expect(CSS).not.toMatch(/input\[type="range"\]/);
   });
 });
