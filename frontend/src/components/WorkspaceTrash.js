@@ -38,30 +38,21 @@ const DELETE_AREA_CAPABILITIES = [
 function WorkspaceTrash({ workspaceRef }) {
   const [visible, setVisible] = useState(false);
   const [hover, setHover] = useState(false);
+  const [workspace, setWorkspace] = useState(null);
   const elRef = useRef(null);
 
-  /* Subscribe to the workspace's drag events. workspaceRef.current is often
-     still null the first time this effect runs — BlocklyWorkspace assigns
-     it inside its OWN mount effect, and child effects (this one) fire
-     before the parent's, per React's bottom-up effect order. Poll briefly
-     until it appears rather than requiring a prop change to retry. */
+  /* Resolve the workspace. workspaceRef.current is often still null the
+     first time this effect runs — BlocklyWorkspace assigns it inside its
+     OWN mount effect, and child effects (this one) fire before the
+     parent's, per React's bottom-up effect order. Poll briefly until it
+     appears rather than requiring a prop change to retry, then hold it in
+     state so the effects below can key off it. */
   useEffect(() => {
     let intervalId = null;
-    let unsubscribe = () => {};
-
-    function subscribe(ws) {
-      const listener = (event) => {
-        if (event.type !== Blockly.Events.BLOCK_DRAG) return;
-        setHover(false);
-        setVisible(!!event.isStart);
-      };
-      ws.addChangeListener(listener);
-      unsubscribe = () => ws.removeChangeListener(listener);
-    }
 
     const ws = workspaceRef.current;
     if (ws) {
-      subscribe(ws);
+      setWorkspace(ws);
     } else {
       let tries = 0;
       intervalId = setInterval(() => {
@@ -70,7 +61,7 @@ function WorkspaceTrash({ workspaceRef }) {
         if (readyWs) {
           clearInterval(intervalId);
           intervalId = null;
-          subscribe(readyWs);
+          setWorkspace(readyWs);
         } else if (tries > 40) {
           clearInterval(intervalId);
           intervalId = null;
@@ -80,32 +71,73 @@ function WorkspaceTrash({ workspaceRef }) {
 
     return () => {
       if (intervalId) clearInterval(intervalId);
-      unsubscribe();
     };
   }, [workspaceRef]);
 
-  /* Register as a Blockly delete area only while visible (i.e. for the
-     duration of a drag); unregistered again on hide or unmount so a stale
-     zone never lingers in the component manager. */
+  /* Subscribe to the workspace's drag events for the can's visibility. */
   useEffect(() => {
-    const ws = workspaceRef.current;
-    if (!ws || !visible) return undefined;
+    if (!workspace) return undefined;
+
+    const listener = (event) => {
+      if (event.type !== Blockly.Events.BLOCK_DRAG) return;
+      setHover(false);
+      setVisible(!!event.isStart);
+      /* Re-snapshot the drag-target cache at the START of every drag. See
+         the registration effect below for why the cache exists at all; the
+         reason to refresh it HERE is that the can is positioned against the
+         workspace wrapper, so anything that resizes that wrapper WITHOUT
+         firing a Blockly resize — dragging the drawer divider, for
+         instance — leaves the cached rect pointing at where the can used
+         to be. Re-recording per drag costs one getBoundingClientRect and
+         makes the hit box correct by construction. */
+      if (event.isStart) workspace.recordDragTargets();
+    };
+    workspace.addChangeListener(listener);
+    return () => workspace.removeChangeListener(listener);
+  }, [workspace]);
+
+  /* Register as a Blockly delete area ONCE, for the life of the component —
+     NOT per-drag.
+
+     This ordering is load-bearing and was the cause of a real defect: the
+     can faded in and the zone registered, but blocks dropped on it were
+     never deleted and the lid never opened. Blockly does not consult
+     delete areas live. WorkspaceSvg.getDragTarget() reads a cached array,
+     `dragTargetAreas`, built by recordDragTargets() — which Blockly calls
+     in exactly two places, workspace injection and updateScreenCalculations
+     (resize/scroll). It is NEVER called at drag start. So a zone that
+     registers in response to a drag beginning has already missed the only
+     snapshot that matters, every single time.
+
+     Registering at mount is still one step behind injection (the parent
+     injects the workspace in its own effect, which runs after this child's),
+     so we call recordDragTargets() ourselves right after adding the
+     component — that is what actually puts the zone in the cache.
+
+     Leaving the zone registered at rest is harmless: getDragTarget is only
+     consulted mid-drag, and the element is always laid out (it is hidden
+     with opacity, not display), so its rect is real whether or not a drag
+     is in progress. */
+  useEffect(() => {
+    if (!workspace) return undefined;
 
     const zone = new TrashZone(
       () => (elRef.current ? elRef.current.getBoundingClientRect() : null),
       setHover,
     );
-    const manager = ws.getComponentManager();
+    const manager = workspace.getComponentManager();
     manager.addComponent({
       component: zone,
       weight: 1,
       capabilities: DELETE_AREA_CAPABILITIES,
     });
+    workspace.recordDragTargets();
 
     return () => {
       manager.removeComponent(zone.id);
+      workspace.recordDragTargets();
     };
-  }, [visible, workspaceRef]);
+  }, [workspace]);
 
   /* The rail-tint hint (workspace.css) keys off this class on the workspace
      wrapper — our own rendered container's parent. */

@@ -13,6 +13,13 @@ function fakeWorkspace() {
     addChangeListener: (fn) => listeners.push(fn),
     removeChangeListener: vi.fn(),
     getComponentManager: () => manager,
+    // Blockly's real WorkspaceSvg method. Its ABSENCE from this fake is why
+    // this suite passed for a release while the trashcan was inert in every
+    // real browser: getDragTarget() reads a cached rect array that only
+    // recordDragTargets() refills, so registering without calling it leaves
+    // the zone invisible to the drag system. Mocked here so the tests below
+    // can assert it is actually called.
+    recordDragTargets: vi.fn(),
     fire: (e) => listeners.forEach((fn) => fn(e)),
   };
 }
@@ -79,23 +86,51 @@ describe("WorkspaceTrash", () => {
     }
   });
 
-  test("registers a real Blockly delete-area/drag-target component while visible", () => {
+  test("registers a real Blockly delete-area/drag-target component AT MOUNT, before any drag", () => {
     // The component itself (not this test) constructs the TrashZone and
     // hands it to the workspace's ComponentManager — capture that instance
     // via the fake addComponent's own call args, the same way the real
     // ComponentManager would receive it, rather than reaching into
     // WorkspaceTrash's internals.
+    //
+    // "before any drag" is the whole point. Registering in RESPONSE to a
+    // drag is too late by construction: Blockly snapshots its drag targets
+    // in recordDragTargets(), which it calls at injection and on resize but
+    // never at drag start, so a zone added mid-drag misses the only
+    // snapshot the drag will consult.
     const ws = fakeWorkspace();
     const { unmount } = mountComponent(<WorkspaceTrash workspaceRef={{ current: ws }} />);
     try {
-      act(() => ws.fire({ type: "drag", isStart: true }));
       const manager = ws.getComponentManager();
+      // No drag has been fired at this point.
       expect(manager.addComponent).toHaveBeenCalledTimes(1);
       const registered = manager.addComponent.mock.calls[0][0];
       expect(registered.component.id).toBe("physicsTrashZone");
       expect(typeof registered.component.onDragEnter).toBe("function");
       expect(typeof registered.component.onDragExit).toBe("function");
       expect(typeof registered.component.onDrop).toBe("function");
+      expect(registered.capabilities).toHaveLength(2);
+
+      // Registering is not enough on its own — the cache must be refilled,
+      // or getDragTarget() keeps returning the pre-registration snapshot.
+      expect(ws.recordDragTargets).toHaveBeenCalled();
+    } finally {
+      unmount();
+    }
+  });
+
+  test("re-records drag targets on every drag start, so a moved can still has a live hit box", () => {
+    const ws = fakeWorkspace();
+    const { unmount } = mountComponent(<WorkspaceTrash workspaceRef={{ current: ws }} />);
+    try {
+      const afterMount = ws.recordDragTargets.mock.calls.length;
+      act(() => ws.fire({ type: "drag", isStart: true }));
+      expect(ws.recordDragTargets.mock.calls.length).toBe(afterMount + 1);
+
+      // Drag END must not re-record: the rect it would capture is the one
+      // we already have, and Blockly is done consulting it by then.
+      act(() => ws.fire({ type: "drag", isStart: false }));
+      expect(ws.recordDragTargets.mock.calls.length).toBe(afterMount + 1);
     } finally {
       unmount();
     }

@@ -504,12 +504,32 @@
   transform: scale(1.15);
   color: var(--danger);
 }
+/* The lid hinges at the LEFT END of its bar, not its middle. The bar is
+   `polyline 3 6 … 21 6` (Icons.js, TrashLidIcon), so an origin at x=12 is
+   dead centre — the left half lifts while the right half swings down
+   through the can body, which reads as a shear rather than a lid opening.
+   x=5 is where the bar meets the can's left wall (`M5 6v14…`), so the lid
+   pivots on the can's own shoulder: the far end lifts, the 2-unit overhang
+   past the wall dips a fraction, and the near end stays put — a hinge.
+   Pivoting on the bar's extreme tip (x=3) hinges correctly too but sweeps
+   a wider arc, throwing the lid clear of the can rather than ajar.
+
+   transform-box is stated rather than assumed: these coordinates only mean
+   viewBox units under `view-box`, and under the older `border-box` default
+   they would be measured from the <g>'s own bounding box instead — a
+   different, wrong pivot. */
 .workspace-trash__lid {
-  transform-origin: 12px 6px;
+  transform-box: view-box;
+  transform-origin: 5px 6px;
   transition: transform var(--transition);
 }
+/* The open lid rises above the 24-unit viewBox, so the icon must not clip
+   it. There is ample room: a 26px icon centred in a 52px box. */
+.workspace-trash svg {
+  overflow: visible;
+}
 .workspace-trash--hover .workspace-trash__lid {
-  transform: rotate(-28deg);
+  transform: rotate(-20deg);
 }
 .is-dragging-block .blocklyToolboxDiv {
   box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--danger) 55%, transparent);
