@@ -1,5 +1,12 @@
 # Classroom Platform — Plan 4: Cloud Projects & Sync
 
+> **Stale-instruction warning — added 25 August 2026 (Plan 5 wrap-up).** This plan is an executed historical record; its task bodies are unedited. A reader must NOT follow these instructions against today's tree:
+> - *"Append to `frontend/src/styles.css`"* (lines 1805, 1887, 2224) is wrong — that file is now a 17-line import manifest with load-bearing order. Shared primitives go in `primitives.css`, portal rules in `platform.css`, welcome rules in `welcome.css`.
+> - *"No @testing-library — screens are verified by the controller's browser pass"* is superseded — `frontend/src/test/renderHelpers.js` is a dependency-free component-test harness and portal screens are component-tested.
+> - Task 10's `FEATURES` array (lines 2133–2140) specifies **emoji icons** — a direct violation of the standing no-emoji rule (spec §18 D10). Shipped code never carried them.
+> - Task 10's `WelcomeGate` code block and its four-case test specify the **superseded v1 gate**, contradicting this file's own header note and the shipped synchronous sessionStorage gate.
+> - Task 10's CSS block is pre-token and dark-only; the shipped welcome styles live tokenised in `welcome.css`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Spec §6.3 delivered: work saves to the student's computer first and syncs quietly to their account whenever the connection allows — a truthful status chip, most-recent-edit-wins with the losing version kept in history, projects following the student between machines, and §3.2's guest-project import offer at first sign-in. The guest IDE keeps working exactly as today with zero network dependence.

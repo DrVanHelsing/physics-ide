@@ -559,14 +559,14 @@ Both of §18's open decisions have been settled and built. Recorded here, alongs
 
 ### Forward references — implementation work, not spec work
 
-Named here so they are not lost, but they belong to a build plan:
+Named here so they are not lost, but they belong to a build plan. Items 1–5 were **delivered by Plan 5** (2026-08-25); items 6–7 remain open:
 
-- **Convert the portal's stylesheet to tokens end to end** (D1), including the handful of off-scale type sizes the modernization's scale was designed to replace.
-- **Build the shared components the system does not have yet** — a text input, an alert in four flavours, a badge, an empty state, a tab, and a themed range slider. Each is currently re-invented per screen. The empty state already exists in the IDE and only needs promoting into the shared file.
-- **Extract one page shell and one portal header** — the admin and classes screens are duplicate chrome — and hang the theme toggle and the account control off it (D9).
-- **Migrate off the alias class names** (D2) once the markup above has moved, then delete the alias lists.
-- **Fold the front page's private icon file into the one icon module** (D10) and resolve the icon that is currently defined twice with two different shapes.
-- **Portal end-to-end coverage.** The IDE has a substantial checklist; welcome, auth, classes, admin and join have none. Add the design regressions from the stack briefing's §5 alongside the golden flows.
-- **A lint that enforces D1, D8 and D10** in the build, so this section is checked rather than remembered.
+- ~~**Convert the portal's stylesheet to tokens end to end** (D1), including the handful of off-scale type sizes the modernization's scale was designed to replace.~~ **Delivered** — `platformTokens.test.js` keeps it converted.
+- ~~**Build the shared components the system does not have yet** — a text input, an alert in four flavours, a badge, an empty state, a tab, and a themed range slider.~~ **Delivered** — `.input`, `.alert`, `.badge`, `.empty`, `.tabs`/`.tab`, `.range` in `primitives.css`.
+- ~~**Extract one page shell and one portal header** — the admin and classes screens are duplicate chrome — and hang the theme toggle and the account control off it (D9).~~ **Delivered** — `.page`/`.page-header` and `PortalHeader.js`; the auth screens carry the toggle top-right.
+- ~~**Migrate off the alias class names** (D2) once the markup above has moved, then delete the alias lists.~~ **Delivered** — the alias lists and their correction rules are deleted; `portalControls.test.js` forbids the names in markup and `primitivesTokens.test.js` forbids them in the stylesheet.
+- ~~**Fold the front page's private icon file into the one icon module** (D10) and resolve the icon that is currently defined twice with two different shapes.~~ **Delivered** — `WelcomeIcons.js` is gone; `iconsIdiom.test.js` holds the module invariants.
+- **Portal end-to-end coverage.** The IDE has a substantial checklist; welcome, auth, classes, admin and join have none. Add the design regressions from the stack briefing's §5 alongside the golden flows. *Still open — the gap is recorded in `docs/e2e-checklist.md`.*
+- **A lint that enforces D1, D8 and D10** in the build, so this section is checked rather than remembered. *Still open as a build-wired lint — but the conformance suites (`platformTokens`, `welcomeTokens`, `primitivesTokens`, `portalControls`, `iconsIdiom`) cover D1/D7/D8/D9/D10 inside `npm run test`.*
 
 **A warning about the executed build plans.** The four classroom plan documents under `docs/superpowers/plans/` are historical execution records and must not be followed as instructions today. In particular they tell a builder to append new rules to the top-level stylesheet (it is now a manifest whose order is load-bearing), they specify **emoji icons** for the front page in violation of D10, and they describe editing the header component directly rather than going through the one function that decides which controls exist (section 5.4). Read them as a record of what happened, not as a guide to what to do.
