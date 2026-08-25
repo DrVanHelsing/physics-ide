@@ -30,7 +30,7 @@ export default function ConfirmPage() {
       {state === "done" ? (
         <p className="auth-text">Your email address is confirmed. You can sign in now.</p>
       ) : null}
-      {state === "failed" ? <div className="auth-error">{message}</div> : null}
+      {state === "failed" ? <div className="alert alert--danger" role="alert">{message}</div> : null}
     </AuthLayout>
   );
 }

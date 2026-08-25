@@ -16,11 +16,11 @@ export default function AuthLayout({ title, children, footer }) {
       <div className="auth-page__theme">
         <ThemeToggleButton isDark={isDark} onToggle={toggle} />
       </div>
-      <div className="auth-card">
+      <div className="card card--panel card--lg auth-panel">
         <Link to="/" className="auth-brand">
           Physics<span>IDE</span>
         </Link>
-        <h1 className="auth-title">{title}</h1>
+        <h1 className="auth-heading">{title}</h1>
         {children}
         {footer ? <div className="auth-footer">{footer}</div> : null}
       </div>

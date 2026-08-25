@@ -36,7 +36,7 @@ function SettingsBody({ classData }) {
   return (
     <div className="page-body">
       <form
-        className="auth-form classes-newform"
+        className="card auth-form form-narrow"
         onSubmit={(e) => {
           e.preventDefault();
           setMsg(null);
@@ -49,12 +49,12 @@ function SettingsBody({ classData }) {
       >
         <label className="auth-label">
           Class name
-          <input className="auth-input" value={name} onChange={(e) => setName(e.target.value)} />
+          <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
         </label>
         <label className="auth-label">
           Subject / year
           <input
-            className="auth-input"
+            className="input"
             value={subjectLabel}
             onChange={(e) => setSubjectLabel(e.target.value)}
           />

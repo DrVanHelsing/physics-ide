@@ -146,11 +146,11 @@ function PeopleBody({ classData }) {
       {isTeacher ? (
         <>
           <h2 className="section-title">Invite by email</h2>
-          <form className="auth-form classes-newform" onSubmit={sendInvites}>
+          <form className="card auth-form form-narrow" onSubmit={sendInvites}>
             <label className="auth-label">
               Email addresses (comma, space, or line separated)
               <textarea
-                className="auth-input"
+                className="input"
                 rows="3"
                 value={emailsRaw}
                 onChange={(e) => setEmailsRaw(e.target.value)}
@@ -158,7 +158,7 @@ function PeopleBody({ classData }) {
             </label>
             <label className="auth-label">
               Invite as
-              <select className="auth-input" value={role} onChange={(e) => setRole(e.target.value)}>
+              <select className="input" value={role} onChange={(e) => setRole(e.target.value)}>
                 <option value="student">Student</option>
                 <option value="ta">Teaching assistant</option>
                 <option value="teacher">Co-teacher</option>

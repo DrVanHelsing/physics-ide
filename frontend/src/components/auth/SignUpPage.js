@@ -74,12 +74,12 @@ export default function SignUpPage() {
         </div>
         <label className="auth-label">
           Name
-          <input className="auth-input" value={form.name} onChange={set("name")} autoComplete="name" />
+          <input className="input" value={form.name} onChange={set("name")} autoComplete="name" />
         </label>
         <label className="auth-label">
           Email
           <input
-            className="auth-input"
+            className="input"
             type="email"
             value={form.email}
             onChange={set("email")}
@@ -89,7 +89,7 @@ export default function SignUpPage() {
         <label className="auth-label">
           Password
           <input
-            className="auth-input"
+            className="input"
             type="password"
             value={form.password}
             onChange={set("password")}

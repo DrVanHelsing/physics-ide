@@ -52,7 +52,7 @@ export default function ClassChrome({ tab, children }) {
         title={
           <>
             {c.name}
-            {c.archived ? <span className="class-archived-badge">archived</span> : null}
+            {c.archived ? <span className="badge badge--warning">archived</span> : null}
           </>
         }
         nav={

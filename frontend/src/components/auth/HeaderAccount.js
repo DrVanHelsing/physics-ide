@@ -26,7 +26,7 @@ export default function HeaderAccount() {
         <>
           <UserIcon size={13} />
           <span className="tb-btn-label">{label}</span>
-          {me && !me.emailConfirmed ? <span className="account-chip-badge">unconfirmed</span> : null}
+          {me && !me.emailConfirmed ? <span className="badge badge--warning">unconfirmed</span> : null}
         </>
       }
     >

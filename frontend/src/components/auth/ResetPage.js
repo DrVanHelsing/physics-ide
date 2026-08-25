@@ -32,14 +32,14 @@ export default function ResetPage() {
         <label className="auth-label">
           New password
           <input
-            className="auth-input"
+            className="input"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             autoComplete="new-password"
           />
         </label>
-        {error ? <div className="auth-error">{error}</div> : null}
+        {error ? <div className="alert alert--danger">{error}</div> : null}
         <button className="btn btn--primary btn--lg btn--block" type="submit">
           Set password
         </button>
