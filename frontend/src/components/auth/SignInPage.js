@@ -35,7 +35,7 @@ export default function SignInPage() {
         <label className="auth-label">
           Email
           <input
-            className="auth-input"
+            className="input"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -45,14 +45,14 @@ export default function SignInPage() {
         <label className="auth-label">
           Password
           <input
-            className="auth-input"
+            className="input"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             autoComplete="current-password"
           />
         </label>
-        {error ? <div className="auth-error">{error}</div> : null}
+        {error ? <div className="alert alert--danger">{error}</div> : null}
         <button
           className="btn btn--primary btn--lg btn--block"
           type="submit"

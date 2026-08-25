@@ -53,7 +53,7 @@ function ClassWall({ me }) {
       </div>
       {creating ? (
         <form
-          className="auth-form classes-newform"
+          className="card auth-form form-narrow"
           onSubmit={(e) => {
             e.preventDefault();
             setError(null);
@@ -62,12 +62,12 @@ function ClassWall({ me }) {
         >
           <label className="auth-label">
             Class name
-            <input className="auth-input" value={name} onChange={(e) => setName(e.target.value)} />
+            <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
           </label>
           <label className="auth-label">
             Subject / year (optional)
             <input
-              className="auth-input"
+              className="input"
               value={subjectLabel}
               onChange={(e) => setSubjectLabel(e.target.value)}
             />
@@ -84,10 +84,10 @@ function ClassWall({ me }) {
       ) : null}
       <div className="classes-wall">
         {active.map((c) => (
-          <Link key={c.id} to={`/classes/${c.id}`} className="class-card">
-            <div className="class-card-name">{c.name}</div>
-            {c.subjectLabel ? <div className="class-card-label">{c.subjectLabel}</div> : null}
-            <div className="class-card-meta">
+          <Link key={c.id} to={`/classes/${c.id}`} className="card card--interactive class-tile">
+            <div className="class-tile-name">{c.name}</div>
+            {c.subjectLabel ? <div className="class-tile-label">{c.subjectLabel}</div> : null}
+            <div className="class-tile-meta">
               {c.myRole === "teacher" ? "teacher" : c.myRole === "ta" ? "assistant" : "student"}
               {c.myStatus === "waiting" ? " · waiting for approval" : ""}
             </div>
@@ -105,8 +105,8 @@ function ClassWall({ me }) {
         <details className="classes-archived">
           <summary>Archived ({archived.length})</summary>
           {archived.map((c) => (
-            <Link key={c.id} to={`/classes/${c.id}`} className="class-card class-card--archived">
-              <div className="class-card-name">{c.name}</div>
+            <Link key={c.id} to={`/classes/${c.id}`} className="card card--interactive class-tile class-tile--archived">
+              <div className="class-tile-name">{c.name}</div>
             </Link>
           ))}
         </details>

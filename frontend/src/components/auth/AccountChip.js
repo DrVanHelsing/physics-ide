@@ -29,7 +29,7 @@ export default function AccountChip() {
       <div className="account-chip-head">Account</div>
       <div className="account-chip-name" title={me.email}>
         {me.name}
-        {!me.emailConfirmed ? <span className="account-chip-badge">unconfirmed</span> : null}
+        {!me.emailConfirmed ? <span className="badge badge--warning">unconfirmed</span> : null}
       </div>
       <Link className="nav-row" to="/classes">
         My classes

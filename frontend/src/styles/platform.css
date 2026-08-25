@@ -33,7 +33,8 @@
   top: var(--space-4);
   right: var(--space-4);
 }
-.auth-card {
+/* Width only — the card chrome itself is .card .card--panel .card--lg in markup. */
+.auth-panel {
   width: 100%;
   max-width: 420px;
 }
@@ -44,7 +45,7 @@
   letter-spacing: var(--label-tracking);
 }
 .auth-brand span { color: var(--accent); }
-.auth-title {
+.auth-heading {
   margin: var(--space-4) 0 var(--space-5);
   font-size: var(--fs-2xl);
   color: var(--text-bright);
@@ -78,11 +79,6 @@
   font-size: var(--fs-sm);
   color: var(--text-dim);
 }
-.auth-error {
-  color: var(--red);
-  border: 1px solid var(--red);
-}
-.auth-submit { margin-top: var(--space-1); }
 .auth-footer { margin-top: var(--space-4); font-size: var(--fs-sm); color: var(--text-dim); }
 .auth-footer a { color: var(--accent-bright); }
 .auth-text { color: var(--text); font-size: var(--fs-lg); line-height: var(--lh-normal); }
@@ -104,10 +100,6 @@
   color: var(--label-color);
 }
 .account-chip-name { color: var(--text-bright); font-size: var(--fs-md); }
-.account-chip-badge {
-  color: var(--yellow);
-  border: 1px solid var(--yellow);
-}
 /* The account chip's rows are navigation, not buttons: left-aligned, full
    width, no button chrome to undo. They were aliased onto .btn purely so
    Plan 1 didn't have to touch this markup, and primitives.css then had to
@@ -183,7 +175,6 @@
 }
 
 /* ---- Admin console (Plan 2) ---- */
-.admin-tab--on { color: var(--text-bright); border-bottom-color: var(--accent); }
 .admin-cap { display: flex; align-items: center; gap: var(--space-3); font-size: var(--fs-lg); }
 .admin-cap-input { width: 90px; }
 .admin-table { width: 100%; border-collapse: collapse; font-size: var(--fs-md); }
@@ -240,7 +231,7 @@
 }
 .admin-search-clear:hover { color: var(--text); background: var(--bg-hover); }
 
-/* Section heading inside a portal body. Not .auth-title — that is the
+/* Section heading inside a portal body. Not .auth-heading — that is the
    auth page's H1 and borrowing it flattened the heading hierarchy on
    every class screen. */
 .section-title {
@@ -252,23 +243,18 @@
 
 /* ---- Classes (Plan 3) ---- */
 .classes-actions { display: flex; gap: var(--space-2); }
-.classes-newform { max-width: 420px; }
+.form-narrow { max-width: 420px; }
 .classes-wall { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--space-3); }
-.class-card {
+.class-tile {
   display: block;
   color: var(--text);
   text-decoration: none;
 }
-.class-card-name { color: var(--text-bright); font-size: var(--fs-xl); }
-.class-card-label { color: var(--text-dim); font-size: var(--fs-sm); margin-top: var(--space-1); }
-.class-card-meta { color: var(--text-muted); font-size: var(--fs-xs); margin-top: var(--space-2); }
-.class-card--archived { opacity: 0.7; }
+.class-tile-name { color: var(--text-bright); font-size: var(--fs-xl); }
+.class-tile-label { color: var(--text-dim); font-size: var(--fs-sm); margin-top: var(--space-1); }
+.class-tile-meta { color: var(--text-muted); font-size: var(--fs-xs); margin-top: var(--space-2); }
+.class-tile--archived { opacity: 0.7; }
 .classes-archived summary { cursor: pointer; color: var(--text-dim); font-size: var(--fs-md); margin: var(--space-2) 0; }
-.class-archived-badge {
-  color: var(--yellow);
-  border: 1px solid var(--yellow);
-  vertical-align: middle;
-}
 .join-panel { display: flex; flex-wrap: wrap; gap: var(--space-4); align-items: flex-start; }
 .join-code-big {
   font-family: var(--mono);
@@ -352,7 +338,7 @@
    "Classes (Plan 3)" further up the file). Those base rules are
    unconditional (no media query) and equal-specificity, so CSS resolves
    the conflict by source order — if this block sits above them, they win
-   outright and every rule below except .admin-tabs becomes dead code,
+   outright and every rule below except .tabs becomes dead code,
    even while the media query matches. Keep this at (or below) the end of
    the file, never above the portal shell selector definitions.
    ═══════════════════════════════════════════════════════════ */
@@ -360,7 +346,6 @@
   .page-header,
   .page-body    { padding-left: var(--space-4); padding-right: var(--space-4); }
   .classes-wall { grid-template-columns: 1fr; }
-  .tabs,
-  .admin-tabs   { overflow-x: auto; }
-  .auth-card    { width: min(100%, 420px); }
+  .tabs         { overflow-x: auto; }
+  .auth-panel   { width: min(100%, 420px); }
 }

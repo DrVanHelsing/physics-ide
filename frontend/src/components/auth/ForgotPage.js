@@ -34,14 +34,14 @@ export default function ForgotPage() {
           <label className="auth-label">
             Email
             <input
-              className="auth-input"
+              className="input"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               autoComplete="email"
             />
           </label>
-          {error ? <div className="auth-error">{error}</div> : null}
+          {error ? <div className="alert alert--danger">{error}</div> : null}
           <button className="btn btn--primary btn--lg btn--block" type="submit">
             Email me a reset link
           </button>

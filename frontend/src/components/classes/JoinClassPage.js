@@ -83,7 +83,7 @@ export default function JoinClassPage() {
           <label className="auth-label">
             Class code
             <input
-              className="auth-input"
+              className="input"
               value={code}
               onChange={(e) => setCode(e.target.value)}
               placeholder="KQ4-7PM"

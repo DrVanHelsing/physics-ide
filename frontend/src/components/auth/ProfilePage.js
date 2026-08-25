@@ -55,7 +55,7 @@ export default function ProfilePage() {
         <label className="auth-label">
           Name
           <input
-            className="auth-input"
+            className="input"
             value={name ?? me.name}
             onChange={(e) => setName(e.target.value)}
           />
@@ -72,7 +72,7 @@ export default function ProfilePage() {
         <label className="auth-label">
           Current password
           <input
-            className="auth-input"
+            className="input"
             type="password"
             value={pw.currentPassword}
             onChange={(e) => setPw((p) => ({ ...p, currentPassword: e.target.value }))}
@@ -82,7 +82,7 @@ export default function ProfilePage() {
         <label className="auth-label">
           New password
           <input
-            className="auth-input"
+            className="input"
             type="password"
             value={pw.newPassword}
             onChange={(e) => setPw((p) => ({ ...p, newPassword: e.target.value }))}
@@ -98,7 +98,7 @@ export default function ProfilePage() {
           {msg}
         </p>
       ) : null}
-      {error ? <div className="auth-error" style={{ marginTop: 12 }}>{error}</div> : null}
+      {error ? <div className="alert alert--danger" style={{ marginTop: 12 }}>{error}</div> : null}
     </AuthLayout>
   );
 }

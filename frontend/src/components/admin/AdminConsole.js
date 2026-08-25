@@ -109,7 +109,7 @@ function PeopleTab() {
           </strong>{" "}
           accounts used.
           <input
-            className="auth-input admin-cap-input"
+            className="input admin-cap-input"
             type="number"
             min="1"
             value={capInput ?? capQuery.data.cap}
@@ -130,7 +130,7 @@ function PeopleTab() {
           <SearchIcon size={13} />
         </span>
         <input
-          className="auth-input admin-search-input"
+          className="input admin-search-input"
           type="text"
           placeholder="Search by name or email…"
           value={q}
