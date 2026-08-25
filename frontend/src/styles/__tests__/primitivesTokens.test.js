@@ -32,4 +32,28 @@ describe("primitives.css — the six components the portal was re-inventing", ()
     // No portal primitive introduces a red literal; --red/--danger only.
     expect(CSS).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
   });
+
+  test("the portal migration aliases are retired — the selectors are the API (Task 13)", () => {
+    // .admin-tab also covers .admin-tabs/.admin-tab--on; .welcome-btn covers
+    // --primary/--small; a bare substring match is the point: not even a
+    // comment may carry these names forward.
+    const RETIRED = [
+      ".admin-btn", ".welcome-btn", ".account-chip-btn", ".auth-submit",
+      ".auth-input", ".auth-error", ".auth-card", ".class-card",
+      ".welcome-card", ".classes-newform", ".account-chip-badge",
+      ".class-archived-badge", ".admin-tab",
+    ];
+    for (const name of RETIRED) expect(CSS).not.toContain(name);
+  });
+
+  test("the IDE aliases this plan deliberately keeps are still declared", () => {
+    // The portal migrated; the IDE did not. The file should say which is which.
+    const KEPT = [
+      ".vdialog-btn", ".vdialog-btn--ok", ".pane-header", ".vdialog-header",
+      ".start-card", ".start-empty",
+    ];
+    for (const sel of KEPT) {
+      expect(CSS).toMatch(new RegExp(`(^|[,\\s])\\${sel}[\\s,{]`, "m"));
+    }
+  });
 });
