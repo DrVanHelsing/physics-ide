@@ -116,7 +116,7 @@ async function goHome(page) {
   // this run, so later goHome() calls land on "/" directly.
   if (/\/welcome(?:$|[/?#])/.test(page.url())) {
     await page.evaluate(() => {
-      const btn = [...document.querySelectorAll('.welcome-btn--primary')]
+      const btn = [...document.querySelectorAll('.btn--primary')]
         .find((b) => /use the ide/i.test(b.textContent));
       if (btn) btn.click();
     });
@@ -1869,7 +1869,7 @@ try {
   await fbPage.goto(BASE, { waitUntil: 'networkidle0', timeout: 30000 });
   if (/\/welcome(?:$|[/?#])/.test(fbPage.url())) {
     await fbPage.evaluate(() => {
-      const btn = [...document.querySelectorAll('.welcome-btn--primary')].find((b) => /use the ide/i.test(b.textContent));
+      const btn = [...document.querySelectorAll('.btn--primary')].find((b) => /use the ide/i.test(b.textContent));
       if (btn) btn.click();
     });
     await fbPage.waitForFunction(() => !location.pathname.startsWith('/welcome'), { timeout: 8000 }).catch(() => {});

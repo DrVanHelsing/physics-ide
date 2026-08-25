@@ -100,7 +100,7 @@ async function goHome() {
   // the pass then lives in sessionStorage for the rest of this run.
   if (/\/welcome(?:$|[/?#])/.test(page.url())) {
     await page.evaluate(() => {
-      const btn = [...document.querySelectorAll('.welcome-btn--primary')]
+      const btn = [...document.querySelectorAll('.btn--primary')]
         .find((b) => /use the ide/i.test(b.textContent));
       if (btn) btn.click();
     });
