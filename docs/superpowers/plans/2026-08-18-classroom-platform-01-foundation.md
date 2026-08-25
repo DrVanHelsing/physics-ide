@@ -1,5 +1,8 @@
 # Classroom Platform — Plan 1: Foundation & Restructure
 
+> **Stale-instruction warning — added 25 August 2026 (Plan 5 wrap-up).** This plan is an executed historical record; its task bodies are unedited. A reader must NOT follow these instructions against today's tree:
+> - *"CDN script tags must be preserved byte-for-byte"* is now impossible — Blockly and Monaco are bundled and GlowScript is vendored (IDE modernization, 2026-08-20 → 22).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Restructure the repo into a TypeScript monorepo (`frontend/` on Vite, `backend/` on Fastify, `shared/`), with Postgres running locally in Docker, the first migration applied, and one `npm run dev` starting everything — the existing IDE fully working throughout.

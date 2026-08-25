@@ -1,5 +1,10 @@
 # Classroom Platform — Plan 2: Accounts, Email & Admin
 
+> **Stale-instruction warning — added 25 August 2026 (Plan 5 wrap-up).** This plan is an executed historical record; its task bodies are unedited. A reader must NOT follow these instructions against today's tree:
+> - *"Append to `frontend/src/styles.css`"* (lines 2887, 3373) is wrong — that file is now a 17-line import manifest with load-bearing order. Shared primitives go in `primitives.css`, portal rules in `platform.css`, welcome rules in `welcome.css`.
+> - *"No @testing-library — screens are verified by the controller's browser pass"* is superseded — `frontend/src/test/renderHelpers.js` is a dependency-free component-test harness and portal screens are component-tested.
+> - *"No edits under `frontend/src/components` except the named ones"* is no longer a usable boundary — header controls are added through `utils/toolbar/visibleControls.js`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Real accounts end-to-end on the local stack: signup (student/teacher doors) with email confirmation and the 200-cap, argon2id passwords, DB-backed sessions in httpOnly cookies, password reset, the Mailer interface whose dev driver feeds a pretend inbox, and the admin corner (people, cap, email log, health) — with the guest IDE experience byte-for-byte untouched.
