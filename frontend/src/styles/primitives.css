@@ -1,13 +1,12 @@
 /* ═══════════════════════════════════════════════════════════
    PRIMITIVES — .btn
-   The IDE core and the platform screens share these. Legacy
-   class names are comma-appended aliases so no markup changes.
+   The IDE core and the platform screens share these. The
+   selectors ARE the API — the portal migration aliases are
+   retired (Plan 5 Task 13). The only comma aliases left are
+   IDE markup that plan never touched (.vdialog-*, .pane-header,
+   .start-card, .start-empty), kept deliberately.
    ═══════════════════════════════════════════════════════════ */
 .btn,
-.admin-btn,
-.welcome-btn,
-.account-chip-btn,
-.auth-submit,
 .vdialog-btn {
   display: inline-flex;
   align-items: center;
@@ -30,47 +29,19 @@
               color var(--transition);
 }
 .btn:hover:not(:disabled),
-.admin-btn:hover:not(:disabled),
-.welcome-btn:hover:not(:disabled),
-.account-chip-btn:hover:not(:disabled),
-.auth-submit:hover:not(:disabled),
 .vdialog-btn:hover:not(:disabled) {
   background: var(--btn-bg-hover);
   border-color: var(--border-hl);
   color: var(--text-bright);
 }
 .btn:disabled,
-.admin-btn:disabled,
-.welcome-btn:disabled,
-.account-chip-btn:disabled,
-.auth-submit:disabled,
 .vdialog-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-/* Legacy base-alias overrides — position matters: they must beat the
-   .btn base group above but lose to the --primary groups below. */
-.account-chip-btn {
-  display: flex;
-  background: var(--card-bg);
-}
-.account-chip-btn:hover:not(:disabled) { background: var(--card-bg-hover); }
-.admin-btn { background: var(--card-bg); }
-.admin-btn:hover:not(:disabled) { background: var(--card-bg-hover); }
-.welcome-btn {
-  background: var(--bg-surface);
-  border-color: var(--border-hl);
-  transition: transform var(--transition), background var(--transition),
-              border-color var(--transition), color var(--transition);
-}
-
 /* One filled primary for the whole product. */
 .btn--primary,
-.admin-btn--primary,
-.welcome-btn--primary,
-.account-chip-btn--primary,
-.auth-submit,
 .vdialog-btn--ok {
   background: var(--btn-primary-bg);
   border: 1px solid var(--btn-primary-bg);
@@ -78,10 +49,6 @@
   font-weight: var(--fw-semibold);
 }
 .btn--primary:hover:not(:disabled),
-.admin-btn--primary:hover:not(:disabled),
-.welcome-btn--primary:hover:not(:disabled),
-.account-chip-btn--primary:hover:not(:disabled),
-.auth-submit:hover:not(:disabled),
 .vdialog-btn--ok:hover:not(:disabled) {
   background: var(--btn-primary-bg-hover);
   border-color: var(--btn-primary-bg-hover);
@@ -112,37 +79,25 @@
   color: var(--red);
 }
 
-.btn--sm,
-.admin-btn,
-.account-chip-btn {
+.btn--sm {
   min-height: var(--control-h-sm);
   padding: var(--btn-pad-sm);
   font-size: var(--fs-xs);
 }
-.btn--lg,
-.welcome-btn,
-.auth-submit {
+.btn--lg {
   min-height: var(--control-h-lg);
   padding: var(--btn-pad-lg);
   font-size: var(--fs-lg);
 }
-.btn--block,
-.auth-submit {
+.btn--block {
   width: 100%;
 }
-
-/* .account-chip-btn is a left-aligned nav row, not a centred button. */
-.account-chip-btn { justify-content: flex-start; text-align: left; }
 
 /* ═══════════════════════════════════════════════════════════
    PRIMITIVES — .card
    ═══════════════════════════════════════════════════════════ */
 .card,
-.start-card,
-.class-card,
-.welcome-card,
-.auth-card,
-.classes-newform {
+.start-card {
   background: var(--card-bg);
   border: 1px solid var(--card-border);
   border-radius: var(--radius);
@@ -151,8 +106,7 @@
               box-shadow var(--transition);
 }
 .card--interactive:hover,
-.start-card:hover,
-.class-card:hover {
+.start-card:hover {
   background: var(--card-bg-hover);
   border-color: var(--card-border-hover);
   box-shadow: var(--shadow-sm);
@@ -160,14 +114,11 @@
 
 /* Opaque surface variant — cards that sit directly on --bg-base
    and must not read as translucent (auth, welcome, playground). */
-.card--panel,
-.welcome-card,
-.auth-card {
+.card--panel {
   background: var(--bg-surface);
   border-color: var(--card-border);
 }
-.card--lg,
-.auth-card {
+.card--lg {
   border-radius: var(--radius-lg);
   padding: var(--space-6);
 }
@@ -228,11 +179,10 @@
    Same shape as .btn so a field and a button sitting side by
    side line up. No focus rule here — tokens.css's zero-
    specificity focus-visible ring is the only one in the
-   product (D8), and .auth-input's own focus override is the
+   product (D8); the old auth input's own focus override is the
    cautionary tale of what a 0-1-1 rule does to it product-wide.
    ═══════════════════════════════════════════════════════════ */
-.input,
-.auth-input {
+.input {
   min-height: var(--control-h);
   padding: var(--space-2) var(--space-3);
   font-family: var(--font);
@@ -242,8 +192,7 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
 }
-.input:disabled,
-.auth-input:disabled { opacity: 0.5; cursor: not-allowed; }
+.input:disabled { opacity: 0.5; cursor: not-allowed; }
 /* A code entered by a human off a projector reads as the code it is. */
 .input--code {
   font-family: var(--mono);
@@ -272,16 +221,13 @@
 .alert--info    { --alert-color: var(--accent); }
 .alert--success { --alert-color: var(--success); }
 .alert--warning { --alert-color: var(--warning); }
-.alert--danger,
-.auth-error     { --alert-color: var(--danger); }
+.alert--danger  { --alert-color: var(--danger); }
 
 /* ═══════════════════════════════════════════════════════════
    PRIMITIVES — .badge
    The .tb-chip shape (chrome.css), tinted by --badge-color.
    ═══════════════════════════════════════════════════════════ */
-.badge,
-.account-chip-badge,
-.class-archived-badge {
+.badge {
   --badge-color: var(--text-dim);
   display: inline-flex;
   align-items: center;
@@ -300,9 +246,7 @@
 }
 .badge--accent  { --badge-color: var(--accent-bright); }
 .badge--success { --badge-color: var(--success); }
-.badge--warning,
-.account-chip-badge,
-.class-archived-badge { --badge-color: var(--warning); }
+.badge--warning { --badge-color: var(--warning); }
 .badge--danger  { --badge-color: var(--danger); }
 
 /* ═══════════════════════════════════════════════════════════
@@ -327,13 +271,11 @@
    PRIMITIVES — .tabs / .tab
    ARIA lives in the markup (D14); this is the treatment only.
    ═══════════════════════════════════════════════════════════ */
-.tabs,
-.admin-tabs {
+.tabs {
   display: flex;
   gap: var(--space-1);
 }
-.tab,
-.admin-tab {
+.tab {
   padding: var(--space-2) var(--space-4);
   font-family: var(--font);
   font-size: var(--fs-md);
@@ -346,12 +288,10 @@
   white-space: nowrap;
   transition: color var(--transition), background var(--transition);
 }
-.tab:hover,
-.admin-tab:hover { background: var(--bg-hover); color: var(--text); }
+.tab:hover { background: var(--bg-hover); color: var(--text); }
 .tab--on,
 .tab[aria-selected="true"],
-.tab[aria-current="page"],
-.admin-tab--on {
+.tab[aria-current="page"] {
   color: var(--text-bright);
   border-bottom-color: var(--accent);
 }
