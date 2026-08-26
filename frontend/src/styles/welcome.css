@@ -70,9 +70,9 @@
 /* ── Anchor rail ──────────────────────────────────────────
    A slim fixed nav of the nine eyebrowed sections, numbered by a CSS
    counter (01–09) so no ordinal is a source literal. Hidden by default;
-   the min-width block at the tail shows it from 1280px, where the
-   980px-wide sections leave ~150px of margin — the rail's ~130px never
-   covers content. No z-index: nothing on the page overlaps its edge. */
+   the min-width block at the tail shows it from 1280px — the clearance
+   arithmetic (and its unverified-in-a-browser flag) lives on that block.
+   No z-index: nothing on the page overlaps its edge. */
 .welcome-rail {
   position: fixed;
   top: 50%;
@@ -568,9 +568,15 @@ a.welcome-stat:hover .welcome-stat__label { color: var(--text-bright); text-deco
      nothing left here to guard. */
 }
 
-/* The anchor rail appears only where it cannot cover content: at 1280px the
-   980px sections leave ~150px of margin a side, and the rail needs ~130px.
-   Below that it is display: none in the base rules — never merely moved. */
+/* The anchor rail appears only where it cannot cover content. UNVERIFIED IN
+   A BROWSER, arithmetic only (no browser is available to this task): at
+   1280px the content box is 1280 − 2×20px page padding = 1240px, a 980px
+   section centred in it leaves 130px a side, and the rail needs ~130px
+   (16px left offset + 8px padding + ~18px counter + 8px gap + 12px icon +
+   8px gap + the widest label, "Your work", at --fs-xs + 8px padding). The
+   label width is the estimated term — a visual check at exactly 1280px
+   belongs in the outstanding human browser pass. Below 1280px the rail is
+   display: none in the base rules — never merely moved. */
 @media (min-width: 1280px) {
   .welcome-rail { display: block; }
 }
