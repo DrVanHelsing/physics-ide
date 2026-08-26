@@ -467,6 +467,37 @@ describe("AssignmentEditorPage — lifecycle controls", () => {
     expect(container.textContent).toContain("Students in this class will see it");
   });
 
+  test("a live unsaved Opens edit cannot make the sentence promise a schedule Publish won't honor", async () => {
+    // Fix round (review of 9c831c0): Publish POSTs no body — it acts on
+    // whatever is already persisted. Seed a persisted assignment (opensAt
+    // null → immediate), then edit the Opens field WITHOUT saving.
+    paramsHolder.aid = "a1";
+    useQuery.mockImplementation(({ queryKey }) => {
+      if (queryKey[0] === "assignment") {
+        return { data: assignmentData({ opensAt: null }), error: null, isLoading: false };
+      }
+      return defaultUseQuery({ queryKey });
+    });
+    const container = await render();
+
+    expect(container.textContent).toContain("Students in this class will see it immediately.");
+    expect(byText(container, "Publish").disabled).toBe(false);
+
+    typeInput(container.querySelector('input[name="opensAt"]'), "2026-09-01T08:00");
+
+    // The live edit never reached the server, so the sentence must keep
+    // describing the PERSISTED state — never a schedule Publish (no-body
+    // POST) won't actually honor.
+    expect(container.textContent).toContain("Students in this class will see it immediately.");
+    expect(container.textContent).not.toContain("starting");
+
+    // Publish is gated off while the dates are dirty, with an inline hint.
+    expect(byText(container, "Publish").disabled).toBe(true);
+    expect(container.textContent).toContain(
+      "Save your changes first — unsaved date edits do not apply.",
+    );
+  });
+
   test("a published (non-draft) assignment shows Close now only", async () => {
     paramsHolder.aid = "a1";
     useQuery.mockImplementation(({ queryKey }) => {

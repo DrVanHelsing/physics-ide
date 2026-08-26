@@ -60,6 +60,10 @@ export default function RulesPicker({ value, onChange }) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["rule-sets"] });
       setName("");
+      // Drop the manual "Custom…" pin — once the invalidated query refetches,
+      // the just-saved set matches `value` field-for-field, so derivedKey
+      // picks it up automatically and the picker's selection shifts onto it.
+      setManualSelection(null);
     },
   });
   const removeSet = useMutation({
