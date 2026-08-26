@@ -993,6 +993,36 @@ describe("POST /api/assignments/:id/submit", () => {
     expect(secondRow.isCurrent).toBe(true);
   });
 
+  test("two genuinely concurrent submits for the same student never produce duplicate isCurrent rows or a shared attempt number (Task 10's concurrency-test style)", async () => {
+    const id = await createPublished({ title: "Concurrent Submit Test" });
+    await publish(id);
+    const projectId = "p-concurrent-submit";
+    await pushAndStart(id, projectId, { schemaVersion: 2, marker: "concurrent" });
+
+    const [a, b] = await Promise.all([
+      app.inject({
+        method: "POST",
+        url: `/api/assignments/${id}/submit`,
+        cookies: { pide_session: studentCookie },
+      }),
+      app.inject({
+        method: "POST",
+        url: `/api/assignments/${id}/submit`,
+        cookies: { pide_session: studentCookie },
+      }),
+    ]);
+
+    expect([a.statusCode, b.statusCode]).toEqual([201, 201]);
+    const attempts = [a.json().submission.attempt, b.json().submission.attempt].sort((x, y) => x - y);
+    expect(attempts).toEqual([1, 2]);
+
+    const rows = await testDb.select().from(submissions).where(eq(submissions.assignmentId, id));
+    expect(rows).toHaveLength(2);
+    const currentRows = rows.filter((r) => r.isCurrent);
+    expect(currentRows).toHaveLength(1);
+    expect(currentRows[0].attempt).toBe(2);
+  });
+
   test("submit inside the late window sets late: true", async () => {
     const now = Date.now();
     const id = await createPublished({
@@ -1108,6 +1138,45 @@ describe("POST /api/assignments/:id/submit", () => {
     });
     expect(res.statusCode).toBe(201);
     expect(res.json().submission.attempt).toBe(1);
+  });
+
+  test("marks_released -> 400 with the SAME sentence AssignmentPage's own gateSentence uses for Start, even with a returned+unreleased mark on file", async () => {
+    const id = await createPublished({ title: "Marks Released Submit Refusal" });
+    await publish(id);
+    const projectId = "p-marks-released-refusal";
+    await pushAndStart(id, projectId, { schemaVersion: 2, marker: "marks-released" });
+
+    // Task 18 doesn't exist yet — status flip seeded directly, same idiom
+    // as the returned-mark row above.
+    await testDb.update(assignments).set({ status: "marks_released" }).where(eq(assignments.id, id));
+
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/assignments/${id}/submit`,
+      cookies: { pide_session: studentCookie },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toBe("This assignment is closed — marks have been released.");
+
+    // D§11.2's reopen is scoped to Closed specifically ("until marks
+    // release") — a returned+unreleased mark must NOT reopen submission
+    // once marks_released, even though the exact same mark row reopens a
+    // manually-closed assignment in the test above.
+    await testDb.insert(marks).values({
+      assignmentId: id,
+      studentId,
+      points: null,
+      status: "draft",
+      returned: true,
+      markedBy: studentId,
+    });
+    const stillRefused = await app.inject({
+      method: "POST",
+      url: `/api/assignments/${id}/submit`,
+      cookies: { pide_session: studentCookie },
+    });
+    expect(stillRefused.statusCode).toBe(400);
+    expect(stillRefused.json().error).toBe("This assignment is closed — marks have been released.");
   });
 
   test("a non-member 403s", async () => {
