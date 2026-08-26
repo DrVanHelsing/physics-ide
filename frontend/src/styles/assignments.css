@@ -81,3 +81,50 @@
 .instructions-math {
   font-family: var(--mono);
 }
+
+/* ── Workspace rules picker (Task 8) ────────────────────────────
+   RulesPicker.js's radio set (built-ins + saved sets + Custom…),
+   its revealed switches, and the "Save as…" row. Reuses the
+   .auth-door / .auth-consent / .auth-label primitives platform.css
+   already defines — this block only lays the pieces out. */
+.rules-picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.rules-saved-sets {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.rules-saved-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.rules-saved-row .auth-door { flex: 1; }
+
+.rules-switches {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.rules-save-as {
+  display: flex;
+  gap: var(--space-2);
+}
+.rules-save-as .input { flex: 1; }
+
+/* ── Starter project row (Task 8) ───────────────────────────────
+   AssignmentEditorPage's project picker + Pin/Clear. */
+.assignments-starter-row {
+  display: flex;
+  gap: var(--space-2);
+}
+.assignments-starter-row .input { flex: 1; }
