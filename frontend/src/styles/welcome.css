@@ -551,19 +551,21 @@ p.welcome-helpref {
 .welcome-reveal.is-on { opacity: 1; transform: none; }
 
 /* ── Hero physics controls (GravityPlayground.js) ──────────────────────
-   A compact, unobtrusive cluster in the hero's bottom-right corner: three
-   .range sliders (gravity, ball size, bounciness) plus a Reset. Quiet at
-   rest and legible on hover or when a control inside it holds visible
-   keyboard focus — a `:has()` check scoped to that state rather than the
-   broader "any focus" one, so a mouse click into a slider does not itself
-   force the cluster bright; the ring already tells a keyboard visitor
-   where they are (see the rule two below for the exact selector). Opacity only, never display, so the cluster is never
-   pulled from keyboard focus order or hidden from assistive tech; it just
-   dims until a visitor goes looking for it, same spirit as the canvas
-   itself asking nothing of a visitor who never touches it. A third local
-   stacking layer alongside the canvas-wrap(0)/content(1) pair documented
-   above — canvas-wrap and content never overlap the corner this sits in,
-   but a higher z keeps it unambiguous. */
+   v4 (fix round): one quiet line in the hero's bottom-right corner — the
+   Gravity slider, three preset chips, a Trails toggle, a Reset. (Ball
+   size and bounciness were sliders in v3; the fix round fixed them at
+   their defaults instead — see GravityPlayground.js's own header comment
+   for why.) Quiet at rest and legible on hover or when a control inside it
+   holds visible keyboard focus — a `:has()` check scoped to that state
+   rather than the broader "any focus" one, so a mouse click into the
+   slider does not itself force the cluster bright; the ring already tells
+   a keyboard visitor where they are. Opacity only, never display, so the
+   cluster is never pulled from keyboard focus order or hidden from
+   assistive tech; it just dims until a visitor goes looking for it, same
+   spirit as the canvas itself asking nothing of a visitor who never
+   touches it. A third local stacking layer alongside the canvas-wrap(0)/
+   content(1) pair documented above — canvas-wrap and content never
+   overlap the corner this sits in, but a higher z keeps it unambiguous. */
 .welcome-hero__controls {
   position: absolute;
   right: var(--space-5);
@@ -580,7 +582,15 @@ p.welcome-helpref {
   opacity: 0.35;
   transition: opacity var(--transition);
 }
-.welcome-hero__controls:hover,
+/* Two separate rules, not one comma-joined selector list: a plain (non-
+   forgiving) selector list drops the WHOLE rule if any one selector in it
+   fails to parse, so on a browser without :has() support a joined
+   ":hover, :has(...)" rule would silently lose the hover half too. Split,
+   an engine that doesn't know :has() just ignores that one rule and hover
+   still works. */
+.welcome-hero__controls:hover {
+  opacity: 1;
+}
 .welcome-hero__controls:has(:focus-visible) {
   opacity: 1;
 }
@@ -602,6 +612,12 @@ p.welcome-helpref {
   color: var(--text-bright);
 }
 .welcome-hero__control .range { width: 100%; }
+/* The three preset chips read as one tight sub-group within the cluster's
+   own single line, not a fourth stacked control column. */
+.welcome-hero__presets {
+  display: flex;
+  gap: var(--space-1);
+}
 
 /* ═══════════════════════════════════════════════════════════
    REDUCED MOTION — degrade, don't delete.
@@ -665,9 +681,10 @@ p.welcome-helpref {
      promise at this width too; only the nav collapses. */
   .welcome-tagline { font-size: var(--fs-lg); }
   .welcome-hero__content .btn { width: 100%; }
-  /* Three 96px sliders side by side (base rule above) overrun a 390px
-     screen; stacked and pinned closer to the corner they still read as a
-     quiet, out-of-the-way cluster rather than a second column of chrome. */
+  /* The cluster's one line (slider, three preset chips, Trails, Reset —
+     base rule above) overruns a 390px screen; stacked and pinned closer to
+     the corner it still reads as a quiet, out-of-the-way cluster rather
+     than a second column of chrome. */
   .welcome-hero__controls {
     right: var(--space-3);
     bottom: var(--space-3);
