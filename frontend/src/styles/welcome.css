@@ -540,6 +540,19 @@ p.welcome-helpref {
 }
 .welcome-subpage__body a { color: var(--accent-bright); }
 
+/* ── /teachers CTA door ────────────────────────────────────
+   The "Start: create your class" panel (TeachersPage.js) — same card
+   primitives as the honesty panel above it, laid out as a small stack
+   instead of prose paragraphs so the primary button reads as a door. */
+.welcome-teachers-cta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+  margin: 0 0 var(--space-4);
+}
+.welcome-teachers-cta p { margin: 0; }
+
 /* ── Scroll reveal ────────────────────────────────────────
    240ms, single clean translate+fade (redesign brief: "tuned to a single
    clean 240ms translate+fade"). */
