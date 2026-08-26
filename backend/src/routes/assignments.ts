@@ -3,9 +3,10 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import {
   CreateAssignmentInputSchema,
   UpdateAssignmentInputSchema,
+  SaveRuleSetInputSchema,
   computeAssignmentPhase,
 } from "@physics-ide/shared";
-import { assignments, assignmentWork, submissions } from "../db/schema.js";
+import { assignments, assignmentWork, submissions, ruleSets, projects } from "../db/schema.js";
 import { requireConfirmed } from "../auth/guards.js";
 import {
   getMembership,
@@ -19,6 +20,8 @@ type AssignmentRow = typeof assignments.$inferSelect;
 
 const NOT_A_MEMBER = "Not a member of this class.";
 const NO_SUCH_ASSIGNMENT = "No such assignment.";
+const TEACHERS_ONLY = "Teachers only.";
+const STARTER_LOCKED = "This assignment already has submissions — the starter is a starting point, not a mid-flight swap.";
 
 function toEpoch(d: Date | null): number | null {
   return d ? d.getTime() : null;
@@ -54,6 +57,21 @@ function visibleToStudent(a: typeof assignments.$inferSelect): boolean {
 
 function isStaffRole(role: string): boolean {
   return role === "teacher" || role === "ta";
+}
+
+/** Account-level teacher check (spec §3.1) — used by the rule-set routes, which
+ *  are the teacher's own scratch space and not tied to any one class. */
+function isTeacherAccount(user: { isTeacher: boolean; role: string }): boolean {
+  return user.isTeacher || user.role === "admin";
+}
+
+async function assignmentHasSubmissions(db: Db, assignmentId: string): Promise<boolean> {
+  const rows = await db
+    .select({ id: submissions.id })
+    .from(submissions)
+    .where(eq(submissions.assignmentId, assignmentId))
+    .limit(1);
+  return rows.length > 0;
 }
 
 /** Re-runs Task 1's three cross-field checks against the row as it would
@@ -302,5 +320,130 @@ export function assignmentRoutes(app: FastifyInstance): void {
       await logEvent(tx, "assignment.deleted", req.user!.id, { assignmentId: id, classId: a.classId });
     });
     return reply.code(204).send();
+  });
+
+  // Rule sets: a teacher's saved custom workspace-rule combinations (spec §5.4).
+  // Account-scoped, not class-scoped — a teacher's own reusable presets.
+
+  app.get("/api/rule-sets", async (req, reply) => {
+    if (!isTeacherAccount(req.user!)) {
+      return reply.code(403).send({ error: TEACHERS_ONLY });
+    }
+    const rows = await app.db.select().from(ruleSets).where(eq(ruleSets.ownerId, req.user!.id));
+    return { ruleSets: rows.map((r) => ({ id: r.id, name: r.name, rules: r.rules })) };
+  });
+
+  app.post("/api/rule-sets", async (req, reply) => {
+    if (!isTeacherAccount(req.user!)) {
+      return reply.code(403).send({ error: TEACHERS_ONLY });
+    }
+    const parsed = SaveRuleSetInputSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: parsed.error.issues[0]?.message ?? "Invalid input." });
+    }
+    const d = parsed.data;
+    const saved = await app.db.transaction(async (tx) => {
+      const [row] = await tx
+        .insert(ruleSets)
+        .values({ ownerId: req.user!.id, name: d.name, rules: d.rules })
+        .onConflictDoUpdate({
+          target: [ruleSets.ownerId, ruleSets.name],
+          set: { rules: d.rules },
+        })
+        .returning();
+      await logEvent(tx, "ruleset.saved", req.user!.id, { ruleSetId: row.id, name: row.name });
+      return row;
+    });
+    return reply.code(201).send({ ruleSet: { id: saved.id, name: saved.name, rules: saved.rules } });
+  });
+
+  app.delete("/api/rule-sets/:id", async (req, reply) => {
+    if (!isTeacherAccount(req.user!)) {
+      return reply.code(403).send({ error: TEACHERS_ONLY });
+    }
+    const { id } = req.params as { id: string };
+    const deleted = await app.db.transaction(async (tx) => {
+      const rows = await tx
+        .delete(ruleSets)
+        .where(and(eq(ruleSets.id, id), eq(ruleSets.ownerId, req.user!.id)))
+        .returning();
+      if (rows[0]) await logEvent(tx, "ruleset.deleted", req.user!.id, { ruleSetId: id });
+      return rows[0];
+    });
+    if (!deleted) return reply.code(404).send({ error: "No such rule set." });
+    return reply.code(204).send();
+  });
+
+  // Starter pinning: a frozen copy of the teacher's own project manifest,
+  // used as the workspace's starting point (spec §5.1, design D§6).
+
+  app.post("/api/assignments/:id/starter", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const a = await loadAssignment(app.db, id);
+    if (!a) return reply.code(404).send({ error: NO_SUCH_ASSIGNMENT });
+    try {
+      await requireClassTeacher(app.db, a.classId, req.user!.id);
+    } catch (err) {
+      if (await sendClassAuthError(reply, err)) return;
+      throw err;
+    }
+    const body = req.body as { projectId?: unknown };
+    if (typeof body?.projectId !== "string" || body.projectId.length === 0) {
+      return reply.code(400).send({ error: "Invalid input." });
+    }
+    if (await assignmentHasSubmissions(app.db, id)) {
+      return reply.code(400).send({ error: STARTER_LOCKED });
+    }
+    const projectRows = await app.db
+      .select()
+      .from(projects)
+      .where(
+        and(
+          eq(projects.ownerId, req.user!.id),
+          eq(projects.id, body.projectId),
+          sql`${projects.deletedAt} IS NULL`,
+        ),
+      );
+    const project = projectRows[0];
+    if (!project) return reply.code(404).send({ error: "No such project." });
+
+    const updated = await app.db.transaction(async (tx) => {
+      const [row] = await tx
+        .update(assignments)
+        .set({ starterManifest: project.manifest, updatedAt: new Date() })
+        .where(eq(assignments.id, id))
+        .returning();
+      await logEvent(tx, "assignment.starter_pinned", req.user!.id, {
+        assignmentId: id,
+        projectId: body.projectId,
+      });
+      return row;
+    });
+    return { assignment: toAssignmentSummary(updated) };
+  });
+
+  app.delete("/api/assignments/:id/starter", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const a = await loadAssignment(app.db, id);
+    if (!a) return reply.code(404).send({ error: NO_SUCH_ASSIGNMENT });
+    try {
+      await requireClassTeacher(app.db, a.classId, req.user!.id);
+    } catch (err) {
+      if (await sendClassAuthError(reply, err)) return;
+      throw err;
+    }
+    if (await assignmentHasSubmissions(app.db, id)) {
+      return reply.code(400).send({ error: STARTER_LOCKED });
+    }
+    const updated = await app.db.transaction(async (tx) => {
+      const [row] = await tx
+        .update(assignments)
+        .set({ starterManifest: null, updatedAt: new Date() })
+        .where(eq(assignments.id, id))
+        .returning();
+      await logEvent(tx, "assignment.starter_cleared", req.user!.id, { assignmentId: id });
+      return row;
+    });
+    return { assignment: toAssignmentSummary(updated) };
   });
 }

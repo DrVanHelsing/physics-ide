@@ -1,10 +1,11 @@
 import { describe, test, expect, beforeAll, afterAll } from "vitest";
 import argon2 from "argon2";
 import { eq } from "drizzle-orm";
+import { BUILT_IN_RULE_SETS } from "@physics-ide/shared";
 import { buildApp } from "../app.js";
 import { testDb, testPool, truncateAuthTables } from "../db/testClient.js";
 import { setSetting } from "../db/settings.js";
-import { users, classMembers, assignments, events } from "../db/schema.js";
+import { users, classMembers, assignments, events, projects, submissions } from "../db/schema.js";
 
 const app = buildApp({ db: testDb });
 let teacherCookie: string;
@@ -315,5 +316,217 @@ describe("non-members are refused everywhere", () => {
       cookies: { pide_session: strangerCookie },
     });
     expect(del.statusCode).toBe(403);
+  });
+});
+
+describe("rule sets: GET/POST/DELETE /api/rule-sets", () => {
+  let teacher2Cookie: string;
+
+  beforeAll(async () => {
+    await makeUser("bteach@example.com", { isTeacher: true });
+    teacher2Cookie = await signin("bteach@example.com");
+  });
+
+  test("a student account gets 403 (\"Teachers only.\")", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/rule-sets",
+      cookies: { pide_session: studentCookie },
+    });
+    expect(res.statusCode).toBe(403);
+    expect(res.json().error).toBe("Teachers only.");
+  });
+
+  test("teacher saves \"Gr11 practicals\" -> 201, and GET lists it", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/rule-sets",
+      cookies: { pide_session: teacherCookie },
+      payload: { name: "Gr11 practicals", rules: BUILT_IN_RULE_SETS.standard_classwork },
+    });
+    expect(res.statusCode).toBe(201);
+    expect(res.json().ruleSet.name).toBe("Gr11 practicals");
+
+    const list = await app.inject({
+      method: "GET",
+      url: "/api/rule-sets",
+      cookies: { pide_session: teacherCookie },
+    });
+    expect(list.statusCode).toBe(200);
+    expect(list.json().ruleSets).toHaveLength(1);
+    expect(list.json().ruleSets[0].name).toBe("Gr11 practicals");
+
+    const evts = await eventsOfType("ruleset.saved");
+    expect(
+      evts.some((e) => (e.payload as Record<string, unknown>).name === "Gr11 practicals"),
+    ).toBe(true);
+  });
+
+  test("saving the same name again overwrites (list still length 1, rules updated)", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/rule-sets",
+      cookies: { pide_session: teacherCookie },
+      payload: { name: "Gr11 practicals", rules: BUILT_IN_RULE_SETS.locked_assessment },
+    });
+    expect(res.statusCode).toBe(201);
+
+    const list = await app.inject({
+      method: "GET",
+      url: "/api/rule-sets",
+      cookies: { pide_session: teacherCookie },
+    });
+    expect(list.json().ruleSets).toHaveLength(1);
+    expect(list.json().ruleSets[0].rules.debug).toBe(false);
+  });
+
+  test("another teacher's list does not contain it", async () => {
+    const list = await app.inject({
+      method: "GET",
+      url: "/api/rule-sets",
+      cookies: { pide_session: teacher2Cookie },
+    });
+    expect(list.statusCode).toBe(200);
+    expect(list.json().ruleSets).toHaveLength(0);
+  });
+
+  test("delete -> 204 and gone", async () => {
+    const list = await app.inject({
+      method: "GET",
+      url: "/api/rule-sets",
+      cookies: { pide_session: teacherCookie },
+    });
+    const ruleSetId = list.json().ruleSets[0].id;
+
+    const del = await app.inject({
+      method: "DELETE",
+      url: `/api/rule-sets/${ruleSetId}`,
+      cookies: { pide_session: teacherCookie },
+    });
+    expect(del.statusCode).toBe(204);
+
+    const evts = await eventsOfType("ruleset.deleted");
+    expect(
+      evts.some((e) => (e.payload as Record<string, unknown>).ruleSetId === ruleSetId),
+    ).toBe(true);
+
+    const after = await app.inject({
+      method: "GET",
+      url: "/api/rule-sets",
+      cookies: { pide_session: teacherCookie },
+    });
+    expect(after.json().ruleSets).toHaveLength(0);
+  });
+});
+
+describe("starter pinning: POST/DELETE /api/assignments/:id/starter", () => {
+  let starterAssignmentId: string;
+  let teacherProjectId: string;
+  let teacherUserId: string;
+
+  beforeAll(async () => {
+    const [teacherRow] = await testDb.select().from(users).where(eq(users.email, "ateach@example.com"));
+    teacherUserId = teacherRow.id;
+    teacherProjectId = "p-starter-teacher-project";
+    await testDb.insert(projects).values({
+      id: teacherProjectId,
+      ownerId: teacherUserId,
+      title: "Starter Source",
+      goal: "Practice",
+      projectType: "physics",
+      manifest: { schemaVersion: 2, marker: "teacher-starter" },
+      clientUpdatedAt: Date.now(),
+    });
+
+    const draftRes = await app.inject({
+      method: "POST",
+      url: `/api/classes/${classId}/assignments`,
+      cookies: { pide_session: teacherCookie },
+      payload: { title: "Starter Pin Test" },
+    });
+    starterAssignmentId = draftRes.json().assignment.id;
+  });
+
+  test("teacher pins own project -> assignment hasStarter true", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/assignments/${starterAssignmentId}/starter`,
+      cookies: { pide_session: teacherCookie },
+      payload: { projectId: teacherProjectId },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().assignment.hasStarter).toBe(true);
+
+    const [row] = await testDb.select().from(assignments).where(eq(assignments.id, starterAssignmentId));
+    expect(row.starterManifest).toEqual({ schemaVersion: 2, marker: "teacher-starter" });
+
+    const evts = await eventsOfType("assignment.starter_pinned");
+    expect(
+      evts.some((e) => (e.payload as Record<string, unknown>).assignmentId === starterAssignmentId),
+    ).toBe(true);
+  });
+
+  test("pinning someone else's projectId -> 404", async () => {
+    const draftRes = await app.inject({
+      method: "POST",
+      url: `/api/classes/${classId}/assignments`,
+      cookies: { pide_session: teacherCookie },
+      payload: { title: "Starter 404 Test" },
+    });
+    const otherAssignmentId = draftRes.json().assignment.id;
+
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/assignments/${otherAssignmentId}/starter`,
+      cookies: { pide_session: teacherCookie },
+      payload: { projectId: "p-does-not-exist" },
+    });
+    expect(res.statusCode).toBe(404);
+    expect(res.json().error).toBe("No such project.");
+  });
+
+  test("DELETE clears the starter", async () => {
+    const res = await app.inject({
+      method: "DELETE",
+      url: `/api/assignments/${starterAssignmentId}/starter`,
+      cookies: { pide_session: teacherCookie },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().assignment.hasStarter).toBe(false);
+
+    const [row] = await testDb.select().from(assignments).where(eq(assignments.id, starterAssignmentId));
+    expect(row.starterManifest).toBeNull();
+
+    const evts = await eventsOfType("assignment.starter_cleared");
+    expect(
+      evts.some((e) => (e.payload as Record<string, unknown>).assignmentId === starterAssignmentId),
+    ).toBe(true);
+  });
+
+  test("pinning after a submission exists -> 400", async () => {
+    const draftRes = await app.inject({
+      method: "POST",
+      url: `/api/classes/${classId}/assignments`,
+      cookies: { pide_session: teacherCookie },
+      payload: { title: "Starter Submission Guard Test" },
+    });
+    const guardedAssignmentId = draftRes.json().assignment.id;
+
+    const [student] = await testDb.select().from(users).where(eq(users.email, "akid@example.com"));
+    await testDb.insert(submissions).values({
+      assignmentId: guardedAssignmentId,
+      submittedBy: student.id,
+      creditedIds: [],
+      manifest: {},
+      fingerprint: "x",
+    });
+
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/assignments/${guardedAssignmentId}/starter`,
+      cookies: { pide_session: teacherCookie },
+      payload: { projectId: teacherProjectId },
+    });
+    expect(res.statusCode).toBe(400);
   });
 });
