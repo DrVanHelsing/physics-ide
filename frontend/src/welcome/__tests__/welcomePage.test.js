@@ -26,8 +26,14 @@ describe("the front page", () => {
      door row (primary + the two account doors) is gone; the two account
      doors now live in the site nav (WelcomeHeader) and the footer instead. */
   test("the hero keeps exactly one door, and it is the primary one", () => {
+    /* Scoped to .welcome-hero__content, not the whole .welcome-hero: v3 adds
+       a physics-controls Reset button (GravityPlayground.js) that lives in
+       the hero but outside .welcome-hero__content — it adjusts the canvas,
+       it does not navigate, so it is not a "door" and is not counted here.
+       Its own lock (three sliders + Reset, none of them go()) lives in
+       gravityPlayground.test.js. */
     const { container, unmount } = mount();
-    const heroButtons = [...container.querySelectorAll(".welcome-hero button")];
+    const heroButtons = [...container.querySelectorAll(".welcome-hero__content button")];
     expect(heroButtons).toHaveLength(1);
     expect(heroButtons[0].textContent.replace(/\s+/g, " ").trim()).toBe(
       "Use the IDE — no account needed",
@@ -55,8 +61,10 @@ describe("the front page", () => {
        handler stamps the pass — a button that forgot go() sends the
        visitor to "/" where WelcomeGate bounces them straight back here. */
     const { container, unmount } = mount();
+    // .welcome-hero__content, not .welcome-hero — see the previous test's
+    // comment: the hero's Reset button (physics controls) does not go().
     const ctas = [
-      ...container.querySelectorAll(".welcome-hero button"),
+      ...container.querySelectorAll(".welcome-hero__content button"),
       ...container.querySelectorAll(".welcome-foot button"),
     ];
     expect(ctas).toHaveLength(4);

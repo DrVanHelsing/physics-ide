@@ -550,6 +550,59 @@ p.welcome-helpref {
 }
 .welcome-reveal.is-on { opacity: 1; transform: none; }
 
+/* ── Hero physics controls (GravityPlayground.js) ──────────────────────
+   A compact, unobtrusive cluster in the hero's bottom-right corner: three
+   .range sliders (gravity, ball size, bounciness) plus a Reset. Quiet at
+   rest and legible on hover or when a control inside it holds visible
+   keyboard focus — a `:has()` check scoped to that state rather than the
+   broader "any focus" one, so a mouse click into a slider does not itself
+   force the cluster bright; the ring already tells a keyboard visitor
+   where they are (see the rule two below for the exact selector). Opacity only, never display, so the cluster is never
+   pulled from keyboard focus order or hidden from assistive tech; it just
+   dims until a visitor goes looking for it, same spirit as the canvas
+   itself asking nothing of a visitor who never touches it. A third local
+   stacking layer alongside the canvas-wrap(0)/content(1) pair documented
+   above — canvas-wrap and content never overlap the corner this sits in,
+   but a higher z keeps it unambiguous. */
+.welcome-hero__controls {
+  position: absolute;
+  right: var(--space-5);
+  bottom: var(--space-5);
+  z-index: 2; /* metric-exempt: local stacking above canvas-wrap(0)/content(1), see their own comments */
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  opacity: 0.35;
+  transition: opacity var(--transition);
+}
+.welcome-hero__controls:hover,
+.welcome-hero__controls:has(:focus-visible) {
+  opacity: 1;
+}
+.welcome-hero__control {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  width: 96px;
+}
+.welcome-hero__control label {
+  font-size: var(--fs-xs);
+  color: var(--text-dim);
+}
+.welcome-hero__control-value {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-xs);
+  color: var(--text-bright);
+}
+.welcome-hero__control .range { width: 100%; }
+
 /* ═══════════════════════════════════════════════════════════
    REDUCED MOTION — degrade, don't delete.
    The hero canvas stops advancing on its own (it already only ran a rAF
@@ -571,9 +624,15 @@ p.welcome-helpref {
   .welcome-demo__play {
     transition: none;
   }
+  .welcome-hero__controls {
+    transition: none;
+  }
   /* The Play/Pause and primary buttons are .btn now — no page-level
      hover-lift transform ships on .btn (primitives.css), so there is
-     nothing left here to guard. */
+     nothing left here to guard. The controls cluster's own opacity rise
+     is a hover/focus affordance the visitor triggers, not an auto-playing
+     animation, but the transition it rides is guarded here anyway — same
+     idiom as the rules above it. */
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -606,6 +665,16 @@ p.welcome-helpref {
      promise at this width too; only the nav collapses. */
   .welcome-tagline { font-size: var(--fs-lg); }
   .welcome-hero__content .btn { width: 100%; }
+  /* Three 96px sliders side by side (base rule above) overrun a 390px
+     screen; stacked and pinned closer to the corner they still read as a
+     quiet, out-of-the-way cluster rather than a second column of chrome. */
+  .welcome-hero__controls {
+    right: var(--space-3);
+    bottom: var(--space-3);
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .welcome-hero__control { width: 100%; }
   /* At this width the student who scanned the QR needs one sentence more
      than any other on the page. */
   .welcome .welcome-foot__scope {
