@@ -241,6 +241,12 @@
   color: var(--text-bright);
 }
 
+/* ---- Home strip (Plan 6 Task 15): due soon + recent feedback, above the
+   class wall. Rows borrow assignments.css's .assignment-row shape — one row
+   style across the portal, not a home-specific fork. */
+.home-strip { display: flex; flex-direction: column; gap: var(--space-4); }
+.home-strip-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+
 /* ---- Classes (Plan 3) ---- */
 .classes-actions { display: flex; gap: var(--space-2); }
 .form-narrow { max-width: 420px; }

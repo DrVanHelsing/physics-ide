@@ -82,6 +82,7 @@ function ClassWall({ me }) {
           </button>
         </form>
       ) : null}
+      <HomeStrip />
       <div className="classes-wall">
         {active.map((c) => (
           <Link key={c.id} to={`/classes/${c.id}`} className="card card--interactive class-tile">
@@ -110,6 +111,62 @@ function ClassWall({ me }) {
             </Link>
           ))}
         </details>
+      ) : null}
+    </div>
+  );
+}
+
+/* Task 15: what's due soon and what feedback just landed, above the class
+   wall — only when there's something to show, so an empty Home is unchanged. */
+function HomeStrip() {
+  const q = useQuery({
+    queryKey: ["assignments", "upcoming"],
+    queryFn: () => api("/api/assignments/upcoming"),
+  });
+  const dueSoon = q.data?.dueSoon ?? [];
+  const recentFeedback = q.data?.recentFeedback ?? [];
+  if (dueSoon.length === 0 && recentFeedback.length === 0) return null;
+
+  return (
+    <div className="home-strip">
+      {dueSoon.length > 0 ? (
+        <section>
+          <h2 className="section-title">Due soon</h2>
+          <ul className="home-strip-list">
+            {dueSoon.map((a) => (
+              <li key={a.assignmentId}>
+                <Link
+                  className="card card--interactive assignment-row"
+                  to={`/classes/${a.classId}/assignments/${a.assignmentId}`}
+                >
+                  <span className="assignment-row__title">{a.title}</span>
+                  <span className="assignment-row__due">{a.className}</span>
+                  <span className="assignment-row__due">
+                    due {new Date(a.dueAt).toLocaleDateString()}
+                  </span>
+                  {a.submitted ? <span className="badge badge--success">submitted</span> : null}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+      {recentFeedback.length > 0 ? (
+        <section>
+          <h2 className="section-title">Recent feedback</h2>
+          <ul className="home-strip-list">
+            {recentFeedback.map((f) => (
+              <li key={f.assignmentId}>
+                <Link
+                  className="card card--interactive assignment-row"
+                  to={`/classes/${f.classId}/assignments/${f.assignmentId}`}
+                >
+                  <span className="assignment-row__title">{f.title}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
       ) : null}
     </div>
   );
