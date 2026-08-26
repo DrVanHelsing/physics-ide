@@ -477,7 +477,7 @@ export default function WelcomePage() {
         </div>
         {/* The fourth door: /join is ungated, but go() stamps the pass
             first like every other door on this page (hard constraint 2). */}
-        <p className="welcome-hero__quiet">
+        <p className="welcome-quiet">
           Have a class code?{" "}
           <button className="welcome-linklike" type="button" onClick={() => go("/join")}>
             Join your class
@@ -494,8 +494,10 @@ export default function WelcomePage() {
         <Eyebrow Icon={GraduationCapIcon}>For classrooms</Eyebrow>
         <h2 id="s-class">Classes today. Assignments next.</h2>
         <p>
-          Any teacher can sign up and create a class in a minute — no approval queue. The
-          roster, join settings and people are real today.
+          Any teacher can sign up and create a class in a minute — no approval queue.
+        </p>
+        <p>
+          The roster, join settings and people are real today.
         </p>
         <div className="card card--panel welcome-notbuilt">
           <h3>Not yet built.</h3>

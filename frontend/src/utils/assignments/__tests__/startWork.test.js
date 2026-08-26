@@ -1,7 +1,7 @@
 import { describe, test, expect, vi, beforeEach, afterEach } from "vitest";
 import { startAssignmentWork } from "../startWork";
-import { saveProject } from "../../storage/projectStore";
-import { setAssignmentMeta } from "../../storage/assignmentMeta";
+import { saveProject, loadProject } from "../../storage/projectStore";
+import { setAssignmentMeta, listAssignmentMeta, deleteAssignmentMeta } from "../../storage/assignmentMeta";
 import { getGlobalSyncEngine } from "../../sync/syncEngine";
 import { api } from "../../api/client";
 import { LAST_PROJECT_KEY } from "../../../constants";
@@ -11,8 +11,12 @@ import { LAST_PROJECT_KEY } from "../../../constants";
  * wires the right fields into it. Everything with a side effect — local
  * storage, the sync engine, the network, assignment-meta caching — is
  * mocked so the sequence's ORDER (design D§2) can be asserted directly. */
-vi.mock("../../storage/projectStore", () => ({ saveProject: vi.fn() }));
-vi.mock("../../storage/assignmentMeta", () => ({ setAssignmentMeta: vi.fn() }));
+vi.mock("../../storage/projectStore", () => ({ saveProject: vi.fn(), loadProject: vi.fn() }));
+vi.mock("../../storage/assignmentMeta", () => ({
+  setAssignmentMeta: vi.fn(),
+  listAssignmentMeta: vi.fn(),
+  deleteAssignmentMeta: vi.fn(),
+}));
 vi.mock("../../sync/syncEngine", () => ({ getGlobalSyncEngine: vi.fn() }));
 vi.mock("../../api/client", () => ({ api: vi.fn() }));
 
@@ -32,6 +36,10 @@ function assignment(overrides = {}) {
   };
 }
 
+function okEngine(pushProjectSpy) {
+  return { pushProject: pushProjectSpy, getStatus: () => ({ state: "synced", pendingCount: 0, lastError: null }) };
+}
+
 let order;
 let pushProjectSpy;
 
@@ -43,13 +51,19 @@ beforeEach(() => {
     order.push("saveProject");
     return { ...manifest, id: "p-saved-1" };
   });
+  loadProject.mockResolvedValue(null);
+  listAssignmentMeta.mockResolvedValue({}); // no pending project from an earlier failed attempt, by default
+  deleteAssignmentMeta.mockResolvedValue(undefined);
+
   pushProjectSpy = vi.fn(async () => {
     order.push("pushProject");
   });
-  getGlobalSyncEngine.mockResolvedValue({ pushProject: pushProjectSpy });
+  getGlobalSyncEngine.mockResolvedValue(okEngine(pushProjectSpy));
+
   api.mockImplementation(async (path) => {
     order.push(`api:${path}`);
-    return {};
+    // Normal case: the server links the SAME project this attempt pushed.
+    return { work: { projectId: "p-saved-1" } };
   });
   setAssignmentMeta.mockImplementation(async () => {
     order.push("setAssignmentMeta");
@@ -61,14 +75,18 @@ afterEach(() => {
   localStorage.clear();
 });
 
-describe("startAssignmentWork — fresh start (no myWork)", () => {
-  test("follows D§2's order: save -> stamp LAST_PROJECT_KEY -> push -> POST /start -> cache context", async () => {
+describe("startAssignmentWork — fresh start (no myWork, no pending retry)", () => {
+  test("follows D§2's order: save -> cache (pending) -> stamp LAST_PROJECT_KEY -> push -> POST /start -> cache (final)", async () => {
     const a = assignment();
     const id = await startAssignmentWork({ assignment: a, me: ME });
 
     expect(id).toBe("p-saved-1");
+    // setAssignmentMeta appears twice: once immediately after saveProject
+    // (the retry-idempotency pending cache) and once at the very end with
+    // the server-confirmed linked id — see startWork.js's file header.
     expect(order).toEqual([
       "saveProject",
+      "setAssignmentMeta",
       "pushProject",
       "api:/api/assignments/a1/start",
       "setAssignmentMeta",
@@ -157,5 +175,112 @@ describe("startAssignmentWork — myWork already present (Continue)", () => {
       dueAt: 1700000000000,
       rules: { debug: true },
     });
+  });
+});
+
+describe("startAssignmentWork — push failure (engine never throws)", () => {
+  test("a failed push surfaces an honest error and never calls /start", async () => {
+    getGlobalSyncEngine.mockResolvedValue({
+      pushProject: pushProjectSpy,
+      getStatus: () => ({ state: "error", pendingCount: 1, lastError: "Storage cap reached." }),
+    });
+
+    await expect(startAssignmentWork({ assignment: assignment(), me: ME })).rejects.toThrow(
+      "Could not reach the server — check your connection and try again.",
+    );
+
+    expect(pushProjectSpy).toHaveBeenCalledTimes(1);
+    expect(api).not.toHaveBeenCalled();
+  });
+
+  test("an offline push status is treated the same as an error", async () => {
+    getGlobalSyncEngine.mockResolvedValue({
+      pushProject: pushProjectSpy,
+      getStatus: () => ({ state: "offline", pendingCount: 1, lastError: null }),
+    });
+
+    await expect(startAssignmentWork({ assignment: assignment(), me: ME })).rejects.toThrow(
+      "Could not reach the server — check your connection and try again.",
+    );
+    expect(api).not.toHaveBeenCalled();
+  });
+
+  test("the failed attempt's own local project is cached (pending) immediately, before the push even runs", async () => {
+    getGlobalSyncEngine.mockResolvedValue({
+      pushProject: pushProjectSpy,
+      getStatus: () => ({ state: "error", pendingCount: 1, lastError: null }),
+    });
+
+    await expect(startAssignmentWork({ assignment: assignment(), me: ME })).rejects.toThrow();
+
+    expect(setAssignmentMeta).toHaveBeenCalledWith(
+      "p-saved-1",
+      expect.objectContaining({ assignmentId: "a1" }),
+    );
+  });
+
+  test("retrying after a push failure reuses the SAME local project — no duplicate creation", async () => {
+    const engineFailing = {
+      pushProject: pushProjectSpy,
+      getStatus: () => ({ state: "error", pendingCount: 1, lastError: null }),
+    };
+    getGlobalSyncEngine.mockResolvedValueOnce(engineFailing);
+
+    await expect(startAssignmentWork({ assignment: assignment(), me: ME })).rejects.toThrow();
+    expect(saveProject).toHaveBeenCalledTimes(1);
+    expect(api).not.toHaveBeenCalled();
+
+    // What the failed attempt's own pending cacheContext call left behind —
+    // simulate it being read back from storage on the retry.
+    listAssignmentMeta.mockResolvedValue({ "p-saved-1": { assignmentId: "a1" } });
+    loadProject.mockResolvedValue({ id: "p-saved-1", title: "Kinematics HW" });
+    getGlobalSyncEngine.mockResolvedValueOnce(okEngine(pushProjectSpy));
+
+    const id = await startAssignmentWork({ assignment: assignment(), me: ME });
+
+    expect(id).toBe("p-saved-1");
+    expect(saveProject).toHaveBeenCalledTimes(1); // still just once across both attempts
+    expect(api).toHaveBeenCalledWith("/api/assignments/a1/start", {
+      method: "POST",
+      body: { projectId: "p-saved-1" },
+    });
+  });
+
+  test("a pending project whose local copy has since vanished is dropped, not resumed", async () => {
+    listAssignmentMeta.mockResolvedValue({ "p-gone": { assignmentId: "a1" } });
+    loadProject.mockResolvedValue(null); // deleted locally since the pending cache was written
+
+    await startAssignmentWork({ assignment: assignment(), me: ME });
+
+    expect(deleteAssignmentMeta).toHaveBeenCalledWith("p-gone");
+    expect(saveProject).toHaveBeenCalledTimes(1); // fell through to a fresh create
+  });
+});
+
+describe("startAssignmentWork — uses the server's response, not just its own local id", () => {
+  test("concurrent double-start: the server hands back the WINNER's projectId, which is what gets cached and returned", async () => {
+    api.mockImplementation(async (path) => {
+      order.push(`api:${path}`);
+      return { work: { projectId: "p-winner-from-other-tab" } };
+    });
+
+    const id = await startAssignmentWork({ assignment: assignment(), me: ME });
+
+    expect(id).toBe("p-winner-from-other-tab");
+    expect(setAssignmentMeta).toHaveBeenCalledWith(
+      "p-winner-from-other-tab",
+      expect.objectContaining({ assignmentId: "a1" }),
+    );
+  });
+
+  test("the loser's own local copy's pending cache is dropped, not left masquerading as the working copy", async () => {
+    api.mockImplementation(async (path) => {
+      order.push(`api:${path}`);
+      return { work: { projectId: "p-winner-from-other-tab" } };
+    });
+
+    await startAssignmentWork({ assignment: assignment(), me: ME });
+
+    expect(deleteAssignmentMeta).toHaveBeenCalledWith("p-saved-1");
   });
 });
