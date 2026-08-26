@@ -51,8 +51,12 @@ describe("ClassChrome link tabs — aria-current, not the tablist pattern", () =
   test("the active tab's Link carries aria-current=page and no other link does", () => {
     const container = render("people");
     const links = [...container.querySelectorAll(".tab")];
-    // Teacher role sees all three: Assignments, People, Settings.
-    expect(links.length).toBe(3);
+    // Teacher role sees all four: Assignments, Guides, People, Settings.
+    // Deliberate (Task 9): Guides joins the tab set between Assignments and
+    // People for every role — a guide page is "the same format" as an
+    // assignment's instructions, published standalone, so it lives beside
+    // Assignments rather than behind a staff-only gate.
+    expect(links.length).toBe(4);
 
     const current = links.filter((l) => l.getAttribute("aria-current") === "page");
     expect(current.length).toBe(1);
@@ -79,10 +83,11 @@ describe("ClassChrome link tabs — aria-current, not the tablist pattern", () =
     expect(container.querySelector(".admin-tabs")).toBeNull();
   });
 
-  test("a student (non-staff) sees only Assignments — no People/Settings link at all", () => {
+  test("a student (non-staff) sees Assignments and Guides only — no People/Settings link", () => {
     const container = render("assignments", "student");
     const links = [...container.querySelectorAll(".tab")];
-    expect(links.map((l) => l.textContent)).toEqual(["Assignments"]);
+    // Guides is shown to every role (Task 9) — People/Settings stay staff-only.
+    expect(links.map((l) => l.textContent)).toEqual(["Assignments", "Guides"]);
     expect(links[0].getAttribute("aria-current")).toBe("page");
   });
 });

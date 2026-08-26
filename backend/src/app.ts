@@ -10,6 +10,7 @@ import { memberRoutes } from "./routes/members.js";
 import { inviteRoutes } from "./routes/invites.js";
 import { projectRoutes } from "./routes/projects.js";
 import { assignmentRoutes } from "./routes/assignments.js";
+import { guideRoutes } from "./routes/guides.js";
 
 export interface AppDeps {
   db: Db;
@@ -45,6 +46,7 @@ export function buildApp(deps: AppDeps): FastifyInstance {
   app.register(inviteRoutes);
   app.register(projectRoutes);
   app.register(assignmentRoutes);
+  app.register(guideRoutes);
 
   return app;
 }

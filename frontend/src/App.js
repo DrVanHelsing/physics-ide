@@ -30,6 +30,8 @@ import AdminConsole           from "./components/admin/AdminConsole";
 import ClassesHome            from "./components/classes/ClassesHome";
 import AssignmentsTab         from "./components/assignments/AssignmentsTab";
 import AssignmentEditorPage   from "./components/assignments/AssignmentEditorPage";
+import GuidesTab              from "./components/assignments/GuidesTab";
+import GuidePage              from "./components/assignments/GuidePage";
 import PeopleTab              from "./components/classes/PeopleTab";
 import SettingsTab            from "./components/classes/SettingsTab";
 import JoinClassPage          from "./components/classes/JoinClassPage";
@@ -65,6 +67,10 @@ function App() {
                         <Route path="/classes/:id" element={<AssignmentsTab />} />
                         <Route path="/classes/:id/assignments/new" element={<AssignmentEditorPage />} />
                         <Route path="/classes/:id/assignments/:aid/edit" element={<AssignmentEditorPage />} />
+                        <Route path="/classes/:id/guides" element={<GuidesTab />} />
+                        <Route path="/classes/:id/guides/new" element={<GuidePage mode="edit" />} />
+                        <Route path="/classes/:id/guides/:gid" element={<GuidePage mode="read" />} />
+                        <Route path="/classes/:id/guides/:gid/edit" element={<GuidePage mode="edit" />} />
                         <Route path="/classes/:id/people" element={<PeopleTab />} />
                         <Route path="/classes/:id/settings" element={<SettingsTab />} />
                         <Route path="/join" element={<JoinClassPage />} />
