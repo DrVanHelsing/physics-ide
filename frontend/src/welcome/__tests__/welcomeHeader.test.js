@@ -47,21 +47,27 @@ describe("WelcomeHeader — the site header (brief move 4)", () => {
     const links = [...container.querySelector(".welcome-header__nav").querySelectorAll("a")];
     expect(links.map((a) => a.textContent)).toEqual(["About", "For teachers", "Contact"]);
     expect(links[0].getAttribute("href")).toBe("/about");
+    expect(links[1].getAttribute("href")).toBe("/teachers");
     expect(links[2].getAttribute("href")).toBe("/contact");
   });
 
-  test("default teachersHref is the in-page anchor for /welcome itself", () => {
+  // Public-pages finish: "For teachers" used to default to the in-page
+  // "#s-class" anchor (only true on /welcome itself) and every other caller
+  // had to override it with a real path. Now there is a dedicated /teachers
+  // page, so the default itself is that route — every caller, /welcome
+  // included, gets a real navigation unless it explicitly asks for
+  // something else.
+  test("default teachersHref routes to the dedicated /teachers page", () => {
     const container = render({});
-    const teachers = container.querySelector('.welcome-header__nav a[href="#s-class"]');
+    const teachers = container.querySelector('.welcome-header__nav a[href="/teachers"]');
     expect(teachers).toBeTruthy();
     expect(teachers.textContent).toBe("For teachers");
   });
 
-  test("a non-anchor teachersHref (from /about or /contact) renders a router Link instead", () => {
-    const container = render({ teachersHref: "/welcome#s-class" });
-    // A real navigation, not an anchor that resolves to nothing on the current page.
-    expect(container.querySelector('.welcome-header__nav a[href="#s-class"]')).toBeNull();
-    const teachers = container.querySelector('.welcome-header__nav a[href="/welcome#s-class"]');
+  test("a caller-supplied teachersHref overrides the default", () => {
+    const container = render({ teachersHref: "/welcome" });
+    expect(container.querySelector('.welcome-header__nav a[href="/teachers"]')).toBeNull();
+    const teachers = container.querySelector('.welcome-header__nav a[href="/welcome"]');
     expect(teachers).toBeTruthy();
     expect(teachers.textContent).toBe("For teachers");
   });

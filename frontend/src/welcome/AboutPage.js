@@ -1,14 +1,22 @@
 import React from "react";
+import { Link } from "react-router-dom";
 import WelcomeSubpage from "./WelcomeSubpage";
 
 /**
  * AboutPage — /about, gate-free. Every sentence here is derivable from
  * docs/classroom-platform.md or README.md (polish brief's requirement); none
- * of it goes further than what those documents and the welcome page's own
- * honesty-ledger copy already state. In particular this page does NOT claim
- * assignments, submissions or marking exist yet — the welcome page's own
- * "Not yet built." panel (§12) is the standing source of truth for that, and
- * this page's teacher paragraph stops exactly where that panel does.
+ * of it goes further than what those documents and the shipped product
+ * state.
+ *
+ * The teacher paragraph's assignment sentence was corrected in the public-
+ * pages finish: it used to say "assignments, submissions and marking are
+ * designed but not shipped yet", matching WelcomePage.js §12's panel at the
+ * time. Verified against the shipped code (not that stale panel — see
+ * TeachersPage.js's own header comment for the commit-level evidence),
+ * assignment authoring and starting work are real now; only submitting that
+ * work, marking it, and the gradebook remain undelivered. The sentence below
+ * says exactly that, and no further — this page still does not claim
+ * submissions or marking are live.
  */
 export default function AboutPage() {
   return (
@@ -23,9 +31,10 @@ export default function AboutPage() {
         nothing held back; signing in adds classes and account sync on top.
         Anyone may sign up as a teacher and create a class, and students join
         it by a short code, a link, a QR code, or an email invite. A class
-        today holds its roster, its join settings and its people &mdash;
-        assignments, submissions and marking are designed but not shipped
-        yet.
+        today holds its roster, its join settings, its people, and its
+        assignments &mdash; submitting that work, marking it, and the
+        gradebook are designed but not shipped yet. More on what a teacher
+        can do today is in <Link to="/teachers">For teachers</Link>.
       </p>
 
       <h2>How a class works</h2>

@@ -267,12 +267,18 @@ describe("the site nav, mounted on the front page", () => {
     unmount();
   });
 
-  test("the nav's For teachers uses the in-page anchor here, not a full navigation", () => {
+  // Public-pages finish: "For teachers" used to stay an in-page "#s-class"
+  // anchor here (the one caller that relied on WelcomeHeader's old default)
+  // — now there's a dedicated /teachers page and the nav item routes to it
+  // everywhere, this page included. The #s-class section itself is
+  // untouched (still asserted above by the aria-labelledby sweep); it's
+  // simply no longer where this nav link points.
+  test("the nav's For teachers routes to the dedicated /teachers page, same as everywhere else", () => {
     const { container, unmount } = mount();
     const teachers = [...container.querySelectorAll(".welcome-header__nav a")].find(
       (a) => a.textContent === "For teachers",
     );
-    expect(teachers.getAttribute("href")).toBe("#s-class");
+    expect(teachers.getAttribute("href")).toBe("/teachers");
     unmount();
   });
 });

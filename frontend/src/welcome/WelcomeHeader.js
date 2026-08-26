@@ -7,47 +7,48 @@ import { MenuIcon } from "../components/Icons";
 
 /**
  * WelcomeHeader — the slim site header (polish brief move 4): mounted on
- * /welcome and reused, unchanged, on /about and /contact. Same zone idiom as
- * the one portal header (components/layout/PortalHeader.js) — identity, then
- * navigation, then a right cluster carrying the theme toggle — but not that
- * component itself: PortalHeader's right cluster is account-aware
- * (HeaderAccount) and built for the signed-in portal; this bar is what a
- * visitor who has never created an account sees, on three gate-adjacent
- * routes, with a fixed public link set instead of a caller-supplied nav slot.
+ * /welcome and reused, unchanged, on /about, /contact and (public-pages
+ * finish) /teachers. Same zone idiom as the one portal header
+ * (components/layout/PortalHeader.js) — identity, then navigation, then a
+ * right cluster carrying the theme toggle — but not that component itself:
+ * PortalHeader's right cluster is account-aware (HeaderAccount) and built
+ * for the signed-in portal; this bar is what a visitor who has never
+ * created an account sees, on four gate-adjacent routes, with a fixed
+ * public link set instead of a caller-supplied nav slot.
  *
  * `onSignIn`, when given, renders Sign in as a button calling it — /welcome
  * passes `() => go("/auth/signin")` so the click still stamps the session
  * pass through go() like every other call to action on that page (hard
- * constraint 2 in WelcomePage.js's header comment). /about and /contact sit
- * outside the gate entirely (App.js mounts them with no <WelcomeGate>, the
- * same as /join), so they render no `onSignIn` and get a plain Link, the
- * same shape JoinClassPage.js already uses for its own sign-in link.
+ * constraint 2 in WelcomePage.js's header comment). /about, /contact and
+ * /teachers sit outside the gate entirely (App.js mounts them with no
+ * <WelcomeGate>, the same as /join), so they render no `onSignIn` and get a
+ * plain Link, the same shape JoinClassPage.js already uses for its own
+ * sign-in link.
  *
- * `teachersHref` points "For teachers" at the front page's §12 anchor. On
- * /welcome itself that is the in-page "#s-class"; from /about or /contact it
- * is "/welcome#s-class" — a real navigation, not an anchor that resolves to
- * nothing on the current page.
+ * `teachersHref` points "For teachers" at the dedicated /teachers page —
+ * every caller gets the same route by default now (public-pages finish:
+ * the nav item is a real navigation everywhere, including on /welcome
+ * itself, where it used to jump to the in-page "#s-class" section instead).
+ * The prop still exists so a caller can override it, but nothing currently
+ * does; the anchor branch this component used to carry for that case is
+ * gone with it — WelcomePage.js's own #s-class section is untouched, it is
+ * simply no longer where the header's nav link points.
  *
  * v2 (redesign brief): this bar is now also the sticky nav that sits at the
  * hero's bottom edge and pins to the top of the screen on scroll — pure CSS
  * (welcome.css: `position: sticky; top: 0`), no JS, no separate component.
  * `onOpenIde`, when given, adds the wireframe's trailing "[Open the IDE]"
  * primary door to both the persistent cluster and the collapse menu — only
- * WelcomePage.js passes it; /about and /contact stay a plain header with no
- * fourth cluster item, unchanged from tranche 2.5.
+ * WelcomePage.js passes it; /about, /contact and /teachers stay a plain
+ * header with no fourth cluster item, unchanged from tranche 2.5.
  */
-export default function WelcomeHeader({ onSignIn, onOpenIde, teachersHref = "#s-class" }) {
+export default function WelcomeHeader({ onSignIn, onOpenIde, teachersHref = "/teachers" }) {
   const { isDark, toggle } = useTheme();
-  const isAnchor = teachersHref.startsWith("#");
 
   const navLinks = (
     <>
       <Link to="/about">About</Link>
-      {isAnchor ? (
-        <a href={teachersHref}>For teachers</a>
-      ) : (
-        <Link to={teachersHref}>For teachers</Link>
-      )}
+      <Link to={teachersHref}>For teachers</Link>
       <Link to="/contact">Contact</Link>
     </>
   );
@@ -108,15 +109,9 @@ export default function WelcomeHeader({ onSignIn, onOpenIde, teachersHref = "#s-
             <Link className="tb-dropdown-item" to="/about">
               <span>About</span>
             </Link>
-            {isAnchor ? (
-              <a className="tb-dropdown-item" href={teachersHref}>
-                <span>For teachers</span>
-              </a>
-            ) : (
-              <Link className="tb-dropdown-item" to={teachersHref}>
-                <span>For teachers</span>
-              </Link>
-            )}
+            <Link className="tb-dropdown-item" to={teachersHref}>
+              <span>For teachers</span>
+            </Link>
             <Link className="tb-dropdown-item" to="/contact">
               <span>Contact</span>
             </Link>
