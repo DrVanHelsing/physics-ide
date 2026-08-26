@@ -21,43 +21,46 @@ describe("the front page", () => {
     expect(SRC).not.toMatch(/navigate\(\s*["']\/(auth\/sign(in|up))?["']\s*\)/);
   });
 
-  test("the three doors keep their exact promise, order and destinations", () => {
-    /* Scoped to .welcome-cta (the door row), not the whole hero, since
-       tranche 1: the hero also carries the quiet "Join your class" door,
-       which is a hero <button> but not one of the three doors this test
-       locks. The door row itself is unchanged — same three labels, same
-       order. */
+  /* v2: the redesign brief strips the hero to a title, a subline and ONE
+     primary door — "everything else leaves the hero." The old three-button
+     door row (primary + the two account doors) is gone; the two account
+     doors now live in the site nav (WelcomeHeader) and the footer instead. */
+  test("the hero keeps exactly one door, and it is the primary one", () => {
     const { container, unmount } = mount();
-    const labels = [...container.querySelectorAll(".welcome-cta button")].map(
-      (b) => b.textContent.replace(/\s+/g, " ").trim(),
-    );
-    expect(labels).toEqual([
+    const heroButtons = [...container.querySelectorAll(".welcome-hero button")];
+    expect(heroButtons).toHaveLength(1);
+    expect(heroButtons[0].textContent.replace(/\s+/g, " ").trim()).toBe(
       "Use the IDE — no account needed",
-      "Create an account",
-      "Sign in",
-    ]);
+    );
     unmount();
   });
 
-  test("every CTA stamps the session pass before navigating — all seven, clicked", () => {
-    /* The grep test above proves no CTA uses a bare <Link>; only a click proves
-       the handler that IS wired stamps the pass. A source grep cannot see a
-       computed path, and a footer button that forgot go() sends the visitor to
-       "/" where WelcomeGate bounces them straight back here — the exact
-       infinite-loop the brief names as the easiest way to break this page.
-       So: both hero and footer, primary, secondary and ghost. */
+  test("the footer's three doors keep their exact promise and order", () => {
+    const { container, unmount } = mount();
+    const labels = [...container.querySelectorAll(".welcome-foot button")].map(
+      (b) => b.textContent.replace(/\s+/g, " ").trim(),
+    );
+    expect(labels).toEqual(["Open the IDE", "Create an account", "Sign in"]);
+    unmount();
+  });
+
+  test("every hero/footer CTA stamps the session pass before navigating — all four, clicked", () => {
+    /* v2: was seven (3 hero doors + the hero's own quiet join-class line +
+       footer primary + 2 quiet links) when the hero carried every door.
+       The redesign strips the hero to its one primary door and moves
+       "Join your class" into §4, next to the worked-project tiles it now
+       sits beside (tested separately below) — so this lock now covers
+       exactly the hero's one button plus the footer's three. A source grep
+       cannot see a computed path, so only a click proves each wired
+       handler stamps the pass — a button that forgot go() sends the
+       visitor to "/" where WelcomeGate bounces them straight back here. */
     const { container, unmount } = mount();
     const ctas = [
       ...container.querySelectorAll(".welcome-hero button"),
       ...container.querySelectorAll(".welcome-foot button"),
     ];
-    /* 7 since tranche 1: 3 hero doors + the hero's quiet "Join your class"
-       door (→ /join, ungated but still stamped through go() so "/" behaves
-       the same for the rest of the session) + footer primary + 2 quiet
-       links. The in-page playground anchor is an <a>, not a button, and is
-       deliberately not counted — it never navigates. */
-    expect(ctas).toHaveLength(7);
-    expect(ctas).toContain(byText(container, "Open the IDE"));
+    expect(ctas).toHaveLength(4);
+    expect(ctas).toContain(byText(container, "Open the IDE", ".welcome-foot button"));
     for (const cta of ctas) {
       sessionStorage.clear();
       expect(sessionStorage.getItem(WELCOME_PASSED_SESSION_KEY)).toBeNull();
@@ -94,7 +97,7 @@ describe("the front page", () => {
     unmount();
   });
 
-  test("a skip link is the first focusable thing on a nine-screen page", () => {
+  test("a skip link is the first focusable thing on the page", () => {
     const { container, unmount } = mount();
     const skip = container.querySelector(".welcome-skip");
     expect(skip).toBeTruthy();
@@ -135,86 +138,39 @@ describe("the front page", () => {
     expect(SRC).not.toMatch(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/u);
   });
 
-  /* ── Tranche 1's three structural locks. Same discipline as the keycap
-     row: the page's copy and shape are test-locked, so a later edit moves
-     a test in the same commit or does not move the page. ─────────────── */
+  /* ── v2 retirements. Each lock below is REMOVED, not merely edited, with
+     a why-comment explaining what took its section's place — per the
+     redesign brief's own migration rule: "section-specific locks (rail,
+     steps strip, stat-tile anchors, playground-section) are REMOVED WITH
+     WHY-COMMENTS as their sections retire."
 
-  test("the linked stat tiles are real anchors to their exact sections — and the unlinked one is not", () => {
-    /* The four tiles whose subject has an in-page section are <a>; the
-       documentation tile has no target on this page and must stay a <div>.
-       Both dataset and chart tiles point at §7 — the data section covers
-       both. */
-    const { container, unmount } = mount();
-    const tiles = [...container.querySelectorAll(".welcome-stat")].map((t) => [
-      t.querySelector(".welcome-stat__n").textContent,
-      t.tagName,
-      t.getAttribute("href"),
-    ]);
-    expect(tiles).toEqual([
-      ["151", "A", "#s-editor"],
-      ["18", "A", "#s-start"],
-      ["6", "A", "#s-data"],
-      ["6", "A", "#s-data"],
-      ["14", "DIV", null],
-      ["0", "A", "#s-yours"],
-    ]);
-    // …and every linked target actually exists on this page.
-    for (const [, tag, href] of tiles) {
-      if (tag === "A") expect(container.querySelector(href)).toBeTruthy();
-    }
-    unmount();
-  });
-
-  test("the anchor rail is a nav of exactly the nine eyebrowed sections, in page order", () => {
-    /* s-what and s-numbers are deliberately absent — their headings are
-       visually hidden landmarks, not destinations a reader names. The
-       order is the page's true section order (play BEFORE class). */
-    const { container, unmount } = mount();
-    const rail = container.querySelector('nav[aria-label="Page sections"]');
-    expect(rail).toBeTruthy();
-    const links = [...rail.querySelectorAll("a")];
-    expect(links).toHaveLength(9);
-    expect(links.map((a) => a.getAttribute("href"))).toEqual([
-      "#s-editor",
-      "#s-view",
-      "#s-debug",
-      "#s-measure",
-      "#s-data",
-      "#s-start",
-      "#s-yours",
-      "#s-play",
-      "#s-class",
-    ]);
-    // Every rail target is a real id on this page.
-    for (const a of links) {
-      expect(container.querySelector(a.getAttribute("href"))).toBeTruthy();
-    }
-    unmount();
-  });
-
-  test("the first-five-minutes strip is an ol of exactly three imperatives, text locked", () => {
-    /* Locked the way the keycap row is: these are the three things a
-       reader is told to do, and each is a claim verified by doing it. The
-       step numbers are CSS counters, so the text carries no numerals. */
-    const { container, unmount } = mount();
-    const list = container.querySelector("ol.welcome-steps__list");
-    expect(list).toBeTruthy();
-    const items = [...list.querySelectorAll(":scope > li")];
-    expect(items).toHaveLength(3);
-    expect(items.map((li) => li.textContent.replace(/\s+/g, " ").trim())).toEqual([
-      "Open the IDE — no account needed.",
-      "Open a worked project.",
-      "Press Run, then change one number.",
-    ]);
-    unmount();
-  });
-
-  /* ── Tranche 2's worked-project tiles: §8, four real templates opened in
-     one click. Same click-through pass-stamp idiom as the "all seven"
-     test above, plus the pending-template key each tile is responsible
-     for. Scoped to .welcome-tile, NOT .welcome-hero/.welcome-foot, so the
-     existing "seven CTAs" lock above does not move — these are a distinct,
-     separately-locked set of gated CTAs. ─────────────────────────────── */
+     - "the linked stat tiles are real anchors..." — the nine linked/hover-
+       revealing stat tiles became the six-item closing ribbon (plain text,
+       no links, no hover-reveal). See "the closing ribbon" test below.
+     - "the anchor rail is a nav of exactly the nine eyebrowed sections..."
+       — the rail retires with the nine-section page it indexed; the sticky
+       nav plus a five-section page replace in-page navigation entirely
+       (redesign brief: "this supersedes the earlier keep-the-rail
+       directive per the user's new only-thing-on-screen wireframe — if the
+       rail's removal is wrong, it is one revert away").
+     - "the first-five-minutes strip is an ol of exactly three
+       imperatives..." — §2b is not one of the redesign's five sections and
+       is cut in full; the three imperatives it gamified are not claims
+       this file re-derives elsewhere.
+     - "chapter bands (brief move 1) — every second .welcome-section..." —
+       the alternating full-bleed category-band device retires with the
+       nine-section rhythm it decorated; five sections at plain --space-9
+       separation read cleanly without it (redesign brief: "do not
+       clutter").
+     - "framed evidence (brief move 3) — the two product screenshots" — the
+       editor/viewport screenshot pair is replaced by the two demo videos;
+       see "the two demo videos" below for their own lock.
+     - "every built-in dataset's row count on the page is the row count in
+       its JSON" — the six-chip dataset breakdown lived in the old §7,
+       which is not one of the five sections and is cut; only the ribbon's
+       undifferentiated "6 built-in datasets" total survives, re-derived by
+       the new test below (file count, not a per-file breakdown the page
+       no longer states). ─────────────────────────────────────────────── */
 
   test("exactly four worked-project tiles, each naming a real template id", () => {
     const { container, unmount } = mount();
@@ -251,22 +207,47 @@ describe("the front page", () => {
     }
     unmount();
   });
+
+  test("\"Join your class\" moved from the hero to §4, and still stamps the pass through go()", () => {
+    const { container, unmount } = mount();
+    const section = container.querySelector('section[aria-labelledby="s-open"]');
+    expect(section).toBeTruthy();
+    const btn = byText(section, "Join your class");
+    expect(btn).toBeTruthy();
+    sessionStorage.clear();
+    click(btn);
+    expect(sessionStorage.getItem(WELCOME_PASSED_SESSION_KEY)).toBe("1");
+    unmount();
+  });
+
+  test("each of the five sections tints its own block-category colour by name", () => {
+    // Resolved via the trusted CAT table, never string-concatenated from
+    // anything but it — see this file's own header comment.
+    const { container, unmount } = mount();
+    const ids = ["s-work", "s-blocks", "s-analyse", "s-open", "s-class"];
+    for (const id of ids) {
+      const section = container.querySelector(`section[aria-labelledby="${id}"]`);
+      expect(section).toBeTruthy();
+      expect(section.className).toMatch(/welcome-cat-[a-z-]+/);
+    }
+    unmount();
+  });
 });
 
-/* ── Tranche 2.5's polish pass: the site header, chapter bands and framed
-   screenshots (polish-design-brief.md moves 1, 3 and 4). ───────────────── */
-describe("the site header, mounted on the front page", () => {
+/* ── The site nav, mounted on the front page (WelcomeHeader.js). The
+   header component's own props/behaviour are covered thoroughly in
+   welcomeHeader.test.js; these three integration checks (unchanged since
+   tranche 2.5) plus the new v2 "Open the IDE" wiring test are what belong
+   here — that this page passes its own real go() through, not a stub. ── */
+describe("the site nav, mounted on the front page", () => {
   test("WelcomeHeader is mounted, outside the hero/footer CTA counts the tests above lock", () => {
     const { container, unmount } = mount();
     expect(container.querySelector(".welcome-header")).toBeTruthy();
-    // The header's own controls are not inside .welcome-hero or .welcome-foot
-    // — the "seven CTAs" and worked-tile locks above count only those two
-    // regions on purpose, and must not move because of this mount.
     expect(container.querySelector(".welcome-hero .welcome-header")).toBeNull();
     unmount();
   });
 
-  test("the header's Sign in is wired to this page's own go(), not a bare Link", () => {
+  test("the nav's Sign in is wired to this page's own go(), not a bare Link", () => {
     const { container, unmount } = mount();
     const btn = container.querySelector(".welcome-header__signin button");
     expect(btn).toBeTruthy();
@@ -276,7 +257,17 @@ describe("the site header, mounted on the front page", () => {
     unmount();
   });
 
-  test("the header's For teachers uses the in-page anchor here, not a full navigation", () => {
+  test("the nav's Open the IDE (v2's trailing door, per the wireframe) is wired to this page's own go()", () => {
+    const { container, unmount } = mount();
+    const btn = byText(container, "Open the IDE", ".welcome-header__cluster button");
+    expect(btn).toBeTruthy();
+    sessionStorage.clear();
+    click(btn);
+    expect(sessionStorage.getItem(WELCOME_PASSED_SESSION_KEY)).toBe("1");
+    unmount();
+  });
+
+  test("the nav's For teachers uses the in-page anchor here, not a full navigation", () => {
     const { container, unmount } = mount();
     const teachers = [...container.querySelectorAll(".welcome-header__nav a")].find(
       (a) => a.textContent === "For teachers",
@@ -286,40 +277,28 @@ describe("the site header, mounted on the front page", () => {
   });
 });
 
-describe("chapter bands (brief move 1) — every second .welcome-section, exactly", () => {
-  test("s-view, s-measure, s-start and s-class carry the band; the other four don't", () => {
+/* ── v2's demo videos — the product on video, replacing the old §3/§4
+   screenshot pair (see the retirement note above). Reduced-motion's
+   poster-and-Play-button swap is DemoVideo's own concern (WelcomePage.js)
+   and is exercised at the unit level there is no separate spec file for;
+   these two checks cover the default (motion-allowed) mount, which is what
+   jsdom's matchMedia stub always reports. ─────────────────────────────── */
+describe("the two demo videos (v2 — the product on video)", () => {
+  test("both figures render a real, muted, looping <video> with a poster, dimensions and an aria-label", () => {
     const { container, unmount } = mount();
-    const banded = ["s-view", "s-measure", "s-start", "s-class"];
-    const plain = ["s-editor", "s-debug", "s-data", "s-yours"];
-    for (const id of banded) {
-      const section = container.querySelector(`section[aria-labelledby="${id}"]`);
-      expect(section.className).toContain("welcome-section--band");
-    }
-    for (const id of plain) {
-      const section = container.querySelector(`section[aria-labelledby="${id}"]`);
-      expect(section.className).not.toContain("welcome-section--band");
-    }
-    unmount();
-  });
-});
-
-describe("framed evidence (brief move 3) — the two product screenshots", () => {
-  test("both figures use the shot-figure frame, and both images carry their real dimensions", () => {
-    const { container, unmount } = mount();
-    const figures = [...container.querySelectorAll("figure.welcome-shot-figure")];
+    const figures = [...container.querySelectorAll("figure.welcome-demo")];
     expect(figures).toHaveLength(2);
-    const imgs = figures.map((f) => f.querySelector("img.welcome-shot"));
-    expect(imgs.every(Boolean)).toBe(true);
-
-    const [editorImg, viewportImg] = imgs;
-    // Unchanged since tranche 2 — the brief kept this pair as-is.
-    expect(editorImg.getAttribute("width")).toBe("1280");
-    expect(editorImg.getAttribute("height")).toBe("730");
-    // Re-captured, closer-cropped (tranche 2.5 move 3) — real pixel
-    // dimensions of the replaced file, not the old 635×730.
-    expect(viewportImg.getAttribute("width")).toBe("635");
-    expect(viewportImg.getAttribute("height")).toBe("255");
-
+    const videos = [...container.querySelectorAll("video.welcome-demo__video")];
+    expect(videos).toHaveLength(2);
+    for (const v of videos) {
+      expect(v.getAttribute("src")).toBeTruthy();
+      expect(v.getAttribute("poster")).toBeTruthy();
+      expect(v.getAttribute("width")).toBeTruthy();
+      expect(v.getAttribute("height")).toBeTruthy();
+      expect(v.muted).toBe(true);
+      expect(v.loop).toBe(true);
+      expect(v.getAttribute("aria-label")).toBeTruthy();
+    }
     for (const f of figures) expect(f.querySelector("figcaption")).toBeTruthy();
     unmount();
   });
@@ -327,7 +306,10 @@ describe("framed evidence (brief move 3) — the two product screenshots", () =>
 
 /* ── The numbers ledger, checked against the tree rather than against a note.
    Plan 5's rule is "if a claim cannot be pointed at a file, it does not ship";
-   these three read the file and compare. ─────────────────────────────────── */
+   these read the file and compare. v2: the six numerals moved from nine
+   linked, hover-revealing stat tiles to one quiet ribbon (redesign brief) —
+   the derivations themselves are unchanged where the underlying fact still
+   appears on the page. ─────────────────────────────────────────────────── */
 describe("the front page's numerals trace to source", () => {
   const TOOLBOX = readFileSync(
     resolve(__dirname, "../../utils/blockly/toolbox.js"),
@@ -335,7 +317,7 @@ describe("the front page's numerals trace to source", () => {
   );
   const BUILTINS = resolve(__dirname, "../../utils/dataset/builtins");
 
-  test("151 toolbox block types, and the stat tile says so", () => {
+  test("151 toolbox block types, and the ribbon says so", () => {
     const uniq = new Set(
       [...TOOLBOX.matchAll(/<block type="([a-zA-Z0-9_]+)"/g)].map((m) => m[1]),
     );
@@ -360,38 +342,24 @@ describe("the front page's numerals trace to source", () => {
     expect(charts.size).toBe(6);
   });
 
-  test("every built-in dataset's row count on the page is the row count in its JSON", () => {
-    const rows = Object.fromEntries(
-      readdirSync(BUILTINS).map((f) => {
-        const j = JSON.parse(readFileSync(resolve(BUILTINS, f), "utf8"));
-        return [f.replace(/\.json$/, ""), j.rows.length];
-      }),
-    );
-    expect(rows).toEqual({
-      planets: 9, penguins: 30, weather: 28, pendulum: 56, spring: 8, freefall: 12,
-    });
-    // The page states each one; a change to a JSON must break this test.
-    const { container, unmount } = mount();
-    const text = container.textContent.replace(/\s+/g, " ");
-    expect(text).toContain(`Planets (${rows.planets} rows)`);
-    expect(text).toContain(`Palmer Penguins (${rows.penguins})`);
-    expect(text).toContain(`Cape Town vs Johannesburg (${rows.weather})`);
-    expect(text).toContain(`Pendulum lab measurements (${rows.pendulum})`);
-    expect(text).toContain(`Spring / Hooke’s law (${rows.spring})`);
-    expect(text).toContain(`Free fall (${rows.freefall})`);
-    unmount();
+  test("6 built-in datasets — the ribbon's total matches the number of dataset JSON files", () => {
+    /* v2: the old per-dataset row-count chip row (§7, retired — see the
+       retirement note above) is not one of the five sections and does not
+       survive; only the undifferentiated ribbon total does, so this is
+       what re-derives it now. */
+    const files = readdirSync(BUILTINS).filter((f) => f.endsWith(".json"));
+    expect(files).toHaveLength(6);
   });
 
   test("the keycap row is exactly the three shipped hotkeys — no invented fourth", () => {
     const { container, unmount } = mount();
     const items = [...container.querySelectorAll(".welcome-keys > li")];
     expect(items).toHaveLength(3);
-    /* "run / stop", not "run", since tranche 1: utils/hotkeys.js maps
-       Ctrl/Cmd+Enter to "runToggle" — Run and Stop are one button in the
-       viewport header and the keyboard matches it. The old label promised
-       less than the key does. Bare F5 maps to runToggle too; it is named in
-       §4's prose, and the row deliberately stays at the three chords a
-       student is told to learn. */
+    /* "run / stop", not "run": utils/hotkeys.js maps Ctrl/Cmd+Enter to
+       "runToggle" — Run and Stop are one button in the viewport header and
+       the keyboard matches it. Bare F5 maps to runToggle too; it is named
+       in §1's helpref pointer to Help, and the row deliberately stays at
+       the three chords a student is told to learn. */
     expect(items.map((li) => li.textContent.replace(/\s+/g, " ").trim())).toEqual([
       "Ctrl+Enter run / stop",
       "Esc stop",
@@ -402,12 +370,20 @@ describe("the front page's numerals trace to source", () => {
     unmount();
   });
 
-  test("six stat tiles, mono and tabular, and the rhetorical zero is one of them", () => {
+  test("the closing ribbon is six numerals inline with their labels — no tiles, no links, no hover-reveal", () => {
     const { container, unmount } = mount();
-    const stats = [...container.querySelectorAll(".welcome-stat")];
-    expect(stats).toHaveLength(6);
-    const values = stats.map((s) => s.querySelector(".welcome-stat__n").textContent);
-    expect(values).toEqual(["151", "18", "6", "6", "14", "0"]);
+    const items = [...container.querySelectorAll(".welcome-ribbon__list li")];
+    expect(items).toHaveLength(6);
+    expect(items.map((li) => li.textContent.replace(/\s+/g, " ").trim())).toEqual([
+      "151 block types",
+      "18 worked projects",
+      "6 built-in datasets",
+      "6 chart types",
+      "14 documentation sections",
+      "0 servers doing your physics",
+    ]);
+    // No tiles, no anchors, no hover-revealed provenance notes (redesign brief).
+    expect(container.querySelectorAll(".welcome-ribbon a")).toHaveLength(0);
     unmount();
   });
 });

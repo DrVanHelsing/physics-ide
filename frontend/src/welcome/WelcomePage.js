@@ -1,115 +1,77 @@
 /**
  * WelcomePage — the front page at /welcome.
  *
- * A door with six adjectives on it became nine screens of checkable fact.
- * The rule this file is written under (Plan 5, spec §18): **if a claim cannot
- * be pointed at a file, it does not ship.** Nothing here is aspirational, and
- * the one thing the product does not do yet is stated plainly in §12 rather
- * than omitted.
+ * v2 (2026-08-26): a full redesign onto the user's own wireframe — a
+ * full-viewport hero (giant title + a full-bleed, click-to-drop physics
+ * canvas) with the site nav sitting at the hero's bottom edge and sticking
+ * to the top of the screen on scroll, then five minimal sections, a quiet
+ * numbers ribbon, and a one-line footer. The nine-screen, chip-dense
+ * "fun pivot" this replaces is retired in full — see
+ * .superpowers/sdd/welcome-upgrade/redesign-v2-report.md for the section
+ * census, the video-or-fallback outcome, and exactly which locks moved,
+ * survived unchanged, or were cut with the section that carried them.
+ *
+ * The rule this file is still written under (Plan 5, spec §18) is
+ * unchanged: **if a claim cannot be pointed at a file, it does not ship.**
+ * The one thing the product does not do yet is stated plainly in §5 below
+ * rather than omitted.
  *
  * ── THE NUMBERS LEDGER ───────────────────────────────────────────────────
- * Every numeral on the page, and where it comes from. Re-derived in this
- * worktree; welcomePage.test.js re-derives the last two on every run so a
- * data change breaks the build rather than the reader's trust.
+ * Every numeral on the page (now the closing ribbon, RIBBON below), and
+ * where it comes from. welcomePage.test.js re-derives the two that can
+ * change under this file's feet (toolbox block count, chart-block count) on
+ * every run, so a data change breaks the build rather than the reader's
+ * trust — the per-dataset row-count breakdown that used to be checked the
+ * same way lived in §7's chip row (retired; see the report), so only the
+ * "6" total survives as a ribbon numeral, unbroken down.
  *
  *   151 block types      utils/blockly/toolbox.js — unique <block type=…>
- *   120 purpose-built    `npm run check:blocks`: "120 entries in 19 categories;
- *   across 19 drawers      120 toolbox ids and 26 drawers reconcile both ways".
- *                          26 drawers exist; 19 of them OWN purpose-built
- *                          blocks. The other seven are the two parent drawers
- *                          (Data Science, Advanced) and five stock-only ones
- *                          (Variables, Functions, Loops, Text, Lists).
- *   31 standard blocks   151 toolbox ids − 120 registry ids. They are NOT all
- *                          in the Advanced drawer. Re-derived by walking the
- *                          toolbox with a category stack: 23 are (Loops 4,
- *                          Text 11, Lists 8) and 8 are not — logic_null and
- *                          logic_ternary sit in the top-level Logic drawer
- *                          (toolbox.js:243-244) and math_number_property,
- *                          math_round, math_on_list, math_modulo,
- *                          math_random_int, math_random_float in the top-level
- *                          Math drawer (:252-260). §3's copy says 23 / 8; an
- *                          earlier draft said "in the Advanced drawer" and was
- *                          wrong about a quarter of them.
  *   18 worked projects   precodedExamples.js EXAMPLES = 4; blockTemplates.js
  *                          BLOCK_TEMPLATES = 4, DS_TEMPLATES = 10 (7 data-science
- *                          + 3 hybrid analyses), HYBRID_TOPICS = 3 → 4+4+7+3
- *   6 built-in datasets  utils/dataset/dataset.js BUILTIN_LOADERS
- *   9/30/28/56/8/12      utils/dataset/builtins/*.json — rows.length, counted:
- *                          planets 9, penguins 30, weather 28, pendulum 56,
- *                          spring 8, freefall 12. The brief's values were right.
+ *                          + 3 hybrid analyses) → 4+4+7+3
+ *   6 built-in datasets  utils/dataset/dataset.js BUILTIN_LOADERS — 6 files
+ *                          in utils/dataset/builtins/*.json
  *   6 chart types        the six ds_chart_* blocks: bar, line, scatter,
  *                          histogram, box (Charts drawer) and scatter_fit
- *                          (Analyzing Relationships). ds_save_chart_block is in
- *                          the Charts drawer too but is a save action, so the
- *                          drawer holds six blocks and the product six types —
- *                          the same number for two different reasons.
+ *                          (Analyzing Relationships).
  *   14 doc sections      components/HelpPage.js — 14 section objects
+ *   0 servers            GlowScript is vendored, Monaco and Blockly are
+ *                          bundled, the data-science blocks run as JS.
  *   3 keycaps shown      utils/hotkeys.js matchHotkey — Ctrl/Cmd+Enter and bare
  *                          F5 both return "runToggle": Run and Stop are ONE
  *                          button in the viewport header and the keyboard
  *                          matches it, so the row's first keycap says
- *                          "run / stop", not "run". Esc is stop-only by design
- *                          (a key that could START a simulation is not what
- *                          anyone reaches for Escape expecting), Ctrl/Cmd+S
- *                          saves. F5 is named in §4's helpref pointer to
- *                          Help (fix round, review edc4a7b: previously named
- *                          in §4's prose before that prose was cut to one
- *                          sentence; this comment was not updated to match
- *                          until now), not the row.
+ *                          "run / stop", not "run". Esc is stop-only by design,
+ *                          Ctrl/Cmd+S saves. F5 is named in §1's helpref
+ *                          pointer to Help, not the row.
  *                          Space / F10 / Shift+F10 are debug-mode-only
- *                          (hooks/useDebugHotkeys.js) and are named in §5's
- *                          helpref pointer to Help (same fix-round note —
- *                          right-click/Alt-click to set a breakpoint is
- *                          there too), never in the keycap row.
- *   01–09 and 1–3        the anchor rail's section numbers and the first-five-
- *                          minutes step numbers are CSS counters (welcome.css),
- *                          never source literals — ordinals of the page's own
- *                          structure, not claims about the product.
- *   5 roles              docs/classroom-platform.md §2 — "Five kinds of people"
- *   4 join doors         code, link, QR (PeopleTab.js), email invite
- *   3 join policies      shared/src/classes.ts JOIN_MODES
- *   200 accounts         admin setting `account_cap`
- *   100 projects         backend routes/projects.ts MAX_PROJECTS_PER_USER
- *   0 servers            GlowScript is vendored, Monaco and Blockly are
- *                          bundled, the data-science blocks run as JS.
- *   4 worked-project     Tranche 2, §8: blocks_projectile, blocks_pendulum,
- *   tiles opened           blocks_orbits (blockTemplates.js BLOCK_TEMPLATES)
- *                          and ds_penguins_stats (blockTemplates.js
- *                          DS_TEMPLATES) — verified against those exports
- *                          directly, opened via pendingTemplate.js +
- *                          hooks/usePendingTemplateSeed.js onto StartMenu's
- *                          own buildManifestSpec.
- *   2 screenshot pairs   assets/welcome/*.webp, captured live against the
- *                          running product on the Projectile Motion template
- *                          (blocks_projectile), both themes:
- *                            §3 editor-{dark,light}.webp — the block editor,
- *                              viewport hidden for width, showing Simulation
- *                              Start through the geometry constants.
- *                              Captured by e2e/welcome-shots-probe.mjs;
- *                              unchanged since tranche 2 (61548B / 66146B,
- *                              1280×730).
- *                            §4 viewport-{dark,light}.webp — the 3D viewport
- *                              mid-run, the ball arcing over the ground past
- *                              its launch marker into its second bounce.
- *                              Re-captured for tranche 2.5 (polish brief
- *                              move 3 — "frame full of scene, not empty
- *                              canvas") by e2e/welcome-shots-recapture.mjs
- *                              (gitignored, not shipped): the camera is
- *                              zoomed directly (scene.range = 8, probed
- *                              against 6/7/8/9/10 so the post-bounce ball
- *                              stays in frame) rather than cropping a small,
- *                              distant subject, then the pane's own chrome
- *                              and empty sky/ground are cropped away.
- *                              635×255, 3710B / 3538B — the telemetry label
- *                              this pair used to show moved out of frame
- *                              under the tighter camera, so the alt text and
- *                              caption no longer claim it; §4's prose above
- *                              still does, truthfully, since that claim is
- *                              about the feature, not this one frame.
- *                          134942B total, well under the 1.2MB budget. A
- *                          data-science chart pair was not attempted — it
- *                          needs its own template run + pipeline wait on top
- *                          of the two pairs above; ships as two pairs.
+ *                          (hooks/useDebugHotkeys.js) and are named in §1's
+ *                          second helpref pointer to Help (right-click/
+ *                          Alt-click to set a breakpoint is there too),
+ *                          never in the keycap row. §1, not the old §4/§5,
+ *                          because v2 folded "watch it run" and "look
+ *                          inside" into one video section — see the report's
+ *                          "where the restored facts now live" note.
+ *   4 worked-project     Tranche 2, §8, now §4 "Open something real":
+ *   tiles opened           blocks_projectile, blocks_pendulum, blocks_orbits
+ *                          (blockTemplates.js BLOCK_TEMPLATES) and
+ *                          ds_penguins_stats (DS_TEMPLATES) — verified
+ *                          against those exports directly, opened via
+ *                          pendingTemplate.js + hooks/usePendingTemplateSeed.js
+ *                          onto StartMenu's own buildManifestSpec.
+ *   2 demo video loops   assets/welcome/demo-run.webm (blocks snap → Run →
+ *                          the 3D scene moving, captured on the Projectile
+ *                          Motion template) and demo-analysis.webm (loading
+ *                          the Palmer Penguins dataset → a chart drawing and
+ *                          the table filling, captured on the Penguins:
+ *                          exploratory analysis template) — both captured
+ *                          live against the running product by the throwaway
+ *                          frontend/e2e/welcome-video-capture.mjs (gitignored,
+ *                          not shipped) and encoded with ffmpeg (present on
+ *                          this machine), muted vp9/webm loops. Poster frames
+ *                          (demo-run-poster.webp, demo-analysis-poster.webp)
+ *                          are each video's first captured frame, shown under
+ *                          prefers-reduced-motion in place of autoplay.
  *
  * ── THE TWO HARD CONSTRAINTS ─────────────────────────────────────────────
  * 1. WelcomeGate.js is correct and is not touched by this file.
@@ -120,80 +82,56 @@
  *    forbidden form here even as an example. Two shapes are NOT calls to
  *    action and stay outside go(): in-page anchors (#s-…), which never leave
  *    the page, and nothing else — the /join door IS a call to action and goes
- *    through go() like the rest (go() takes any path, and a visitor who chose
- *    a door has passed the welcome page in every sense the gate cares about).
- *    The site header (WelcomeHeader.js, tranche 2.5) is a child component,
- *    not a bare Link in this file, so it does not trip the grep below — but
- *    it holds the same discipline: this page passes it onSignIn={() =>
- *    go("/auth/signin")}, so its Sign in control still stamps the pass.
- *    WelcomeSubpage.js (/about, /contact) passes no onSignIn — those two
- *    routes are gate-free, like /join, so their header falls back to a
- *    plain Link, the same shape JoinClassPage.js already uses.
+ *    through go() like the rest.
+ *    The site nav (WelcomeHeader.js) is a child component, not a bare Link in
+ *    this file, so it does not trip the grep below — but it holds the same
+ *    discipline: this page passes it onSignIn={() => go("/auth/signin")} and
+ *    onOpenIde={() => go("/")}, so its Sign in and Open the IDE controls still
+ *    stamp the pass. WelcomeSubpage.js (/about, /contact) passes neither —
+ *    those two routes are gate-free, like /join, so their header falls back
+ *    to plain Links, the same shape JoinClassPage.js already uses.
  */
 import React, { useCallback, useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import GravityPlayground from "./GravityPlayground";
 import WelcomeHeader from "./WelcomeHeader";
-import DebugDemo from "./DebugDemo";
-import { useTheme } from "../contexts/ThemeContext";
 import { setPendingTemplate } from "./pendingTemplate";
 import {
+  PlayIcon,
   BlocksIcon,
-  OrbitIcon,
-  BugIcon,
-  RecordIcon,
   ChartIcon,
   BookOpenIcon,
-  LocalFirstIcon,
-  ZapIcon,
   GraduationCapIcon,
-  PrivacyIcon,
   RocketIcon,
   AtomIcon,
   GlobeIcon,
   TableIcon,
 } from "../components/Icons";
 import { WELCOME_PASSED_SESSION_KEY } from "../constants";
-import editorLightShot from "../assets/welcome/editor-light.webp";
-import editorDarkShot from "../assets/welcome/editor-dark.webp";
-import viewportLightShot from "../assets/welcome/viewport-light.webp";
-import viewportDarkShot from "../assets/welcome/viewport-dark.webp";
+import demoRunWebm from "../assets/welcome/demo-run.webm";
+import demoRunPoster from "../assets/welcome/demo-run-poster.webp";
+import demoAnalysisWebm from "../assets/welcome/demo-analysis.webm";
+import demoAnalysisPoster from "../assets/welcome/demo-analysis-poster.webp";
 
 /* The section identity ramp, exactly as pane headers use it
-   (workspace.css:65-67). Resolved by name — never string-concatenated. */
+   (workspace.css:65-67), resolved by name into the shared `.welcome-cat-*`
+   utility (welcome.css) — never string-concatenated from anything but this
+   trusted table. */
 const CAT = {
-  editor: "values",
-  viewport: "motion",
-  debugger: "control",
-  measure: "objects",
-  data: "data-science",
-  starting: "logic",
-  yours: "advanced",
-  play: "motion",
+  work: "motion",
+  blocks: "values",
+  analyse: "data-science",
+  open: "logic",
   classrooms: "communicate",
 };
 
-/* The anchor rail: the nine sections that carry an eyebrow, in page order,
-   each pointing at the id its h2 already owns. §2 (s-what) and §10
-   (s-numbers) are deliberately absent — their headings are visually hidden
-   landmarks, not destinations a reader names. Numbers come from a CSS
-   counter, so the rail renders 01–09 without a numeral in this file. */
-const RAIL = [
-  ["s-editor", "Editor", BlocksIcon, CAT.editor],
-  ["s-view", "Run", OrbitIcon, CAT.viewport],
-  ["s-debug", "Debug", BugIcon, CAT.debugger],
-  ["s-measure", "Measure", RecordIcon, CAT.measure],
-  ["s-data", "Analyse", ChartIcon, CAT.data],
-  ["s-start", "Projects", BookOpenIcon, CAT.starting],
-  ["s-yours", "Your work", LocalFirstIcon, CAT.yours],
-  ["s-play", "Try it", ZapIcon, CAT.play],
-  ["s-class", "Teachers", GraduationCapIcon, CAT.classrooms],
-];
-
-/* §3's artefact: a block stack and the Python it generates. Hand-spanned, no
-   highlighting library (Budget §4.4). The Python is what blocklyGenerator.js
-   actually emits for these blocks — sphere_block, set_velocity_block,
-   forever_loop_block, rate_block, apply_force_block, update_position_block. */
+/* §"Blocks or Python"'s artefact: a block stack and the Python it generates.
+   Hand-spanned, no highlighting library (Budget §4.4). The Python is what
+   blocklyGenerator.js actually emits for these blocks — sphere_block,
+   set_velocity_block, forever_loop_block, rate_block, apply_force_block,
+   update_position_block. Unchanged from tranche 2 — this artifact survives
+   v2 verbatim (redesign brief: "the one artifact the user's 'interactivity'
+   is already served by"). */
 const BLOCK_STACK = [
   { d: 0, t: "ball = sphere   pos (0, 5, 0)   radius 0.5" },
   { d: 0, t: "set ball velocity to   vector 3, 0, 0" },
@@ -213,85 +151,31 @@ const PYTHON = [
   [["  ball.pos = ball.pos + ball.velocity * 0.01", null]],
 ];
 
-/* §7 — the pipeline, one short line each. These are reading labels, NOT drawer
-   names — only Explore, Uncertainty and Communicate are also drawers, and Chart
-   is the Charts drawer minus its plural. Describe is the Statistics drawer,
-   Relationships is Analyzing Relationships, Linearise is Transforming Data, and
-   Shape spans two (Filter & Sort, Group & Compare). The rendered copy makes no
-   drawer claim; do not add one here or there.
-   Each entry is [name, ≤6-word teaser, full detail] — the teaser is what
-   <summary> shows closed, the detail is what a click discloses (fun-redesign
-   brief §2, §7 entry: "each of the 8 .welcome-stage cards becomes a native
-   <details>/<summary>"). "Describe"'s teaser is the brief's own example, kept
-   verbatim. */
-const PIPELINE = [
-  ["Explore", "Look at the raw data first", "Show the table, the first or last N rows, one column, one cell; count rows, columns and unique values; name a column's type."],
-  ["Describe", "the whole statistics toolkit", "Mean, median, mode, min, max, range, sum, count, standard deviation, percentile, interquartile range — or every statistic for a column at once."],
-  ["Uncertainty", "Put an error bar on it", "Standard error of the mean, a measurement printed as value ± uncertainty, and relative uncertainty as a percentage."],
-  ["Relationships", "Fit a line, get r", "Least-squares straight-line fit, and Pearson's r as its own block."],
-  ["Linearise", "Straighten a curve first", "Transform a column by ln, log₁₀, √, x² or 1/x, or multiply two columns into a new one — the standard trick for straightening a curve."],
-  ["Shape", "Filter, sort and group rows", "Filter rows on one condition or two joined by AND/OR, sort, drop missing values, find where a value is missing, count and average per group."],
-  ["Chart", "Six chart types, one block", "Bar, line, scatter, histogram, box plot, and scatter with a regression line. Charts save as image files."],
-  ["Communicate", "Write the result up", "Write a note, print a result, compare two results side by side, state a conclusion, export the table as CSV, and reveal the generated Python."],
+/* The closing ribbon (retired §10's six stat tiles — no links, no
+   hover-reveals, no per-item target: redesign brief, numbers strip
+   "compressed to a single quiet one-line ribbon"). [numeral, label]. */
+const RIBBON = [
+  ["151", "block types"],
+  ["18", "worked projects"],
+  ["6", "built-in datasets"],
+  ["6", "chart types"],
+  ["14", "documentation sections"],
+  ["0", "servers doing your physics"],
 ];
 
-/* §7's chip row — the six built-in datasets, one chip each. These strings
-   are locked verbatim: welcomePage.test.js greps container.textContent for
-   each parenthetical substring (the numbers are re-derived from the JSON
-   files on every test run, per the ledger above). Reformat the wrapper,
-   never the string. */
-const DATASETS = [
-  "Planets (9 rows)",
-  "Palmer Penguins (30)",
-  "Weather / Cape Town vs Johannesburg (28)",
-  "Pendulum lab measurements (56)",
-  "Spring / Hooke’s law (8)",
-  "Free fall (12)",
-];
-
-/* [numeral, label, in-page target or null, hover/focus-revealed provenance
-   note]. A tile whose subject has a section on this page is a real
-   <a href="#…"> to it; the documentation lives inside the IDE, not on this
-   page, so that tile stays plain text. Both dataset and chart tiles point at
-   §7 — the data section covers both. The fourth field is §10's new
-   micro-interaction (fun-redesign brief §2, §10 entry): it elaborates the
-   existing label, never a new numeral — the ledger at the top of this file
-   is what each note is drawn from. */
-const STATS = [
-  ["151", "block types", "s-editor", "120 purpose-built, 31 standard Blockly"],
-  ["18", "worked projects", "s-start", "4 Python, 4 blocks, 7 data science, 3 hybrid"],
-  ["6", "built-in datasets", "s-data", "planets, penguins, weather, pendulum, spring, free fall"],
-  ["6", "chart types", "s-data", "bar, line, scatter, histogram, box, and a fitted scatter"],
-  ["14", "documentation sections", null, "Getting Started through the VPython Reference"],
-  ["0", "servers doing your physics", "s-yours", "GlowScript, Monaco and Blockly all run in your browser"],
-];
-
-/* §4's two enumerations, as chip rows instead of run-on sentences (fun-
-   redesign brief §2, §4 entry). Camera-control detail moves to Help. */
-const SCENE_OBJECTS = ["Spheres", "Boxes", "Cylinders", "Arrows", "Helixes", "Springs", "Trails", "Labels"];
-const VECTOR_OPS = ["Magnitude", "Unit vector", "Dot", "Cross", "Trig", "Clamp", "Min / max"];
-
-/* §9's export-format run-on sentence, as a chip row (same .badge primitive
-   §8 already uses — zero new CSS for the chips themselves). */
-const EXPORT_FORMATS = [".py", ".xml", "PDF (code)", "PDF (blocks)", "PNG", ".physide.json"];
-
-/* §12's four join methods — text-only chips, per the file boundary's own
-   instruction: no existing imported icon reads cleanly as "code" / "link" /
-   "QR" / "email", and Icons.js is out of scope for a new export. */
-const JOIN_WAYS = ["Code", "Link", "QR", "Email"];
-
-/* §8 — the four worked-project tiles a visitor can open right now, each a
-   real template id verified against blockTemplates.js's BLOCK_TEMPLATES /
-   DS_TEMPLATES (see the ledger). A click stamps the id via pendingTemplate.js
-   and goes through go("/") like every other CTA on this page; the IDE's
-   usePendingTemplateSeed picks it up and builds the project through the
-   wizard's own buildManifestSpec — this file never touches manifest shape.
-   Mechanism line only: what the template computes, not how good it is. */
+/* §4 "Open something real"'s four worked-project tiles — unchanged ids from
+   tranche 2, each a real template id verified against blockTemplates.js's
+   BLOCK_TEMPLATES / DS_TEMPLATES (see the ledger). A click stamps the id via
+   pendingTemplate.js and goes through go("/") like every other CTA on this
+   page. `cat` tints the tile per block-category colour (redesign brief:
+   "tinted per block-category colour (colour!)") — the same four categories
+   the hero canvas already draws its balls in, cycled one per tile. */
 const WORKED_TILES = [
   {
     id: "blocks_projectile",
     title: "Projectile Motion",
     Icon: RocketIcon,
+    cat: "motion",
     mechanism:
       "Drag scales with speed squared; the ball loses energy at each bounce until it settles.",
   },
@@ -299,6 +183,7 @@ const WORKED_TILES = [
     id: "blocks_pendulum",
     title: "Simple Pendulum",
     Icon: AtomIcon,
+    cat: "values",
     mechanism:
       "A nonlinear restoring force and linear damping set the angular acceleration every frame.",
   },
@@ -306,6 +191,7 @@ const WORKED_TILES = [
     id: "blocks_orbits",
     title: "Sun, Earth & Moon",
     Icon: GlobeIcon,
+    cat: "objects",
     mechanism:
       "Two gravity sources at once — the Moon orbits Earth while Earth orbits the Sun — integrated with velocity-Verlet.",
   },
@@ -313,9 +199,18 @@ const WORKED_TILES = [
     id: "ds_penguins_stats",
     title: "Penguins: Exploratory Analysis",
     Icon: TableIcon,
+    cat: "data-science",
     mechanism: "Bill length regressed against body mass, with Pearson’s r and a fitted line over the scatter.",
   },
 ];
+
+function prefersReducedMotion() {
+  try {
+    return !!window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+  } catch {
+    return false;
+  }
+}
 
 /** An eyebrow micro-label carrying its section's category mark. */
 function Eyebrow({ Icon, children }) {
@@ -327,71 +222,56 @@ function Eyebrow({ Icon, children }) {
   );
 }
 
-/* §9's artifact (fun-redesign brief §2, §9 entry): a small static mock of
-   the product's real sync-chip visual language — conceptually, not the
-   component itself; this file only, no import of the real SyncChip. Hover
-   or focus steps its label through the three states a real sync chip can
-   show. Each step is a discrete response to one interaction, not a running
-   animation — the RM table's §9 row asks for an instant swap, never a
-   cross-fade, so this needs no reduced-motion guard beyond "add no
-   transition here," which it already does not. */
-const SYNC_STATES = ["Saved", "Syncing", "Offline"];
-
-function SyncChipMock() {
-  const [i, setI] = useState(0);
-  const step = () => setI((n) => (n + 1) % SYNC_STATES.length);
+/* §1 and §3's artefact: a short, muted, looping capture of the real product
+   (redesign brief: "the most literal claim on the page"). Under
+   prefers-reduced-motion the video never autoplays — a poster frame plus a
+   real Play button take its place, so motion only ever starts on a
+   deliberate click (the same "degrade, don't delete" rule the hero canvas
+   and the old scroll-reveal already follow). */
+function DemoVideo({ webm, poster, width, height, alt, caption }) {
+  const [reduced] = useState(prefersReducedMotion);
+  const [playing, setPlaying] = useState(false);
+  const live = !reduced || playing;
   return (
-    <button
-      type="button"
-      className="welcome-syncchip"
-      onMouseEnter={step}
-      onFocus={step}
-      aria-label={`Sync status, a mock — currently showing "${SYNC_STATES[i]}"; hover or focus to see the next state`}
-    >
-      <span className="welcome-syncchip__dot" aria-hidden="true" />
-      {SYNC_STATES[i]}
-    </button>
-  );
-}
-
-/* A theme-matched product screenshot: dark src in dark, light in light.
-   Real width/height (no CLS), lazy — these sit well below the fold. */
-function ThemeImage({ isDark, light, dark, alt, width, height }) {
-  return (
-    <img
-      className="welcome-shot"
-      src={isDark ? dark : light}
-      alt={alt}
-      width={width}
-      height={height}
-      loading="lazy"
-    />
+    <figure className="welcome-demo">
+      {live ? (
+        <video
+          className="welcome-demo__video"
+          src={webm}
+          poster={poster}
+          width={width}
+          height={height}
+          autoPlay={!reduced}
+          loop
+          muted
+          playsInline
+          aria-label={alt}
+        />
+      ) : (
+        <div className="welcome-demo__poster" style={{ aspectRatio: `${width} / ${height}` }}>
+          <img className="welcome-demo__poster-img" src={poster} alt={alt} width={width} height={height} />
+          <button
+            type="button"
+            className="welcome-demo__play"
+            onClick={() => setPlaying(true)}
+            aria-label={`Play video: ${alt}`}
+          >
+            <PlayIcon size={22} />
+          </button>
+        </div>
+      )}
+      <figcaption>{caption}</figcaption>
+    </figure>
   );
 }
 
 export default function WelcomePage() {
   const navigate = useNavigate();
-  const { isDark } = useTheme();
-  /* §2b's checklist gamification: which of the three first-five-minutes
-     steps a visitor has marked done. Component state only, no storage — a
-     reload resets it, same as the rest of this page's interactivity. */
-  const [doneSteps, setDoneSteps] = useState(() => new Set());
-  const toggleStep = useCallback((i) => {
-    setDoneSteps((prev) => {
-      const next = new Set(prev);
-      if (next.has(i)) next.delete(i);
-      else next.add(i);
-      return next;
-    });
-  }, []);
-  /* §3's block↔Python hover-link: which index (if any) is under the
+  /* §"Blocks or Python"'s hover-link: which index (if any) is under the
      pointer or keyboard focus. Both BLOCK_STACK and PYTHON are index-
      aligned (see their own comments above), so one integer is the whole
-     mechanism — no state machine needed. */
+     mechanism — no state machine needed. Unchanged from tranche 2. */
   const [activeLine, setActiveLine] = useState(null);
-  /* The anchor rail's active-section highlight — a state toggle driven by
-     scroll position, not an animation (RM table: "No change needed"). */
-  const [activeSection, setActiveSection] = useState(null);
 
   const go = useCallback(
     (path) => {
@@ -417,8 +297,7 @@ export default function WelcomePage() {
   useEffect(() => {
     const els = document.querySelectorAll(".welcome-reveal");
     /* Degrade, don't delete: without an IntersectionObserver the reveals
-       resolve to their final state rather than leaving nine screens at
-       opacity 0. Same rule the reduced-motion block follows. */
+       resolve to their final state rather than staying at opacity 0. */
     if (typeof IntersectionObserver === "undefined") {
       els.forEach((el) => el.classList.add("is-on"));
       return undefined;
@@ -433,197 +312,91 @@ export default function WelcomePage() {
     return () => io.disconnect();
   }, []);
 
-  useEffect(() => {
-    /* Degrade, don't delete: without IntersectionObserver the rail simply
-       never highlights an active section — nothing on the page breaks, the
-       rail still works as a plain set of anchors (RM table, "Rail
-       active-section highlight" row). */
-    if (typeof IntersectionObserver === "undefined") return undefined;
-    const sections = document.querySelectorAll("section[aria-labelledby]");
-    const io = new IntersectionObserver(
-      (entries) => {
-        for (const e of entries) {
-          if (e.isIntersecting) setActiveSection(e.target.getAttribute("aria-labelledby"));
-        }
-      },
-      { rootMargin: "-45% 0px -50% 0px" },
-    );
-    sections.forEach((el) => io.observe(el));
-    return () => io.disconnect();
-  }, []);
-
   return (
     <main className="welcome">
       <a className="welcome-skip" href="#welcome-main">Skip to content</a>
 
-      {/* The slim site header (brief move 4): mounted here and reused,
-          unchanged, on /about and /contact via WelcomeSubpage.js. The lone
-          floating ThemeToggleButton this replaced is gone — the toggle now
-          lives in the header's right cluster. Sign in goes through go(), so
-          this page's every-CTA-through-go() rule (hard constraint 2, above)
-          still holds even though the control lives in a child component. */}
-      <WelcomeHeader onSignIn={() => go("/auth/signin")} />
-
+      {/* ── Hero: the only thing a visitor sees on open ─────────────────
+          Full-viewport (welcome.css: min-height calc(100vh - header-h)),
+          giant title over a full-bleed, click-to-drop physics canvas — the
+          gravity-playground engine promoted here from its own retired
+          section (redesign brief: "the hero's interactive animation"). The
+          nav (WelcomeHeader) is deliberately the NEXT element in the DOM,
+          not a child of this <header> — it sits at the hero's bottom edge
+          and sticks to the top of the screen on scroll, pure CSS, no JS
+          (welcome.css's `.welcome-header { position: sticky; top: 0 }`). */}
       <header className="welcome-hero">
-        <div className="welcome-orbit" aria-hidden="true">
-          <div className="welcome-orbit__sun" />
-          <div className="welcome-orbit__path welcome-orbit__path--a"><i /></div>
-          <div className="welcome-orbit__path welcome-orbit__path--b"><i /></div>
-        </div>
-        <h1>Physics IDE</h1>
-        <p className="welcome-tagline">
-          Build a physics simulation with blocks or with Python, watch it run in 3D,
-          then analyse the data it produced — all in the browser, with no account
-          and nothing to install.
-        </p>
-        <p className="welcome-subline">
-          Free, offline-capable, and open to guests. Built for physics classrooms.
-        </p>
-        {/* The primary door is a row of its own so its size can say what the
-            copy already says: this is the one most visitors want. The two
-            account doors sit beneath it at their old size. */}
-        <div className="welcome-cta">
+        <GravityPlayground />
+        <div className="welcome-hero__content">
+          <h1>Physics IDE</h1>
+          <p className="welcome-tagline">
+            Build a simulation with blocks or Python, run it live in 3D, then analyse the
+            data it produces — free, in your browser, no account needed.
+          </p>
           <button className="btn btn--primary btn--lg" type="button" onClick={() => go("/")}>
             Use the IDE — no account needed
           </button>
-          <div className="welcome-cta__alt">
-            <button className="btn btn--lg" type="button" onClick={() => go("/auth/signup")}>
-              Create an account
-            </button>
-            <button className="btn btn--lg" type="button" onClick={() => go("/auth/signin")}>
-              Sign in
-            </button>
-          </div>
         </div>
-        <p className="welcome-reassure">Guests get the complete IDE. Nothing is held back.</p>
-        {/* An in-page anchor, not a door — it never leaves the page, so it
-            does not go through go() and is not a hero <button>. */}
-        <p className="welcome-hero__quiet">
-          <a className="welcome-hero__peek" href="#s-play">See it run — the gravity playground ↓</a>
-        </p>
-        {/* The fourth door: /join is ungated, but go() stamps the pass first
-            like every other door — see hard constraint 2 in the header. */}
-        <p className="welcome-hero__quiet">
-          Have a class code?{" "}
-          <button className="welcome-linklike" type="button" onClick={() => go("/join")}>
-            Join your class
-          </button>
-        </p>
       </header>
+
+      <WelcomeHeader onSignIn={() => go("/auth/signin")} onOpenIde={() => go("/")} />
 
       <div id="welcome-main" tabIndex={-1} />
 
-      {/* The anchor rail — fixed to the left edge, ≥1280px only (welcome.css
-          hides it below that, where it would cover content). It sits directly
-          after the skip target on purpose: a keyboard visitor who skips the
-          hero lands on the list of places to go. */}
-      <nav className="welcome-rail" aria-label="Page sections">
-        <ol>
-          {RAIL.map(([id, label, Icon, cat]) => (
-            <li
-              key={id}
-              className={`welcome-section--${cat}${activeSection === id ? " is-active" : ""}`}
-            >
-              <a href={`#${id}`}>
-                <span className="welcome-rail__mark" aria-hidden="true"><Icon size={12} /></span>
-                {label}
-              </a>
-            </li>
-          ))}
-        </ol>
-      </nav>
-
-      {/* §2 — the fast orientation for someone who will not scroll far.
-          Each cell is a flip-tile (fun-redesign brief §2, §2 entry): the
-          label + a glyph show by default, the sentence reveals on hover or
-          focus via a max-height/opacity transition. Keyboard reachable
-          because the label is a real <button> — :focus-within on the
-          wrapping .welcome-flip fires the same reveal a mouse hover does. */}
-      <section className="welcome-band welcome-reveal" aria-labelledby="s-what">
-        <h2 id="s-what" className="welcome-sr">What Physics IDE is</h2>
-        <div className="welcome-flip">
-          <button type="button" className="welcome-reset-btn welcome-flip__face">
-            <span className="welcome-flip__mark" aria-hidden="true"><LocalFirstIcon size={18} /></span>
-            <strong>Runs in your browser.</strong>
-          </button>
-          <p className="welcome-reveal-note welcome-flip__body">
-            GlowScript 3.2 VPython, the Monaco code editor and the block editor all ship
-            with the app; no server does your physics.
-          </p>
-        </div>
-        <div className="welcome-flip">
-          <button type="button" className="welcome-reset-btn welcome-flip__face">
-            <span className="welcome-flip__mark" aria-hidden="true"><BlocksIcon size={18} /></span>
-            <strong>Two editors, one project.</strong>
-          </button>
-          <p className="welcome-reveal-note welcome-flip__body">
-            Drag blocks or write Python — the toolbar toggle switches views, and the
-            blocks generate readable Python you can flip to and inspect.
-          </p>
-        </div>
-        <div className="welcome-flip">
-          <button type="button" className="welcome-reset-btn welcome-flip__face">
-            <span className="welcome-flip__mark" aria-hidden="true"><AtomIcon size={18} /></span>
-            <strong>Three kinds of project.</strong>
-          </button>
-          <p className="welcome-reveal-note welcome-flip__body">
-            Physics modelling, data science, or hybrid — a simulation and the analysis of
-            the data it just produced.
-          </p>
-        </div>
-      </section>
-
-      {/* §2b — the first five minutes. Three imperatives the reader verifies
-          by doing them; the step numbers are a CSS counter, not copy.
-          Gamified (fun-redesign brief §2, §2b entry): clicking a step toggles
-          its `is-done` class, which draws a checkmark and strikes the text.
-          The checkmark is a decorative, aria-hidden, empty <span> — it adds
-          zero characters to the <li>'s textContent, so the test-locked
-          strings below stay byte-for-byte what the "first-five-minutes strip
-          is an ol of exactly three imperatives, text locked" test expects
-          (welcomePage.test.js lines 195-210, per the brief's migration plan
-          item 1: verified by re-running that test, not by inspection). */}
-      <section className="welcome-steps welcome-reveal" aria-labelledby="s-first">
-        <h2 id="s-first" className="welcome-sr">The first five minutes</h2>
-        <ol className="welcome-steps__list">
-          {[
-            "Open the IDE — no account needed.",
-            "Open a worked project.",
-            "Press Run, then change one number.",
-          ].map((text, i) => (
-            <li key={text} className={doneSteps.has(i) ? "is-done" : undefined}>
-              <button type="button" className="welcome-reset-btn welcome-steps__btn" onClick={() => toggleStep(i)}>
-                <span className="welcome-steps__check" aria-hidden="true" />
-                {text}
-              </button>
-            </li>
-          ))}
-        </ol>
-      </section>
-
-      {/* §3 — blocks and code. */}
-      <section
-        className={`welcome-section welcome-section--${CAT.editor} welcome-reveal`}
-        aria-labelledby="s-editor"
-      >
-        <Eyebrow Icon={BlocksIcon}>The editor</Eyebrow>
-        <h2 id="s-editor">Start with blocks. Move to Python when you&rsquo;re ready.</h2>
+      {/* §1 — "See it work": the product on video, plus the run/debug
+          keyboard facts (redesign task: the F5↔Ctrl+Enter equivalence, the
+          Space/F10/Shift+F10 debug chords and the right-click/Alt-click
+          breakpoint gesture MUST survive this redesign — this is where they
+          now live, as quiet reference text under the clip rather than their
+          own section; see the ledger above and the report's "where the
+          restored facts now live" note). */}
+      <section className={`welcome-section welcome-cat-${CAT.work} welcome-reveal`} aria-labelledby="s-work">
+        <Eyebrow Icon={PlayIcon}>See it work</Eyebrow>
+        <h2 id="s-work">Blocks snap together. Press Run. Watch it move.</h2>
         <p>
-          151 block types across 19 drawers — the toolbox filters itself to your project.
+          This clip is the real product, not a mock-up — a block stack builds a scene, then
+          the physics plays out live in 3D.
         </p>
+        <DemoVideo
+          webm={demoRunWebm}
+          poster={demoRunPoster}
+          width={960}
+          height={540}
+          alt="The block editor on the Projectile Motion template: a stack of blocks, then the Run button pressed, then the 3D viewport showing the ball arc and bounce."
+          caption="Projectile Motion: blocks to a running 3D scene, captured live."
+        />
         <p className="welcome-helpref">
-          Search, right-click Help, and the Monaco fallback are covered in Help, inside
-          the IDE.
+          <kbd className="tb-kbd">F5</kbd> is a bare-key match for{" "}
+          <kbd className="tb-kbd">Ctrl</kbd>
+          <span className="welcome-keys__plus">+</span>
+          <kbd className="tb-kbd">Enter</kbd> — both run or stop the simulation. Full
+          keyboard reference lives in Help, inside the IDE.
         </p>
+        <ul className="welcome-keys">
+          <li><kbd className="tb-kbd">Ctrl</kbd><span className="welcome-keys__plus">+</span><kbd className="tb-kbd">Enter</kbd> run / stop</li>
+          <li><kbd className="tb-kbd">Esc</kbd> stop</li>
+          <li><kbd className="tb-kbd">Ctrl</kbd><span className="welcome-keys__plus">+</span><kbd className="tb-kbd">S</kbd> save</li>
+        </ul>
+        <p className="welcome-helpref">
+          In Debug Mode, right-click a block — or Alt-click it — to set a breakpoint.{" "}
+          <kbd className="tb-kbd">Space</kbd> pauses and resumes,{" "}
+          <kbd className="tb-kbd">F10</kbd> steps a frame,{" "}
+          <kbd className="tb-kbd">Shift</kbd>
+          <span className="welcome-keys__plus">+</span>
+          <kbd className="tb-kbd">F10</kbd> steps to the next value.
+        </p>
+      </section>
 
-        {/* The compare panel is now interactive (fun-redesign brief §2, §3
-            entry, and its own #1 priority in the prioritized cut-line): hover
-            or tab-focus a block chip and its index-aligned Python line lights
-            up. BLOCK_STACK and PYTHON are already index-aligned (see their
-            own comments above) — one integer of state is the whole
-            mechanism, no highlighting library, no state machine. This
-            directly demonstrates "blocks generate readable Python" instead
-            of asserting it in the prose just cut above. */}
+      {/* §2 — "Blocks or Python": the interactive compare panel, decluttered
+          (no chips, no screenshot around it) — unchanged mechanism from
+          tranche 2. */}
+      <section className={`welcome-section welcome-cat-${CAT.blocks} welcome-reveal`} aria-labelledby="s-blocks">
+        <Eyebrow Icon={BlocksIcon}>Blocks or Python</Eyebrow>
+        <h2 id="s-blocks">Same project, two views.</h2>
+        <p>
+          Drag blocks, or write Python — the blocks generate real, readable code, and
+          either view stays in sync with the other.
+        </p>
         <div className="welcome-compare">
           <div className="welcome-compare__side">
             <p className="welcome-compare__label">What you drag</p>
@@ -658,203 +431,41 @@ export default function WelcomePage() {
             ))}</code></pre>
           </div>
         </div>
-
-        <figure className="welcome-shot-figure">
-          <ThemeImage
-            isDark={isDark}
-            light={editorLightShot}
-            dark={editorDarkShot}
-            alt="The block editor open on the Projectile Motion template: Simulation Start, a run-Python block setting scene.range, and a stack of named colour and geometry constants each set to a vector block."
-            width={1280}
-            height={730}
-          />
-          <figcaption>
-            A real project, not a mock-up: blocks nest into value slots — vectors, math and
-            physics constants compose the way the generated Python reads them.
-          </figcaption>
-        </figure>
       </section>
 
-      {/* §4 — the 3D viewport. First of four `welcome-section--band`
-          sections (brief move 1): every second .welcome-section (§4, §6,
-          §8, §12 — 2nd/4th/6th/8th of the page's eight) carries the
-          full-bleed surface + category-strip chapter marker; welcome.css
-          carries the rest of the rationale. */}
-      <section
-        className={`welcome-section welcome-section--${CAT.viewport} welcome-section--band welcome-reveal`}
-        aria-labelledby="s-view"
-      >
-        <Eyebrow Icon={OrbitIcon}>Watch it run</Eyebrow>
-        <h2 id="s-view">Physics you can see happening.</h2>
+      {/* §3 — "From run to analysis": the second video loop. */}
+      <section className={`welcome-section welcome-cat-${CAT.analyse} welcome-reveal`} aria-labelledby="s-analyse">
+        <Eyebrow Icon={ChartIcon}>From run to analysis</Eyebrow>
+        <h2 id="s-analyse">One block turns a run into a chart.</h2>
         <p>
-          Simulations render live in 3D — GlowScript VPython, shipped with the app, works
-          offline. A telemetry label keeps live values in the scene while it runs.
+          Record what happened, or load a dataset — the same blocks describe it, chart it,
+          and fit a line through it.
         </p>
-        {/* The two enumerations that used to be run-on sentences (fun-
-            redesign brief §2, §4 entry) — scannable chip rows instead of
-            parsed prose. Camera-control detail (reset/fit/fullscreen/
-            snapshot) moves to Help's Viewport reference. */}
-        <ul className="welcome-chips">
-          {SCENE_OBJECTS.map((o) => <li key={o} className="badge">{o}</li>)}
-        </ul>
-        <ul className="welcome-chips">
-          {VECTOR_OPS.map((o) => <li key={o} className="badge badge--accent">{o}</li>)}
-        </ul>
-        <p className="welcome-helpref">
-          Camera reset, fit, fullscreen and snapshot are covered in Help — so is{" "}
-          <kbd className="tb-kbd">F5</kbd>, a bare-key match for{" "}
-          <kbd className="tb-kbd">Ctrl</kbd>
-          <span className="welcome-keys__plus">+</span>
-          <kbd className="tb-kbd">Enter</kbd>.
-        </p>
-        <ul className="welcome-keys">
-          <li><kbd className="tb-kbd">Ctrl</kbd><span className="welcome-keys__plus">+</span><kbd className="tb-kbd">Enter</kbd> run / stop</li>
-          <li><kbd className="tb-kbd">Esc</kbd> stop</li>
-          <li><kbd className="tb-kbd">Ctrl</kbd><span className="welcome-keys__plus">+</span><kbd className="tb-kbd">S</kbd> save</li>
-        </ul>
-
-        <figure className="welcome-shot-figure">
-          <ThemeImage
-            isDark={isDark}
-            light={viewportLightShot}
-            dark={viewportDarkShot}
-            alt="The 3D viewport mid-run on the Projectile Motion template, camera zoomed to the bounce: the ball arcing over the ground on its trail, past the launch marker and the ball's second bounce."
-            width={635}
-            height={255}
-          />
-          <figcaption>
-            The scene renders live while the loop runs — this frame is zoomed to the bounce
-            instead of the wide default view.
-          </figcaption>
-        </figure>
+        <DemoVideo
+          webm={demoAnalysisWebm}
+          poster={demoAnalysisPoster}
+          width={960}
+          height={540}
+          alt="A data-science project on the Penguins template: the block pipeline running, a data table filling with rows, then a chart drawing bill length against body mass."
+          caption="Palmer Penguins: a table fills, then a chart draws — captured live."
+        />
       </section>
 
-      {/* §5 — the debugger, the strongest differentiator. */}
-      <section
-        className={`welcome-section welcome-section--${CAT.debugger} welcome-reveal`}
-        aria-labelledby="s-debug"
-      >
-        <Eyebrow Icon={BugIcon}>Look inside</Eyebrow>
-        <h2 id="s-debug">A debugger that doesn&rsquo;t lie to you.</h2>
+      {/* §4 — "Open something real": four real templates, one click away,
+          plus the class-code join door (redesign brief: moved here from the
+          old hero — "everything else leaves the hero"). */}
+      <section className={`welcome-section welcome-cat-${CAT.open} welcome-reveal`} aria-labelledby="s-open">
+        <Eyebrow Icon={BookOpenIcon}>Open something real</Eyebrow>
+        <h2 id="s-open">18 worked projects. Four are one click away.</h2>
         <p>
-          Debug Mode pauses the simulation without losing it — step a frame, step to the
-          next value, or just watch.
+          Open a real template as a guest, no setup — or start from nothing inside the IDE.
         </p>
-        <p>
-          If a program has nothing to pause on, it says so instead of hanging.
-        </p>
-        {/* §5's artifact (fun-redesign brief §2, §5 entry, and #3 in its
-            prioritized cut-line): the page's biggest gap before this
-            tranche — the strongest differentiator, previously the most
-            text-only section with no artifact at all. DebugDemo.js
-            demonstrates the dashed/solid outline claim above instead of only
-            stating it. */}
-        <DebugDemo />
-        <p className="welcome-helpref">
-          Right-click a block — or Alt-click it — to set a breakpoint on it; the toolbar
-          counts how many are set. <kbd className="tb-kbd">Space</kbd> pauses and resumes,{" "}
-          <kbd className="tb-kbd">F10</kbd> steps a frame,{" "}
-          <kbd className="tb-kbd">Shift</kbd>
-          <span className="welcome-keys__plus">+</span>
-          <kbd className="tb-kbd">F10</kbd> steps to the next value.
-        </p>
-        <p className="welcome-helpref">
-          Pin, filter, threshold alerts, snapshots and watch expressions are covered in
-          Debug Mode, inside Help.
-        </p>
-      </section>
-
-      {/* §6 — from a run to a dataset. */}
-      <section
-        className={`welcome-section welcome-section--${CAT.measure} welcome-section--band welcome-reveal`}
-        aria-labelledby="s-measure"
-      >
-        <Eyebrow Icon={RecordIcon}>Measure it</Eyebrow>
-        <h2 id="s-measure">Turn a simulation into data you can analyse.</h2>
-        <p>
-          Record a run, then turn it into a dataset with Chart — or export it as CSV.
-          Hybrid projects keep the viewport and the data panel in one pane.
-        </p>
-        {/* The record/export/crop sentence becomes a diagram of the actual
-            pipeline (fun-redesign brief §2, §6 entry) — the same badge chip
-            + arrow language as §11's gravity-preset row, at the scale of a
-            three-step flow. Static, not interactive: nothing in this brief
-            asks §6's artifact to click. */}
-        <div className="welcome-pipeline-mini">
-          <span className="badge badge--accent">Run</span>
-          <span className="welcome-pipeline-mini__arrow" aria-hidden="true">→</span>
-          <span className="badge badge--accent">Record</span>
-          <span className="welcome-pipeline-mini__arrow" aria-hidden="true">→</span>
-          <span className="badge badge--accent">Chart</span>
-        </div>
-        <p className="welcome-helpref">
-          Choosing which variables to keep and cropping a time range are covered in
-          Measure, inside Help.
-        </p>
-      </section>
-
-      {/* §7 — the data-science half. */}
-      <section
-        className={`welcome-section welcome-section--${CAT.data} welcome-reveal`}
-        aria-labelledby="s-data"
-      >
-        <Eyebrow Icon={ChartIcon}>Analyse</Eyebrow>
-        <h2 id="s-data">A full data pipeline, in the same blocks.</h2>
-        <p>
-          Load one of six built-in datasets — or bring your own CSV, or promote a run into
-          one.
-        </p>
-        {/* The dataset-list sentence becomes a chip row (fun-redesign brief
-            §2, §7 entry): every chip's text reproduces one of the six
-            row-count substrings the "every built-in dataset's row count on
-            the page is the row count in its JSON" test greps for, verbatim,
-            parenthetical included — the DATASETS array above IS those six
-            locked strings (test-lock migration plan item 2). */}
-        <ul className="welcome-chips">
-          {DATASETS.map((d) => <li key={d} className="badge">{d}</li>)}
-        </ul>
-        {/* Each stage becomes a native <details>/<summary> (fun-redesign
-            brief §2, §7 entry, and #2 in its prioritized cut-line): zero-JS,
-            keyboard-native, no ARIA needed. Kills the section's densest wall
-            of always-open prose — 8 full sentences — with progressive
-            disclosure. Nothing here locks the panel's markup shape (test-lock
-            migration plan: "no lock exists" for this section's card bodies),
-            so the tag swap is free. */}
-        <div className="welcome-grid">
-          {PIPELINE.map(([name, teaser, line]) => (
-            <details key={name} className="card welcome-stage">
-              <summary>
-                <h3>{name}</h3>
-                <span className="welcome-stage__teaser">{teaser}</span>
-              </summary>
-              <p>{line}</p>
-            </details>
-          ))}
-        </div>
-        <p>
-          A least-squares fit reports slope, intercept, R&sup2; and n with a plain-English
-          verdict, and the whole pipeline re-runs live as you edit blocks.
-        </p>
-      </section>
-
-      {/* §8 — starting points. */}
-      <section
-        className={`welcome-section welcome-section--${CAT.starting} welcome-section--band welcome-reveal`}
-        aria-labelledby="s-start"
-      >
-        <Eyebrow Icon={BookOpenIcon}>Don&rsquo;t start from nothing</Eyebrow>
-        <h2 id="s-start">18 worked projects, ready to open.</h2>
-        <p>
-          18 worked projects — 4 Python examples, the same 4 as blocks, 7 data-science
-          investigations, 3 hybrid topics.
-        </p>
-        <p>Four are one click away, open as a guest, no setup:</p>
         <div className="welcome-grid">
           {WORKED_TILES.map((t) => (
             <button
               key={t.id}
               type="button"
-              className="card card--interactive welcome-tile"
+              className={`card card--interactive welcome-tile welcome-cat-${t.cat}`}
               data-template-id={t.id}
               onClick={() => openTile(t.id)}
             >
@@ -864,161 +475,58 @@ export default function WelcomePage() {
             </button>
           ))}
         </div>
-        <ul className="welcome-chips">
-          <li className="badge badge--accent">measure damping from the pendulum</li>
-          <li className="badge badge--accent">measure g from the projectile</li>
-          <li className="badge badge--accent">find k from the spring</li>
-        </ul>
-        <p className="welcome-helpref">
-          Starter chips for an empty canvas, the new-project wizard, and all 14 Help
-          sections live inside the IDE.
+        {/* The fourth door: /join is ungated, but go() stamps the pass
+            first like every other door on this page (hard constraint 2). */}
+        <p className="welcome-hero__quiet">
+          Have a class code?{" "}
+          <button className="welcome-linklike" type="button" onClick={() => go("/join")}>
+            Join your class
+          </button>
         </p>
       </section>
 
-      {/* §9 — yours, offline. */}
-      <section
-        className={`welcome-section welcome-section--${CAT.yours} welcome-reveal`}
-        aria-labelledby="s-yours"
-      >
-        <Eyebrow Icon={LocalFirstIcon}>Your work</Eyebrow>
-        <h2 id="s-yours">Saved on your computer first. Always.</h2>
-        <p>
-          Your work saves to your computer first, and syncs to your account when
-          you&rsquo;re signed in.
-        </p>
-        <p>Export any way you like:</p>
-        {/* The export-format run-on sentence becomes a chip row (fun-redesign
-            brief §2, §9 entry) — same .badge primitive §8 already uses. */}
-        <ul className="welcome-chips">
-          {EXPORT_FORMATS.map((f) => <li key={f} className="badge">{f}</li>)}
-        </ul>
-        {/* A small static mock of the sync chip's own language (see
-            SyncChipMock above) demonstrates "the sync chip tells you the
-            truth at a glance" instead of describing it. */}
-        <SyncChipMock />
-        <p className="welcome-note">
-          If the same project is edited in two places, the most recent edit wins and the
-          older version is kept rather than discarded.
-        </p>
-        <p className="welcome-helpref">
-          Guest import, per-account limits and sync timing are covered in{" "}
-          <Link to="/about">About</Link>.
-        </p>
-      </section>
-
-      {/* §10 — by the numbers. */}
-      <section className="welcome-numbers welcome-reveal" aria-labelledby="s-numbers">
-        <h2 id="s-numbers" className="welcome-sr">Physics IDE by the numbers</h2>
-        {/* A tile with an in-page section is a real anchor to it; the global
-            focus-visible ring covers a[href], so no :focus rule anywhere.
-            Each tile also gets a hover/focus-revealed provenance caption
-            (fun-redesign brief §2, §10 entry, and #5 in its prioritized
-            cut-line) — the same max-height/opacity reveal pattern as §2's
-            flip-tiles. The numeral itself (.welcome-stat__n) is untouched:
-            it never animates, on load or on hover — the brief's hard
-            boundary in §0, satisfied by construction since the note is a
-            separate sibling span, not part of the numeral. The unlinked "14"
-            tile has no <a> to carry :hover/:focus-visible, so it gets an
-            explicit tabIndex — still a <div> (the "linked stat tiles" test
-            checks tagName, unaffected), just keyboard-reachable now. */}
-        {STATS.map(([n, label, target, note]) => {
-          const body = (
-            <>
-              <span className="welcome-stat__n">{n}</span>
-              <span className="welcome-stat__label">{label}</span>
-              <span className="welcome-reveal-note welcome-stat__note">{note}</span>
-            </>
-          );
-          return target ? (
-            <a key={label} className="welcome-stat" href={`#${target}`}>{body}</a>
-          ) : (
-            <div key={label} className="welcome-stat" tabIndex={0}>{body}</div>
-          );
-        })}
-      </section>
-
-      {/* §11 — the playground, moved here as the reward at the end of the read. */}
-      <section
-        className={`welcome-play welcome-section--${CAT.play} welcome-reveal`}
-        aria-labelledby="s-play"
-      >
-        <Eyebrow Icon={ZapIcon}>Try it</Eyebrow>
-        <h2 id="s-play">Rules in, motion out.</h2>
-        <p>
-          Drag the gravity slider and click to drop a ball. This box runs the same idea the
-          IDE does — you write the rule, the simulation plays it out.
-        </p>
-        <GravityPlayground />
-      </section>
-
-      {/* §12 — for classrooms: the honesty section. */}
-      <section
-        className={`welcome-section welcome-section--${CAT.classrooms} welcome-section--band welcome-reveal`}
-        aria-labelledby="s-class"
-      >
-        <Eyebrow Icon={GraduationCapIcon}>For teachers</Eyebrow>
+      {/* §5 — "For classrooms": the honesty section. Two short lines, the
+          locked "Not yet built." panel verbatim, and a link out for depth —
+          the privacy and accessibility paragraphs tranche 2.5 added here
+          move to /about (outside this file's boundary) rather than surviving
+          on a five-section page. */}
+      <section className={`welcome-section welcome-cat-${CAT.classrooms} welcome-reveal`} aria-labelledby="s-class">
+        <Eyebrow Icon={GraduationCapIcon}>For classrooms</Eyebrow>
         <h2 id="s-class">Classes today. Assignments next.</h2>
         <p>
-          Any teacher can sign up and create a class in a minute — no approval queue.
+          Any teacher can sign up and create a class in a minute — no approval queue. The
+          roster, join settings and people are real today.
         </p>
-        <p>Four ways to invite people in:</p>
-        {/* The four join methods, as a chip row (fun-redesign brief §2, §12
-            entry) instead of a clause-heavy sentence. Text-only, per the file
-            boundary: no icon already imported into this file reads cleanly
-            as "code" / "link" / "QR" / "email", and components/Icons.js is
-            out of scope for a new export to make one fit better. */}
-        <ul className="welcome-chips">
-          {JOIN_WAYS.map((w) => <li key={w} className="badge">{w}</li>)}
-        </ul>
-        <p className="welcome-helpref">
-          Roles, join policies, the People tab and archiving are covered in{" "}
-          <Link to="/about">About</Link>.
-        </p>
-
-        {/* Friendlier framing (fun-redesign brief §3): a warmer lead-in
-            before the two locked phrases, which must survive verbatim
-            (test-lock migration plan item 4) — "Not yet built." and
-            "designed but not shipped", both still present below,
-            byte-for-byte. */}
         <div className="card card--panel welcome-notbuilt">
-          <p className="welcome-notbuilt__lead">
-            The roster, join settings and people are real today.
-          </p>
           <h3>Not yet built.</h3>
           <p>
             Assignments, submissions, marking, feedback and a gradebook are designed but
             not shipped. When marking arrives it will be announced here.
           </p>
         </div>
+        <p className="welcome-helpref">
+          More on roles, join policies and privacy in <Link to="/about">About</Link>.
+        </p>
+      </section>
 
-        <div className="welcome-privacy">
-          <h3>
-            <span className="welcome-privacy__mark" aria-hidden="true"><PrivacyIcon size={16} /></span>
-            No surveillance layer
-          </h3>
-          <p>
-            No tracking, no paste detection, no webcam, no keystroke logging — the only
-            record kept is signups, joins and join requests, so a join can be audited,
-            never so a student can be watched. <Link to="/about">More in About</Link>.
-          </p>
-        </div>
-
-        <div className="welcome-access">
-          <h3>Accessibility is a code path, too</h3>
-          <p>
-            Contrast is checked in code, one focus ring serves the whole product, and
-            reduced motion actually turns the animation off — end to end, tested.{" "}
-            <Link to="/about">More in About</Link>.
-          </p>
-        </div>
+      {/* The closing ribbon: one quiet line, six numerals, no tiles, no
+          hover-reveals (redesign brief). A visually-hidden heading keeps it
+          a real landmark without adding a visible seventh "idea" to the
+          page. */}
+      <section className="welcome-ribbon welcome-reveal" aria-labelledby="s-numbers">
+        <h2 id="s-numbers" className="welcome-sr">Physics IDE by the numbers</h2>
+        <ul className="welcome-ribbon__list">
+          {RIBBON.map(([n, label]) => (
+            <li key={label}>
+              <span className="welcome-ribbon__n">{n}</span> {label}
+            </li>
+          ))}
+        </ul>
       </section>
 
       <footer className="welcome-foot welcome-reveal">
         <p className="welcome-foot__scope">
           The IDE needs a laptop or desktop — 1024px or wider. This page reads fine on a phone.
-        </p>
-        <p>
-          No charge, no billing — a 200-account cap the software enforces itself.
         </p>
         <button className="btn btn--primary btn--lg" type="button" onClick={() => go("/")}>
           Open the IDE

@@ -27,8 +27,16 @@ import { MenuIcon } from "../components/Icons";
  * /welcome itself that is the in-page "#s-class"; from /about or /contact it
  * is "/welcome#s-class" — a real navigation, not an anchor that resolves to
  * nothing on the current page.
+ *
+ * v2 (redesign brief): this bar is now also the sticky nav that sits at the
+ * hero's bottom edge and pins to the top of the screen on scroll — pure CSS
+ * (welcome.css: `position: sticky; top: 0`), no JS, no separate component.
+ * `onOpenIde`, when given, adds the wireframe's trailing "[Open the IDE]"
+ * primary door to both the persistent cluster and the collapse menu — only
+ * WelcomePage.js passes it; /about and /contact stay a plain header with no
+ * fourth cluster item, unchanged from tranche 2.5.
  */
-export default function WelcomeHeader({ onSignIn, teachersHref = "#s-class" }) {
+export default function WelcomeHeader({ onSignIn, onOpenIde, teachersHref = "#s-class" }) {
   const { isDark, toggle } = useTheme();
   const isAnchor = teachersHref.startsWith("#");
 
@@ -83,6 +91,11 @@ export default function WelcomeHeader({ onSignIn, teachersHref = "#s-class" }) {
         <div className="welcome-header__cluster">
           <ThemeToggleButton isDark={isDark} onToggle={toggle} />
           <span className="welcome-header__signin">{signIn}</span>
+          {onOpenIde && (
+            <button type="button" className="btn btn--primary btn--sm" onClick={onOpenIde}>
+              Open the IDE
+            </button>
+          )}
         </div>
         <div className="welcome-header__menu">
           <DropdownMenu
@@ -109,6 +122,11 @@ export default function WelcomeHeader({ onSignIn, teachersHref = "#s-class" }) {
             </Link>
             <div className="tb-dropdown-divider" />
             {menuSignIn}
+            {onOpenIde && (
+              <button type="button" className="tb-dropdown-item" onClick={onOpenIde}>
+                <span>Open the IDE</span>
+              </button>
+            )}
           </DropdownMenu>
         </div>
       </div>
