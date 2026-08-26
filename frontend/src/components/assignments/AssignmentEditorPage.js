@@ -1,10 +1,16 @@
 import React, { Suspense, lazy, useEffect, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { ASSIGNMENT_PROJECT_TYPES, EMPTY_INSTRUCTIONS_DOC, SUBMISSION_MODES } from "@physics-ide/shared";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  ASSIGNMENT_PROJECT_TYPES,
+  BUILT_IN_RULE_SETS,
+  EMPTY_INSTRUCTIONS_DOC,
+  SUBMISSION_MODES,
+} from "@physics-ide/shared";
 import { api } from "../../utils/api/client";
 import { useMe } from "../../auth/useAuth";
 import PortalHeader from "../layout/PortalHeader";
+import RulesPicker from "./RulesPicker";
 
 /**
  * The teacher-only assignment editor — /classes/:id/assignments/new and
@@ -16,6 +22,12 @@ import PortalHeader from "../layout/PortalHeader";
  * The settings form (this file) is eager; the TipTap instructions editor
  * (RichTextEditor.js) is heavy and teacher-only, so it loads behind
  * React.lazy — students and every non-editor screen never pay for it.
+ *
+ * The starter row and Publish/Close/Delete lifecycle controls (Task 8) only
+ * apply to an assignment that already exists — pinning a starter and
+ * stepping the lifecycle both hit `/api/assignments/:id/...` routes, and a
+ * brand-new draft has no `:id` until the first Save. Both sections are
+ * gated on `!isNew`.
  */
 const RichTextEditor = lazy(() => import("./RichTextEditor"));
 
@@ -41,7 +53,17 @@ function emptyForm() {
     dueAt: "",
     lateUntil: "",
     instructions: EMPTY_INSTRUCTIONS_DOC,
+    rules: BUILT_IN_RULE_SETS.standard_classwork,
   };
+}
+
+/** The one-line consequence sentence next to Publish — spec: "Students in
+ *  this class will see it immediately", or the scheduled date when the
+ *  form's Opens field is set. */
+function publishConsequence(opensAtMs) {
+  return opensAtMs
+    ? `Students in this class will see it starting ${new Date(opensAtMs).toLocaleString()}.`
+    : "Students in this class will see it immediately.";
 }
 
 function gatedPage(title, body) {
@@ -57,6 +79,7 @@ export default function AssignmentEditorPage() {
   const { id, aid } = useParams();
   const navigate = useNavigate();
   const isNew = !aid;
+  const qc = useQueryClient();
 
   const { data: me, isLoading: meLoading } = useMe();
   const classQuery = useQuery({
@@ -71,10 +94,18 @@ export default function AssignmentEditorPage() {
     enabled: !!me && !isNew,
     retry: false,
   });
+  // The teacher's own projects, for the starter-pinning row — only useful
+  // (and only fetched) once the assignment itself exists.
+  const projectsQuery = useQuery({
+    queryKey: ["projects"],
+    queryFn: () => api("/api/projects"),
+    enabled: !!me && !isNew,
+  });
 
   const [form, setForm] = useState(emptyForm);
   const [seeded, setSeeded] = useState(isNew);
   const [error, setError] = useState(null);
+  const [starterProjectId, setStarterProjectId] = useState("");
 
   useEffect(() => {
     if (isNew || seeded || !assignmentQuery.data) return;
@@ -89,6 +120,7 @@ export default function AssignmentEditorPage() {
       dueAt: toLocal(a.dueAt),
       lateUntil: toLocal(a.lateUntil),
       instructions: a.instructions ?? EMPTY_INSTRUCTIONS_DOC,
+      rules: a.rules ?? BUILT_IN_RULE_SETS.standard_classwork,
     });
     setSeeded(true);
   }, [isNew, seeded, assignmentQuery.data]);
@@ -98,6 +130,37 @@ export default function AssignmentEditorPage() {
       isNew
         ? api(`/api/classes/${id}/assignments`, { method: "POST", body })
         : api(`/api/assignments/${aid}`, { method: "PATCH", body }),
+    onSuccess: () => navigate(`/classes/${id}`),
+    onError: (err) => setError(err.message),
+  });
+
+  const refreshAssignment = () => qc.invalidateQueries({ queryKey: ["assignment", aid] });
+
+  const pinStarter = useMutation({
+    mutationFn: (projectId) => api(`/api/assignments/${aid}/starter`, { method: "POST", body: { projectId } }),
+    onSuccess: () => {
+      refreshAssignment();
+      setStarterProjectId("");
+    },
+    onError: (err) => setError(err.message),
+  });
+  const clearStarter = useMutation({
+    mutationFn: () => api(`/api/assignments/${aid}/starter`, { method: "DELETE" }),
+    onSuccess: refreshAssignment,
+    onError: (err) => setError(err.message),
+  });
+  const publish = useMutation({
+    mutationFn: () => api(`/api/assignments/${aid}/publish`, { method: "POST" }),
+    onSuccess: refreshAssignment,
+    onError: (err) => setError(err.message),
+  });
+  const close = useMutation({
+    mutationFn: () => api(`/api/assignments/${aid}/close`, { method: "POST" }),
+    onSuccess: refreshAssignment,
+    onError: (err) => setError(err.message),
+  });
+  const deleteDraft = useMutation({
+    mutationFn: () => api(`/api/assignments/${aid}`, { method: "DELETE" }),
     onSuccess: () => navigate(`/classes/${id}`),
     onError: (err) => setError(err.message),
   });
@@ -132,6 +195,11 @@ export default function AssignmentEditorPage() {
 
   if (!isNew && !seeded) return null;
 
+  // Only meaningful once the assignment exists — see the file header note
+  // on why the starter row and lifecycle controls are gated on `!isNew`.
+  const assignment = isNew ? null : assignmentQuery.data?.assignment;
+  const isDraft = assignment?.phase === "draft";
+
   function updateField(key, value) {
     setForm((f) => ({ ...f, [key]: value }));
   }
@@ -157,6 +225,7 @@ export default function AssignmentEditorPage() {
       dueAt: toMs(form.dueAt),
       lateUntil: toMs(form.lateUntil),
       instructions: form.instructions,
+      rules: form.rules,
     });
   }
 
@@ -278,19 +347,102 @@ export default function AssignmentEditorPage() {
             </Suspense>
           </div>
 
+          <h2 className="section-title">Workspace rules</h2>
+          <RulesPicker value={form.rules} onChange={(rules) => updateField("rules", rules)} />
+
+          {!isNew ? (
+            <>
+              <h2 className="section-title">Starter project</h2>
+              <div className="assignments-starter-row">
+                <select
+                  className="input"
+                  name="starterProjectId"
+                  value={starterProjectId}
+                  onChange={(e) => setStarterProjectId(e.target.value)}
+                >
+                  <option value="">— choose a project —</option>
+                  {(projectsQuery.data?.projects ?? [])
+                    .filter((p) => !p.deleted)
+                    .map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.title}
+                      </option>
+                    ))}
+                </select>
+                <button
+                  className="btn"
+                  type="button"
+                  disabled={!starterProjectId || pinStarter.isPending}
+                  onClick={() => pinStarter.mutate(starterProjectId)}
+                >
+                  Pin
+                </button>
+                {assignment?.hasStarter ? (
+                  <button
+                    className="btn"
+                    type="button"
+                    disabled={clearStarter.isPending}
+                    onClick={() => clearStarter.mutate()}
+                  >
+                    Clear
+                  </button>
+                ) : null}
+              </div>
+              <p className="auth-text auth-text--dim">
+                {assignment?.hasStarter
+                  ? "Students start their own copy of the pinned project."
+                  : "No starter pinned — students begin from a blank project."}
+              </p>
+            </>
+          ) : null}
+
           {error ? (
             <div className="alert alert--danger" role="alert">
               {error}
             </div>
           ) : null}
 
+          {isDraft ? (
+            <p className="auth-text auth-text--dim">{publishConsequence(toMs(form.opensAt))}</p>
+          ) : null}
+
           <div className="assignments-actions">
             <Link className="btn" to={`/classes/${id}`}>
               Cancel
             </Link>
+            {isDraft ? (
+              <button
+                className="btn btn--danger"
+                type="button"
+                disabled={deleteDraft.isPending}
+                onClick={() => deleteDraft.mutate()}
+              >
+                Delete draft
+              </button>
+            ) : null}
             <button className="btn btn--primary" type="submit" disabled={save.isPending}>
               Save
             </button>
+            {isDraft ? (
+              <button
+                className="btn btn--primary"
+                type="button"
+                disabled={publish.isPending}
+                onClick={() => publish.mutate()}
+              >
+                Publish
+              </button>
+            ) : null}
+            {assignment && !isDraft ? (
+              <button
+                className="btn btn--danger"
+                type="button"
+                disabled={close.isPending}
+                onClick={() => close.mutate()}
+              >
+                Close now
+              </button>
+            ) : null}
           </div>
         </form>
       </div>

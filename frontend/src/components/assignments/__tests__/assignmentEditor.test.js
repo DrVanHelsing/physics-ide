@@ -2,22 +2,25 @@ import { describe, test, expect, vi, beforeEach, afterEach } from "vitest";
 import React, { act } from "react";
 import AssignmentEditorPage from "../AssignmentEditorPage";
 import { mountComponent, byText, click } from "../../../test/renderHelpers";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useMe } from "../../../auth/useAuth";
 import { api } from "../../../utils/api/client";
-import { ASSIGNMENT_PROJECT_TYPES, SUBMISSION_MODES } from "@physics-ide/shared";
+import { ASSIGNMENT_PROJECT_TYPES, BUILT_IN_RULE_SETS, SUBMISSION_MODES } from "@physics-ide/shared";
 
 /* Same idiom as adminTabs.test.js / assignmentsTab.test.js: stub react-query's
    three hooks and useMe() directly rather than mounting a real
    QueryClientProvider. useMutation's stub actually drives the mutationFn
    (through the mocked `api`) so Save's POST/PATCH body and success/error
-   paths are real, not hand-waved. */
+   paths are real, not hand-waved. RulesPicker (mounted for real, not
+   mocked — its own suite is rulesPicker.test.js) also calls useQuery/
+   useMutation/useQueryClient, so the same three stubs cover it. */
 vi.mock("../../../auth/useAuth", () => ({ useMe: vi.fn() }));
 vi.mock("../../auth/HeaderAccount", () => ({ default: () => null }));
 vi.mock("../../../utils/api/client", () => ({ api: vi.fn() }));
 vi.mock("@tanstack/react-query", () => ({
   useQuery: vi.fn(),
   useMutation: vi.fn(),
+  useQueryClient: vi.fn(),
 }));
 
 const { paramsHolder, navigateSpy } = vi.hoisted(() => ({
@@ -77,11 +80,40 @@ function selectValue(select, value) {
 
 const CLASS_DATA = { class: { id: "c1", name: "Physics 101", myRole: "teacher" } };
 
+/** A draft assignment payload, overridable per test — used by the starter-row
+ *  and lifecycle-controls suites below. */
+function assignmentData(overrides = {}) {
+  return {
+    assignment: {
+      id: "a1",
+      classId: "c1",
+      title: "Momentum Lab",
+      projectType: "physics",
+      points: null,
+      submissionMode: "individual",
+      individualWork: false,
+      phase: "draft",
+      opensAt: null,
+      dueAt: null,
+      lateUntil: null,
+      hasStarter: false,
+      instructions: { type: "doc", content: [] },
+      rules: BUILT_IN_RULE_SETS.standard_classwork,
+      myWork: null,
+      ...overrides,
+    },
+  };
+}
+
 function defaultUseQuery({ queryKey }) {
   if (queryKey[0] === "class") return { data: CLASS_DATA, error: null, isLoading: false };
   if (queryKey[0] === "assignment") return { data: undefined, error: null, isLoading: false };
+  if (queryKey[0] === "rule-sets") return { data: { ruleSets: [] }, error: null, isLoading: false };
+  if (queryKey[0] === "projects") return { data: { projects: [] }, error: null, isLoading: false };
   return { data: undefined, error: null, isLoading: false };
 }
+
+const invalidateQueries = vi.fn();
 
 let mounted = null;
 
@@ -90,6 +122,7 @@ beforeEach(() => {
   paramsHolder.aid = undefined;
   useQuery.mockImplementation(defaultUseQuery);
   useMe.mockReturnValue({ data: { id: "u1", name: "Teacher" }, isLoading: false });
+  useQueryClient.mockReturnValue({ invalidateQueries });
   useMutation.mockImplementation((opts) => ({
     mutate: (vars) => {
       Promise.resolve()
@@ -284,5 +317,216 @@ describe("AssignmentEditorPage — date round-trip", () => {
     expect(opts.body.opensAt).toBe(new Date("2026-09-01T08:00").getTime());
     expect(opts.body.dueAt).toBeNull();
     expect(opts.body.lateUntil).toBeNull();
+  });
+});
+
+describe("AssignmentEditorPage — workspace rules", () => {
+  test("a new assignment defaults its rules to Standard classwork and Save includes them", async () => {
+    api.mockResolvedValueOnce({ assignment: { id: "a1" } });
+    const container = await render();
+
+    const standardRadio = [...container.querySelectorAll("label")].find(
+      (l) => l.textContent.trim() === "Standard classwork",
+    )?.querySelector("input[type=radio]");
+    expect(standardRadio).not.toBeNull();
+    expect(standardRadio.checked).toBe(true);
+
+    typeInput(container.querySelector('input[name="title"]'), "Kinematics HW");
+    click(byText(container, "Save"));
+    await flush();
+
+    const [, opts] = api.mock.calls[0];
+    expect(opts.body.rules).toEqual(BUILT_IN_RULE_SETS.standard_classwork);
+  });
+
+  test("edit mode seeds the picker from the assignment's saved rules; picking a different preset changes the PATCH payload", async () => {
+    paramsHolder.aid = "a1";
+    useQuery.mockImplementation(({ queryKey }) => {
+      if (queryKey[0] === "assignment") {
+        return {
+          data: assignmentData({ rules: BUILT_IN_RULE_SETS.open_practice }),
+          error: null,
+          isLoading: false,
+        };
+      }
+      return defaultUseQuery({ queryKey });
+    });
+    const container = await render();
+
+    const openRadio = [...container.querySelectorAll("label")].find(
+      (l) => l.textContent.trim() === "Open practice",
+    )?.querySelector("input[type=radio]");
+    expect(openRadio.checked).toBe(true);
+
+    const lockedRadio = [...container.querySelectorAll("label")].find(
+      (l) => l.textContent.trim() === "Locked assessment",
+    )?.querySelector("input[type=radio]");
+    click(lockedRadio);
+
+    click(byText(container, "Save"));
+    await flush();
+
+    const [, opts] = api.mock.calls[0];
+    expect(opts.body.rules).toEqual(BUILT_IN_RULE_SETS.locked_assessment);
+  });
+});
+
+describe("AssignmentEditorPage — starter project", () => {
+  test("new mode renders no starter row — an assignment must exist first", async () => {
+    const container = await render();
+    expect(container.querySelector('select[name="starterProjectId"]')).toBeNull();
+  });
+
+  test("edit mode lists the teacher's own non-deleted projects; Pin posts the chosen projectId", async () => {
+    paramsHolder.aid = "a1";
+    useQuery.mockImplementation(({ queryKey }) => {
+      if (queryKey[0] === "assignment") return { data: assignmentData(), error: null, isLoading: false };
+      if (queryKey[0] === "projects") {
+        return {
+          data: {
+            projects: [
+              { id: "p-1", title: "Pendulum starter", goal: "physics", projectType: "physics", clientUpdatedAt: 1, deleted: false },
+              { id: "p-2", title: "Trashed one", goal: "physics", projectType: "physics", clientUpdatedAt: 1, deleted: true },
+            ],
+          },
+          error: null,
+          isLoading: false,
+        };
+      }
+      return defaultUseQuery({ queryKey });
+    });
+    const container = await render();
+
+    const select = container.querySelector('select[name="starterProjectId"]');
+    expect(select).not.toBeNull();
+    const optionValues = [...select.options].map((o) => o.value).filter(Boolean);
+    expect(optionValues).toEqual(["p-1"]); // the deleted project is not offered
+
+    selectValue(select, "p-1");
+    click(byText(container, "Pin"));
+    await flush();
+
+    expect(api).toHaveBeenCalledWith("/api/assignments/a1/starter", {
+      method: "POST",
+      body: { projectId: "p-1" },
+    });
+  });
+
+  test("hasStarter renders a Clear control that DELETEs the pinned starter", async () => {
+    paramsHolder.aid = "a1";
+    useQuery.mockImplementation(({ queryKey }) => {
+      if (queryKey[0] === "assignment") {
+        return { data: assignmentData({ hasStarter: true }), error: null, isLoading: false };
+      }
+      return defaultUseQuery({ queryKey });
+    });
+    const container = await render();
+
+    const clearBtn = byText(container, "Clear");
+    expect(clearBtn).not.toBeNull();
+    click(clearBtn);
+    await flush();
+
+    expect(api).toHaveBeenCalledWith("/api/assignments/a1/starter", { method: "DELETE" });
+  });
+});
+
+describe("AssignmentEditorPage — lifecycle controls", () => {
+  test("a draft shows Publish with the immediate-visibility sentence and Delete draft, never Close now", async () => {
+    paramsHolder.aid = "a1";
+    useQuery.mockImplementation(({ queryKey }) => {
+      if (queryKey[0] === "assignment") return { data: assignmentData(), error: null, isLoading: false };
+      return defaultUseQuery({ queryKey });
+    });
+    const container = await render();
+
+    expect(byText(container, "Publish")).not.toBeNull();
+    expect(byText(container, "Delete draft")).not.toBeNull();
+    expect(byText(container, "Close now")).toBeNull();
+    expect(container.textContent).toContain("Students in this class will see it immediately.");
+
+    const publishBtn = byText(container, "Publish");
+    expect(publishBtn.classList.contains("btn--primary")).toBe(true);
+    const deleteBtn = byText(container, "Delete draft");
+    expect(deleteBtn.classList.contains("btn--danger")).toBe(true);
+    expect(deleteBtn.classList.contains("btn--primary")).toBe(false);
+  });
+
+  test("a draft scheduled to open later names the open date instead of 'immediately'", async () => {
+    paramsHolder.aid = "a1";
+    const opensAt = new Date("2026-09-01T08:00").getTime();
+    useQuery.mockImplementation(({ queryKey }) => {
+      if (queryKey[0] === "assignment") {
+        return { data: assignmentData({ opensAt }), error: null, isLoading: false };
+      }
+      return defaultUseQuery({ queryKey });
+    });
+    const container = await render();
+
+    expect(container.textContent).not.toContain("Students in this class will see it immediately.");
+    expect(container.textContent).toContain("Students in this class will see it");
+  });
+
+  test("a published (non-draft) assignment shows Close now only", async () => {
+    paramsHolder.aid = "a1";
+    useQuery.mockImplementation(({ queryKey }) => {
+      if (queryKey[0] === "assignment") {
+        return { data: assignmentData({ phase: "open" }), error: null, isLoading: false };
+      }
+      return defaultUseQuery({ queryKey });
+    });
+    const container = await render();
+
+    expect(byText(container, "Close now")).not.toBeNull();
+    expect(byText(container, "Publish")).toBeNull();
+    expect(byText(container, "Delete draft")).toBeNull();
+    const closeBtn = byText(container, "Close now");
+    expect(closeBtn.classList.contains("btn--danger")).toBe(true);
+    expect(closeBtn.classList.contains("btn--primary")).toBe(false);
+  });
+
+  test("Publish posts to the publish route", async () => {
+    paramsHolder.aid = "a1";
+    useQuery.mockImplementation(({ queryKey }) => {
+      if (queryKey[0] === "assignment") return { data: assignmentData(), error: null, isLoading: false };
+      return defaultUseQuery({ queryKey });
+    });
+    const container = await render();
+
+    click(byText(container, "Publish"));
+    await flush();
+
+    expect(api).toHaveBeenCalledWith("/api/assignments/a1/publish", { method: "POST" });
+  });
+
+  test("Close now posts to the close route", async () => {
+    paramsHolder.aid = "a1";
+    useQuery.mockImplementation(({ queryKey }) => {
+      if (queryKey[0] === "assignment") {
+        return { data: assignmentData({ phase: "open" }), error: null, isLoading: false };
+      }
+      return defaultUseQuery({ queryKey });
+    });
+    const container = await render();
+
+    click(byText(container, "Close now"));
+    await flush();
+
+    expect(api).toHaveBeenCalledWith("/api/assignments/a1/close", { method: "POST" });
+  });
+
+  test("Delete draft DELETEs the assignment and navigates back to the class page", async () => {
+    paramsHolder.aid = "a1";
+    useQuery.mockImplementation(({ queryKey }) => {
+      if (queryKey[0] === "assignment") return { data: assignmentData(), error: null, isLoading: false };
+      return defaultUseQuery({ queryKey });
+    });
+    const container = await render();
+
+    click(byText(container, "Delete draft"));
+    await flush();
+
+    expect(api).toHaveBeenCalledWith("/api/assignments/a1", { method: "DELETE" });
+    expect(navigateSpy).toHaveBeenCalledWith("/classes/c1");
   });
 });
