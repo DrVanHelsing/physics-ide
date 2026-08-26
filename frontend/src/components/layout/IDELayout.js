@@ -60,7 +60,7 @@ import { SPLIT_MIN, SPLIT_MAX } from "../../constants";
 import { useTheme }              from "../../contexts/ThemeContext";
 import { useSimulationContext }  from "../../contexts/SimulationContext";
 import { useTraceContext }       from "../../contexts/TraceContext";
-import { AssignmentProvider }    from "../../contexts/AssignmentContext";
+import { AssignmentProvider, useAssignmentContext } from "../../contexts/AssignmentContext";
 
 import { useSimulation }  from "../../hooks/useSimulation";
 import { useDebug }       from "../../hooks/useDebug";
@@ -73,6 +73,46 @@ import SimControls       from "../SimControls";
 import { useHotkeys }     from "../../hooks/useHotkeys";
 import { useDebugHotkeys } from "../../hooks/useDebugHotkeys";
 import { useRunErrorBanner } from "../../hooks/useRunErrorBanner";
+
+/**
+ * WorkspaceRulesEnforcer — Task 12.
+ *
+ * AssignmentProvider mounts as a CHILD of IDELayout's own return value
+ * (below), so IDELayout's function body runs before that provider exists in
+ * the tree and cannot call useAssignmentContext() itself — a top-level call
+ * there would always see the context's default (null), regardless of what
+ * the provider it renders resolves to. This tiny component is mounted
+ * INSIDE the provider instead (see the render below) and does the two
+ * things that genuinely need `rules` inside IDELayout's own logic:
+ *
+ *   - corrects `mode` when the assignment restricts editors to one surface.
+ *     An EFFECT that corrects the existing mode state through the existing
+ *     handleModeChange, not a fork of the mode state itself — Toolbar's
+ *     primary zone already empties (no modeToggle) whenever this applies, so
+ *     this is what handles the case where a project was already in the
+ *     disallowed mode before the assignment's rules resolved.
+ *   - reports the resolved rules back up via `onRules` so IDELayout can
+ *     thread advancedBlocks into BlocklyWorkspace's own `hideAdvanced` prop,
+ *     which is where the toolbox actually gets built (utils/blockly/toolbox.js).
+ *
+ * Renders nothing.
+ */
+function WorkspaceRulesEnforcer({ mode, onModeChange, onRules }) {
+  const assignment = useAssignmentContext();
+  const rules = assignment?.rules ?? null;
+
+  useEffect(() => {
+    if (!rules) return;
+    if (rules.editors === "blocks" && mode !== "blocks") onModeChange("blocks");
+    else if (rules.editors === "code" && mode !== "text") onModeChange("text");
+  }, [rules, mode, onModeChange]);
+
+  useEffect(() => {
+    onRules(rules);
+  }, [rules, onRules]);
+
+  return null;
+}
 
 export default function IDELayout() {
   /* ── Theme ───────────────────────────────────────────── */
@@ -113,6 +153,13 @@ export default function IDELayout() {
   const [traceVisible, setTraceVisible] = useState(false);
   const handleToggleTrace = useCallback(() => setTraceVisible((v) => !v), []);
   const traceOpen = dbg.debugMode || traceVisible;
+
+  /* Task 12: the active assignment's workspace rules, mirrored down from
+     WorkspaceRulesEnforcer (rendered below, inside AssignmentProvider) since
+     IDELayout's own body cannot read useAssignmentContext() directly — see
+     that component's doc comment. Null outside assignment work. */
+  const [assignmentRules, setAssignmentRules] = useState(null);
+  const hideAdvanced = assignmentRules ? !assignmentRules.advancedBlocks : false;
 
   /* Click a variable name in the trace table → light up its block. The ref is
      the SHARED one (SimulationContext), filled by handleWorkspaceReady and —
@@ -483,6 +530,7 @@ export default function IDELayout() {
   return (
     <AssignmentProvider projectId={proj.activeProjectId}>
     <div className="app-shell">
+      <WorkspaceRulesEnforcer mode={mode} onModeChange={sim.handleModeChange} onRules={setAssignmentRules} />
       <VariableDialog />
       {showHelp && (
         <HelpPage
@@ -578,6 +626,9 @@ export default function IDELayout() {
                     isDark={isDark}
                     goal={goal}
                     initialZoom={blocklyZoom}
+                    /* Task 12: advancedBlocks:false hides the Advanced drawer
+                       (display-time filter — utils/blockly/toolbox.js). */
+                    hideAdvanced={hideAdvanced}
                     /* Breakpoints live on the EDITABLE workspace now — the
                        read-only mirror DebugMode used to show is gone, so
                        right-click / Alt+click and the dashed "can pause here"

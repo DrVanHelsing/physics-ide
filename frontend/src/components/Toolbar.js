@@ -26,6 +26,7 @@ import ThemeToggleButton from "./layout/ThemeToggleButton";
 import HeaderAccount from "./auth/HeaderAccount";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { useMe } from "../auth/useAuth";
+import { useAssignmentContext } from "../contexts/AssignmentContext";
 import { visibleControls } from "../utils/toolbar/visibleControls";
 
 /* Thresholds chosen against the 1024px floor so stage 2 is active *at* the
@@ -81,7 +82,18 @@ function Toolbar({
   const role = me ? me.role : "guest";
   const isTeacher = me?.isTeacher ?? false;
   const runState = booting ? "booting" : running ? "running" : "idle";
-  const zones = visibleControls({ mode, goal, role, isTeacher, runState, debugMode, traceVisible });
+  /* Task 12: a teacher's per-assignment rules. Null outside assignment work —
+     null context or null rules is exactly today's behaviour everywhere it
+     touches (visibleControls' own contract, proven in its invariant suite).
+     `editors`/`debug` are key-level (visibleControls itself); import/export
+     are item-level, just below — save/fileMenu themselves must always stay. */
+  const assignment = useAssignmentContext();
+  const rules = assignment?.rules ?? null;
+  const zones = visibleControls({ mode, goal, role, isTeacher, runState, debugMode, traceVisible, rules });
+  /* Compute both group flags before rendering the divider between them — a
+     dangling divider (one side hidden, the other not) is the trap here. */
+  const importsAllowed = !rules || rules.importFiles;
+  const exportsAllowed = !rules || rules.exportAndCopy;
 
   const handleImportClick = () => {
     if (importInputRef.current) {
@@ -144,48 +156,65 @@ function Toolbar({
             </>
           }
         >
-          {onImport ? (
+          {importsAllowed && onImport ? (
             <button type="button" className="tb-dropdown-item" onClick={handleImportClick}>
               <UploadIcon size={14} />
               <span>Import blocks or Python (.py, .xml)</span>
             </button>
           ) : null}
-          {onImportProject ? (
+          {importsAllowed && onImportProject ? (
             <button type="button" className="tb-dropdown-item" onClick={handleImportProjectClick}>
               <UploadIcon size={14} />
               <span>Open project bundle (.physide.json)</span>
             </button>
           ) : null}
-          <div className="tb-dropdown-divider" />
-          <button type="button" className="tb-dropdown-item" onClick={onExportPy}>
-            <FileCodeIcon size={14} />
-            <span>Export as Python (.py)</span>
-          </button>
-          <button type="button" className="tb-dropdown-item" onClick={onExportBlocks}>
-            <FileBlocksIcon size={14} />
-            <span>Export Blocks (.xml)</span>
-          </button>
-          <button type="button" className="tb-dropdown-item" onClick={onExportCodePdf}>
-            <FilePdfIcon size={14} />
-            <span>Code as PDF</span>
-          </button>
-          <button type="button" className="tb-dropdown-item" onClick={onExportBlocksPdf}>
-            <FilePdfIcon size={14} />
-            <span>Blocks as PDF</span>
-          </button>
-          {onExportScreenshot ? (
+          {/* Both group flags are computed above, before either group
+             renders — a divider with one side hidden by rules (only imports,
+             only exports, or both) would otherwise dangle. */}
+          {importsAllowed && exportsAllowed ? <div className="tb-dropdown-divider" /> : null}
+          {/* DropdownMenu clones each direct child to inject role="menuitem"
+             and its close-on-select onClick (React.Children.map over its own
+             `children` prop) — a Fragment grouping these four would receive
+             that clone instead of the buttons inside it, so each stays its
+             own top-level child rather than sharing one `exportsAllowed &&`
+             wrapper. */}
+          {exportsAllowed ? (
+            <button type="button" className="tb-dropdown-item" onClick={onExportPy}>
+              <FileCodeIcon size={14} />
+              <span>Export as Python (.py)</span>
+            </button>
+          ) : null}
+          {exportsAllowed ? (
+            <button type="button" className="tb-dropdown-item" onClick={onExportBlocks}>
+              <FileBlocksIcon size={14} />
+              <span>Export Blocks (.xml)</span>
+            </button>
+          ) : null}
+          {exportsAllowed ? (
+            <button type="button" className="tb-dropdown-item" onClick={onExportCodePdf}>
+              <FilePdfIcon size={14} />
+              <span>Code as PDF</span>
+            </button>
+          ) : null}
+          {exportsAllowed ? (
+            <button type="button" className="tb-dropdown-item" onClick={onExportBlocksPdf}>
+              <FilePdfIcon size={14} />
+              <span>Blocks as PDF</span>
+            </button>
+          ) : null}
+          {exportsAllowed && onExportScreenshot ? (
             <button type="button" className="tb-dropdown-item" onClick={onExportScreenshot}>
               <ImageIcon size={14} />
               <span>Screenshot Viewport (.png)</span>
             </button>
           ) : null}
-          {onCopyCode ? (
+          {exportsAllowed && onCopyCode ? (
             <button type="button" className="tb-dropdown-item" onClick={onCopyCode}>
               <CopyIcon size={14} />
               <span>Copy Code to Clipboard</span>
             </button>
           ) : null}
-          {onExportProject ? (
+          {exportsAllowed && onExportProject ? (
             <button type="button" className="tb-dropdown-item" onClick={onExportProject}>
               <DownloadIcon size={14} />
               <span>Export Project Bundle (.physide.json)</span>

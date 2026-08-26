@@ -89,3 +89,75 @@ describe("visibleControls", () => {
       expect(v({ role }).file).toEqual(expect.arrayContaining(["save", "fileMenu", "themeToggle"]));
   });
 });
+
+/* Task 12: the pure axis. `rules` is one new optional field — every other
+   axis keeps behaving exactly as tested above. rules:null (no assignment
+   context, or an assignment with no rules) must be byte-identical to rules
+   being absent entirely, for every combination this module's other axes
+   produce — that is the contract the item-level Toolbar/ViewportControls
+   gating is built on top of. */
+describe("visibleControls — workspace rules axis (Task 12)", () => {
+  const GOALS = ["physics", "datascience", "hybrid"];
+  const MODES = ["blocks", "text"];
+  const RUN_STATES = ["idle", "booting", "running"];
+  const ROLES = ["guest", "user", "admin"];
+  const BOOL = [false, true];
+
+  const OPEN = {
+    editors: "both", debug: true, importFiles: true,
+    exportAndCopy: true, advancedBlocks: true, templates: true,
+  };
+  const LOCKED = {
+    editors: "blocks", debug: false, importFiles: false,
+    exportAndCopy: false, advancedBlocks: false, templates: false,
+  };
+
+  test("rules: null is byte-identical to rules absent, across goal × mode × runState × role × debugMode × traceVisible", () => {
+    for (const goal of GOALS)
+      for (const mode of MODES)
+        for (const runState of RUN_STATES)
+          for (const role of ROLES)
+            for (const debugMode of BOOL)
+              for (const traceVisible of BOOL) {
+                const axes = { mode, goal, role, isTeacher: false, runState, debugMode, traceVisible };
+                expect(visibleControls({ ...axes, rules: null })).toEqual(visibleControls(axes));
+              }
+  });
+
+  test('editors:"blocks" empties the primary zone — no modeToggle', () => {
+    expect(v({ rules: { ...OPEN, editors: "blocks" } }).primary).toEqual([]);
+  });
+
+  test('editors:"code" empties the primary zone too', () => {
+    expect(v({ rules: { ...OPEN, editors: "code" } }).primary).toEqual([]);
+  });
+
+  test('editors:"both" keeps modeToggle, exactly like rules absent', () => {
+    expect(v({ rules: { ...OPEN, editors: "both" } }).primary).toEqual(["modeToggle"]);
+  });
+
+  test("debug:false beats both keep-alive axes — debugMode and traceVisible cannot resurrect it", () => {
+    const rules = { ...OPEN, debug: false };
+    expect(v({ runState: "idle", debugMode: true, rules }).view).not.toContain("debug");
+    expect(v({ runState: "idle", traceVisible: true, debugMode: true, rules }).view).not.toContain("debug");
+    expect(v({ runState: "running", debugMode: true, traceVisible: true, rules }).view).not.toContain("debug");
+    // debug:true (or rules absent) is unaffected — the keep-alive axes still work.
+    expect(v({ runState: "idle", debugMode: true, rules: { ...OPEN, debug: true } }).view).toContain("debug");
+  });
+
+  test("rules touch NOTHING else — trace/reset/clear/help and the whole file zone are unchanged (fileMenu gating is item-level in Toolbar, not key-level)", () => {
+    for (const goal of GOALS)
+      for (const mode of MODES)
+        for (const runState of RUN_STATES)
+          for (const role of ROLES) {
+            const axes = { mode, goal, role, isTeacher: false, runState, debugMode: true, traceVisible: true };
+            const locked = visibleControls({ ...axes, rules: LOCKED });
+            const open = visibleControls(axes);
+            // Every view-zone key except "debug" (already covered above) is unchanged.
+            expect(locked.view.filter((k) => k !== "debug")).toEqual(open.view.filter((k) => k !== "debug"));
+            // save/fileMenu themselves always stay — the LOCKED rules set turns
+            // off importFiles/exportAndCopy, which must not remove them here.
+            expect(locked.file).toEqual(open.file);
+          }
+  });
+});

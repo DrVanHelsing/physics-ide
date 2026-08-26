@@ -3,6 +3,7 @@ import { CrosshairIcon, ScanIcon, FullscreenIcon, CameraIcon } from "./Icons";
 import { getRuntimeWindow, getRuntimeScene, captureRuntimeCanvas } from "../utils/runner/glowRunner";
 import { useRuntimeReady } from "../hooks/useRuntimeReady";
 import { isUniformImageData } from "../utils/image";
+import { useAssignmentContext } from "../contexts/AssignmentContext";
 
 /**
  * Overlay camera cluster. Before this, recovering a camera that had been spun
@@ -67,10 +68,17 @@ export default function ViewportControls({ running, hostRef, onStatus }) {
      useRuntimeReady, ~6s at its default 40 tries) rather than reaching into
      the runtime's load sequence. */
   const ready = useRuntimeReady({ enabled: running });
+  /* Task 12: the same rules Toolbar's fileMenu gates its Screenshot item on
+     — "shot" is the viewport-overlay's own screenshot path, the other one
+     the enforcement table names alongside it. Null context or null rules is
+     exactly today's behaviour (every action stays). */
+  const assignment = useAssignmentContext();
+  const rules = assignment?.rules ?? null;
 
   if (!running) return null;
 
   const disabledTitle = ready ? null : "Waiting for the 3D engine…";
+  const exportsAllowed = !rules || rules.exportAndCopy;
 
   const actions = [
     {
@@ -103,19 +111,25 @@ export default function ViewportControls({ running, hostRef, onStatus }) {
         return true;
       },
     },
-    {
-      key: "shot",
-      icon: CameraIcon,
-      label: "Copy a snapshot to a new tab",
-      run: async () => {
-        const url = await captureRuntimeCanvas();
-        if (!url) return false;
-        if (!(await verifyNonBlank(url))) return false;
-        const w = window.open();
-        if (w) w.document.write(`<img src="${url}" alt="Simulation snapshot" style="max-width:100%">`);
-        return Boolean(w);
-      },
-    },
+    /* The fileMenu's Screenshot item is the OTHER path the enforcement table
+       names alongside this one — both drop together under exportAndCopy:false. */
+    ...(exportsAllowed
+      ? [
+          {
+            key: "shot",
+            icon: CameraIcon,
+            label: "Copy a snapshot to a new tab",
+            run: async () => {
+              const url = await captureRuntimeCanvas();
+              if (!url) return false;
+              if (!(await verifyNonBlank(url))) return false;
+              const w = window.open();
+              if (w) w.document.write(`<img src="${url}" alt="Simulation snapshot" style="max-width:100%">`);
+              return Boolean(w);
+            },
+          },
+        ]
+      : []),
   ];
 
   return (

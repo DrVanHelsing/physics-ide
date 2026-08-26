@@ -3,6 +3,7 @@ import React from "react";
 import Toolbar from "../Toolbar";
 import { mountComponent, click, byText, byTitle, keyDown } from "../../test/renderHelpers";
 import { useMe } from "../../auth/useAuth";
+import { useAssignmentContext } from "../../contexts/AssignmentContext";
 
 // HeaderAccount calls useMe() (TanStack Query) and useNavigate() (router) —
 // neither provider is mounted in this suite, so stub it out. Its own
@@ -15,9 +16,15 @@ vi.mock("../auth/HeaderAccount", () => ({ default: () => null }));
 // module HeaderAccount's own suite already stubs the same way.
 vi.mock("../../auth/useAuth", () => ({ useMe: vi.fn() }));
 
+// Task 12: Toolbar now reads the assignment's workspace rules directly too
+// (RulesChip's own precedent — see RulesChip.test.js). Default to null so
+// every pre-existing test in this file keeps seeing today's behaviour.
+vi.mock("../../contexts/AssignmentContext", () => ({ useAssignmentContext: vi.fn() }));
+
 let mounted = null;
 beforeEach(() => {
   useMe.mockReturnValue({ data: null, isLoading: false });
+  useAssignmentContext.mockReturnValue(null);
 });
 afterEach(() => {
   mounted?.unmount();
@@ -223,5 +230,75 @@ describe("Toolbar — role axis (guest vs. signed-in)", () => {
     useMe.mockReturnValue({ data: { role: "user", isTeacher: true }, isLoading: false });
     const { container } = render();
     expect(container.querySelector(".app-header")).not.toBeNull();
+  });
+});
+
+describe("Toolbar — workspace rules (Task 12)", () => {
+  const LOCKED = {
+    editors: "blocks", debug: false, importFiles: false,
+    exportAndCopy: false, advancedBlocks: false, templates: false,
+  };
+
+  test("editors restricted to one surface empties the primary zone — no mode toggle renders at all", () => {
+    useAssignmentContext.mockReturnValue({ rules: { ...LOCKED, editors: "blocks" } });
+    mounted = mountComponent(
+      <Toolbar goal="physics" mode="blocks" running={false} isDark {...handlers()}>
+        <span data-testid="mode-toggle-marker">toggle</span>
+      </Toolbar>,
+    );
+    expect(mounted.container.querySelector('[data-testid="mode-toggle-marker"]')).toBeNull();
+  });
+
+  test("a locked assignment (every rule off) empties the file menu with no dangling divider, and hides Debug from both the inline row and the overflow it shares zones with", () => {
+    useAssignmentContext.mockReturnValue({ rules: LOCKED });
+    const { container } = render({ running: true });
+    click(container.querySelector(".tb-btn--dropdown"));
+    const menu = container.querySelector(".tb-dropdown-menu");
+    expect(menu).not.toBeNull();
+    expect(menu.querySelectorAll(".tb-dropdown-item")).toHaveLength(0);
+    expect(menu.querySelector(".tb-dropdown-divider")).toBeNull();
+    // debug is a `view`-zone key (visibleControls' own contract) — gone here
+    // means gone from secondaryActions, so both render paths lose it at once.
+    expect(byText(container, "Debug")).toBeNull();
+  });
+
+  test("importFiles:false hides both Import items and the divider; exports stay", () => {
+    useAssignmentContext.mockReturnValue({ rules: { ...LOCKED, exportAndCopy: true } });
+    const { container } = render();
+    click(container.querySelector(".tb-btn--dropdown"));
+    expect(byText(container, "Import blocks or Python (.py, .xml)")).toBeNull();
+    expect(byText(container, "Open project bundle (.physide.json)")).toBeNull();
+    expect(container.querySelector(".tb-dropdown-divider")).toBeNull();
+    expect(byText(container, "Export as Python (.py)")).not.toBeNull();
+    expect(byText(container, "Export Project Bundle (.physide.json)")).not.toBeNull();
+  });
+
+  test("exportAndCopy:false hides every export item, Copy Code, both PDFs and the fileMenu Screenshot item; imports stay", () => {
+    useAssignmentContext.mockReturnValue({ rules: { ...LOCKED, importFiles: true } });
+    const { container } = render();
+    click(container.querySelector(".tb-btn--dropdown"));
+    expect(byText(container, "Import blocks or Python (.py, .xml)")).not.toBeNull();
+    expect(byText(container, "Open project bundle (.physide.json)")).not.toBeNull();
+    expect(container.querySelector(".tb-dropdown-divider")).toBeNull();
+    for (const label of [
+      "Export as Python (.py)",
+      "Export Blocks (.xml)",
+      "Code as PDF",
+      "Blocks as PDF",
+      "Screenshot Viewport (.png)",
+      "Copy Code to Clipboard",
+      "Export Project Bundle (.physide.json)",
+    ]) {
+      expect(byText(container, label)).toBeNull();
+    }
+  });
+
+  test("rules: null (no assignment context) leaves the file menu exactly as today — nine items, one divider", () => {
+    useAssignmentContext.mockReturnValue(null);
+    const { container } = render();
+    click(container.querySelector(".tb-btn--dropdown"));
+    const menu = container.querySelector(".tb-dropdown-menu");
+    expect(menu.querySelectorAll(".tb-dropdown-item")).toHaveLength(9);
+    expect(menu.querySelector(".tb-dropdown-divider")).not.toBeNull();
   });
 });

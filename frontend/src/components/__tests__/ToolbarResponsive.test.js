@@ -3,11 +3,14 @@ import React from "react";
 import Toolbar, { HEADER_STAGE1_QUERY, HEADER_STAGE2_QUERY } from "../Toolbar";
 import { mountComponent, click, byText } from "../../test/renderHelpers";
 import { useMe } from "../../auth/useAuth";
+import { useAssignmentContext } from "../../contexts/AssignmentContext";
 
 vi.mock("../auth/HeaderAccount", () => ({ default: () => null }));
 // Toolbar reads useMe() directly (Task 10) — no QueryClientProvider is
 // mounted in this bare-harness suite, so stub it (same fix as Toolbar.test.js).
 vi.mock("../../auth/useAuth", () => ({ useMe: vi.fn() }));
+// Task 12: same reason, same fix, for the workspace-rules context read.
+vi.mock("../../contexts/AssignmentContext", () => ({ useAssignmentContext: vi.fn() }));
 
 let mounted = null;
 const realMatchMedia = globalThis.matchMedia;
@@ -25,6 +28,7 @@ function setViewport(...matching) {
 beforeEach(() => {
   setViewport();
   useMe.mockReturnValue({ data: null, isLoading: false });
+  useAssignmentContext.mockReturnValue(null);
 });
 afterEach(() => {
   mounted?.unmount();
@@ -100,6 +104,29 @@ describe("header collapse — stage 2 (<= 1120px)", () => {
     expect(byText(container, "Save")).not.toBeNull();
     expect(byText(container, "File")).not.toBeNull();
     expect(container.querySelector(".project-title")).not.toBeNull();
+  });
+
+  // Task 12: debug:false removes "debug" from zones.view — both the inline
+  // row and the overflow dropdown read the same secondaryActions list built
+  // from it, so proving it gone from the overflow menu here (stage 2) is the
+  // second half of "gone from both render paths" — Toolbar.test.js proves
+  // the inline (stage 1/wide) half.
+  test("a locked assignment's debug:false keeps Debug out of the overflow menu too", () => {
+    setViewport(HEADER_STAGE1_QUERY, HEADER_STAGE2_QUERY);
+    useAssignmentContext.mockReturnValue({
+      rules: { editors: "both", debug: false, importFiles: true, exportAndCopy: true, advancedBlocks: true, templates: true },
+    });
+    const onDebugMode = vi.fn();
+    const { container } = render({ onDebugMode, running: true });
+
+    expect(byText(container, "Debug")).toBeNull();
+    click(container.querySelector(".tb-btn--overflow"));
+    const menu = container.querySelector(".tb-dropdown-menu");
+    expect(menu.textContent).not.toContain("Debug");
+    // The rest of the overflow list is untouched by rules.
+    for (const label of ["Hide 3D viewport", "Back to Blocks", "Clear", "Help"]) {
+      expect(menu.textContent).toContain(label);
+    }
   });
 
 });

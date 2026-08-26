@@ -1,4 +1,4 @@
-import { describe, test, expect, vi, afterEach } from "vitest";
+import { describe, test, expect, vi, afterEach, beforeEach } from "vitest";
 import React from "react";
 import { act } from "react";
 import ViewportControls from "../ViewportControls";
@@ -18,10 +18,19 @@ vi.mock("../../utils/runner/glowRunner", () => ({
 
 import { getRuntimeWindow, getRuntimeScene, captureRuntimeCanvas } from "../../utils/runner/glowRunner";
 
+// Task 12: same context read as Toolbar's fileMenu gating — stub it the
+// same way (RulesChip.test.js's precedent), defaulting to null so every
+// pre-existing test here keeps seeing today's behaviour.
+vi.mock("../../contexts/AssignmentContext", () => ({ useAssignmentContext: vi.fn() }));
+import { useAssignmentContext } from "../../contexts/AssignmentContext";
+
 /** Flush pending microtasks (the async onClick handlers) via a real macrotask tick. */
 const flush = () => new Promise((r) => setTimeout(r, 0));
 
 let mounted = null;
+beforeEach(() => {
+  useAssignmentContext.mockReturnValue(null);
+});
 afterEach(() => {
   mounted?.unmount();
   mounted = null;
@@ -103,6 +112,41 @@ describe("ViewportControls", () => {
     expect(onStatus).toHaveBeenCalledWith({
       text: "Copy a snapshot to a new tab is not available for this simulation.",
       type: "error",
+    });
+  });
+
+  describe("workspace rules (Task 12)", () => {
+    test("exportAndCopy:false drops the shot action — the other three stay", () => {
+      vi.useFakeTimers();
+      useAssignmentContext.mockReturnValue({
+        rules: { editors: "both", debug: true, importFiles: true, exportAndCopy: false, advancedBlocks: true, templates: true },
+      });
+      getRuntimeScene.mockReturnValue({});
+      mounted = mountComponent(<ViewportControls running={true} onStatus={vi.fn()} />);
+
+      act(() => {
+        vi.advanceTimersByTime(150);
+      });
+
+      expect(byTitle(mounted.container, "Copy a snapshot to a new tab")).toBeNull();
+      expect(byTitle(mounted.container, "Reset camera")).not.toBeNull();
+      expect(byTitle(mounted.container, "Fit scene to view")).not.toBeNull();
+      expect(byTitle(mounted.container, "Fullscreen viewport")).not.toBeNull();
+    });
+
+    test("exportAndCopy:true (or rules: null) keeps the shot action — today's behaviour", () => {
+      vi.useFakeTimers();
+      useAssignmentContext.mockReturnValue({
+        rules: { editors: "both", debug: true, importFiles: true, exportAndCopy: true, advancedBlocks: true, templates: true },
+      });
+      getRuntimeScene.mockReturnValue({});
+      mounted = mountComponent(<ViewportControls running={true} onStatus={vi.fn()} />);
+
+      act(() => {
+        vi.advanceTimersByTime(150);
+      });
+
+      expect(byTitle(mounted.container, "Copy a snapshot to a new tab")).not.toBeNull();
     });
   });
 });

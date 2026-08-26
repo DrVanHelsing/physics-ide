@@ -35,26 +35,39 @@ export function visibleControls({
      view zone below. */
   debugMode = false,
   traceVisible = false,
+  /* Task 12: a teacher's per-assignment WorkspaceRules, or null outside
+     assignment work (free project, guest, or an assignment with no rules
+     record) — null is EXACTLY today's behaviour, every axis below untouched.
+     Only two things are rule-governed here: whether the mode toggle exists
+     at all (`editors` restricted to one surface) and whether `debug` may
+     ever appear (it beats both of the keep-alive axes above). Everything
+     else — trace, reset, clear, help, the whole file zone — is unaffected;
+     import/export item visibility is gated at the item level in Toolbar,
+     not here, because save/fileMenu themselves must always stay. */
+  rules = null,
 }) {
   const sim = SIM_GOALS.has(goal);
   const live = runState !== "idle";
+  let view = [
+    // zoom slider intentionally absent from every configuration — the
+    // on-canvas cluster owns zoom (Task 11).
+    ...(sim ? ["viewport"] : []),
+    /* Hidden while idle — there is nothing to trace or debug yet. But once
+       either is ON it must STAY on screen even after the run ends: Stop
+       while debugging would otherwise take Exit Debug away with it and
+       strand the student inside a mode with no way out, and the same Stop
+       would leave a self-opened drawer with no control to close it. */
+    ...(sim && (live || traceVisible || debugMode) ? ["trace"] : []),
+    ...(sim && (live || debugMode) ? ["debug"] : []),
+    "reset",
+    ...(mode === "blocks" ? ["clear"] : []),
+    "help",
+  ];
+  if (rules && !rules.debug) view = view.filter((k) => k !== "debug");
+
   return {
-    primary: ["modeToggle"],
-    view: [
-      // zoom slider intentionally absent from every configuration — the
-      // on-canvas cluster owns zoom (Task 11).
-      ...(sim ? ["viewport"] : []),
-      /* Hidden while idle — there is nothing to trace or debug yet. But once
-         either is ON it must STAY on screen even after the run ends: Stop
-         while debugging would otherwise take Exit Debug away with it and
-         strand the student inside a mode with no way out, and the same Stop
-         would leave a self-opened drawer with no control to close it. */
-      ...(sim && (live || traceVisible || debugMode) ? ["trace"] : []),
-      ...(sim && (live || debugMode) ? ["debug"] : []),
-      "reset",
-      ...(mode === "blocks" ? ["clear"] : []),
-      "help",
-    ],
+    primary: rules && rules.editors !== "both" ? [] : ["modeToggle"],
+    view,
     file: [
       "save",
       "fileMenu",
