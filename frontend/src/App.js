@@ -28,7 +28,7 @@ import ResetPage              from "./components/auth/ResetPage";
 import ProfilePage            from "./components/auth/ProfilePage";
 import AdminConsole           from "./components/admin/AdminConsole";
 import ClassesHome            from "./components/classes/ClassesHome";
-import { AssignmentsStub }    from "./components/classes/ClassChrome";
+import AssignmentsTab         from "./components/assignments/AssignmentsTab";
 import PeopleTab              from "./components/classes/PeopleTab";
 import SettingsTab            from "./components/classes/SettingsTab";
 import JoinClassPage          from "./components/classes/JoinClassPage";
@@ -61,7 +61,7 @@ function App() {
                         <Route path="/profile" element={<ProfilePage />} />
                         <Route path="/admin" element={<AdminConsole />} />
                         <Route path="/classes" element={<ClassesHome />} />
-                        <Route path="/classes/:id" element={<AssignmentsStub />} />
+                        <Route path="/classes/:id" element={<AssignmentsTab />} />
                         <Route path="/classes/:id/people" element={<PeopleTab />} />
                         <Route path="/classes/:id/settings" element={<SettingsTab />} />
                         <Route path="/join" element={<JoinClassPage />} />

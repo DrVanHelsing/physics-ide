@@ -74,17 +74,3 @@ export default function ClassChrome({ tab, children }) {
     </div>
   );
 }
-
-export function AssignmentsStub() {
-  return (
-    <ClassChrome tab="assignments">
-      {() => (
-        <div className="page-body">
-          <p className="empty">
-            Assignments arrive in a later update. For now this class holds its roster and settings.
-          </p>
-        </div>
-      )}
-    </ClassChrome>
-  );
-}
