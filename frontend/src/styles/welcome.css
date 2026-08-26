@@ -195,10 +195,9 @@
   padding: var(--space-3) var(--space-7);
   font-size: var(--fs-xl);
 }
-/* The one quiet in-page line left after the redesign: "Have a class code?"
-   in §4. Links follow the portal's own convention (platform.css
-   .auth-footer a: --accent-bright). */
-.welcome-hero__quiet {
+/* The quiet secondary line: "Have a class code?" in §4. Links follow the
+   portal's own convention (platform.css .auth-footer a: --accent-bright). */
+.welcome-quiet {
   font-size: var(--fs-md);
   color: var(--text-dim);
   margin: var(--space-4) 0 0;

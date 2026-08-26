@@ -4,7 +4,7 @@
  * never tagged with assignment metadata (that lives in assignmentMeta.js,
  * outside the manifest, same as sync-meta).
  *
- * The sequence below IS the design — never reorder it:
+ * The core sequence is the design — never reorder it:
  *   1. Build a fresh local manifest from the assignment's seed (or none).
  *   2. saveProject — the id has to exist locally before anything downstream
  *      can reference it.
@@ -13,8 +13,35 @@
  *      foreign key needs the projects row to already be there.
  *   5. POST /start to create (or fetch, if already started) the
  *      assignment_work link.
- *   6. Cache assignment context against the projectId, so the IDE can
- *      render assignment chrome once it opens that project (Task 11).
+ *   6. Cache assignment context against the LINKED projectId (the server's,
+ *      not necessarily this attempt's own — see "second device" below), so
+ *      the IDE can render assignment chrome once it opens that project
+ *      (Task 11).
+ *
+ * Two things step 4-5 have to account for, discovered in task-10 review:
+ *
+ *   - `engine.pushProject` NEVER THROWS (syncEngine.js's own design — see
+ *     `adoptLocalProject`'s comment there). A failed push otherwise proceeds
+ *     straight into POST /start, which 404s with a real but misleading
+ *     "No such project." — the project row simply never made it
+ *     server-side. `assertPushSucceeded` checks `engine.getStatus()` right
+ *     after, the same way `adoptLocalProject` does, and throws an honest
+ *     error instead.
+ *
+ *   - Retrying after that failure must NOT mint a second local project and
+ *     abandon the first — `resolveLocalProject` caches the newly-created
+ *     project against this assignment via `cacheContext` immediately (not
+ *     only on full success), so a later call can find and reuse that SAME
+ *     pending project via `findPendingLocalProject` instead of creating a
+ *     new one every retry.
+ *
+ *   - `/start`'s response is the authority on which project actually got
+ *     linked, not just this attempt's own local copy — under a genuine
+ *     concurrent double-start (two tabs), the loser's insert is skipped
+ *     server-side and the WINNER's row is returned instead (design D§2's
+ *     "second device" backstop). The loser must adopt that id, not keep
+ *     working in its own now-orphaned copy — see the `linkedProjectId`
+ *     handling below, which also drops the loser's now-stale pending cache.
  *
  * Requires the network — the assignment page is server data anyway, so
  * there is no offline path to preserve here. Deliberately does NOT go
@@ -24,10 +51,12 @@
  */
 import { api } from "../api/client";
 import { createManifest } from "../manifest/factory";
-import { saveProject } from "../storage/projectStore";
-import { setAssignmentMeta } from "../storage/assignmentMeta";
+import { saveProject, loadProject } from "../storage/projectStore";
+import { setAssignmentMeta, listAssignmentMeta, deleteAssignmentMeta } from "../storage/assignmentMeta";
 import { getGlobalSyncEngine } from "../sync/syncEngine";
 import { LAST_PROJECT_KEY } from "../../constants";
+
+const PUSH_FAILED_MESSAGE = "Could not reach the server — check your connection and try again.";
 
 /**
  * @param {{ assignment: object, me: { id: string } }} args
@@ -38,6 +67,47 @@ export async function startAssignmentWork({ assignment, me }) {
     await cacheContext(assignment, assignment.myWork.projectId);
     return assignment.myWork.projectId;
   }
+
+  const saved = await resolveLocalProject(assignment);
+
+  try {
+    localStorage.setItem(LAST_PROJECT_KEY, saved.id);
+  } catch {
+    /* storage blocked */
+  }
+
+  const engine = await getGlobalSyncEngine();
+  await engine.pushProject(saved.id, me.id); // the FK needs the row server-side
+  assertPushSucceeded(engine);
+
+  const res = await api(`/api/assignments/${assignment.id}/start`, {
+    method: "POST",
+    body: { projectId: saved.id },
+  });
+  const linkedProjectId = res.work.projectId;
+  if (linkedProjectId !== saved.id) {
+    // Lost a concurrent double-start race — this attempt's local copy was
+    // never the one the server linked. Drop its pending cache so it stops
+    // masquerading as this assignment's working copy.
+    await deleteAssignmentMeta(saved.id);
+  }
+  await cacheContext(assignment, linkedProjectId);
+  return linkedProjectId;
+}
+
+/**
+ * The local project to push+link for a fresh start: reuse one already
+ * created (and pending-cached) by an earlier attempt for THIS assignment,
+ * if a push failure left one behind, rather than minting a new one and
+ * abandoning the last attempt's orphan on every retry. Otherwise build and
+ * save a fresh manifest from the assignment's seed, caching it against the
+ * assignment right away — not only once the whole sequence succeeds — so a
+ * later retry can find it here.
+ */
+async function resolveLocalProject(assignment) {
+  const pending = await findPendingLocalProject(assignment.id);
+  if (pending) return pending;
+
   const seed = assignment.starterSeed;
   const manifest = createManifest({
     goal: assignment.projectType,
@@ -48,16 +118,34 @@ export async function startAssignmentWork({ assignment, me }) {
     preferredEditor: seed?.preferredEditor ?? "blocks",
   });
   const saved = await saveProject(manifest);
-  try {
-    localStorage.setItem(LAST_PROJECT_KEY, saved.id);
-  } catch {
-    /* storage blocked */
-  }
-  const engine = await getGlobalSyncEngine();
-  await engine.pushProject(saved.id, me.id); // the FK needs the row server-side
-  await api(`/api/assignments/${assignment.id}/start`, { method: "POST", body: { projectId: saved.id } });
   await cacheContext(assignment, saved.id);
-  return saved.id;
+  return saved;
+}
+
+/** A local project already cached (assignmentMeta) against `assignmentId` —
+ *  by construction only ever left behind by an earlier attempt that failed
+ *  before /start linked it (a fully-started assignment short-circuits via
+ *  `assignment.myWork` above and never reaches this lookup). */
+async function findPendingLocalProject(assignmentId) {
+  const all = await listAssignmentMeta();
+  const entry = Object.entries(all).find(([, meta]) => meta?.assignmentId === assignmentId);
+  if (!entry) return null;
+  const [projectId] = entry;
+  const manifest = await loadProject(projectId);
+  if (!manifest) {
+    // The cached pointer outlived the project itself (e.g. deleted locally)
+    // — stale bookkeeping, not a project to resume.
+    await deleteAssignmentMeta(projectId);
+    return null;
+  }
+  return manifest;
+}
+
+function assertPushSucceeded(engine) {
+  const status = engine.getStatus();
+  if (status.state === "error" || status.state === "offline") {
+    throw new Error(PUSH_FAILED_MESSAGE);
+  }
 }
 
 async function cacheContext(assignment, projectId) {

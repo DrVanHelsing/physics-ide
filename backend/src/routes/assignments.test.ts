@@ -607,6 +607,48 @@ describe("POST /api/assignments/:id/start", () => {
     expect(rows).toHaveLength(1);
   });
 
+  test("two genuinely concurrent first-time starts for the same user never 500 — one wins, one adopts", async () => {
+    // A fresh assignment so this doesn't collide with the sequential
+    // idempotency test's already-started state above.
+    const draftRes = await app.inject({
+      method: "POST",
+      url: `/api/classes/${classId}/assignments`,
+      cookies: { pide_session: teacherCookie },
+      payload: { title: "Concurrent Start Test" },
+    });
+    const raceAssignmentId = draftRes.json().assignment.id;
+    await app.inject({
+      method: "POST",
+      url: `/api/assignments/${raceAssignmentId}/publish`,
+      cookies: { pide_session: teacherCookie },
+    });
+
+    const [a, b] = await Promise.all([
+      app.inject({
+        method: "POST",
+        url: `/api/assignments/${raceAssignmentId}/start`,
+        cookies: { pide_session: studentCookie },
+        payload: { projectId: studentProjectId },
+      }),
+      app.inject({
+        method: "POST",
+        url: `/api/assignments/${raceAssignmentId}/start`,
+        cookies: { pide_session: studentCookie },
+        payload: { projectId: studentProjectId },
+      }),
+    ]);
+
+    expect([a.statusCode, b.statusCode].sort()).toEqual([200, 201]);
+    expect(a.json().work.projectId).toBe(studentProjectId);
+    expect(b.json().work.projectId).toBe(studentProjectId);
+
+    const rows = await testDb
+      .select()
+      .from(assignmentWork)
+      .where(eq(assignmentWork.assignmentId, raceAssignmentId));
+    expect(rows).toHaveLength(1);
+  });
+
   test("a non-member 403s", async () => {
     const res = await app.inject({
       method: "POST",

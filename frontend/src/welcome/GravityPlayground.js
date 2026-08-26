@@ -60,8 +60,7 @@ function prefersReducedMotion() {
  * title, not a control panel. Keyboard operability is deliberately not
  * claimed for the click gesture: the RM/keyboard table this component
  * follows (see welcome.css's hero block) calls it decorative, and the
- * title attribute + the visually-hidden note below the canvas say so
- * out loud rather than leaving a screen-reader user to guess.
+ * title and aria-label attributes communicate that to assistive tech.
  */
 export default function GravityPlayground() {
   const canvasRef = useRef(null);

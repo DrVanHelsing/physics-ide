@@ -271,15 +271,28 @@ export function assignmentRoutes(app: FastifyInstance): void {
       );
     if (!projectRows[0]) return reply.code(404).send({ error: NO_SUCH_PROJECT });
 
-    await app.db.transaction(async (tx) => {
-      await tx.insert(assignmentWork).values({
-        assignmentId: id,
-        userId: req.user!.id,
-        ownerId: req.user!.id,
-        projectId: body.projectId as string,
+    try {
+      await app.db.transaction(async (tx) => {
+        await tx.insert(assignmentWork).values({
+          assignmentId: id,
+          userId: req.user!.id,
+          ownerId: req.user!.id,
+          projectId: body.projectId as string,
+        });
+        await logEvent(tx, "assignment.started", req.user!.id, { assignmentId: id, projectId: body.projectId });
       });
-      await logEvent(tx, "assignment.started", req.user!.id, { assignmentId: id, projectId: body.projectId });
-    });
+    } catch (err) {
+      // The pre-check above is TOCTOU under true concurrency — two genuinely
+      // simultaneous first-time starts can both pass it. The unique
+      // (assignmentId, userId) constraint is the real guard: whichever
+      // insert loses that race hands back the winner's row, same as the
+      // sequential idempotent path above, instead of a raw 500.
+      if (pgErrorCode(err) === "23505") {
+        const winner = await myWorkFor(app.db, id, req.user!.id);
+        if (winner) return reply.code(200).send({ work: { projectId: winner.projectId } });
+      }
+      throw err;
+    }
 
     return reply.code(201).send({ work: { projectId: body.projectId } });
   });
@@ -530,4 +543,11 @@ export function assignmentRoutes(app: FastifyInstance): void {
     });
     return { assignment: toAssignmentSummary(updated) };
   });
+}
+
+/** drizzle 0.44 may wrap driver errors; the pg code then lives on .cause.
+ *  Same private-per-file idiom auth.ts and members.ts already use. */
+function pgErrorCode(err: unknown): string | undefined {
+  const e = err as { code?: string; cause?: { code?: string } };
+  return e.code ?? e.cause?.code;
 }

@@ -121,4 +121,20 @@ describe("WelcomeHeader — the site header (brief move 4)", () => {
     click(menuSignIn);
     expect(onSignIn).toHaveBeenCalledTimes(1);
   });
+
+  test("with onOpenIde: the menu's Open the IDE item calls it too, not just the persistent button", () => {
+    // On phones (≤720px), CSS hides the persistent .welcome-header__cluster button,
+    // so the DropdownMenu item is the only reachable "Open the IDE" control. This
+    // test mirrors the onSignIn case above: open the menu, click the item, assert
+    // the callback fires exactly once.
+    const onOpenIde = vi.fn();
+    const container = render({ onOpenIde });
+    click(container.querySelector('.welcome-header__menu button[aria-haspopup="menu"]'));
+    const menuOpenIde = [...container.querySelectorAll(".welcome-header__menu .tb-dropdown-item")].find(
+      (el) => el.textContent.trim() === "Open the IDE",
+    );
+    expect(menuOpenIde.tagName).toBe("BUTTON");
+    click(menuOpenIde);
+    expect(onOpenIde).toHaveBeenCalledTimes(1);
+  });
 });
