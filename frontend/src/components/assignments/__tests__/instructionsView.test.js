@@ -81,6 +81,18 @@ describe("InstructionsView", () => {
     expect(img.getAttribute("loading")).toBe("lazy");
   });
 
+  test("an image node whose src is not the schema's data-URI shape renders nothing", () => {
+    // InstructionsDocSchema enforces this shape at write time; the renderer
+    // re-checks it defensively so a future write path (migration, admin
+    // tooling) that skipped the schema can't smuggle an external src through.
+    const doc = {
+      type: "doc",
+      content: [{ type: "image", attrs: { src: "https://evil.example.com/tracker.png", alt: "x" } }],
+    };
+    mounted = mountComponent(<InstructionsView doc={doc} />);
+    expect(mounted.container.querySelector("img")).toBeNull();
+  });
+
   test("renders an allow-listed youtube/vimeo source as a sandboxed iframe, everything else as a link", () => {
     const allowed = {
       type: "doc",
@@ -111,6 +123,22 @@ describe("InstructionsView", () => {
     const link = mounted.container.querySelector("a");
     expect(link).toBeTruthy();
     expect(link.getAttribute("href")).toBe("https://evil.example.com/embed/xyz");
+  });
+
+  test("a javascript: youtube src never becomes a clickable href — inert text only", () => {
+    // attrs.src on a youtube node is NOT constrained by InstructionsDocSchema
+    // (only image srcs are validated at write time), so the fallback link
+    // path must defend itself against a non-http(s) scheme smuggled past
+    // the EMBED_ALLOW regexes.
+    const doc = {
+      type: "doc",
+      content: [{ type: "youtube", attrs: { src: "javascript:alert(document.cookie)" } }],
+    };
+    mounted = mountComponent(<InstructionsView doc={doc} />);
+    const { container } = mounted;
+    expect(container.querySelector("a")).toBeNull();
+    expect(container.querySelector("iframe")).toBeNull();
+    expect(container.textContent).toContain("javascript:alert(document.cookie)");
   });
 
   test("renders a math node's LaTeX source synchronously, before KaTeX has a chance to upgrade it", () => {

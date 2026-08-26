@@ -23,6 +23,32 @@ const EMBED_ALLOW = [
   /^https:\/\/player\.vimeo\.com\//,
 ];
 
+// Mirrors InstructionsDocSchema's image.attrs.src shape (shared/src/assignments.ts)
+// — duplicated rather than imported so this stays a pure, dependency-free
+// renderer. If the schema's shape ever changes, this constant needs the
+// same edit. The renderer re-checks it defensively: the schema only runs
+// at write time, and a future write path (a migration, admin tooling) that
+// skipped it should not be able to smuggle an external or otherwise
+// unexpected src through to the DOM.
+const IMAGE_SRC = /^data:image\/(png|jpeg|webp);base64,/;
+
+/**
+ * True only for an absolute http(s) URL. `attrs.src` on a youtube node is
+ * NOT constrained by InstructionsDocSchema (only image srcs are validated
+ * at write time) — the fallback link below renders arbitrary doc content
+ * as a clickable href, so it must never do that for a `javascript:` or
+ * other non-http(s) scheme. Anything that fails to parse, or parses to a
+ * scheme other than http/https, is rejected.
+ */
+function isHttpUrl(value) {
+  try {
+    const { protocol } = new URL(value);
+    return protocol === "http:" || protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 function collectMathNodes(node, out) {
   if (!node || typeof node !== "object") return out;
   if (node.type === "math") out.push(node);
@@ -95,6 +121,7 @@ function renderNode(node, key, mathHtml) {
 
     case "image": {
       const attrs = node.attrs ?? {};
+      if (!IMAGE_SRC.test(attrs.src ?? "")) return null;
       return <img key={key} src={attrs.src} alt={attrs.alt ?? ""} loading="lazy" />;
     }
 
@@ -110,12 +137,17 @@ function renderNode(node, key, mathHtml) {
           />
         );
       }
-      // Not on the allow-list — a plain link, never an embed.
-      return (
-        <a key={key} href={src} target="_blank" rel="noreferrer noopener">
-          {src}
-        </a>
-      );
+      // Not on the allow-list — a plain link, but only for a genuine
+      // http(s) URL. Anything else (javascript:, data:, a malformed
+      // string) renders as inert text, never a clickable href.
+      if (isHttpUrl(src)) {
+        return (
+          <a key={key} href={src} target="_blank" rel="noreferrer noopener">
+            {src}
+          </a>
+        );
+      }
+      return src;
     }
 
     case "callout":
