@@ -2,7 +2,8 @@ import React, { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { api } from "../../utils/api/client";
-import { startAssignmentWork } from "../../utils/assignments/startWork";
+import { startAssignmentWork, assertPushSucceeded } from "../../utils/assignments/startWork";
+import { getGlobalSyncEngine } from "../../utils/sync/syncEngine";
 import ClassChrome from "../classes/ClassChrome";
 import { phaseBadge } from "./AssignmentsTab";
 import InstructionsView from "./InstructionsView";
@@ -18,6 +19,13 @@ import InstructionsView from "./InstructionsView";
  * The button is gated on exactly the phases the server's own /start route
  * accepts (open, late_window) so it can never promise something the API
  * will 400 on a moment later.
+ *
+ * Submit (Task 14) sits beside it once `myWork` exists, gated the same way
+ * (open/late_window — the D§11.2 returned-mark reopen is a backend-only
+ * guarantee until Task 18 wires its own UI). Same client order as
+ * BriefPane's footer: push the linked project's current local copy FIRST
+ * (`engine.pushProject`), THEN POST — the snapshot must be what the student
+ * sees, never a race against an unpushed edit.
  */
 
 /** The one honest sentence next to a gated button — never leaves someone
@@ -45,6 +53,8 @@ function AssignmentBody({ classData, me }) {
   const { id, aid } = useParams();
   const navigate = useNavigate();
   const [error, setError] = useState(null);
+  const [submitResult, setSubmitResult] = useState(null);
+  const [submitError, setSubmitError] = useState(null);
   const isStaff = classData.myRole === "teacher" || classData.myRole === "ta";
 
   const q = useQuery({
@@ -56,6 +66,23 @@ function AssignmentBody({ classData, me }) {
     mutationFn: (assignment) => startAssignmentWork({ assignment, me }),
     onSuccess: () => navigate("/"),
     onError: (err) => setError(err.message),
+  });
+
+  const submit = useMutation({
+    mutationFn: async (assignment) => {
+      const engine = await getGlobalSyncEngine();
+      await engine.pushProject(assignment.myWork.projectId, me.id); // push FIRST — the snapshot must be what the student sees
+      assertPushSucceeded(engine);
+      return api(`/api/assignments/${assignment.id}/submit`, { method: "POST" });
+    },
+    onSuccess: (data) => {
+      setSubmitError(null);
+      setSubmitResult(data.submission);
+    },
+    onError: (err) => {
+      setSubmitResult(null);
+      setSubmitError(err.message);
+    },
   });
 
   if (q.isLoading) return null;
@@ -77,6 +104,9 @@ function AssignmentBody({ classData, me }) {
   const badge = phaseBadge(assignment.phase);
   const gated = gateSentence(assignment.phase);
   const buttonLabel = assignment.myWork ? "Continue" : "Start work";
+  const canSubmit =
+    !!assignment.myWork && (assignment.phase === "open" || assignment.phase === "late_window");
+  const submitLate = assignment.phase === "late_window";
 
   return (
     <div className="page-body">
@@ -99,6 +129,12 @@ function AssignmentBody({ classData, me }) {
         </div>
       ) : null}
 
+      {canSubmit && submitLate ? (
+        <p className="auth-text auth-text--dim" role="status">
+          The due date has passed — this submission will carry a permanent late label.
+        </p>
+      ) : null}
+
       <div className="assignments-actions">
         <button
           className="btn btn--primary"
@@ -108,6 +144,16 @@ function AssignmentBody({ classData, me }) {
         >
           {buttonLabel}
         </button>
+        {canSubmit ? (
+          <button
+            className="btn btn--primary"
+            type="button"
+            disabled={submit.isPending}
+            onClick={() => submit.mutate(assignment)}
+          >
+            Submit
+          </button>
+        ) : null}
         {isStaff ? (
           <>
             <Link className="btn" to={`/classes/${id}/assignments/${aid}/edit`}>
@@ -125,6 +171,18 @@ function AssignmentBody({ classData, me }) {
         <p className="auth-text auth-text--dim" role="status">
           {gated}
         </p>
+      ) : null}
+
+      {submitResult ? (
+        <div className="alert alert--success" role="status">
+          Submitted — attempt {submitResult.attempt}. Fingerprint{" "}
+          <code>{submitResult.fingerprint.slice(0, 8)}</code>.
+        </div>
+      ) : null}
+      {submitError ? (
+        <div className="alert alert--danger" role="alert">
+          {submitError}
+        </div>
       ) : null}
     </div>
   );

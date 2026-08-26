@@ -4,6 +4,7 @@ import BriefPane from "../BriefPane";
 import { mountComponent, click, byTitle } from "../../../test/renderHelpers";
 import { useAssignmentContext } from "../../../contexts/AssignmentContext";
 import { useQuery } from "@tanstack/react-query";
+import { useMe } from "../../../auth/useAuth";
 
 /* Same bare-harness idiom as RulesChip.test.js / AssignmentPage.test.js:
    stub the context hook and react-query directly rather than mounting real
@@ -20,6 +21,13 @@ vi.mock("../InstructionsView", () => ({
   default: ({ doc }) => (
     <div data-testid="instructions-stub">{doc ? JSON.stringify(doc) : "none"}</div>
   ),
+}));
+// Task 14: BriefPane now calls useMe() (for the Submit footer's push) —
+// stub it, same idiom as SyncChip.test.js. None of these pre-existing
+// suites' fixtures carry a `myWork` row, so the footer never renders here;
+// submitFlow.test.js is where the Submit button itself is exercised.
+vi.mock("../../../auth/useAuth", () => ({
+  useMe: vi.fn(),
 }));
 
 const CTX = {
@@ -58,6 +66,7 @@ beforeEach(() => {
   window.sessionStorage.clear();
   useAssignmentContext.mockReturnValue(CTX);
   useQuery.mockReturnValue(queryData());
+  useMe.mockReturnValue({ data: { id: "u-1" } });
 });
 
 afterEach(() => {
