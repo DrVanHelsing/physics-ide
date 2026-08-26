@@ -19,8 +19,13 @@ describe("the front page", () => {
   });
 
   test("the three doors keep their exact promise, order and destinations", () => {
+    /* Scoped to .welcome-cta (the door row), not the whole hero, since
+       tranche 1: the hero also carries the quiet "Join your class" door,
+       which is a hero <button> but not one of the three doors this test
+       locks. The door row itself is unchanged — same three labels, same
+       order. */
     const { container, unmount } = mount();
-    const labels = [...container.querySelectorAll(".welcome-hero button")].map(
+    const labels = [...container.querySelectorAll(".welcome-cta button")].map(
       (b) => b.textContent.replace(/\s+/g, " ").trim(),
     );
     expect(labels).toEqual([
@@ -31,7 +36,7 @@ describe("the front page", () => {
     unmount();
   });
 
-  test("every CTA stamps the session pass before navigating — all six, clicked", () => {
+  test("every CTA stamps the session pass before navigating — all seven, clicked", () => {
     /* The grep test above proves no CTA uses a bare <Link>; only a click proves
        the handler that IS wired stamps the pass. A source grep cannot see a
        computed path, and a footer button that forgot go() sends the visitor to
@@ -43,7 +48,12 @@ describe("the front page", () => {
       ...container.querySelectorAll(".welcome-hero button"),
       ...container.querySelectorAll(".welcome-foot button"),
     ];
-    expect(ctas).toHaveLength(6); // 3 hero doors + footer primary + 2 quiet links
+    /* 7 since tranche 1: 3 hero doors + the hero's quiet "Join your class"
+       door (→ /join, ungated but still stamped through go() so "/" behaves
+       the same for the rest of the session) + footer primary + 2 quiet
+       links. The in-page playground anchor is an <a>, not a button, and is
+       deliberately not counted — it never navigates. */
+    expect(ctas).toHaveLength(7);
     expect(ctas).toContain(byText(container, "Open the IDE"));
     for (const cta of ctas) {
       sessionStorage.clear();
@@ -184,8 +194,14 @@ describe("the front page's numerals trace to source", () => {
     const { container, unmount } = mount();
     const items = [...container.querySelectorAll(".welcome-keys > li")];
     expect(items).toHaveLength(3);
+    /* "run / stop", not "run", since tranche 1: utils/hotkeys.js maps
+       Ctrl/Cmd+Enter to "runToggle" — Run and Stop are one button in the
+       viewport header and the keyboard matches it. The old label promised
+       less than the key does. Bare F5 maps to runToggle too; it is named in
+       §4's prose, and the row deliberately stays at the three chords a
+       student is told to learn. */
     expect(items.map((li) => li.textContent.replace(/\s+/g, " ").trim())).toEqual([
-      "Ctrl+Enter run",
+      "Ctrl+Enter run / stop",
       "Esc stop",
       "Ctrl+S save",
     ]);
