@@ -3,12 +3,15 @@ import React from "react";
 import { MemoryRouter } from "react-router-dom";
 import AboutPage from "../AboutPage";
 import ContactPage from "../ContactPage";
+import TeachersPage from "../TeachersPage";
+import WelcomePage from "../WelcomePage";
 import { mountComponent } from "../../test/renderHelpers";
 
-/* /about and /contact (polish brief): gate-free routes sharing the
-   WelcomeSubpage shell (header + a single prose column). Locks the copy the
-   brief specifies — every sentence derivable from docs/classroom-platform.md
-   or README.md, no invented contact channel — the same discipline
+/* /about, /contact and /teachers (polish brief, extended by the public-pages
+   finish): gate-free routes sharing the WelcomeSubpage shell (header + a
+   single prose column). Locks the copy the brief specifies — every sentence
+   derivable from docs/classroom-platform.md, README.md or the shipped
+   product, no invented contact channel — the same discipline
    welcomePage.test.js already holds the front page to. */
 
 let mounted = null;
@@ -31,12 +34,15 @@ describe("AboutPage — /about", () => {
     expect(h1s[0].textContent).toBe("About Physics IDE");
   });
 
-  test("the header's For teachers link points at the front page's anchor, not the current page", () => {
+  // Public-pages finish: "For teachers" used to point back at the front
+  // page's "#s-class" anchor from here — now it routes to the dedicated
+  // /teachers page, same as every other page that mounts WelcomeHeader.
+  test("the header's For teachers link routes to the dedicated /teachers page", () => {
     const container = render(<AboutPage />);
     const teachers = [...container.querySelectorAll(".welcome-header__nav a")].find(
       (a) => a.textContent === "For teachers",
     );
-    expect(teachers.getAttribute("href")).toBe("/welcome#s-class");
+    expect(teachers.getAttribute("href")).toBe("/teachers");
   });
 
   test("the header's Sign in is a plain Link — /about sits outside the gate", () => {
@@ -70,16 +76,21 @@ describe("AboutPage — /about", () => {
     expect(text).not.toMatch(/who made,?\s*shared and joined/i);
   });
 
-  test("does not claim assignments, submissions or marking are live", () => {
-    // Same honesty discipline as welcomePage.test.js's non-claims list: the
-    // welcome page's own "Not yet built." panel is the standing source of
-    // truth, and this page must not get ahead of it.
+  /* Launch-truth directive, controller-confirmed (2026-08-26): the site
+     publishes to the public only once the classroom assignments build
+     (Plan 6) is complete, so the two locks that stood here — one requiring
+     "designed but not shipped" to appear, one requiring the paragraph to
+     stop short of naming submissions/marking/the gradebook as real — no
+     longer describe the launch system. Deleted together; the present-tense
+     replacement is locked below. */
+  test("the teacher paragraph names the completed system in the present tense", () => {
     const container = render(<AboutPage />);
-    const text = container.textContent;
-    expect(text).not.toMatch(/assignment[s]? (are|is) (available|here)/i);
-    expect(text).not.toMatch(/marking is/i);
-    expect(text).not.toMatch(/gradebook (is|lets|gives|includes)/i);
-    expect(text).toMatch(/designed but not shipped/);
+    const text = container.textContent.replace(/\s+/g, " ");
+    expect(text).toContain("its roster, its join settings, its people, and its assignments");
+    expect(text).toContain(
+      "students submit their work against them, teachers mark it in the same IDE, and a gradebook tracks every result",
+    );
+    expect(text).not.toMatch(/designed but not shipped/i);
   });
 
   test("accessibility section is present with WCAG AA floor commitment", () => {
@@ -133,5 +144,133 @@ describe("ContactPage — /contact", () => {
     // No invented email address, phone number or contact form.
     expect(text).not.toMatch(/@[a-z0-9.-]+\.[a-z]{2,}/i);
     expect(text).not.toMatch(/\bcall\b|\bphone\b|contact form/i);
+  });
+
+  // Public-pages finish: the new "Found a problem?" section — still the
+  // repository's own issue tracker, not an invented support channel.
+  test("Found a problem? links the repository's issue tracker", () => {
+    const container = render(<ContactPage />);
+    const h2s = [...container.querySelectorAll("h2")].map((h) => h.textContent);
+    expect(h2s).toContain("Found a problem?");
+    const link = container.querySelector(
+      'a[href="https://github.com/DrVanHelsing/physics-ide/issues"]',
+    );
+    expect(link).toBeTruthy();
+    expect(link.getAttribute("rel")).toContain("noopener");
+  });
+});
+
+describe("TeachersPage — /teachers", () => {
+  test("renders the shared header and exactly one h1", () => {
+    const container = render(<TeachersPage />);
+    expect(container.querySelector(".welcome-header")).toBeTruthy();
+    const h1s = container.querySelectorAll("h1");
+    expect(h1s).toHaveLength(1);
+    expect(h1s[0].textContent).toBe("For teachers");
+  });
+
+  test("the header's For teachers link routes to this page itself", () => {
+    const container = render(<TeachersPage />);
+    const teachers = [...container.querySelectorAll(".welcome-header__nav a")].find(
+      (a) => a.textContent === "For teachers",
+    );
+    expect(teachers.getAttribute("href")).toBe("/teachers");
+  });
+
+  test("the header's Sign in is a plain Link — /teachers sits outside the gate, same as /about and /contact", () => {
+    const container = render(<TeachersPage />);
+    const signIn = container.querySelector(".welcome-header__signin a");
+    expect(signIn).toBeTruthy();
+    expect(signIn.getAttribute("href")).toBe("/auth/signin");
+  });
+
+  test("covers what's live today: open signup, class creation, all four join methods, the four class tabs, and the admin console", () => {
+    const container = render(<TeachersPage />);
+    const text = container.textContent.replace(/\s+/g, " ");
+    expect(text).toContain("Anyone may sign up as a teacher");
+    expect(text).toContain("a name and an optional subject or year label");
+    expect(text).toContain("a short class code");
+    expect(text).toContain("a copyable link");
+    expect(text).toContain("QR code");
+    expect(text).toContain("email invite");
+    expect(text).toContain("Assignments, Guides, People and Settings");
+    expect(text).toContain("admin console covers four tabs");
+  });
+
+  test("covers assignments as they actually ship: rich instructions, starter projects, three rule presets, guides", () => {
+    const container = render(<TeachersPage />);
+    const text = container.textContent.replace(/\s+/g, " ");
+    expect(text).toContain("headings, images, formulas and embedded video");
+    expect(text).toContain("Pin a starter project");
+    expect(text).toContain("open practice leaves every tool on");
+    expect(text).toContain("standard classwork is the everyday default");
+    expect(text).toContain("locked assessment strips");
+    expect(text).toContain("Guide pages publish that same rich format");
+  });
+
+  /* Launch-truth directive, controller-confirmed (2026-08-26): the site
+     publishes to the public only once the classroom assignments build
+     (Plan 6) is complete, so the two locks that stood here — one requiring
+     the "Not yet built." panel and its "designed but not shipped" sentence,
+     one banning present-tense claims about submissions/marking/the
+     gradebook/group work — no longer describe the launch system. Deleted
+     together; the present-tense replacement is locked below. */
+  test("the completed system — submissions, marking, gradebook, pairs/groups — is described in the present tense", () => {
+    const container = render(<TeachersPage />);
+    const text = container.textContent.replace(/\s+/g, " ");
+    expect(text).toContain("Marking opens a submission read-only in the full IDE");
+    expect(text).toContain("a receipt carrying a fingerprint of exactly what was submitted");
+    expect(text).toContain("carries a late label automatically");
+    expect(text).toContain("Every released mark lands in a single gradebook for the class");
+    expect(text).toContain("it exports to CSV");
+    expect(text).toContain("An editing baton makes who currently holds write access unambiguous");
+    const h3 = [...container.querySelectorAll("h3")].find((h) => h.textContent === "Not yet built.");
+    expect(h3).toBeUndefined();
+    expect(container.querySelector(".welcome-notbuilt")).toBeNull();
+    expect(text).not.toMatch(/still on the way/i);
+    expect(text).not.toMatch(/designed but not shipped/i);
+  });
+
+  test("the CTA door signs teachers up gate-free, via /auth/signup", () => {
+    const container = render(<TeachersPage />);
+    const h2s = [...container.querySelectorAll("h2")].map((h) => h.textContent);
+    expect(h2s).toContain("Start: create your class");
+    const cta = container.querySelector(".welcome-teachers-cta a.btn--primary");
+    expect(cta).toBeTruthy();
+    expect(cta.getAttribute("href")).toBe("/auth/signup");
+    expect(cta.textContent).toBe("Create your account");
+  });
+
+  test("links out to About instead of duplicating its roles/limits/accessibility content", () => {
+    const container = render(<TeachersPage />);
+    const text = container.textContent;
+    // The accessibility depth About already carries must not be repeated here.
+    expect(text).not.toMatch(/WCAG/i);
+    expect(text).not.toMatch(/keyboard focus ring/i);
+    const aboutLink = container.querySelector('a[href="/about"]');
+    expect(aboutLink).toBeTruthy();
+  });
+});
+
+/* ── Launch-truth scope guard (Plan 6 §9) ──────────────────────────────────
+   The three public pages now describe the classroom assignments build in
+   the present tense, on the premise that the site publishes only once Plan
+   6 is complete. That premise has a hard edge: Plan 6 §9 ("Deliberately NOT
+   in Plan 6") names features that stay out of scope even at launch — the
+   notification bell, rubric marking, and peer sharing among them. This
+   guard is mechanized, not a one-time read, so a future present-tense edit
+   to any of the three pages cannot silently smuggle an excluded feature
+   back in. */
+describe("Launch-truth scope guard — Plan 6 §9 exclusions appear on none of the three public pages", () => {
+  test("no page names the notification bell, rubric marking or peer sharing", () => {
+    const EXCLUDED = [/rubric/i, /notification bell/i, /\bbell\b/i, /peer sharing/i];
+    const pages = [<AboutPage />, <TeachersPage />, <WelcomePage />];
+    for (const ui of pages) {
+      const container = render(ui);
+      const text = container.textContent;
+      for (const re of EXCLUDED) expect(text).not.toMatch(re);
+      mounted.unmount();
+      mounted = null;
+    }
   });
 });
