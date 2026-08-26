@@ -38,12 +38,18 @@ export default function AboutPage() {
       </p>
 
       <h2>No surveillance layer</h2>
+      {/* Aligned word-for-word with WelcomePage.js §12's own wording (the
+          shipped record) after a fix-round review caught an overclaim here:
+          this page previously said "who made, shared and joined what",
+          which is the not-yet-shipped assignments/sharing ledger's scope
+          (docs/classroom-platform.md §8.1's share ledger), not what actually
+          ships. What ships is exactly signups, joins and join requests. */}
       <p>
-        The platform keeps an append-only record of who made, shared and
-        joined what, and when &mdash; an honest paper trail, not a
-        classroom-monitoring tool. It does not scan for copied work, does not
-        watch how you type, and has no webcam or screen monitoring of any
-        kind.
+        The platform keeps an append-only record of account signups, class
+        joins and join requests &mdash; that is the whole of the monitoring,
+        and it exists so a join can be audited, not so a student can be
+        watched. It does not scan for copied work, does not watch how you
+        type, and has no webcam or screen monitoring of any kind.
       </p>
 
       <h2>One school, on purpose</h2>

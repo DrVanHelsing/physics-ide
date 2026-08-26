@@ -54,6 +54,22 @@ describe("AboutPage — /about", () => {
     expect(text).toContain("hard-capped at 200 accounts");
   });
 
+  /* Moved after a fix-round review: the surveillance sentence originally
+     claimed the record covers "who made, shared and joined what", which is
+     the not-yet-shipped assignments/sharing ledger's scope, not what ships.
+     This lock now holds the corrected sentence to WelcomePage.js §12's own
+     wording word-for-word, and separately bans the overclaim so it cannot
+     silently come back. */
+  test("the surveillance sentence claims exactly what ships, matching §12", () => {
+    const container = render(<AboutPage />);
+    const text = container.textContent.replace(/\s+/g, " ");
+    expect(text).toContain(
+      "an append-only record of account signups, class joins and join requests",
+    );
+    expect(text).toContain("that is the whole of the monitoring");
+    expect(text).not.toMatch(/who made,?\s*shared and joined/i);
+  });
+
   test("does not claim assignments, submissions or marking are live", () => {
     // Same honesty discipline as welcomePage.test.js's non-claims list: the
     // welcome page's own "Not yet built." panel is the standing source of

@@ -25,6 +25,15 @@ function render(props) {
 }
 
 describe("WelcomeHeader — the site header (brief move 4)", () => {
+  test("carries an explicit banner role, consistent regardless of which page mounts it", () => {
+    // Left implicit, this <header> would get the banner role on /about and
+    // /contact (sibling of <main>) but not on /welcome (descendant of
+    // <main>, WelcomePage.js's long-standing shape) — the same component
+    // landing two different landmark roles. Explicit role sidesteps that.
+    const container = render({});
+    expect(container.querySelector(".welcome-header").getAttribute("role")).toBe("banner");
+  });
+
   test("the brand links Home to /welcome", () => {
     const container = render({});
     const brand = container.querySelector(".welcome-header__brand");
