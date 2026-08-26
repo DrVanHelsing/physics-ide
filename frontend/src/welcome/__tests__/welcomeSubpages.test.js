@@ -4,6 +4,7 @@ import { MemoryRouter } from "react-router-dom";
 import AboutPage from "../AboutPage";
 import ContactPage from "../ContactPage";
 import TeachersPage from "../TeachersPage";
+import WelcomePage from "../WelcomePage";
 import { mountComponent } from "../../test/renderHelpers";
 
 /* /about, /contact and /teachers (polish brief, extended by the public-pages
@@ -75,36 +76,21 @@ describe("AboutPage — /about", () => {
     expect(text).not.toMatch(/who made,?\s*shared and joined/i);
   });
 
-  test("does not claim submissions or marking are live", () => {
-    // Same honesty discipline as welcomePage.test.js's non-claims list, but
-    // narrowed in the public-pages finish: this test used to also forbid
-    // claiming assignments are live, matching WelcomePage.js §12's panel at
-    // the time. Verified against the shipped code (Plan 6 Stages 0/A —
-    // TeachersPage.js's header comment cites the commits), assignment
-    // authoring and starting work really are live now, so that half of the
-    // old assertion would be locking in a false claim rather than catching
-    // one. Submissions, marking and the gradebook are still genuinely
-    // undelivered (no submit action, no marking room, no gradebook screen
-    // anywhere in frontend/src), so those checks stay.
-    const container = render(<AboutPage />);
-    const text = container.textContent;
-    expect(text).not.toMatch(/marking is/i);
-    expect(text).not.toMatch(/gradebook (is|lets|gives|includes)/i);
-    expect(text).not.toMatch(/submi(t|ssion)[a-z]* (is|are) (live|available|here)/i);
-    expect(text).toMatch(/designed but not shipped/);
-  });
-
-  // The signature line for the corrected fact above: assignments themselves
-  // are now described as real (they hold a place in the class today,
-  // alongside the roster/settings/people), while what remains undelivered
-  // is named precisely — submitting work, marking it, and the gradebook.
-  test("the corrected teacher paragraph names assignments as real and the remaining gap precisely", () => {
+  /* Launch-truth directive, controller-confirmed (2026-08-26): the site
+     publishes to the public only once the classroom assignments build
+     (Plan 6) is complete, so the two locks that stood here — one requiring
+     "designed but not shipped" to appear, one requiring the paragraph to
+     stop short of naming submissions/marking/the gradebook as real — no
+     longer describe the launch system. Deleted together; the present-tense
+     replacement is locked below. */
+  test("the teacher paragraph names the completed system in the present tense", () => {
     const container = render(<AboutPage />);
     const text = container.textContent.replace(/\s+/g, " ");
     expect(text).toContain("its roster, its join settings, its people, and its assignments");
     expect(text).toContain(
-      "submitting that work, marking it, and the gradebook are designed but not shipped yet",
+      "students submit their work against them, teachers mark it in the same IDE, and a gradebook tracks every result",
     );
+    expect(text).not.toMatch(/designed but not shipped/i);
   });
 
   test("accessibility section is present with WCAG AA floor commitment", () => {
@@ -222,30 +208,27 @@ describe("TeachersPage — /teachers", () => {
     expect(text).toContain("Guide pages publish that same rich format");
   });
 
-  // The not-yet-built sentence — this page's own honesty panel, corrected
-  // against the shipped code rather than reusing WelcomePage.js §12's now-
-  // stale wording verbatim (that panel still lists assignments as
-  // undelivered; here they are not). Locked so a future edit cannot widen
-  // or narrow the claim without a deliberate test change.
-  test("the not-yet-built panel names exactly what remains: submitting, marking, gradebook, pairs/groups", () => {
+  /* Launch-truth directive, controller-confirmed (2026-08-26): the site
+     publishes to the public only once the classroom assignments build
+     (Plan 6) is complete, so the two locks that stood here — one requiring
+     the "Not yet built." panel and its "designed but not shipped" sentence,
+     one banning present-tense claims about submissions/marking/the
+     gradebook/group work — no longer describe the launch system. Deleted
+     together; the present-tense replacement is locked below. */
+  test("the completed system — submissions, marking, gradebook, pairs/groups — is described in the present tense", () => {
     const container = render(<TeachersPage />);
-    const h3 = [...container.querySelectorAll("h3")].find((h) => h.textContent === "Not yet built.");
-    expect(h3).toBeTruthy();
     const text = container.textContent.replace(/\s+/g, " ");
-    expect(text).toContain(
-      "Turning that work in, marking it, the gradebook, and pair or group work are designed but not shipped.",
-    );
-    // And the positive half stays honest too: starting work (not submitting it) is what exists today.
-    expect(text).toContain("can start it in a private copy today");
-  });
-
-  test("does not claim submissions, marking, the gradebook, or group work are live", () => {
-    const container = render(<TeachersPage />);
-    const text = container.textContent;
-    expect(text).not.toMatch(/\bsubmit(ted|s)?\b.{0,20}\b(is|are)\b.{0,10}\b(live|available|here)\b/i);
-    expect(text).not.toMatch(/marking is/i);
-    expect(text).not.toMatch(/gradebook (is|lets|gives|includes)/i);
-    expect(text).not.toMatch(/group work is (live|available|here)/i);
+    expect(text).toContain("Marking opens a submission read-only in the full IDE");
+    expect(text).toContain("a receipt carrying a fingerprint of exactly what was submitted");
+    expect(text).toContain("carries a late label automatically");
+    expect(text).toContain("Every released mark lands in a single gradebook for the class");
+    expect(text).toContain("it exports to CSV");
+    expect(text).toContain("An editing baton makes who currently holds write access unambiguous");
+    const h3 = [...container.querySelectorAll("h3")].find((h) => h.textContent === "Not yet built.");
+    expect(h3).toBeUndefined();
+    expect(container.querySelector(".welcome-notbuilt")).toBeNull();
+    expect(text).not.toMatch(/still on the way/i);
+    expect(text).not.toMatch(/designed but not shipped/i);
   });
 
   test("the CTA door signs teachers up gate-free, via /auth/signup", () => {
@@ -266,5 +249,28 @@ describe("TeachersPage — /teachers", () => {
     expect(text).not.toMatch(/keyboard focus ring/i);
     const aboutLink = container.querySelector('a[href="/about"]');
     expect(aboutLink).toBeTruthy();
+  });
+});
+
+/* ── Launch-truth scope guard (Plan 6 §9) ──────────────────────────────────
+   The three public pages now describe the classroom assignments build in
+   the present tense, on the premise that the site publishes only once Plan
+   6 is complete. That premise has a hard edge: Plan 6 §9 ("Deliberately NOT
+   in Plan 6") names features that stay out of scope even at launch — the
+   notification bell, rubric marking, and peer sharing among them. This
+   guard is mechanized, not a one-time read, so a future present-tense edit
+   to any of the three pages cannot silently smuggle an excluded feature
+   back in. */
+describe("Launch-truth scope guard — Plan 6 §9 exclusions appear on none of the three public pages", () => {
+  test("no page names the notification bell, rubric marking or peer sharing", () => {
+    const EXCLUDED = [/rubric/i, /notification bell/i, /\bbell\b/i, /peer sharing/i];
+    const pages = [<AboutPage />, <TeachersPage />, <WelcomePage />];
+    for (const ui of pages) {
+      const container = render(ui);
+      const text = container.textContent;
+      for (const re of EXCLUDED) expect(text).not.toMatch(re);
+      mounted.unmount();
+      mounted = null;
+    }
   });
 });

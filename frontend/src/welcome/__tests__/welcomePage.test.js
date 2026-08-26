@@ -124,13 +124,21 @@ describe("the front page", () => {
     for (const re of banned) expect(SRC).not.toMatch(re);
   });
 
-  test("the one sanctioned acknowledgement is present and impossible to miss", () => {
+  /* Launch-truth directive, controller-confirmed (2026-08-26): the site
+     publishes to the public only once the classroom assignments build
+     (Plan 6) is complete, so the "designed but not shipped" honesty panel
+     this lock held no longer describes the launch system — it is deleted
+     along with the panel itself. See "the classrooms section..." below for
+     the present-tense replacement. */
+  test("the classrooms section speaks in the present tense, and the honesty panel is gone", () => {
     const { container, unmount } = mount();
-    const panel = container.querySelector(".welcome-notbuilt");
-    expect(panel).toBeTruthy();
-    expect(panel.className).toContain("card--panel");
-    expect(panel.textContent).toMatch(/Not yet built\./);
-    expect(panel.textContent).toMatch(/designed but not shipped/);
+    const section = container.querySelector('section[aria-labelledby="s-class"]');
+    expect(section).toBeTruthy();
+    expect(section.querySelector("h2").textContent).toBe("Built for classrooms.");
+    expect(section.textContent).toContain(
+      "students work in a private copy, submit it, and teachers mark it in the same IDE, with a gradebook keeping score",
+    );
+    expect(container.querySelector(".welcome-notbuilt")).toBeNull();
     unmount();
   });
 
