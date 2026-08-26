@@ -75,7 +75,8 @@ import { useDebugHotkeys } from "../../hooks/useDebugHotkeys";
 import { useRunErrorBanner } from "../../hooks/useRunErrorBanner";
 
 /**
- * WorkspaceRulesEnforcer — Task 12.
+ * WorkspaceRulesEnforcer — Task 12 (fix round: review Ruling R3, "content
+ * visibility beats mode enforcement").
  *
  * AssignmentProvider mounts as a CHILD of IDELayout's own return value
  * (below), so IDELayout's function body runs before that provider exists in
@@ -95,17 +96,36 @@ import { useRunErrorBanner } from "../../hooks/useRunErrorBanner";
  *     thread advancedBlocks into BlocklyWorkspace's own `hideAdvanced` prop,
  *     which is where the toolbox actually gets built (utils/blockly/toolbox.js).
  *
+ * `lockedMode` (IDELayout's existing `projectType === "code_blank" ?
+ * "blocks" : null`, the same value ModeToggle already disables its Blocks
+ * button with) is threaded in as a guard: a code_blank project's blocks
+ * canvas starts and stays genuinely empty — blocks↔python sync is one-way
+ * (blocks generate python; python typed directly is never parsed back into
+ * blocks) — so forcing "blocks" mode here would hide the student's code
+ * behind an empty canvas with no way back. When that applies, the effect
+ * deliberately does NOT force the mode; RulesChip still names the rule, so
+ * the restriction stays visible even though it isn't mechanically enforced
+ * for this one project shape — a hidden-content workspace would be the
+ * greater dishonesty. The symmetric case (forcing "code" on a blocks-first
+ * project) needs no guard: every blocks-based project keeps `pythonCode`
+ * regenerated from the workspace on every change (handleWorkspaceChange),
+ * so switching it to text mode always shows real, in-sync code.
+ *
  * Renders nothing.
  */
-function WorkspaceRulesEnforcer({ mode, onModeChange, onRules }) {
+export function WorkspaceRulesEnforcer({ mode, onModeChange, onRules, lockedMode }) {
   const assignment = useAssignmentContext();
   const rules = assignment?.rules ?? null;
 
   useEffect(() => {
     if (!rules) return;
-    if (rules.editors === "blocks" && mode !== "blocks") onModeChange("blocks");
-    else if (rules.editors === "code" && mode !== "text") onModeChange("text");
-  }, [rules, mode, onModeChange]);
+    if (rules.editors === "blocks") {
+      if (lockedMode === "blocks") return; // code_blank: no blocks representation to force into
+      if (mode !== "blocks") onModeChange("blocks");
+    } else if (rules.editors === "code" && mode !== "text") {
+      onModeChange("text");
+    }
+  }, [rules, mode, onModeChange, lockedMode]);
 
   useEffect(() => {
     onRules(rules);
@@ -530,7 +550,7 @@ export default function IDELayout() {
   return (
     <AssignmentProvider projectId={proj.activeProjectId}>
     <div className="app-shell">
-      <WorkspaceRulesEnforcer mode={mode} onModeChange={sim.handleModeChange} onRules={setAssignmentRules} />
+      <WorkspaceRulesEnforcer mode={mode} onModeChange={sim.handleModeChange} onRules={setAssignmentRules} lockedMode={lockedMode} />
       <VariableDialog />
       {showHelp && (
         <HelpPage
