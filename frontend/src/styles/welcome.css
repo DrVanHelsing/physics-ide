@@ -49,12 +49,57 @@
 }
 .welcome-skip:focus-visible { transform: none; }
 
-/* A visitor evaluating the product can see both themes before committing. */
-.welcome-toolbar {
-  position: absolute;
-  top: var(--space-5);
-  right: var(--space-5);
+/* ── Site header (brief move 4) ───────────────────────────
+   The lone floating toggle (previously .welcome-toolbar, an absolutely
+   positioned ThemeToggleButton) retires into this bar — a visitor evaluating
+   the product can still see both themes before committing, but now from a
+   real nav instead of a corner-anchored orphan control. Same zone idiom as
+   .page-header (platform.css) — identity, nav, right cluster — but its own
+   rule block: .page-header's background is --bg-surface for the signed-in
+   portal, and this bar is --bg-titlebar on purpose (WelcomeHeader.js's own
+   header comment has the full rationale). Mounted on /welcome AND reused,
+   unchanged, on /about and /contact (WelcomeSubpage.js). */
+.welcome-header {
+  background: var(--bg-titlebar);
+  border-bottom: 1px solid var(--border);
 }
+.welcome-header__bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  height: var(--header-h);
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 0 var(--space-5);
+}
+.welcome-header__brand { font-size: var(--fs-lg); }
+.welcome-header__nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+.welcome-header__nav a {
+  font-size: var(--fs-md);
+  color: var(--text-dim);
+  text-decoration: none;
+}
+.welcome-header__nav a:hover { color: var(--text-bright); }
+.welcome-header__spacer { flex: 1; min-width: 0; }
+.welcome-header__cluster {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.welcome-header__signin .welcome-linklike,
+.welcome-header__signin a {
+  font-size: var(--fs-md);
+  color: var(--accent-bright);
+}
+/* Hidden until the ≤720px tail rule shows it — the nav row above is the
+   full-width idiom; DropdownMenu.js supplies the click-outside/Escape/focus
+   behaviour already written and tested (the product's one dropdown). */
+.welcome-header__menu { display: none; }
+.welcome-header .tb-dropdown-item { text-decoration: none; }
 
 /* The only visually-hidden treatment in the product. Two sections carry a
    heading for the landmark and not for the eye (§2, §10). */
@@ -114,7 +159,10 @@
 .welcome-rail__mark { display: inline-flex; color: var(--welcome-cat, var(--accent)); }
 
 /* ── Hero ─────────────────────────────────────────────────── */
-.welcome-hero { max-width: 760px; margin: 0 auto; text-align: center; }
+/* Air above and below (brief move 5, finding E): the hero now reads as three
+   strata — mark → words → doors → quiet links — with room to breathe on
+   both sides rather than sitting flush under the page's own top padding. */
+.welcome-hero { max-width: 760px; margin: var(--space-9) auto; text-align: center; }
 .welcome-hero h1 {
   font-size: var(--fs-hero);
   /* Tracking dropped rather than converted (Decision 2): --fs-hero is already
@@ -153,11 +201,14 @@
 }
 /* The two quiet lines under the doors: an in-page anchor to the playground
    and the /join door. Links follow the portal's own convention
-   (platform.css .auth-footer a: --accent-bright). */
+   (platform.css .auth-footer a: --accent-bright). Space-4, matching
+   .welcome-reassure right above — brief move 5: the join-code line and the
+   playground anchor get the same separation from the doors as the
+   reassurance line does, so the bottom of the hero reads as one rhythm. */
 .welcome-hero__quiet {
   font-size: var(--fs-md);
   color: var(--text-dim);
-  margin: var(--space-3) 0 0;
+  margin: var(--space-4) 0 0;
 }
 .welcome-hero__peek { color: var(--accent-bright); text-decoration: none; }
 .welcome-hero__peek:hover { text-decoration: underline; }
@@ -176,10 +227,13 @@
 
 /* Decorative orbit. Every literal below is a figure's geometry — a circle's
    diameter and the half-width centring of an absolutely positioned ring —
-   not a value on the spacing ramp. Each rule is exempted on its own line. */
-.welcome-orbit { position: relative; width: 150px; height: 150px; margin: 0 auto; }
+   not a value on the spacing ramp. Each rule is exempted on its own line.
+   Scaled up one step for brief move 5 (150→180 container, ×1.2 throughout,
+   rounded to even numbers so each ring's centring margin stays exact) — the
+   720px breakpoint's own scale() transform is recalibrated below it. */
+.welcome-orbit { position: relative; width: 180px; height: 180px; margin: 0 auto; }
 /* metric-exempt: decorative orbit geometry — a figure, not a ramp value */
-.welcome-orbit__sun { position: absolute; top: 50%; left: 50%; width: 26px; height: 26px; margin: -13px; border-radius: 50%; background: var(--yellow); box-shadow: 0 0 24px 4px color-mix(in srgb, var(--yellow) 35%, transparent); }
+.welcome-orbit__sun { position: absolute; top: 50%; left: 50%; width: 32px; height: 32px; margin: -16px; border-radius: 50%; background: var(--yellow); box-shadow: 0 0 24px 4px color-mix(in srgb, var(--yellow) 35%, transparent); }
 .welcome-orbit__path {
   position: absolute; top: 50%; left: 50%;
   border: 1px dashed var(--text-dim);
@@ -188,11 +242,11 @@
   animation: welcome-spin linear infinite;
 }
 /* metric-exempt: decorative orbit geometry — a figure, not a ramp value */
-.welcome-orbit__path--a { width: 90px; height: 90px; margin: -45px; animation-duration: 7s; }
+.welcome-orbit__path--a { width: 108px; height: 108px; margin: -54px; animation-duration: 7s; }
 /* metric-exempt: decorative orbit geometry — a figure, not a ramp value */
-.welcome-orbit__path--b { width: 146px; height: 146px; margin: -73px; animation-duration: 13s; }
+.welcome-orbit__path--b { width: 176px; height: 176px; margin: -88px; animation-duration: 13s; }
 /* metric-exempt: decorative orbit geometry — a figure, not a ramp value */
-.welcome-orbit__path i { position: absolute; top: -5px; left: 50%; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%; background: var(--accent-bright); display: block; }
+.welcome-orbit__path i { position: absolute; top: -6px; left: 50%; width: 12px; height: 12px; margin-left: -6px; border-radius: 50%; background: var(--accent-bright); display: block; }
 @keyframes welcome-spin { to { transform: rotate(360deg); } }
 
 /* ── Section furniture ────────────────────────────────────
@@ -211,9 +265,13 @@
 .welcome-section { max-width: 980px; }
 .welcome-section > p,
 .welcome-band p { max-width: 72ch; }
+/* Stepped up from --fs-2xl (research rule 1 + top-leverage finding 1): a 2×
+   ratio against the --fs-lg body reads as "new chapter", not "continuing
+   text", across all nine sections. Hero h1 (--fs-hero) is untouched — it
+   stays the largest thing on the page. */
 .welcome-section h2,
 .welcome-play h2 {
-  font-size: var(--fs-2xl);
+  font-size: var(--fs-3xl);
   line-height: var(--lh-tight);
   color: var(--text-bright);
   margin: 0 0 var(--space-4);
@@ -247,7 +305,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  margin: 0 0 var(--space-2);
+  margin: 0 0 var(--space-3);
   font-size: var(--label-fs);
   font-weight: var(--label-weight);
   letter-spacing: var(--label-tracking);
@@ -265,6 +323,27 @@
 .welcome-section--advanced      { --welcome-cat: var(--cat-advanced); }
 .welcome-section--communicate   { --welcome-cat: var(--cat-communicate); }
 
+/* Chapter rhythm (brief move 1, research rule 2): every second
+   .welcome-section sits on a full-bleed --bg-surface band with its own
+   category's 2px top strip — the pane-header idiom (workspace.css:65-67,
+   `.pane-header--blocks { border-top: 2px solid var(--cat-values); }`)
+   carried onto the front page, and the page's one deliberate aesthetic
+   risk (self-critique). One rule: every section already resolves
+   --welcome-cat by name, so no section needs a copy of its own.
+   The box-shadow + clip-path pair is the standard bleed-without-a-wrapper
+   technique — .welcome-section itself stays capped at 980px and centred
+   (content unchanged), while the shadow's 100vmax spread reaches the
+   viewport edge horizontally and clip-path's 0 vertical inset stops it
+   bleeding into the plain sections above and below. §2's hairline
+   (.welcome-band) stays the page's only border-based divider (research
+   rule 12) — this is a surface + colour device, not a second hairline. */
+.welcome-section--band {
+  padding: var(--space-6) 0;
+  border-top: 2px solid var(--welcome-cat, var(--accent));
+  box-shadow: 0 0 0 100vmax var(--bg-surface);
+  clip-path: inset(0 -100vmax);
+}
+
 /* ── §2 "What it is" band ─────────────────────────────────── */
 .welcome-band {
   max-width: 980px;
@@ -281,8 +360,17 @@
 /* ── §2b first-five-minutes strip ─────────────────────────
    Three imperatives, numbered by a CSS counter — same reason as the rail:
    an ordinal of the page's structure is not a numeral claim, so it does
-   not belong in the JSX where the ledger governs numerals. */
-.welcome-steps { max-width: 980px; }
+   not belong in the JSX where the ledger governs numerals.
+   One compact --bg-surface band row (brief move 6): a contained panel, not
+   the full-bleed chapter band above — the strip's own border marks it as a
+   held-together row of three rather than a repeat of the chapter device. */
+.welcome-steps {
+  max-width: 980px;
+  padding: var(--space-4) var(--space-5);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
 .welcome-steps__list {
   list-style: none;
   counter-reset: welcome-step;
@@ -396,6 +484,12 @@
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   margin: 0 0 var(--space-5);
 }
+/* Research rule 8: one rung up from the shared .card's base --space-4,
+   page-scoped to the two .welcome-grid tile contexts (pipeline stages,
+   worked-project tiles below) — the shared primitive used elsewhere in the
+   product is untouched. */
+.welcome-stage,
+.welcome-tile { padding: var(--space-5); }
 .welcome-stage h3 {
   font-size: var(--fs-xl);
   color: var(--text-bright);
@@ -408,21 +502,29 @@
   margin: 0;
 }
 
-/* ── §3/§4 product screenshots ────────────────────────────────
+/* ── §3/§4 product screenshots — framed evidence (brief move 3) ──
    A real screenshot of the shipped product, theme-matched by ThemeImage.
-   Sits inside .welcome-section, so its own max-width already caps it. */
-.welcome-shot-figure { margin: var(--space-5) 0 0; }
+   Capped at 880px and centred — a distinct exhibit, not an inline
+   documentation figure — with elevation (border-hl + radius-lg + shadow-lg)
+   so the two verified captures (the ledger's own "not a mock-up" claim)
+   read as evidence worth trusting. Caption takes the micro-label
+   treatment, same voice as every other small header on the page. */
+.welcome-shot-figure { max-width: 880px; margin: var(--space-5) auto 0; }
 .welcome-shot {
   display: block;
   max-width: 100%;
   height: auto;
-  border-radius: var(--radius);
-  border: 1px solid var(--card-border);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-hl);
+  box-shadow: var(--shadow-lg);
 }
 .welcome-shot-figure figcaption {
-  font-size: var(--fs-sm);
-  line-height: var(--lh-normal);
-  color: var(--text-dim);
+  font-size: var(--label-fs);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-tracking);
+  text-transform: var(--label-transform);
+  color: var(--label-color);
+  text-align: center;
   margin: var(--space-2) 0 0;
 }
 
@@ -493,14 +595,27 @@ a.welcome-stat:hover .welcome-stat__label { color: var(--text-bright); text-deco
 .welcome-play .welcome-eyebrow { justify-content: center; }
 .welcome-play h2 { margin-bottom: var(--space-1); }
 .welcome-play p { color: var(--text-dim); font-size: var(--fs-lg); margin-top: 0; }
-.welcome-playground { margin-top: var(--space-4); }
+/* Framed panel (brief move 6, finding D): border + surface, roughly the
+   card--panel idiom, so the section stops reading as a void around a
+   floating canvas. Capped near 420px — comfortably above the canvas (260px)
+   plus its controls row and hint line, so the cap is a ceiling, not a fit.
+   The canvas itself drops its own border and switches to --bg-base so it
+   reads as a distinct surface inside the panel rather than a second,
+   redundant frame. */
+.welcome-playground {
+  margin-top: var(--space-4);
+  max-height: 420px;
+  padding: var(--space-4);
+  background: var(--bg-surface);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-lg);
+}
 .welcome-playground__canvas {
   width: 100%;
   height: 260px;
   display: block;
   border-radius: var(--radius);
-  background: var(--bg-surface);
-  border: 1px solid var(--card-border);
+  background: var(--bg-base);
   cursor: crosshair;
   touch-action: none;
 }
@@ -579,6 +694,34 @@ a.welcome-stat:hover .welcome-stat__label { color: var(--text-bright); text-deco
   flex-wrap: wrap;
   margin-top: var(--space-4);
 }
+
+/* ── About / Contact (WelcomeSubpage.js) ──────────────────
+   The header + a single 72ch prose column on --bg-base — no anchor rail, no
+   reveal-on-scroll, no category strips; these two pages are reference
+   pages, not chapters. */
+.welcome-subpage { min-height: 100vh; background: var(--bg-base); color: var(--text); }
+.welcome-subpage__body {
+  max-width: 72ch;
+  margin: 0 auto;
+  padding: var(--space-7) var(--space-5) var(--space-9);
+}
+.welcome-subpage__body h1 {
+  font-size: var(--fs-3xl);
+  color: var(--text-bright);
+  margin: 0 0 var(--space-5);
+}
+.welcome-subpage__body h2 {
+  font-size: var(--fs-2xl);
+  color: var(--text-bright);
+  margin: var(--space-7) 0 var(--space-3);
+}
+.welcome-subpage__body p {
+  font-size: var(--fs-lg);
+  line-height: var(--lh-normal);
+  color: var(--text-dim);
+  margin: 0 0 var(--space-4);
+}
+.welcome-subpage__body a { color: var(--accent-bright); }
 
 /* ── Scroll reveal ────────────────────────────────────────
    240ms rather than the old 500ms: 0.5s was a fourth duration in a
@@ -664,9 +807,15 @@ a.welcome-stat:hover .welcome-stat__label { color: var(--text-bright); text-deco
      without scrolling, so the hero gives back the space it can: less top
      padding, a smaller tagline, and the decorative orbit scaled into a
      96px box (its children are a fixed figure, so it scales rather than
-     re-laying out). Nothing load-bearing goes; only air. */
+     re-laying out). Nothing load-bearing goes; only air. The hero's own
+     margin (brief move 5's space-9 air, added above) is zeroed back out
+     here for the same reason — that requirement is a desktop improvement,
+     not licence to push the doors below the fold on the one surface a
+     phone actually loads. Orbit's scale factor is recalibrated for the
+     move-5 base size change (96 / 180, was 96 / 150 = 0.64). */
   .welcome { padding-top: var(--space-5); }
-  .welcome-orbit { width: 96px; height: 96px; transform: scale(0.64); }
+  .welcome-hero { margin: 0 auto; }
+  .welcome-orbit { width: 96px; height: 96px; transform: scale(0.5333); }
   .welcome-hero h1 { margin-top: var(--space-3); }
   .welcome-tagline { font-size: var(--fs-lg); }
   .welcome-cta { flex-direction: column; align-items: stretch; }
@@ -682,4 +831,11 @@ a.welcome-stat:hover .welcome-stat__label { color: var(--text-bright); text-deco
     font-weight: var(--fw-semibold);
     color: var(--text-bright);
   }
+
+  /* Site header collapse (brief move 4): the nav row and the persistent
+     Sign in link fold into the one DropdownMenu — brand and the theme
+     toggle stay put, so a phone visitor always has both. */
+  .welcome-header__nav,
+  .welcome-header__signin { display: none; }
+  .welcome-header__menu { display: inline-flex; }
 }

@@ -73,19 +73,34 @@
  *                          directly, opened via pendingTemplate.js +
  *                          hooks/usePendingTemplateSeed.js onto StartMenu's
  *                          own buildManifestSpec.
- *   2 screenshot pairs   assets/welcome/*.webp, captured live via
- *                          e2e/welcome-shots-probe.mjs against the running
- *                          product on the Projectile Motion template
+ *   2 screenshot pairs   assets/welcome/*.webp, captured live against the
+ *                          running product on the Projectile Motion template
  *                          (blocks_projectile), both themes:
  *                            §3 editor-{dark,light}.webp — the block editor,
  *                              viewport hidden for width, showing Simulation
- *                              Start through the geometry constants
- *                              (61548B / 66146B).
+ *                              Start through the geometry constants.
+ *                              Captured by e2e/welcome-shots-probe.mjs;
+ *                              unchanged since tranche 2 (61548B / 66146B,
+ *                              1280×730).
  *                            §4 viewport-{dark,light}.webp — the 3D viewport
- *                              mid-run, ball past the bounce peak with its
- *                              trail and the vy telemetry label (6706B /
- *                              6526B).
- *                          140926B total, well under the 1.2MB budget. A
+ *                              mid-run, the ball arcing over the ground past
+ *                              its launch marker into its second bounce.
+ *                              Re-captured for tranche 2.5 (polish brief
+ *                              move 3 — "frame full of scene, not empty
+ *                              canvas") by e2e/welcome-shots-recapture.mjs
+ *                              (gitignored, not shipped): the camera is
+ *                              zoomed directly (scene.range = 8, probed
+ *                              against 6/7/8/9/10 so the post-bounce ball
+ *                              stays in frame) rather than cropping a small,
+ *                              distant subject, then the pane's own chrome
+ *                              and empty sky/ground are cropped away.
+ *                              635×255, 3710B / 3538B — the telemetry label
+ *                              this pair used to show moved out of frame
+ *                              under the tighter camera, so the alt text and
+ *                              caption no longer claim it; §4's prose above
+ *                              still does, truthfully, since that claim is
+ *                              about the feature, not this one frame.
+ *                          134942B total, well under the 1.2MB budget. A
  *                          data-science chart pair was not attempted — it
  *                          needs its own template run + pipeline wait on top
  *                          of the two pairs above; ships as two pairs.
@@ -101,11 +116,18 @@
  *    the page, and nothing else — the /join door IS a call to action and goes
  *    through go() like the rest (go() takes any path, and a visitor who chose
  *    a door has passed the welcome page in every sense the gate cares about).
+ *    The site header (WelcomeHeader.js, tranche 2.5) is a child component,
+ *    not a bare Link in this file, so it does not trip the grep below — but
+ *    it holds the same discipline: this page passes it onSignIn={() =>
+ *    go("/auth/signin")}, so its Sign in control still stamps the pass.
+ *    WelcomeSubpage.js (/about, /contact) passes no onSignIn — those two
+ *    routes are gate-free, like /join, so their header falls back to a
+ *    plain Link, the same shape JoinClassPage.js already uses.
  */
 import React, { useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import GravityPlayground from "./GravityPlayground";
-import ThemeToggleButton from "../components/layout/ThemeToggleButton";
+import WelcomeHeader from "./WelcomeHeader";
 import { useTheme } from "../contexts/ThemeContext";
 import { setPendingTemplate } from "./pendingTemplate";
 import {
@@ -278,7 +300,7 @@ function ThemeImage({ isDark, light, dark, alt, width, height }) {
 
 export default function WelcomePage() {
   const navigate = useNavigate();
-  const { isDark, toggle } = useTheme();
+  const { isDark } = useTheme();
 
   const go = useCallback(
     (path) => {
@@ -324,9 +346,13 @@ export default function WelcomePage() {
     <main className="welcome">
       <a className="welcome-skip" href="#welcome-main">Skip to content</a>
 
-      <div className="welcome-toolbar">
-        <ThemeToggleButton isDark={isDark} onToggle={toggle} />
-      </div>
+      {/* The slim site header (brief move 4): mounted here and reused,
+          unchanged, on /about and /contact via WelcomeSubpage.js. The lone
+          floating ThemeToggleButton this replaced is gone — the toggle now
+          lives in the header's right cluster. Sign in goes through go(), so
+          this page's every-CTA-through-go() rule (hard constraint 2, above)
+          still holds even though the control lives in a child component. */}
+      <WelcomeHeader onSignIn={() => go("/auth/signin")} />
 
       <header className="welcome-hero">
         <div className="welcome-orbit" aria-hidden="true">
@@ -502,9 +528,13 @@ export default function WelcomePage() {
         </figure>
       </section>
 
-      {/* §4 — the 3D viewport. */}
+      {/* §4 — the 3D viewport. First of four `welcome-section--band`
+          sections (brief move 1): every second .welcome-section (§4, §6,
+          §8, §12 — 2nd/4th/6th/8th of the page's eight) carries the
+          full-bleed surface + category-strip chapter marker; welcome.css
+          carries the rest of the rationale. */}
       <section
-        className={`welcome-section welcome-section--${CAT.viewport} welcome-reveal`}
+        className={`welcome-section welcome-section--${CAT.viewport} welcome-section--band welcome-reveal`}
         aria-labelledby="s-view"
       >
         <Eyebrow Icon={OrbitIcon}>Watch it run</Eyebrow>
@@ -545,13 +575,13 @@ export default function WelcomePage() {
             isDark={isDark}
             light={viewportLightShot}
             dark={viewportDarkShot}
-            alt="The 3D viewport mid-run on the Projectile Motion template: the ball past the peak of its bounce, its trail arcing behind it over the ground, with a live vy telemetry label."
+            alt="The 3D viewport mid-run on the Projectile Motion template, camera zoomed to the bounce: the ball arcing over the ground on its trail, past the launch marker and the ball's second bounce."
             width={635}
-            height={730}
+            height={255}
           />
           <figcaption>
-            The scene renders live while the loop runs — the telemetry label rewrites itself
-            every frame.
+            The scene renders live while the loop runs — this frame is zoomed to the bounce
+            instead of the wide default view.
           </figcaption>
         </figure>
       </section>
@@ -588,7 +618,7 @@ export default function WelcomePage() {
 
       {/* §6 — from a run to a dataset. */}
       <section
-        className={`welcome-section welcome-section--${CAT.measure} welcome-reveal`}
+        className={`welcome-section welcome-section--${CAT.measure} welcome-section--band welcome-reveal`}
         aria-labelledby="s-measure"
       >
         <Eyebrow Icon={RecordIcon}>Measure it</Eyebrow>
@@ -639,7 +669,7 @@ export default function WelcomePage() {
 
       {/* §8 — starting points. */}
       <section
-        className={`welcome-section welcome-section--${CAT.starting} welcome-reveal`}
+        className={`welcome-section welcome-section--${CAT.starting} welcome-section--band welcome-reveal`}
         aria-labelledby="s-start"
       >
         <Eyebrow Icon={BookOpenIcon}>Don&rsquo;t start from nothing</Eyebrow>
@@ -752,7 +782,7 @@ export default function WelcomePage() {
 
       {/* §12 — for classrooms: the honesty section. */}
       <section
-        className={`welcome-section welcome-section--${CAT.classrooms} welcome-reveal`}
+        className={`welcome-section welcome-section--${CAT.classrooms} welcome-section--band welcome-reveal`}
         aria-labelledby="s-class"
       >
         <Eyebrow Icon={GraduationCapIcon}>For teachers</Eyebrow>
