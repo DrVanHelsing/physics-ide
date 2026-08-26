@@ -1,4 +1,4 @@
-import { describe, test, expect, afterEach } from "vitest";
+import { describe, test, expect, afterEach, vi } from "vitest";
 import { act } from "react";
 import { mountComponent, click, byText } from "../../test/renderHelpers";
 import GravityPlayground, {
@@ -9,6 +9,7 @@ import GravityPlayground, {
   DEFAULT_RADIUS,
   DEFAULT_RESTITUTION,
   GRAVITY_RANGE,
+  GRAVITY_PRESETS,
   RADIUS_RANGE,
   RESTITUTION_RANGE,
 } from "../GravityPlayground";
@@ -18,13 +19,24 @@ import GravityPlayground, {
    hero's own full-bleed, ambient canvas. The click/drop gesture stays
    decorative and keyboard-free (no lock needed beyond "does not throw").
 
-   v3: a quiet control cluster returns — three real .range sliders (gravity,
-   ball size, bounciness) plus a Reset — this time deliberately, unlike the
-   boxed widget's slider it replaces: bottom-corner, low-opacity until
-   hover/focus-within, each control keyboard-operable with a visible label
-   and an aria-valuetext carrying units. This file's locks below cover both
-   halves: the pure physics step (no canvas needed) and the controls
-   markup/behaviour (mounted). */
+   v3 added a quiet control cluster: three real .range sliders (gravity,
+   ball size, bounciness) plus a Reset — bottom-corner, low-opacity until
+   hover/keyboard-focus, each control keyboard-operable with a visible label
+   and an aria-valuetext carrying units.
+
+   v4 (fix round, after review): size and bounciness are no longer sliders
+   — live-resizing balls already mid-flight was flagged as its own kind of
+   dishonesty, so both are fixed at their defaults now (GravityPlayground.js
+   keeps the values in `settings` for stepBall's sake; RADIUS_RANGE and
+   RESTITUTION_RANGE stay exported and still exercised below because
+   stepBall's own generality across those bounds is still real and still
+   worth locking, even with no slider driving it today). Gravity keeps its
+   slider and gains three preset chips (Moon/Earth/Jupiter) whose pressed
+   state is real UI state, not derived from the number — Reset can
+   therefore honestly show no preset selected even though it lands gravity
+   back on Earth's own 9.8. A Trails toggle (aria-pressed, same idiom as
+   the old Play/Pause) rounds the cluster out; it has nothing to do with
+   the physics, just a fading record of where each ball already went. */
 
 let mounted = null;
 const realMatchMedia = globalThis.matchMedia;
@@ -101,50 +113,36 @@ describe("GravityPlayground — the hero's full-bleed, decorative canvas", () =>
   });
 });
 
-describe("the physics controls cluster (v3) — three sliders, honest units, a Reset", () => {
-  test("a labelled group with exactly three .range sliders — Gravity, Ball size, Bounciness — and nothing else", () => {
+describe("the physics controls cluster (v4) — one slider, three presets, a Trails toggle, a Reset", () => {
+  test("a labelled group with exactly one .range slider — Gravity — and nothing else sliderish", () => {
     setReducedMotion(true); // paused: no rAF loop to race the assertions below
     mounted = mountComponent(<GravityPlayground />);
     const { container } = mounted;
-    const group = container.querySelector('[role="group"][aria-label]');
+    const group = container.querySelector('[role="group"][aria-label="Adjust the canvas physics"]');
     expect(group).toBeTruthy();
     expect(group.className).toBe("welcome-hero__controls");
 
     const ranges = [...group.querySelectorAll("input.range")];
-    expect(ranges).toHaveLength(3);
+    expect(ranges).toHaveLength(1);
 
     const labels = [...group.querySelectorAll("label")].map((l) => l.textContent.trim());
-    expect(labels).toEqual(["Gravity", "Ball size", "Bounciness"]);
+    expect(labels).toEqual(["Gravity"]);
 
-    // Every label points at a real range input by id (the precedent idiom).
-    for (const label of group.querySelectorAll("label")) {
-      const target = container.querySelector(`#${label.getAttribute("for")}`);
-      expect(target).toBeTruthy();
-      expect(target.className).toContain("range");
-    }
+    // The label points at the real range input by id (the precedent idiom).
+    const label = group.querySelector("label");
+    const target = container.querySelector(`#${label.getAttribute("for")}`);
+    expect(target).toBeTruthy();
+    expect(target.className).toContain("range");
   });
 
-  test("defaults match the old fixed-engine constants exactly — untouched, the canvas behaves as before", () => {
+  test("gravity defaults to the old fixed-engine constant, over its spec'd range, in its own units", () => {
     setReducedMotion(true);
     mounted = mountComponent(<GravityPlayground />);
     const { container } = mounted;
-    const [gravity, radius, restitution] = [...container.querySelectorAll("input.range")];
+    const gravity = container.querySelector("#hero-gravity");
     expect(Number(gravity.value)).toBe(DEFAULT_GRAVITY);
-    expect(Number(radius.value)).toBe(DEFAULT_RADIUS);
-    expect(Number(restitution.value)).toBe(DEFAULT_RESTITUTION);
     expect(gravity.getAttribute("aria-valuetext")).toMatch(/9\.8 metres per second squared/);
-    expect(radius.getAttribute("aria-valuetext")).toMatch(/7 pixel radius/);
-    expect(restitution.getAttribute("aria-valuetext")).toMatch(/0\.82 coefficient of restitution/);
-  });
-
-  test("each slider's min/max matches the spec range, in the spec's own units", () => {
-    setReducedMotion(true);
-    mounted = mountComponent(<GravityPlayground />);
-    const { container } = mounted;
-    const [gravity, radius, restitution] = [...container.querySelectorAll("input.range")];
     expect([Number(gravity.min), Number(gravity.max)]).toEqual(GRAVITY_RANGE);
-    expect([Number(radius.min), Number(radius.max)]).toEqual(RADIUS_RANGE);
-    expect([Number(restitution.min), Number(restitution.max)]).toEqual(RESTITUTION_RANGE);
   });
 
   test("dragging the gravity slider updates its value and aria-valuetext live", () => {
@@ -158,13 +156,79 @@ describe("the physics controls cluster (v3) — three sliders, honest units, a R
     expect(updated.getAttribute("aria-valuetext")).toMatch(/20\.0 metres per second squared/);
   });
 
-  test("Reset restores all three sliders to default after they were dragged away", () => {
+  test("exactly the three named presets, real values, real units in the visible label", () => {
     setReducedMotion(true);
     mounted = mountComponent(<GravityPlayground />);
     const { container } = mounted;
-    setRange(container.querySelector("#hero-gravity"), 1);
-    setRange(container.querySelector("#hero-radius"), 16);
-    setRange(container.querySelector("#hero-restitution"), 0.3);
+    const presetGroup = container.querySelector('[role="group"][aria-label="Gravity presets"]');
+    expect(presetGroup).toBeTruthy();
+    const chips = [...presetGroup.querySelectorAll("button")];
+    expect(chips.map((b) => b.textContent.trim())).toEqual(["Moon 1.6", "Earth 9.8", "Jupiter 24.8"]);
+    expect(GRAVITY_PRESETS).toEqual([
+      { label: "Moon", value: 1.6 },
+      { label: "Earth", value: 9.8 },
+      { label: "Jupiter", value: 24.8 },
+    ]);
+  });
+
+  test("no preset reads as pressed at rest, even though the default gravity (9.8) equals Earth's own value", () => {
+    setReducedMotion(true);
+    mounted = mountComponent(<GravityPlayground />);
+    const { container } = mounted;
+    const chips = [...container.querySelectorAll('[aria-label="Gravity presets"] button')];
+    for (const chip of chips) expect(chip.getAttribute("aria-pressed")).toBe("false");
+  });
+
+  test("clicking a preset sets the slider to its exact value and shows only that chip pressed", () => {
+    setReducedMotion(true);
+    mounted = mountComponent(<GravityPlayground />);
+    const { container } = mounted;
+    click(byText(container, "Moon 1.6"));
+
+    const gravity = container.querySelector("#hero-gravity");
+    expect(Number(gravity.value)).toBe(1.6);
+    expect(gravity.getAttribute("aria-valuetext")).toMatch(/1\.6 metres per second squared/);
+
+    const [moon, earth, jupiter] = [...container.querySelectorAll('[aria-label="Gravity presets"] button')];
+    expect(moon.getAttribute("aria-pressed")).toBe("true");
+    expect(earth.getAttribute("aria-pressed")).toBe("false");
+    expect(jupiter.getAttribute("aria-pressed")).toBe("false");
+  });
+
+  test("hand-moving the slider afterwards deselects the preset that was pressed", () => {
+    setReducedMotion(true);
+    mounted = mountComponent(<GravityPlayground />);
+    const { container } = mounted;
+    click(byText(container, "Jupiter 24.8"));
+    expect(byText(container, "Jupiter 24.8").getAttribute("aria-pressed")).toBe("true");
+
+    setRange(container.querySelector("#hero-gravity"), 15);
+
+    for (const chip of container.querySelectorAll('[aria-label="Gravity presets"] button')) {
+      expect(chip.getAttribute("aria-pressed")).toBe("false");
+    }
+  });
+
+  test("the Trails toggle is a real aria-pressed button, off by default, flipping on each click", () => {
+    setReducedMotion(true);
+    mounted = mountComponent(<GravityPlayground />);
+    const { container } = mounted;
+    const trails = byText(container, "Trails");
+    expect(trails).toBeTruthy();
+    expect(trails.className).toContain("btn");
+    expect(trails.getAttribute("aria-pressed")).toBe("false");
+    click(trails);
+    expect(byText(container, "Trails").getAttribute("aria-pressed")).toBe("true");
+    click(byText(container, "Trails"));
+    expect(byText(container, "Trails").getAttribute("aria-pressed")).toBe("false");
+  });
+
+  test("Reset restores the slider to default and deselects every preset, even Earth, and turns Trails off", () => {
+    setReducedMotion(true);
+    mounted = mountComponent(<GravityPlayground />);
+    const { container } = mounted;
+    click(byText(container, "Jupiter 24.8"));
+    click(byText(container, "Trails"));
 
     const reset = byText(container, "Reset");
     expect(reset).toBeTruthy();
@@ -172,19 +236,70 @@ describe("the physics controls cluster (v3) — three sliders, honest units, a R
     expect(reset.className).toContain("btn--sm");
     click(reset);
 
-    const [gravity, radius, restitution] = [...container.querySelectorAll("input.range")];
-    expect(Number(gravity.value)).toBe(DEFAULT_GRAVITY);
-    expect(Number(radius.value)).toBe(DEFAULT_RADIUS);
-    expect(Number(restitution.value)).toBe(DEFAULT_RESTITUTION);
+    expect(Number(container.querySelector("#hero-gravity").value)).toBe(DEFAULT_GRAVITY);
+    for (const chip of container.querySelectorAll('[aria-label="Gravity presets"] button')) {
+      expect(chip.getAttribute("aria-pressed")).toBe("false");
+    }
+    expect(byText(container, "Trails").getAttribute("aria-pressed")).toBe("false");
   });
 
-  test("no mass control — free-fall in vacuum is mass-independent and this engine has no ball-to-ball interactions", () => {
+  test("no mass control, and no size/bounciness sliders either — free-fall in vacuum is mass-independent and live-resizing was ruled dishonest", () => {
     setReducedMotion(true);
     mounted = mountComponent(<GravityPlayground />);
     const { container } = mounted;
     const labels = [...container.querySelectorAll("label")].map((l) => l.textContent.trim());
-    expect(labels.some((l) => /mass/i.test(l))).toBe(false);
-    expect(container.querySelectorAll("input.range")).toHaveLength(3);
+    expect(labels.some((l) => /mass|size|bounc/i.test(l))).toBe(false);
+    expect(container.querySelectorAll("input.range")).toHaveLength(1);
+  });
+});
+
+/* ── Reset's other job: forgetting every ball dropped since the canvas
+   mounted, not just the settings. This needs the real render path (the
+   mount effect bails out entirely when canvas.getContext() is falsy,
+   which is jsdom's default — see setupTests.js), so these two tests stub
+   getContext with a spy-instrumented 2D context and count arc() calls per
+   frame as a proxy for "how many balls did this frame draw." Scoped to
+   this describe block only: every other test in this file is deliberately
+   indifferent to whether the canvas can actually draw. ─────────────────── */
+describe("Reset also forgets every dropped ball — the initial three-ball set, not zero and not the drop count", () => {
+  let realGetContext;
+  let ctx;
+
+  function stubCanvas() {
+    realGetContext = window.HTMLCanvasElement.prototype.getContext;
+    ctx = { clearRect: vi.fn(), beginPath: vi.fn(), arc: vi.fn(), fill: vi.fn(), fillStyle: "" };
+    window.HTMLCanvasElement.prototype.getContext = vi.fn(() => ctx);
+  }
+
+  afterEach(() => {
+    if (realGetContext) window.HTMLCanvasElement.prototype.getContext = realGetContext;
+    realGetContext = undefined;
+  });
+
+  test("a fresh mount draws exactly the three initial balls", () => {
+    stubCanvas();
+    setReducedMotion(true);
+    mounted = mountComponent(<GravityPlayground />);
+    expect(ctx.arc).toHaveBeenCalledTimes(3);
+  });
+
+  test("dropping balls grows the drawn count, and Reset brings it back to exactly three", () => {
+    stubCanvas();
+    setReducedMotion(true);
+    mounted = mountComponent(<GravityPlayground />);
+    const canvas = mounted.container.querySelector("canvas");
+
+    ctx.arc.mockClear();
+    canvas.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, clientX: 10, clientY: 10 }));
+    expect(ctx.arc).toHaveBeenCalledTimes(4); // 3 initial + 1 just dropped
+
+    ctx.arc.mockClear();
+    canvas.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, clientX: 20, clientY: 20 }));
+    expect(ctx.arc).toHaveBeenCalledTimes(5); // 3 initial + 2 dropped
+
+    ctx.arc.mockClear();
+    click(byText(mounted.container, "Reset"));
+    expect(ctx.arc).toHaveBeenCalledTimes(3); // back to the initial set, not 5 and not 0
   });
 });
 
@@ -244,6 +359,15 @@ describe("stepBall — the pure physics step", () => {
     const result = stepBall(ball, 0.01, settings, bounds, NO_MOUSE);
     expect(result.y).toBe(999); // clamped to height - r = 1000 - 1
     expect(result.vy).toBeCloseTo(-500, 6); // -|vy| * e = -1000 * 0.5
+  });
+
+  test("across the whole restitution range: RESTITUTION_RANGE's floor keeps 30% of impact speed, its ceiling keeps 100%", () => {
+    const bounds = { width: 1e6, height: 1000 };
+    const falling = { x: 0, y: 998, vx: 0, vy: 1000, rJitter: 0, color: "#fff" };
+    const floor = stepBall(falling, 0.01, { gravity: 0, radius: 1, restitution: RESTITUTION_RANGE[0] }, bounds, NO_MOUSE);
+    expect(floor.vy).toBeCloseTo(-1000 * RESTITUTION_RANGE[0], 6);
+    const ceiling = stepBall(falling, 0.01, { gravity: 0, radius: 1, restitution: RESTITUTION_RANGE[1] }, bounds, NO_MOUSE);
+    expect(ceiling.vy).toBeCloseTo(-1000, 6);
   });
 
   test("a perfectly elastic bounce (e=1) keeps 100% of the impact speed; e=0 kills it dead", () => {
