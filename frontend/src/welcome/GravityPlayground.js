@@ -15,6 +15,17 @@ const COLORS = [
 /** One frame's worth of motion, used for the single-step renders while paused. */
 const STEP_DT = 1 / 60;
 
+/* §11's playful touch (fun-redesign brief §2, §11 entry, and #4 in its
+   prioritized cut-line): three one-click gravity presets, calling the same
+   setGravity() the slider already calls — no new mechanism, just three more
+   ways into the one that exists. Values are real: Moon and Jupiter surface
+   gravity in m/s², Earth matching the component's own default (9.8). */
+const PRESETS = [
+  { label: "Moon", value: 1.6 },
+  { label: "Earth", value: 9.8 },
+  { label: "Jupiter", value: 24.8 },
+];
+
 function makeBall(x, y) {
   return {
     x,
@@ -116,6 +127,24 @@ export default function GravityPlayground() {
         role="img"
         aria-label="A box of coloured balls falling and bouncing under the gravity you set."
       />
+      {/* A sibling of .welcome-playground__controls, not nested inside it —
+          gravityPlayground.test.js's "is the shared .btn/.btn--sm primitive"
+          check does `.welcome-playground__controls button` (the FIRST button
+          in that container) and expects the Play/Pause button; nesting the
+          presets there first would break that lock. */}
+      <div className="welcome-playground__presets" role="group" aria-label="Gravity presets">
+        {PRESETS.map((p) => (
+          <button
+            key={p.label}
+            type="button"
+            className="badge badge--accent welcome-playground__preset"
+            aria-pressed={gravity === p.value}
+            onClick={() => setGravity(p.value)}
+          >
+            {p.label} ({p.value})
+          </button>
+        ))}
+      </div>
       <div className="welcome-playground__controls">
         <button
           className="btn btn--sm"

@@ -124,10 +124,11 @@
  *    routes are gate-free, like /join, so their header falls back to a
  *    plain Link, the same shape JoinClassPage.js already uses.
  */
-import React, { useCallback, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useCallback, useEffect, useState } from "react";
+import { useNavigate, Link } from "react-router-dom";
 import GravityPlayground from "./GravityPlayground";
 import WelcomeHeader from "./WelcomeHeader";
+import DebugDemo from "./DebugDemo";
 import { useTheme } from "../contexts/ThemeContext";
 import { setPendingTemplate } from "./pendingTemplate";
 import {
@@ -211,30 +212,67 @@ const PYTHON = [
    is the Charts drawer minus its plural. Describe is the Statistics drawer,
    Relationships is Analyzing Relationships, Linearise is Transforming Data, and
    Shape spans two (Filter & Sort, Group & Compare). The rendered copy makes no
-   drawer claim; do not add one here or there. */
+   drawer claim; do not add one here or there.
+   Each entry is [name, ≤6-word teaser, full detail] — the teaser is what
+   <summary> shows closed, the detail is what a click discloses (fun-redesign
+   brief §2, §7 entry: "each of the 8 .welcome-stage cards becomes a native
+   <details>/<summary>"). "Describe"'s teaser is the brief's own example, kept
+   verbatim. */
 const PIPELINE = [
-  ["Explore", "Show the table, the first or last N rows, one column, one cell; count rows, columns and unique values; name a column's type."],
-  ["Describe", "Mean, median, mode, min, max, range, sum, count, standard deviation, percentile, interquartile range — or every statistic for a column at once."],
-  ["Uncertainty", "Standard error of the mean, a measurement printed as value ± uncertainty, and relative uncertainty as a percentage."],
-  ["Relationships", "Least-squares straight-line fit, and Pearson's r as its own block."],
-  ["Linearise", "Transform a column by ln, log₁₀, √, x² or 1/x, or multiply two columns into a new one — the standard trick for straightening a curve."],
-  ["Shape", "Filter rows on one condition or two joined by AND/OR, sort, drop missing values, find where a value is missing, count and average per group."],
-  ["Chart", "Bar, line, scatter, histogram, box plot, and scatter with a regression line. Charts save as image files."],
-  ["Communicate", "Write a note, print a result, compare two results side by side, state a conclusion, export the table as CSV, and reveal the generated Python."],
+  ["Explore", "Look at the raw data first", "Show the table, the first or last N rows, one column, one cell; count rows, columns and unique values; name a column's type."],
+  ["Describe", "the whole statistics toolkit", "Mean, median, mode, min, max, range, sum, count, standard deviation, percentile, interquartile range — or every statistic for a column at once."],
+  ["Uncertainty", "Put an error bar on it", "Standard error of the mean, a measurement printed as value ± uncertainty, and relative uncertainty as a percentage."],
+  ["Relationships", "Fit a line, get r", "Least-squares straight-line fit, and Pearson's r as its own block."],
+  ["Linearise", "Straighten a curve first", "Transform a column by ln, log₁₀, √, x² or 1/x, or multiply two columns into a new one — the standard trick for straightening a curve."],
+  ["Shape", "Filter, sort and group rows", "Filter rows on one condition or two joined by AND/OR, sort, drop missing values, find where a value is missing, count and average per group."],
+  ["Chart", "Six chart types, one block", "Bar, line, scatter, histogram, box plot, and scatter with a regression line. Charts save as image files."],
+  ["Communicate", "Write the result up", "Write a note, print a result, compare two results side by side, state a conclusion, export the table as CSV, and reveal the generated Python."],
 ];
 
-/* [numeral, label, in-page target or null]. A tile whose subject has a
-   section on this page is a real <a href="#…"> to it; the documentation
-   lives inside the IDE, not on this page, so that tile stays plain text.
-   Both dataset and chart tiles point at §7 — the data section covers both. */
-const STATS = [
-  ["151", "block types", "s-editor"],
-  ["18", "worked projects", "s-start"],
-  ["6", "built-in datasets", "s-data"],
-  ["6", "chart types", "s-data"],
-  ["14", "documentation sections", null],
-  ["0", "servers doing your physics", "s-yours"],
+/* §7's chip row — the six built-in datasets, one chip each. These strings
+   are locked verbatim: welcomePage.test.js greps container.textContent for
+   each parenthetical substring (the numbers are re-derived from the JSON
+   files on every test run, per the ledger above). Reformat the wrapper,
+   never the string. */
+const DATASETS = [
+  "Planets (9 rows)",
+  "Palmer Penguins (30)",
+  "Weather / Cape Town vs Johannesburg (28)",
+  "Pendulum lab measurements (56)",
+  "Spring / Hooke’s law (8)",
+  "Free fall (12)",
 ];
+
+/* [numeral, label, in-page target or null, hover/focus-revealed provenance
+   note]. A tile whose subject has a section on this page is a real
+   <a href="#…"> to it; the documentation lives inside the IDE, not on this
+   page, so that tile stays plain text. Both dataset and chart tiles point at
+   §7 — the data section covers both. The fourth field is §10's new
+   micro-interaction (fun-redesign brief §2, §10 entry): it elaborates the
+   existing label, never a new numeral — the ledger at the top of this file
+   is what each note is drawn from. */
+const STATS = [
+  ["151", "block types", "s-editor", "120 purpose-built, 31 standard Blockly"],
+  ["18", "worked projects", "s-start", "4 Python, 4 blocks, 7 data science, 3 hybrid"],
+  ["6", "built-in datasets", "s-data", "planets, penguins, weather, pendulum, spring, free fall"],
+  ["6", "chart types", "s-data", "bar, line, scatter, histogram, box, and a fitted scatter"],
+  ["14", "documentation sections", null, "Getting Started through the VPython Reference"],
+  ["0", "servers doing your physics", "s-yours", "GlowScript, Monaco and Blockly all run in your browser"],
+];
+
+/* §4's two enumerations, as chip rows instead of run-on sentences (fun-
+   redesign brief §2, §4 entry). Camera-control detail moves to Help. */
+const SCENE_OBJECTS = ["Spheres", "Boxes", "Cylinders", "Arrows", "Helixes", "Springs", "Trails", "Labels"];
+const VECTOR_OPS = ["Magnitude", "Unit vector", "Dot", "Cross", "Trig", "Clamp", "Min / max"];
+
+/* §9's export-format run-on sentence, as a chip row (same .badge primitive
+   §8 already uses — zero new CSS for the chips themselves). */
+const EXPORT_FORMATS = [".py", ".xml", "PDF (code)", "PDF (blocks)", "PNG", ".physide.json"];
+
+/* §12's four join methods — text-only chips, per the file boundary's own
+   instruction: no existing imported icon reads cleanly as "code" / "link" /
+   "QR" / "email", and Icons.js is out of scope for a new export. */
+const JOIN_WAYS = ["Code", "Link", "QR", "Email"];
 
 /* §8 — the four worked-project tiles a visitor can open right now, each a
    real template id verified against blockTemplates.js's BLOCK_TEMPLATES /
@@ -283,6 +321,33 @@ function Eyebrow({ Icon, children }) {
   );
 }
 
+/* §9's artifact (fun-redesign brief §2, §9 entry): a small static mock of
+   the product's real sync-chip visual language — conceptually, not the
+   component itself; this file only, no import of the real SyncChip. Hover
+   or focus steps its label through the three states a real sync chip can
+   show. Each step is a discrete response to one interaction, not a running
+   animation — the RM table's §9 row asks for an instant swap, never a
+   cross-fade, so this needs no reduced-motion guard beyond "add no
+   transition here," which it already does not. */
+const SYNC_STATES = ["Saved", "Syncing", "Offline"];
+
+function SyncChipMock() {
+  const [i, setI] = useState(0);
+  const step = () => setI((n) => (n + 1) % SYNC_STATES.length);
+  return (
+    <button
+      type="button"
+      className="welcome-syncchip"
+      onMouseEnter={step}
+      onFocus={step}
+      aria-label={`Sync status, a mock — currently showing "${SYNC_STATES[i]}"; hover or focus to see the next state`}
+    >
+      <span className="welcome-syncchip__dot" aria-hidden="true" />
+      {SYNC_STATES[i]}
+    </button>
+  );
+}
+
 /* A theme-matched product screenshot: dark src in dark, light in light.
    Real width/height (no CLS), lazy — these sit well below the fold. */
 function ThemeImage({ isDark, light, dark, alt, width, height }) {
@@ -301,6 +366,26 @@ function ThemeImage({ isDark, light, dark, alt, width, height }) {
 export default function WelcomePage() {
   const navigate = useNavigate();
   const { isDark } = useTheme();
+  /* §2b's checklist gamification: which of the three first-five-minutes
+     steps a visitor has marked done. Component state only, no storage — a
+     reload resets it, same as the rest of this page's interactivity. */
+  const [doneSteps, setDoneSteps] = useState(() => new Set());
+  const toggleStep = useCallback((i) => {
+    setDoneSteps((prev) => {
+      const next = new Set(prev);
+      if (next.has(i)) next.delete(i);
+      else next.add(i);
+      return next;
+    });
+  }, []);
+  /* §3's block↔Python hover-link: which index (if any) is under the
+     pointer or keyboard focus. Both BLOCK_STACK and PYTHON are index-
+     aligned (see their own comments above), so one integer is the whole
+     mechanism — no state machine needed. */
+  const [activeLine, setActiveLine] = useState(null);
+  /* The anchor rail's active-section highlight — a state toggle driven by
+     scroll position, not an animation (RM table: "No change needed"). */
+  const [activeSection, setActiveSection] = useState(null);
 
   const go = useCallback(
     (path) => {
@@ -339,6 +424,25 @@ export default function WelcomePage() {
       { threshold: 0.15 },
     );
     els.forEach((el) => io.observe(el));
+    return () => io.disconnect();
+  }, []);
+
+  useEffect(() => {
+    /* Degrade, don't delete: without IntersectionObserver the rail simply
+       never highlights an active section — nothing on the page breaks, the
+       rail still works as a plain set of anchors (RM table, "Rail
+       active-section highlight" row). */
+    if (typeof IntersectionObserver === "undefined") return undefined;
+    const sections = document.querySelectorAll("section[aria-labelledby]");
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting) setActiveSection(e.target.getAttribute("aria-labelledby"));
+        }
+      },
+      { rootMargin: "-45% 0px -50% 0px" },
+    );
+    sections.forEach((el) => io.observe(el));
     return () => io.disconnect();
   }, []);
 
@@ -410,7 +514,10 @@ export default function WelcomePage() {
       <nav className="welcome-rail" aria-label="Page sections">
         <ol>
           {RAIL.map(([id, label, Icon, cat]) => (
-            <li key={id} className={`welcome-section--${cat}`}>
+            <li
+              key={id}
+              className={`welcome-section--${cat}${activeSection === id ? " is-active" : ""}`}
+            >
               <a href={`#${id}`}>
                 <span className="welcome-rail__mark" aria-hidden="true"><Icon size={12} /></span>
                 {label}
@@ -420,32 +527,71 @@ export default function WelcomePage() {
         </ol>
       </nav>
 
-      {/* §2 — the fast orientation for someone who will not scroll far. */}
+      {/* §2 — the fast orientation for someone who will not scroll far.
+          Each cell is a flip-tile (fun-redesign brief §2, §2 entry): the
+          label + a glyph show by default, the sentence reveals on hover or
+          focus via a max-height/opacity transition. Keyboard reachable
+          because the label is a real <button> — :focus-within on the
+          wrapping .welcome-flip fires the same reveal a mouse hover does. */}
       <section className="welcome-band welcome-reveal" aria-labelledby="s-what">
         <h2 id="s-what" className="welcome-sr">What Physics IDE is</h2>
-        <p>
-          <strong>Runs in your browser.</strong> GlowScript 3.2 VPython, the Monaco code
-          editor and the block editor all ship with the app; no server does your physics.
-        </p>
-        <p>
-          <strong>Two editors, one project.</strong> Drag blocks or write Python — the
-          toolbar toggle switches views, and the blocks generate readable Python you can
-          flip to and inspect.
-        </p>
-        <p>
-          <strong>Three kinds of project.</strong> Physics modelling, data science, or
-          hybrid — a simulation and the analysis of the data it just produced.
-        </p>
+        <div className="welcome-flip">
+          <button type="button" className="welcome-flip__face">
+            <span className="welcome-flip__mark" aria-hidden="true"><LocalFirstIcon size={18} /></span>
+            <strong>Runs in your browser.</strong>
+          </button>
+          <p className="welcome-flip__body">
+            GlowScript 3.2 VPython, the Monaco code editor and the block editor all ship
+            with the app; no server does your physics.
+          </p>
+        </div>
+        <div className="welcome-flip">
+          <button type="button" className="welcome-flip__face">
+            <span className="welcome-flip__mark" aria-hidden="true"><BlocksIcon size={18} /></span>
+            <strong>Two editors, one project.</strong>
+          </button>
+          <p className="welcome-flip__body">
+            Drag blocks or write Python — the toolbar toggle switches views, and the
+            blocks generate readable Python you can flip to and inspect.
+          </p>
+        </div>
+        <div className="welcome-flip">
+          <button type="button" className="welcome-flip__face">
+            <span className="welcome-flip__mark" aria-hidden="true"><AtomIcon size={18} /></span>
+            <strong>Three kinds of project.</strong>
+          </button>
+          <p className="welcome-flip__body">
+            Physics modelling, data science, or hybrid — a simulation and the analysis of
+            the data it just produced.
+          </p>
+        </div>
       </section>
 
       {/* §2b — the first five minutes. Three imperatives the reader verifies
-          by doing them; the step numbers are a CSS counter, not copy. */}
+          by doing them; the step numbers are a CSS counter, not copy.
+          Gamified (fun-redesign brief §2, §2b entry): clicking a step toggles
+          its `is-done` class, which draws a checkmark and strikes the text.
+          The checkmark is a decorative, aria-hidden, empty <span> — it adds
+          zero characters to the <li>'s textContent, so the test-locked
+          strings below stay byte-for-byte what the "first-five-minutes strip
+          is an ol of exactly three imperatives, text locked" test expects
+          (welcomePage.test.js lines 195-210, per the brief's migration plan
+          item 1: verified by re-running that test, not by inspection). */}
       <section className="welcome-steps welcome-reveal" aria-labelledby="s-first">
         <h2 id="s-first" className="welcome-sr">The first five minutes</h2>
         <ol className="welcome-steps__list">
-          <li>Open the IDE — no account needed.</li>
-          <li>Open a worked project.</li>
-          <li>Press Run, then change one number.</li>
+          {[
+            "Open the IDE — no account needed.",
+            "Open a worked project.",
+            "Press Run, then change one number.",
+          ].map((text, i) => (
+            <li key={text} className={doneSteps.has(i) ? "is-done" : undefined}>
+              <button type="button" className="welcome-steps__btn" onClick={() => toggleStep(i)}>
+                <span className="welcome-steps__check" aria-hidden="true" />
+                {text}
+              </button>
+            </li>
+          ))}
         </ol>
       </section>
 
@@ -457,42 +603,37 @@ export default function WelcomePage() {
         <Eyebrow Icon={BlocksIcon}>The editor</Eyebrow>
         <h2 id="s-editor">Start with blocks. Move to Python when you&rsquo;re ready.</h2>
         <p>
-          151 block types: <strong>120 purpose-built for physics and data across 19
-          drawers</strong>, plus 31 standard Blockly blocks — 23 of them in the Advanced
-          drawer, the other eight in Logic and Math. The toolbox filters itself to the
-          project&rsquo;s goal — a physics project never shows data blocks; a data
-          project never shows Objects or Motion.
+          151 block types across 19 drawers — the toolbox filters itself to your project.
         </p>
-        <p>
-          {/* "inserts straight into the program" is a checked claim:
-              BlocklyWorkspace.js insertBlock() builds the block and
-              appendToSetup() attaches it to the end of the simulation's
-              setup, selected; when there is nothing to attach to it lands
-              selected at the centre of the view. */}
-          Search the whole library by name or keyword from the box above the canvas —
-          choose a result and the block is inserted straight into your program,
-          selected and ready to wire in. Right-click a block and choose{" "}
-          <strong>Help</strong> to jump straight to its entry in the built-in
-          documentation.
-        </p>
-        <p>
-          {/* Each clause checked: CodeEditor.js (bundled dynamic import, the
-              <textarea> fallback and its test), monacoThemes.js (VPython
-              vocabulary in the monarch grammar; physics-light / physics-dark
-              built from BLOCK_PALETTE). */}
-          The Python side is the Monaco editor, bundled with the app and Python-aware —
-          it knows the VPython vocabulary and colours it from the same palette the
-          blocks use, in both themes. If the editor bundle ever fails to load, a plain
-          text area takes over so you can keep writing.
+        <p className="welcome-helpref">
+          Search, right-click Help, and the Monaco fallback are covered in Help, inside
+          the IDE.
         </p>
 
+        {/* The compare panel is now interactive (fun-redesign brief §2, §3
+            entry, and its own #1 priority in the prioritized cut-line): hover
+            or tab-focus a block chip and its index-aligned Python line lights
+            up. BLOCK_STACK and PYTHON are already index-aligned (see their
+            own comments above) — one integer of state is the whole
+            mechanism, no highlighting library, no state machine. This
+            directly demonstrates "blocks generate readable Python" instead
+            of asserting it in the prose just cut above. */}
         <div className="welcome-compare">
           <div className="welcome-compare__side">
             <p className="welcome-compare__label">What you drag</p>
             <div className="welcome-code welcome-code--blocks">
-              {BLOCK_STACK.map((b) => (
+              {BLOCK_STACK.map((b, i) => (
                 <div key={b.t} className={`welcome-code__row welcome-code__row--d${b.d}`}>
-                  <span className="welcome-code__chip">{b.t}</span>
+                  <button
+                    type="button"
+                    className={`welcome-code__chip${activeLine === i ? " is-active" : ""}`}
+                    onMouseEnter={() => setActiveLine(i)}
+                    onMouseLeave={() => setActiveLine((cur) => (cur === i ? null : cur))}
+                    onFocus={() => setActiveLine(i)}
+                    onBlur={() => setActiveLine((cur) => (cur === i ? null : cur))}
+                  >
+                    {b.t}
+                  </button>
                 </div>
               ))}
             </div>
@@ -500,14 +641,14 @@ export default function WelcomePage() {
           <div className="welcome-compare__side">
             <p className="welcome-compare__label">What it writes</p>
             <pre className="welcome-code"><code>{PYTHON.map((line, i) => (
-              <React.Fragment key={i}>
+              <span key={i} className={`welcome-code__line${activeLine === i ? " is-active" : ""}`}>
                 {line.map(([text, kind], j) => (
                   <span key={j} className={kind ? `welcome-tok welcome-tok--${kind}` : undefined}>
                     {text}
                   </span>
                 ))}
                 {"\n"}
-              </React.Fragment>
+              </span>
             ))}</code></pre>
           </div>
         </div>
@@ -540,29 +681,21 @@ export default function WelcomePage() {
         <Eyebrow Icon={OrbitIcon}>Watch it run</Eyebrow>
         <h2 id="s-view">Physics you can see happening.</h2>
         <p>
-          Simulations render live in a 3D viewport — GlowScript 3.2 VPython, shipped with
-          the app, so it works offline. Spheres, boxes, cylinders, arrows, helixes and
-          springs, glowing spheres, trails, text labels, point lights, scene and camera.
+          Simulations render live in 3D — GlowScript VPython, shipped with the app, works
+          offline. A telemetry label keeps live values in the scene while it runs.
         </p>
-        <p>
-          Motion blocks set velocity, update position, apply force, add gravity and rotate
-          — with vector maths beside them: magnitude, unit vector, dot, cross, trig, clamp,
-          min and max. Camera controls float over the scene while it runs: reset camera,
-          fit scene to view, fullscreen, and copy a snapshot to a new tab. Drag the divider
-          to resize, or hide the viewport and work full-width.
-        </p>
-        <p>
-          {/* Checked: label_full_block and telemetry_update_block
-              (blocklyGenerator.js) render a live in-scene label as
-              "name = round(value, dp) unit"; HelpPage's four examples show
-              elapsed time, speed and KE/PE energy on exactly that label. */}
-          A simulation can carry its own read-out in the scene: telemetry blocks keep a
-          live label showing values like elapsed time, speed and energy, rounded,
-          unit-labelled and rewritten every frame. Run and Stop are one button in the
-          viewport header, and the keyboard matches it — <kbd className="tb-kbd">F5</kbd>{" "}
-          does the same as <kbd className="tb-kbd">Ctrl</kbd>
-          <span className="welcome-keys__plus">+</span>
-          <kbd className="tb-kbd">Enter</kbd>.
+        {/* The two enumerations that used to be run-on sentences (fun-
+            redesign brief §2, §4 entry) — scannable chip rows instead of
+            parsed prose. Camera-control detail (reset/fit/fullscreen/
+            snapshot) moves to Help's Viewport reference. */}
+        <ul className="welcome-chips">
+          {SCENE_OBJECTS.map((o) => <li key={o} className="badge">{o}</li>)}
+        </ul>
+        <ul className="welcome-chips">
+          {VECTOR_OPS.map((o) => <li key={o} className="badge badge--accent">{o}</li>)}
+        </ul>
+        <p className="welcome-helpref">
+          Camera reset, fit, fullscreen and snapshot are covered in Viewport, inside Help.
         </p>
         <ul className="welcome-keys">
           <li><kbd className="tb-kbd">Ctrl</kbd><span className="welcome-keys__plus">+</span><kbd className="tb-kbd">Enter</kbd> run / stop</li>
@@ -594,25 +727,22 @@ export default function WelcomePage() {
         <Eyebrow Icon={BugIcon}>Look inside</Eyebrow>
         <h2 id="s-debug">A debugger that doesn&rsquo;t lie to you.</h2>
         <p>
-          Debug Mode pauses and resumes with <kbd className="tb-kbd">Space</kbd>, steps one
-          animation frame with <kbd className="tb-kbd">F10</kbd>, and steps to the next
-          reported value with <kbd className="tb-kbd">Shift</kbd>
-          <span className="welcome-keys__plus">+</span>
-          <kbd className="tb-kbd">F10</kbd> — all while the simulation stays on screen.
+          Debug Mode pauses the simulation without losing it — step a frame, step to the
+          next value, or just watch.
         </p>
         <p>
-          Set breakpoints by right-clicking a block or Alt-clicking it. Blocks that <em>can</em>{" "}
-          pause show a dashed outline, blocks with a breakpoint a solid one, and the toolbar
-          shows how many are set. If a program has no traced values to pause on, it says so
-          plainly instead of hanging. That is what the headline means: it is a code path,
-          not a slogan.
+          If a program has nothing to pause on, it says so instead of hanging.
         </p>
-        <p>
-          A live variable panel groups setup constants, live loop values and your own watch
-          expressions, each row carrying a sparkline of its history. Pin a variable, filter
-          the list, set a threshold alert, take a snapshot to compare against, or click a
-          name to light up the block that sets it. Type any Python expression into the
-          watch box — total energy, say — and see it evaluated every frame on the next run.
+        {/* §5's artifact (fun-redesign brief §2, §5 entry, and #3 in its
+            prioritized cut-line): the page's biggest gap before this
+            tranche — the strongest differentiator, previously the most
+            text-only section with no artifact at all. DebugDemo.js
+            demonstrates the dashed/solid outline claim above instead of only
+            stating it. */}
+        <DebugDemo />
+        <p className="welcome-helpref">
+          Pin, filter, threshold alerts, snapshots and watch expressions are covered in
+          Debug Mode, inside Help.
         </p>
       </section>
 
@@ -624,16 +754,24 @@ export default function WelcomePage() {
         <Eyebrow Icon={RecordIcon}>Measure it</Eyebrow>
         <h2 id="s-measure">Turn a simulation into data you can analyse.</h2>
         <p>
-          <strong>Record a run</strong> to capture every value as it changes, then export
-          it as CSV — or press <strong>Chart</strong> to turn that recording into a dataset
-          you can work on with the data blocks. Telemetry labels put the numbers in the
-          scene while it runs; recording puts them in a table when it stops.
+          Record a run, then turn it into a dataset with Chart — or export it as CSV.
+          Hybrid projects keep the viewport and the data panel in one pane.
         </p>
-        <p>
-          When you save a run as a dataset you choose exactly which variables to keep and
-          crop it to a time range — useful for cutting a projectile off before it lands.
-          Hybrid projects stack the viewport and the data panel in one pane, so a
-          simulation and its analysis sit together.
+        {/* The record/export/crop sentence becomes a diagram of the actual
+            pipeline (fun-redesign brief §2, §6 entry) — the same badge chip
+            + arrow language as §11's gravity-preset row, at the scale of a
+            three-step flow. Static, not interactive: nothing in this brief
+            asks §6's artifact to click. */}
+        <div className="welcome-pipeline-mini">
+          <span className="badge badge--accent">Run</span>
+          <span className="welcome-pipeline-mini__arrow" aria-hidden="true">→</span>
+          <span className="badge badge--accent">Record</span>
+          <span className="welcome-pipeline-mini__arrow" aria-hidden="true">→</span>
+          <span className="badge badge--accent">Chart</span>
+        </div>
+        <p className="welcome-helpref">
+          Choosing which variables to keep and cropping a time range are covered in
+          Measure, inside Help.
         </p>
       </section>
 
@@ -645,25 +783,39 @@ export default function WelcomePage() {
         <Eyebrow Icon={ChartIcon}>Analyse</Eyebrow>
         <h2 id="s-data">A full data pipeline, in the same blocks.</h2>
         <p>
-          <strong>Load</strong> one of six built-in datasets, each shipping with a
-          description of every column — Planets (9 rows), Palmer Penguins (30),
-          Weather / Cape Town vs Johannesburg (28), Pendulum lab measurements (56),
-          Spring / Hooke&rsquo;s law (8), Free fall (12) — or your own CSV, or a dataset
-          promoted from a run.
+          Load one of six built-in datasets — or bring your own CSV, or promote a run into
+          one.
         </p>
+        {/* The dataset-list sentence becomes a chip row (fun-redesign brief
+            §2, §7 entry): every chip's text reproduces one of the six
+            row-count substrings the "every built-in dataset's row count on
+            the page is the row count in its JSON" test greps for, verbatim,
+            parenthetical included — the DATASETS array above IS those six
+            locked strings (test-lock migration plan item 2). */}
+        <ul className="welcome-chips">
+          {DATASETS.map((d) => <li key={d} className="badge">{d}</li>)}
+        </ul>
+        {/* Each stage becomes a native <details>/<summary> (fun-redesign
+            brief §2, §7 entry, and #2 in its prioritized cut-line): zero-JS,
+            keyboard-native, no ARIA needed. Kills the section's densest wall
+            of always-open prose — 8 full sentences — with progressive
+            disclosure. Nothing here locks the panel's markup shape (test-lock
+            migration plan: "no lock exists" for this section's card bodies),
+            so the tag swap is free. */}
         <div className="welcome-grid">
-          {PIPELINE.map(([name, line]) => (
-            <article key={name} className="card welcome-stage">
-              <h3>{name}</h3>
+          {PIPELINE.map(([name, teaser, line]) => (
+            <details key={name} className="card welcome-stage">
+              <summary>
+                <h3>{name}</h3>
+                <span className="welcome-stage__teaser">{teaser}</span>
+              </summary>
               <p>{line}</p>
-            </article>
+            </details>
           ))}
         </div>
         <p>
-          A least-squares fit reports slope, intercept, R&sup2; and n written out as an
-          equation with a plain-English verdict on the fit — Excellent, Strong, Moderate or
-          Weak. <strong>The pipeline re-runs as you change blocks</strong>: table,
-          statistics and charts refresh as you work.
+          A least-squares fit reports slope, intercept, R&sup2; and n with a plain-English
+          verdict, and the whole pipeline re-runs live as you edit blocks.
         </p>
       </section>
 
@@ -675,11 +827,8 @@ export default function WelcomePage() {
         <Eyebrow Icon={BookOpenIcon}>Don&rsquo;t start from nothing</Eyebrow>
         <h2 id="s-start">18 worked projects, ready to open.</h2>
         <p>
-          Four pre-coded Python examples — Projectile Motion with air drag and telemetry,
-          a Spring-Mass Oscillator with live energy readouts, a Sun&ndash;Earth&ndash;Moon
-          three-body orbit on velocity-Verlet, and a Nonlinear Damped Pendulum. The same
-          four rebuilt as block templates. Seven data-science investigations. Three hybrid
-          topics that pair a simulation with its matching analysis.
+          18 worked projects — 4 Python examples, the same 4 as blocks, 7 data-science
+          investigations, 3 hybrid topics.
         </p>
         <p>Four are one click away, open as a guest, no setup:</p>
         <div className="welcome-grid">
@@ -702,13 +851,9 @@ export default function WelcomePage() {
           <li className="badge badge--accent">measure g from the projectile</li>
           <li className="badge badge--accent">find k from the spring</li>
         </ul>
-        <p>
-          An empty canvas offers one-click starter chips and a short beginner tip you can
-          dismiss for the next one. A short wizard at the start asks for a title, blank or
-          template, and which editor to open in. And the built-in documentation has 14
-          searchable sections, from
-          Getting Started and Debug Mode to the Block Reference, the VPython Reference and
-          For Educators.
+        <p className="welcome-helpref">
+          Starter chips for an empty canvas, the new-project wizard, and all 14 Help
+          sections live inside the IDE.
         </p>
       </section>
 
@@ -720,29 +865,26 @@ export default function WelcomePage() {
         <Eyebrow Icon={LocalFirstIcon}>Your work</Eyebrow>
         <h2 id="s-yours">Saved on your computer first. Always.</h2>
         <p>
-          Projects are named and renameable, save themselves as you work, and appear on a
-          Continue list with how long ago you touched them. Export as Python
-          (<code>.py</code>), blocks (<code>.xml</code>), a PDF of the code, a PDF of the
-          blocks, a PNG of the viewport, or a complete project bundle
-          (<code>.physide.json</code>) — or copy the code straight out. Open files back in
-          as <code>.py</code>, <code>.xml</code> or <code>.physide.json</code>.
+          Your work saves to your computer first, and syncs to your account when
+          you&rsquo;re signed in.
         </p>
-        <p>
-          Signed in, your work also syncs to your account — after every save, after every
-          delete, and again when you sign in, return to the tab, or come back online. The
-          sync chip tells you the truth at a glance, so a dead network stops the syncing
-          and not the working. Start at school, carry on at home on a different computer.
-        </p>
-        <p>
-          Sign up after working as a guest and you are offered a one-click import of the
-          projects already in your browser — or decline, and they stay where they are. On a
-          shared computer, signing out clears the projects pulled down from your account
-          while guest work stays put. Limits are stated plainly: 100 projects per account
-          and a size cap per project, both with plain-English messages when you reach them.
-        </p>
+        <p>Export any way you like:</p>
+        {/* The export-format run-on sentence becomes a chip row (fun-redesign
+            brief §2, §9 entry) — same .badge primitive §8 already uses. */}
+        <ul className="welcome-chips">
+          {EXPORT_FORMATS.map((f) => <li key={f} className="badge">{f}</li>)}
+        </ul>
+        {/* A small static mock of the sync chip's own language (see
+            SyncChipMock above) demonstrates "the sync chip tells you the
+            truth at a glance" instead of describing it. */}
+        <SyncChipMock />
         <p className="welcome-note">
           If the same project is edited in two places, the most recent edit wins and the
           older version is kept rather than discarded.
+        </p>
+        <p className="welcome-helpref">
+          Guest import, per-account limits and sync timing are covered in{" "}
+          <Link to="/about">About</Link>.
         </p>
       </section>
 
@@ -750,18 +892,29 @@ export default function WelcomePage() {
       <section className="welcome-numbers welcome-reveal" aria-labelledby="s-numbers">
         <h2 id="s-numbers" className="welcome-sr">Physics IDE by the numbers</h2>
         {/* A tile with an in-page section is a real anchor to it; the global
-            focus-visible ring covers a[href], so no :focus rule anywhere. */}
-        {STATS.map(([n, label, target]) => {
+            focus-visible ring covers a[href], so no :focus rule anywhere.
+            Each tile also gets a hover/focus-revealed provenance caption
+            (fun-redesign brief §2, §10 entry, and #5 in its prioritized
+            cut-line) — the same max-height/opacity reveal pattern as §2's
+            flip-tiles. The numeral itself (.welcome-stat__n) is untouched:
+            it never animates, on load or on hover — the brief's hard
+            boundary in §0, satisfied by construction since the note is a
+            separate sibling span, not part of the numeral. The unlinked "14"
+            tile has no <a> to carry :hover/:focus-visible, so it gets an
+            explicit tabIndex — still a <div> (the "linked stat tiles" test
+            checks tagName, unaffected), just keyboard-reachable now. */}
+        {STATS.map(([n, label, target, note]) => {
           const body = (
             <>
               <span className="welcome-stat__n">{n}</span>
               <span className="welcome-stat__label">{label}</span>
+              <span className="welcome-stat__note">{note}</span>
             </>
           );
           return target ? (
             <a key={label} className="welcome-stat" href={`#${target}`}>{body}</a>
           ) : (
-            <div key={label} className="welcome-stat">{body}</div>
+            <div key={label} className="welcome-stat" tabIndex={0}>{body}</div>
           );
         })}
       </section>
@@ -788,31 +941,35 @@ export default function WelcomePage() {
         <Eyebrow Icon={GraduationCapIcon}>For teachers</Eyebrow>
         <h2 id="s-class">Classes today. Assignments next.</h2>
         <p>
-          Anyone can sign up as a teacher — choose <strong>I&rsquo;m a teacher</strong> on
-          the signup form, no approval queue. Create a class with a name and an optional
-          subject or year label. There are four ways in: a short join code (like
-          <code>KQ4-7PM</code> — its alphabet was chosen so no two characters look alike
-          read off a projector), a copyable link, a QR code for the board, and email
-          invites you can paste as a whole list. Invite people as
-          students, teaching assistants or co-teachers; pending invites can be resent or
-          revoked.
+          Any teacher can sign up and create a class in a minute — no approval queue.
         </p>
-        <p>
-          Three join policies per class — <strong>open</strong>, <strong>approval</strong>{" "}
-          and <strong>paused</strong> — and you can regenerate the code at any time to
-          retire the old one. A People tab holds the full roster and can remove a member.
-          Archive a class at year end and it turns read-only for everyone; unarchive it
-          later. Five roles across the system, and a site-wide 200-account cap the system
-          enforces itself.
+        <p>Four ways to invite people in:</p>
+        {/* The four join methods, as a chip row (fun-redesign brief §2, §12
+            entry) instead of a clause-heavy sentence. Text-only, per the file
+            boundary: no icon already imported into this file reads cleanly
+            as "code" / "link" / "QR" / "email", and components/Icons.js is
+            out of scope for a new export to make one fit better. */}
+        <ul className="welcome-chips">
+          {JOIN_WAYS.map((w) => <li key={w} className="badge">{w}</li>)}
+        </ul>
+        <p className="welcome-helpref">
+          Roles, join policies, the People tab and archiving are covered in{" "}
+          <Link to="/about">About</Link>.
         </p>
 
+        {/* Friendlier framing (fun-redesign brief §3): a warmer lead-in
+            before the two locked phrases, which must survive verbatim
+            (test-lock migration plan item 4) — "Not yet built." and
+            "designed but not shipped", both still present below,
+            byte-for-byte. */}
         <div className="card card--panel welcome-notbuilt">
+          <p className="welcome-notbuilt__lead">
+            The roster, join settings and people are real today.
+          </p>
           <h3>Not yet built.</h3>
           <p>
             Assignments, submissions, marking, feedback and a gradebook are designed but
-            not shipped. A class today holds its roster, its join settings and its people
-            — the Assignments tab says so itself. When marking arrives it will be
-            announced here.
+            not shipped. When marking arrives it will be announced here.
           </p>
         </div>
 
@@ -822,37 +979,18 @@ export default function WelcomePage() {
             No surveillance layer
           </h3>
           <p>
-            No tracking, no paste detection, no webcam, no keystroke logging. The platform
-            keeps an append-only record of account signups, class joins and join requests —
-            that is the whole of the monitoring, and it exists so a join can be audited, not
-            so a student can be watched.
+            No tracking, no paste detection, no webcam, no keystroke logging — the only
+            record kept is signups, joins and join requests, so a join can be audited,
+            never so a student can be watched. <Link to="/about">More in About</Link>.
           </p>
         </div>
 
         <div className="welcome-access">
           <h3>Accessibility is a code path, too</h3>
           <p>
-            {/* Every clause checked against its file: blockPalette.js ships
-                relativeLuminance/contrastRatio and blockPalette.test.js holds
-                every category's fill and secondary to the 4.5:1 AA floor;
-                tokens.css defines the one :where() focus-visible ring;
-                welcome.css / workspace.css / viewport.css carry the
-                reduced-motion guards and e2e-test.mjs asserts the guard is in
-                the shipped CSS; AdminConsole.js is a role="tablist" with
-                ArrowLeft/ArrowRight, ClassChrome link tabs carry
-                aria-current="page", and JoinClassPage / PeopleTab /
-                InviteLandingPage / SyncChip are aria-live regions. */}
-            The block palette ships its own contrast arithmetic, and the test suite holds
-            every generated block colour to the WCAG AA floor. One keyboard focus ring
-            serves the whole product, defined once at zero specificity so no component
-            overrides it by accident. Ask your system for reduced motion and the animation
-            stops — this page&rsquo;s orbit, the IDE&rsquo;s idle screen — with an
-            end-to-end test asserting the guard ships in the CSS. The classroom portal
-            works from a keyboard: the admin console&rsquo;s tabs are ARIA tabs the arrow
-            keys walk, class tabs are plain links that declare the current page, and
-            joining, inviting and syncing announce their progress through live regions.
-            And the theme toggle is at the top of this page, so you can check both themes
-            before you commit to anything.
+            Contrast is checked in code, one focus ring serves the whole product, and
+            reduced motion actually turns the animation off — end to end, tested.{" "}
+            <Link to="/about">More in About</Link>.
           </p>
         </div>
       </section>
@@ -862,13 +1000,7 @@ export default function WelcomePage() {
           The IDE needs a laptop or desktop — 1024px or wider. This page reads fine on a phone.
         </p>
         <p>
-          No charge and no billing. A hard 200-account cap keeps the site small on purpose.
-        </p>
-        <p>
-          A hosted tool lasts only as long as someone pays for its servers. This one has
-          no such dependency — the physics runs on your machine, projects are saved there
-          first, the account cap is enforced by the software itself, and there is no bill
-          whose failure can switch anything off.
+          No charge, no billing — a 200-account cap the software enforces itself.
         </p>
         <button className="btn btn--primary btn--lg" type="button" onClick={() => go("/")}>
           Open the IDE

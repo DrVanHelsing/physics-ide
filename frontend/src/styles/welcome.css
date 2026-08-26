@@ -154,6 +154,12 @@
   color: var(--text-dim);
 }
 .welcome-rail a:hover { color: var(--text-bright); background: var(--bg-hover); }
+/* Active-section highlight (fun-redesign brief §2, "everything else" list):
+   a class toggle driven by scroll position via the IntersectionObserver in
+   WelcomePage.js, not an animation — the RM table's own row for this says
+   "no change needed", so this reuses the existing colour/background
+   transition on .welcome-rail a above rather than adding a new one. */
+.welcome-rail li.is-active a { color: var(--text-bright); background: var(--bg-hover); }
 /* The section's own category mark, reusing the eyebrow's colour classes —
    .welcome-section--* only sets --welcome-cat, so it is safe on an <li>. */
 .welcome-rail__mark { display: inline-flex; color: var(--welcome-cat, var(--accent)); }
@@ -233,7 +239,12 @@
    720px breakpoint's own scale() transform is recalibrated below it. */
 .welcome-orbit { position: relative; width: 180px; height: 180px; margin: 0 auto; }
 /* metric-exempt: decorative orbit geometry — a figure, not a ramp value */
-.welcome-orbit__sun { position: absolute; top: 50%; left: 50%; width: 32px; height: 32px; margin: -16px; border-radius: 50%; background: var(--yellow); box-shadow: 0 0 24px 4px color-mix(in srgb, var(--yellow) 35%, transparent); }
+.welcome-orbit__sun { position: absolute; top: 50%; left: 50%; width: 32px; height: 32px; margin: -16px; border-radius: 50%; background: var(--yellow); box-shadow: 0 0 24px 4px color-mix(in srgb, var(--yellow) 35%, transparent); transition: box-shadow var(--transition); }
+/* Hero hover reaction (fun-redesign brief §2, hero entry): hover the sun and
+   its glow brightens one step — the Duolingo-mascot mechanism (§1), a scoped
+   reaction to a specific hover with zero functional weight, since the whole
+   orbit is aria-hidden and decorative. CSS-only, no JS physics. */
+.welcome-orbit:hover .welcome-orbit__sun { box-shadow: 0 0 32px 8px color-mix(in srgb, var(--yellow) 50%, transparent); }
 .welcome-orbit__path {
   position: absolute; top: 50%; left: 50%;
   border: 1px dashed var(--text-dim);
@@ -241,6 +252,11 @@
   opacity: 0.6;
   animation: welcome-spin linear infinite;
 }
+/* Hover either orbiting body and its path sits still under the cursor — the
+   RM table's own note applies here: under reduced motion the path is
+   already `animation: none` (below), so this rule is a no-op there and
+   needs no separate guard. */
+.welcome-orbit__path:hover { animation-play-state: paused; }
 /* metric-exempt: decorative orbit geometry — a figure, not a ramp value */
 .welcome-orbit__path--a { width: 108px; height: 108px; margin: -54px; animation-duration: 7s; }
 /* metric-exempt: decorative orbit geometry — a figure, not a ramp value */
@@ -283,6 +299,16 @@
   color: var(--text-dim);
   margin: 0 0 var(--space-4);
 }
+/* The "→ see X in Help" routing line the fun-redesign brief asks every
+   trimmed section to leave behind (§0's routing rule): a quiet pointer, not
+   a paragraph. Used by §3/§4/§6/§8/§9/§12. */
+.welcome-helpref {
+  font-size: var(--fs-sm);
+  color: var(--text-dim);
+  margin: 0 0 var(--space-4);
+}
+.welcome-helpref a { color: var(--accent-bright); }
+
 /* Inline code in prose only — never the <code> inside .welcome-code's <pre>. */
 .welcome-section p code {
   padding: var(--space-0) var(--space-1);
@@ -357,6 +383,47 @@
 .welcome-band p { margin: 0; }
 .welcome-band strong { display: block; color: var(--text-bright); }
 
+/* §2's flip-tiles (fun-redesign brief §2, §2 entry): the label + glyph show
+   by default; the sentence reveals via max-height/opacity on hover or
+   keyboard focus. Keyboard-reachable because the label is a real <button>
+   and the reveal rule below keys off *its* focus-visible state via a
+   sibling combinator — this file's only permitted focus selector is
+   :focus-visible (D8; welcomeTokens.test.js's "the one focus ring is not
+   overridden here" test bans any other focus pseudo-class by name, the
+   within-an-element one included). No aria-expanded promise is made here,
+   since nothing is removed from the accessibility tree, only visually
+   collapsed (the same trade-off §10's provenance reveal below makes).
+   max-height and width/height are outside the metric pass by design
+   (metricLint.js's own header), so a literal is fine here without an
+   exemption comment. */
+.welcome-flip { display: flex; flex-direction: column; }
+.welcome-flip__face {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.welcome-flip__mark { display: inline-flex; color: var(--welcome-cat, var(--accent)); flex: none; }
+.welcome-flip__body {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  margin: 0;
+  transition: max-height var(--transition), opacity var(--transition), margin var(--transition);
+}
+.welcome-flip:hover .welcome-flip__body,
+.welcome-flip__face:focus-visible ~ .welcome-flip__body {
+  max-height: 200px;
+  opacity: 1;
+  margin-top: var(--space-2);
+}
+
 /* ── §2b first-five-minutes strip ─────────────────────────
    Three imperatives, numbered by a CSS counter — same reason as the rail:
    an ordinal of the page's structure is not a numeral claim, so it does
@@ -394,6 +461,52 @@
   line-height: var(--lh-tight);
   color: var(--text-bright);
 }
+/* §2b's gamification (fun-redesign brief §2, §2b entry): clicking a step
+   toggles `is-done`, drawing a checkmark and striking the text. The button
+   wraps both the (decorative, aria-hidden, empty) check glyph and the step
+   text so the whole row is one click/focus target — see the JSX comment for
+   why this keeps the locked li.textContent byte-for-byte unchanged. The
+   check itself is drawn with a rotated border, not a Unicode glyph — a
+   literal check mark character sits inside welcomePage.test.js's no-emoji
+   range (U+2600–U+27BF covers the dingbats block, U+2713 included). */
+.welcome-steps__btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.welcome-steps__check {
+  display: inline-flex;
+  width: 18px;
+  height: 18px;
+  flex: none;
+  border: 1px solid var(--border-hl);
+  border-radius: var(--radius-sm);
+  transition: background var(--transition), border-color var(--transition);
+}
+.welcome-steps__list li.is-done .welcome-steps__btn { color: var(--text-dim); text-decoration: line-through; }
+.welcome-steps__list li.is-done .welcome-steps__check {
+  position: relative;
+  background: var(--welcome-cat, var(--accent));
+  border-color: var(--welcome-cat, var(--accent));
+}
+.welcome-steps__list li.is-done .welcome-steps__check::after {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 2px;
+  width: 5px;
+  height: 9px;
+  border: solid var(--bg-base);
+  border-width: 0 2px 2px 0;
+  transform: rotate(40deg);
+}
 
 /* ── §3 blocks ↔ Python ───────────────────────────────────── */
 .welcome-compare {
@@ -426,14 +539,40 @@
 }
 .welcome-code--blocks { display: flex; flex-direction: column; gap: var(--space-1); }
 .welcome-code__row--d1 { padding-left: var(--space-4); }
-/* Blocks read as blocks: a pill in the drawer's own colour, not a code line. */
+/* Blocks read as blocks: a pill in the drawer's own colour, not a code line.
+   Every instance is now a <button> (fun-redesign brief §2, §3 and §5
+   entries — both the compare-panel chips and DebugDemo's mock chips share
+   this class): the font/cursor reset undoes UA button chrome so it keeps
+   reading as a chip, not a form control, while staying keyboard-focusable.
+   Kept as one plain-class rule (not `button.welcome-code__chip`) so the
+   reduced-motion guard below can win on equal specificity, source order —
+   an element-qualified original would out-rank a same-media-block guard. */
 .welcome-code__chip {
   display: inline-block;
   padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: inherit;
   color: var(--text-bright);
   background: color-mix(in srgb, var(--welcome-cat, var(--accent)) 18%, transparent);
   border: 1px solid color-mix(in srgb, var(--welcome-cat, var(--accent)) 40%, transparent);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--transition), border-color var(--transition);
+}
+/* Hover or tab-focus a block chip and its index-aligned Python line lights
+   up — one integer of React state (activeLine), no highlighting library, no
+   state machine (§1's PhET mechanism: show the live thing). */
+.welcome-code__chip.is-active {
+  background: color-mix(in srgb, var(--welcome-cat, var(--accent)) 34%, transparent);
+  border-color: var(--welcome-cat, var(--accent));
+}
+.welcome-code__line {
+  display: block;
+  border-radius: var(--radius-sm);
+  transition: background var(--transition);
+}
+.welcome-code__line.is-active {
+  background: color-mix(in srgb, var(--welcome-cat, var(--accent)) 18%, transparent);
 }
 /* Hand-spanned, no highlighting library (Budget §4.4). Two accents, both
    already in the palette as the editor's own keyword and call colours. */
@@ -477,6 +616,56 @@
 .welcome-keys .tb-kbd,
 .welcome-section p .tb-kbd { color: var(--text-dim); }
 
+/* The "press-able" playful touch (fun-redesign brief §2, §4 entry): a
+   background/border shift on hover, colour only — no `transform`, per the
+   anti-list's ban on hover lift/scale. Scoped to the §4 row only, per the
+   brief; §5's inline keycaps do not get this treatment. */
+.welcome-keys .tb-kbd {
+  transition: background var(--transition), border-color var(--transition);
+}
+.welcome-keys .tb-kbd:hover {
+  background: var(--bg-hover);
+  border-color: var(--welcome-cat, var(--accent));
+}
+
+/* ── §5 debug demo ─────────────────────────────────────────
+   DebugDemo.js: three mock block chips reusing .welcome-code__chip. Default
+   (can-pause) is dashed; a click arms it (border solid, tinted background).
+   Colour/border-style change only on click — a discrete response, not
+   ambient motion. */
+.welcome-debugdemo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-5);
+  align-items: flex-start;
+}
+.welcome-debugdemo__chip {
+  border-style: dashed;
+  text-align: left;
+  transition: border-color var(--transition), background var(--transition);
+}
+.welcome-debugdemo__chip.is-armed {
+  border-style: solid;
+  border-color: var(--welcome-cat, var(--accent));
+  background: color-mix(in srgb, var(--welcome-cat, var(--accent)) 26%, transparent);
+}
+.welcome-debugdemo__hint { font-size: var(--fs-sm); color: var(--text-dim); margin: var(--space-1) 0 0; }
+
+/* ── §6 run → record → chart mini-pipeline ────────────────
+   A diagram of the actual pipeline in place of the "record/export/crop"
+   sentence — the same .badge chip language §8's hybrid topics already use,
+   plus a plain arrow between steps (not an animation). */
+.welcome-pipeline-mini {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin: var(--space-4) 0 var(--space-5);
+}
+.welcome-pipeline-mini .badge { margin-left: 0; }
+.welcome-pipeline-mini__arrow { color: var(--text-dim); }
+
 /* ── §7 pipeline stages ───────────────────────────────────── */
 .welcome-grid {
   display: grid;
@@ -493,7 +682,7 @@
 .welcome-stage h3 {
   font-size: var(--fs-xl);
   color: var(--text-bright);
-  margin: 0 0 var(--space-2);
+  margin: 0 0 var(--space-1);
 }
 .welcome-stage p {
   font-size: var(--fs-md);
@@ -501,6 +690,36 @@
   color: var(--text-dim);
   margin: 0;
 }
+/* Each stage is now a native <details>/<summary> (fun-redesign brief §2, §7
+   entry — the section's densest wall of prose, and #2 in the brief's
+   prioritized cut-line): zero-JS, keyboard-native, no ARIA needed. The
+   default marker is replaced with a +/− drawn in the category colour, per
+   the RM table's own instruction not to add an open/close animation —
+   native <details> toggling is already instant. */
+.welcome-stage summary {
+  cursor: pointer;
+  list-style: none;
+  position: relative;
+  padding-right: var(--space-6);
+}
+.welcome-stage summary::-webkit-details-marker { display: none; }
+.welcome-stage summary::after {
+  content: "+";
+  position: absolute;
+  right: 0;
+  top: 0;
+  font-family: var(--mono);
+  font-size: var(--fs-xl);
+  color: var(--welcome-cat, var(--accent));
+}
+.welcome-stage[open] summary::after { content: "\2212"; }
+.welcome-stage__teaser {
+  display: block;
+  margin-top: var(--space-1);
+  font-size: var(--fs-sm);
+  color: var(--text-dim);
+}
+.welcome-stage[open] p { margin-top: var(--space-3); }
 
 /* ── §3/§4 product screenshots — framed evidence (brief move 3) ──
    A real screenshot of the shipped product, theme-matched by ThemeImage.
@@ -543,7 +762,19 @@
   font: inherit;
   cursor: pointer;
 }
-.welcome-tile__icon { display: inline-flex; color: var(--welcome-cat, var(--accent)); }
+/* Optional playful touch (fun-redesign brief §2, §8 entry): the icon sits
+   neutral at rest and tints to the section's category colour on hover or
+   keyboard focus — colour only, no `transform`, consistent with the
+   anti-list. */
+.welcome-tile__icon {
+  display: inline-flex;
+  color: var(--text-dim);
+  transition: color var(--transition);
+}
+.welcome-tile:hover .welcome-tile__icon,
+.welcome-tile:focus-visible .welcome-tile__icon {
+  color: var(--welcome-cat, var(--accent));
+}
 .welcome-tile__title { font-size: var(--fs-lg); color: var(--text-bright); margin: 0; }
 .welcome-tile__mech { font-size: var(--fs-sm); line-height: var(--lh-normal); color: var(--text-dim); margin: 0; }
 
@@ -557,6 +788,33 @@
   list-style: none;
 }
 .welcome-chips .badge { margin-left: 0; font-size: var(--fs-sm); padding: var(--space-1) var(--space-3); }
+
+/* ── §9 sync chip mock ─────────────────────────────────────
+   A small static mock of the product's real sync-chip visual language —
+   conceptually, not the component (fun-redesign brief §2, §9 entry). Hover
+   or focus steps the label through Saved → Syncing → Offline; the label
+   itself swaps instantly (no transition on the text), matching the RM
+   table's "instant swap only, no cross-fade" row exactly by construction. */
+.welcome-syncchip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: var(--space-4) 0 var(--space-5);
+  padding: var(--space-1) var(--space-3);
+  font-family: var(--mono);
+  font-size: var(--fs-sm);
+  color: var(--text-dim);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-hl);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+}
+.welcome-syncchip__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--welcome-cat, var(--accent));
+}
 
 /* ── §9 the conflict sentence, set apart ──────────────────── */
 .welcome .welcome-note {
@@ -589,6 +847,26 @@ a.welcome-stat:hover .welcome-stat__label { color: var(--text-bright); text-deco
   color: var(--text-bright);
 }
 .welcome-stat__label { font-size: var(--fs-sm); color: var(--text-dim); }
+/* Hover/focus-revealed provenance caption (fun-redesign brief §2, §10
+   entry, and #5 in its prioritized cut-line) — same max-height/opacity
+   reveal pattern as §2's flip-tiles. The numeral above is never touched by
+   this rule: it is a separate sibling span, so §0's hard boundary ("the
+   numbers ledger never counts up") holds by construction. */
+.welcome-stat__note {
+  display: block;
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  font-size: var(--fs-2xs);
+  color: var(--text-dim);
+  transition: max-height var(--transition), opacity var(--transition), margin var(--transition);
+}
+.welcome-stat:hover .welcome-stat__note,
+.welcome-stat:focus-visible .welcome-stat__note {
+  max-height: 60px;
+  opacity: 1;
+  margin-top: var(--space-1);
+}
 
 /* ── §11 playground ───────────────────────────────────────── */
 .welcome-play { max-width: 760px; text-align: center; }
@@ -618,6 +896,27 @@ a.welcome-stat:hover .welcome-stat__label { color: var(--text-bright); text-deco
   background: var(--bg-base);
   cursor: crosshair;
   touch-action: none;
+}
+/* §11's playful touch (fun-redesign brief §2, §11 entry, and #4 in its
+   prioritized cut-line): three one-click gravity presets — the slider
+   becomes "try three worlds" instead of "adjust a number". A sibling of
+   .welcome-playground__controls, not nested inside it — see
+   GravityPlayground.js's own comment on why. */
+.welcome-playground__presets {
+  display: flex;
+  gap: var(--space-2);
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.welcome-playground__preset {
+  margin-left: 0;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background var(--transition), border-color var(--transition);
+}
+.welcome-playground__preset[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--accent-bright) 30%, transparent);
+  border-color: var(--accent-bright);
 }
 .welcome-playground__controls {
   display: flex;
@@ -659,6 +958,11 @@ a.welcome-stat:hover .welcome-stat__label { color: var(--text-bright); text-deco
 
 /* ── §12 the honesty blocks ───────────────────────────────── */
 .welcome-notbuilt { margin: 0 0 var(--space-5); }
+.welcome-notbuilt__lead {
+  font-size: var(--fs-md);
+  color: var(--text-dim);
+  margin: 0 0 var(--space-3);
+}
 .welcome-notbuilt h3 {
   font-size: var(--fs-xl);
   color: var(--text-bright);
@@ -746,6 +1050,38 @@ a.welcome-stat:hover .welcome-stat__label { color: var(--text-bright); text-deco
   /* The Play/Pause button is .btn/.btn--sm now (Task 12) — no page-level
      hover-lift transform ships on .btn (primitives.css), so there is
      nothing left here to guard. */
+
+  /* Net new rule (fun-redesign brief §4): every transition this brief adds
+     gets a transition: none line here, grouped with the entries above —
+     degrade, don't delete. Reveals resolve to their final (open/highlighted)
+     state instantly rather than never arriving; nothing this brief added is
+     ambient motion, so nothing here is a functional loss. The orbit's hover
+     glow-brighten (a colour change, not motion) and the sync chip's instant
+     label swap (never a transition to begin with) need no entry — see their
+     own CSS comments for why. */
+  .welcome-flip__body,
+  .welcome-stat__note {
+    transition: none;
+  }
+  .welcome-steps__check {
+    transition: none;
+  }
+  .welcome-code__chip,
+  .welcome-code__line {
+    transition: none;
+  }
+  .welcome-debugdemo__chip {
+    transition: none;
+  }
+  .welcome-keys .tb-kbd {
+    transition: none;
+  }
+  .welcome-tile__icon {
+    transition: none;
+  }
+  .welcome-playground__preset {
+    transition: none;
+  }
 }
 
 /* The anchor rail appears only where it cannot cover content. UNVERIFIED IN
