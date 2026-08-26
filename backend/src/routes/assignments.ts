@@ -1,12 +1,21 @@
 import type { FastifyInstance } from "fastify";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, sql } from "drizzle-orm";
 import {
   CreateAssignmentInputSchema,
   UpdateAssignmentInputSchema,
   SaveRuleSetInputSchema,
   computeAssignmentPhase,
 } from "@physics-ide/shared";
-import { assignments, assignmentWork, submissions, ruleSets, projects } from "../db/schema.js";
+import {
+  assignments,
+  assignmentWork,
+  submissions,
+  ruleSets,
+  projects,
+  classes,
+  classMembers,
+  marks,
+} from "../db/schema.js";
 import { requireConfirmed } from "../auth/guards.js";
 import {
   getMembership,
@@ -542,6 +551,117 @@ export function assignmentRoutes(app: FastifyInstance): void {
       return row;
     });
     return { assignment: toAssignmentSummary(updated) };
+  });
+
+  /* ── Task 15: upcoming ── */
+  // The Home strip: what's due soon and what feedback just landed. Reads
+  // only the caller's own state — no class-teacher gate, every confirmed
+  // member sees their own rows.
+  app.get("/api/assignments/upcoming", async (req) => {
+    const userId = req.user!.id;
+    const now = new Date();
+    const nowMs = now.getTime();
+    const FOURTEEN_DAYS_MS = 14 * 24 * 60 * 60 * 1000;
+
+    const activeClasses = await app.db
+      .select({ id: classes.id, name: classes.name })
+      .from(classMembers)
+      .innerJoin(classes, eq(classMembers.classId, classes.id))
+      .where(
+        and(
+          eq(classMembers.userId, userId),
+          eq(classMembers.status, "active"),
+          eq(classes.archived, false),
+        ),
+      );
+
+    let dueSoon: Array<{
+      assignmentId: string;
+      classId: string;
+      className: string;
+      title: string;
+      dueAt: number;
+      submitted: boolean;
+    }> = [];
+
+    if (activeClasses.length > 0) {
+      const classIds = activeClasses.map((c) => c.id);
+      const classNameById = new Map(activeClasses.map((c) => [c.id, c.name]));
+      const rows = await app.db
+        .select()
+        .from(assignments)
+        .where(and(inArray(assignments.classId, classIds), eq(assignments.status, "published")));
+
+      const windowEndMs = nowMs + FOURTEEN_DAYS_MS;
+      const candidates = rows.filter((a) => {
+        if (a.dueAt == null) return false;
+        const phase = computeAssignmentPhase(a, now);
+        // Already due but still in the late window is urgency by itself —
+        // that state is already bounded by lateUntil, so the 14-day lookahead
+        // only applies to the still-open, not-yet-due case.
+        if (phase === "late_window") return true;
+        if (phase !== "open") return false;
+        return a.dueAt.getTime() <= windowEndMs;
+      });
+
+      const candidateIds = candidates.map((a) => a.id);
+      // Individual submissions only (submitterId = caller) — group
+      // submissions carry groupId instead and resolving "did my group submit"
+      // is Stage D's job, not this one's.
+      const submittedRows = candidateIds.length
+        ? await app.db
+            .select({ assignmentId: submissions.assignmentId })
+            .from(submissions)
+            .where(
+              and(
+                inArray(submissions.assignmentId, candidateIds),
+                eq(submissions.submitterId, userId),
+                eq(submissions.isCurrent, true),
+              ),
+            )
+        : [];
+      const submittedSet = new Set(submittedRows.map((s) => s.assignmentId));
+
+      dueSoon = candidates
+        .map((a) => ({
+          assignmentId: a.id,
+          classId: a.classId,
+          className: classNameById.get(a.classId) ?? "",
+          title: a.title,
+          dueAt: a.dueAt!.getTime(),
+          submitted: submittedSet.has(a.id),
+        }))
+        .sort((x, y) => x.dueAt - y.dueAt);
+    }
+
+    const feedbackWindowStart = new Date(nowMs - FOURTEEN_DAYS_MS);
+    const feedbackRows = await app.db
+      .select({
+        assignmentId: marks.assignmentId,
+        classId: assignments.classId,
+        title: assignments.title,
+        releasedAt: marks.releasedAt,
+      })
+      .from(marks)
+      .innerJoin(assignments, eq(marks.assignmentId, assignments.id))
+      .where(
+        and(
+          eq(marks.studentId, userId),
+          eq(marks.status, "released"),
+          gte(marks.releasedAt, feedbackWindowStart),
+        ),
+      );
+
+    const recentFeedback = feedbackRows
+      .map((r) => ({
+        assignmentId: r.assignmentId,
+        classId: r.classId,
+        title: r.title,
+        releasedAt: toEpoch(r.releasedAt),
+      }))
+      .sort((x, y) => (y.releasedAt ?? 0) - (x.releasedAt ?? 0));
+
+    return { dueSoon, recentFeedback };
   });
 }
 
