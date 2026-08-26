@@ -138,3 +138,33 @@
   gap: var(--space-2);
 }
 .assignments-starter-row .input { flex: 1; }
+
+/* ── Brief pane (Task 13) ────────────────────────────────────────
+   BriefPane.js — the instructions dock beside the work, mounted as the
+   first child of .main-layout (IDELayout.js). D§5: a fixed-width column,
+   deliberately outside the --split arithmetic. */
+.brief-pane {
+  display: flex;
+  flex-direction: column;
+  width: 320px; /* width is not a linted metric; the token scale has no length this size */
+  min-width: 240px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  background: var(--bg-surface);
+  overflow-y: auto;
+}
+.pane-header--brief { border-top: 2px solid var(--cat-communicate); padding-top: 0; }
+.brief-pane__body { padding: var(--space-3) var(--space-4); }
+.brief-handle {
+  writing-mode: vertical-rl;
+  padding: var(--space-3) var(--space-1);
+  font-size: var(--label-fs);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-tracking);
+  color: var(--label-color);
+  background: var(--bg-surface);
+  border: none;
+  border-right: 1px solid var(--border);
+  border-top: 2px solid var(--cat-communicate);
+  cursor: pointer;
+}

@@ -12,6 +12,7 @@
  *          └─ Main IDE shell
  *               ├─ Toolbar   (grows a debug control group in debug mode)
  *               ├─ .main-layout
+ *               │    ├─ BriefPane     (assignment work only — handle when collapsed)
  *               │    ├─ .editor-pane  (BlocklyWorkspace | CodeEditor)
  *               │    ├─ .pane-divider
  *               │    └─ .canvas-pane  (GlowCanvas > DebugDrawer)
@@ -42,6 +43,7 @@ import TracePromoteDialog from "../TracePromoteDialog";
 import SaveState    from "./SaveState";
 import RulesChip    from "./RulesChip";
 import RunErrorBanner from "./RunErrorBanner";
+import BriefPane    from "../assignments/BriefPane";
 import { BlocksIcon, CodeIcon, GlobeIcon } from "../Icons";
 
 import * as dialogService from "../../utils/export/dialogService";
@@ -598,6 +600,9 @@ export default function IDELayout() {
       <RunErrorBanner text={bannerText} onDismiss={dismissBanner} />
 
       <div className="main-layout" style={{ "--split": `${splitPct}%` }}>
+        {/* ── Brief pane — assignment work only; renders nothing otherwise ── */}
+        <BriefPane />
+
         {/* ── Editor pane ── */}
         <section
           className={`editor-pane${viewportHidden ? " editor-pane--full" : ""}`}
