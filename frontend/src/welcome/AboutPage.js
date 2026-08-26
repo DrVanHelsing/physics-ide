@@ -1,14 +1,21 @@
 import React from "react";
+import { Link } from "react-router-dom";
 import WelcomeSubpage from "./WelcomeSubpage";
 
 /**
  * AboutPage — /about, gate-free. Every sentence here is derivable from
  * docs/classroom-platform.md or README.md (polish brief's requirement); none
- * of it goes further than what those documents and the welcome page's own
- * honesty-ledger copy already state. In particular this page does NOT claim
- * assignments, submissions or marking exist yet — the welcome page's own
- * "Not yet built." panel (§12) is the standing source of truth for that, and
- * this page's teacher paragraph stops exactly where that panel does.
+ * of it goes further than what those documents and the shipped product
+ * state.
+ *
+ * Launch-truth copy pass (2026-08-26, controller-confirmed): the site
+ * publishes only once the classroom assignments build (Plan 6 — see
+ * TeachersPage.js's own header comment for the spec citation) is complete,
+ * so the teacher paragraph below describes the finished class — roster,
+ * settings, people, assignments, submissions, marking and the gradebook —
+ * in the present tense. It still claims nothing past Plan 6 §1's stage
+ * table; §9's exclusions (the notification bell, rubric marking, peer
+ * sharing, real email delivery, admin data requests) are not named here.
  */
 export default function AboutPage() {
   return (
@@ -23,9 +30,10 @@ export default function AboutPage() {
         nothing held back; signing in adds classes and account sync on top.
         Anyone may sign up as a teacher and create a class, and students join
         it by a short code, a link, a QR code, or an email invite. A class
-        today holds its roster, its join settings and its people &mdash;
-        assignments, submissions and marking are designed but not shipped
-        yet.
+        holds its roster, its join settings, its people, and its
+        assignments; students submit their work against them, teachers mark
+        it in the same IDE, and a gradebook tracks every result. More on
+        what a teacher can do is in <Link to="/teachers">For teachers</Link>.
       </p>
 
       <h2>How a class works</h2>
