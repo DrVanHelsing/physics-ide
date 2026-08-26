@@ -22,6 +22,8 @@ const NOT_A_MEMBER = "Not a member of this class.";
 const NO_SUCH_ASSIGNMENT = "No such assignment.";
 const TEACHERS_ONLY = "Teachers only.";
 const STARTER_LOCKED = "This assignment already has submissions — the starter is a starting point, not a mid-flight swap.";
+const NOT_OPEN = "This assignment is not open.";
+const NO_SUCH_PROJECT = "No such project.";
 
 function toEpoch(d: Date | null): number | null {
   return d ? d.getTime() : null;
@@ -105,13 +107,30 @@ async function myWorkFor(
   db: Db,
   assignmentId: string,
   userId: string,
-): Promise<{ started: boolean; projectId: string } | null> {
+): Promise<{ projectId: string; startedAt: number } | null> {
   const rows = await db
     .select()
     .from(assignmentWork)
     .where(and(eq(assignmentWork.assignmentId, assignmentId), eq(assignmentWork.userId, userId)));
   const row = rows[0];
-  return row ? { started: true, projectId: row.projectId } : null;
+  return row ? { projectId: row.projectId, startedAt: row.startedAt.getTime() } : null;
+}
+
+/** D§2's four seed fields, never the raw manifest — derived from the
+ *  teacher's frozen starterManifest copy. */
+function starterSeedFrom(
+  starterManifest: unknown,
+): { goal: string | null; workspaceXml: string; python: string; preferredEditor: string } | null {
+  if (!starterManifest || typeof starterManifest !== "object") return null;
+  const m = starterManifest as Record<string, unknown>;
+  const workspace = m.workspace as Record<string, unknown> | undefined;
+  const source = m.source as Record<string, unknown> | undefined;
+  return {
+    goal: typeof m.goal === "string" ? m.goal : null,
+    workspaceXml: typeof workspace?.xml === "string" ? workspace.xml : "",
+    python: typeof source?.python === "string" ? source.python : "",
+    preferredEditor: typeof m.preferredEditor === "string" ? m.preferredEditor : "blocks",
+  };
 }
 
 export function assignmentRoutes(app: FastifyInstance): void {
@@ -195,9 +214,74 @@ export function assignmentRoutes(app: FastifyInstance): void {
       return reply.code(404).send({ error: NO_SUCH_ASSIGNMENT });
     }
     const myWork = await myWorkFor(app.db, id, req.user!.id);
-    const extras: Record<string, unknown> = { instructions: a.instructions, myWork };
-    if (staff) extras.rules = a.rules;
+    // rules reach every member here (spec: it's the teacher LIST view, not
+    // the detail, that omits them for brevity — a member must know their
+    // own workspace constraints).
+    const phase = computeAssignmentPhase(a, new Date());
+    const starterSeed =
+      (phase === "open" || phase === "late_window") && !myWork
+        ? starterSeedFrom(a.starterManifest)
+        : null;
+    const extras: Record<string, unknown> = {
+      instructions: a.instructions,
+      rules: a.rules,
+      myWork,
+      starterSeed,
+    };
     return { assignment: toAssignmentSummary(a, extras) };
+  });
+
+  // Start (or continue) work — design D§2: the server is the authority; the
+  // link (assignment_work) is created here, once the client's private copy
+  // has already been pushed so the FK below has a row to point at.
+
+  app.post("/api/assignments/:id/start", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const a = await loadAssignment(app.db, id);
+    if (!a) return reply.code(404).send({ error: NO_SUCH_ASSIGNMENT });
+    const m = await getMembership(app.db, a.classId, req.user!.id);
+    if (!m || m.status !== "active") {
+      return reply.code(403).send({ error: NOT_A_MEMBER });
+    }
+    const phase = computeAssignmentPhase(a, new Date());
+    if (phase !== "open" && phase !== "late_window") {
+      return reply.code(400).send({ error: NOT_OPEN });
+    }
+    const body = req.body as { projectId?: unknown };
+    if (typeof body?.projectId !== "string" || body.projectId.length === 0) {
+      return reply.code(400).send({ error: "Invalid input." });
+    }
+
+    // Idempotent: a second start returns the row that already exists rather
+    // than racing the unique (assignment, user) constraint.
+    const existing = await myWorkFor(app.db, id, req.user!.id);
+    if (existing) {
+      return reply.code(200).send({ work: { projectId: existing.projectId } });
+    }
+
+    const projectRows = await app.db
+      .select()
+      .from(projects)
+      .where(
+        and(
+          eq(projects.ownerId, req.user!.id),
+          eq(projects.id, body.projectId),
+          sql`${projects.deletedAt} IS NULL`,
+        ),
+      );
+    if (!projectRows[0]) return reply.code(404).send({ error: NO_SUCH_PROJECT });
+
+    await app.db.transaction(async (tx) => {
+      await tx.insert(assignmentWork).values({
+        assignmentId: id,
+        userId: req.user!.id,
+        ownerId: req.user!.id,
+        projectId: body.projectId as string,
+      });
+      await logEvent(tx, "assignment.started", req.user!.id, { assignmentId: id, projectId: body.projectId });
+    });
+
+    return reply.code(201).send({ work: { projectId: body.projectId } });
   });
 
   app.patch("/api/assignments/:id", async (req, reply) => {

@@ -29,6 +29,7 @@ import ProfilePage            from "./components/auth/ProfilePage";
 import AdminConsole           from "./components/admin/AdminConsole";
 import ClassesHome            from "./components/classes/ClassesHome";
 import AssignmentsTab         from "./components/assignments/AssignmentsTab";
+import AssignmentPage         from "./components/assignments/AssignmentPage";
 import AssignmentEditorPage   from "./components/assignments/AssignmentEditorPage";
 import GuidesTab              from "./components/assignments/GuidesTab";
 import GuidePage              from "./components/assignments/GuidePage";
@@ -67,6 +68,7 @@ function App() {
                         <Route path="/classes/:id" element={<AssignmentsTab />} />
                         <Route path="/classes/:id/assignments/new" element={<AssignmentEditorPage />} />
                         <Route path="/classes/:id/assignments/:aid/edit" element={<AssignmentEditorPage />} />
+                        <Route path="/classes/:id/assignments/:aid" element={<AssignmentPage />} />
                         <Route path="/classes/:id/guides" element={<GuidesTab />} />
                         <Route path="/classes/:id/guides/new" element={<GuidePage mode="edit" />} />
                         <Route path="/classes/:id/guides/:gid" element={<GuidePage mode="read" />} />

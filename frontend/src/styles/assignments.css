@@ -9,6 +9,16 @@
 
 .assignments-actions { display: flex; gap: var(--space-2); }
 
+/* ── Assignment detail page (Task 10) ───────────────────────────
+   AssignmentPage.js — title + phase badge sitting on one line above
+   the due line, instructions, and the Start work/Continue action row. */
+.assignment-page-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.assignment-page-header h2 { margin: 0; }
+
 .assignment-list {
   list-style: none;
   margin: 0;
