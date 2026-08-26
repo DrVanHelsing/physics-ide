@@ -301,8 +301,13 @@
 }
 /* The "→ see X in Help" routing line the fun-redesign brief asks every
    trimmed section to leave behind (§0's routing rule): a quiet pointer, not
-   a paragraph. Used by §3/§4/§6/§8/§9/§12. */
-.welcome-helpref {
+   a paragraph. Used by §3/§4/§5/§6/§8/§9/§12. Every instance is a <p>
+   inside .welcome-section, so `.welcome-section p` above (0,1,1) would
+   otherwise always beat a plain `.welcome-helpref` (0,1,0) regardless of
+   source order — fix round, review edc4a7b's Important #1: qualified with
+   the element to tie specificity, so declaration order (this rule comes
+   after) decides correctly. */
+p.welcome-helpref {
   font-size: var(--fs-sm);
   color: var(--text-dim);
   margin: 0 0 var(--space-4);
@@ -396,8 +401,14 @@
    max-height and width/height are outside the metric pass by design
    (metricLint.js's own header), so a literal is fine here without an
    exemption comment. */
-.welcome-flip { display: flex; flex-direction: column; }
-.welcome-flip__face {
+/* Shared "button that reads as inline text" reset — fix round, review
+   edc4a7b's Important #2: .welcome-flip__face and .welcome-steps__btn were
+   byte-identical rule blocks (flex row, no button chrome, cursor: pointer).
+   Composed onto both in JSX; each element also keeps its own BEM-ish class
+   because each is still a distinct selector hook elsewhere (.welcome-flip
+   __face:focus-visible drives §2's reveal below, .welcome-steps__btn is
+   what li.is-done re-colours) — only the reset itself was the duplication. */
+.welcome-reset-btn {
   display: flex;
   align-items: center;
   gap: var(--space-2);
@@ -409,14 +420,24 @@
   text-align: left;
   cursor: pointer;
 }
-.welcome-flip__mark { display: inline-flex; color: var(--welcome-cat, var(--accent)); flex: none; }
-.welcome-flip__body {
+
+/* Shared collapsed-state skeleton for every hover/focus-revealed caption on
+   this page (fix round, review edc4a7b's Minor item): §2's flip-tile body
+   and §10's stat-tile note both reveal via the same max-height/opacity
+   transition, differing only in their open-state numbers and per-element
+   type styling (one is a <p>, block by default; the other a <span>, needing
+   its own display: block) — those differences stay on each element's own
+   class below; only the collapsed skeleton + transition list is shared. */
+.welcome-reveal-note {
   max-height: 0;
   opacity: 0;
   overflow: hidden;
-  margin: 0;
   transition: max-height var(--transition), opacity var(--transition), margin var(--transition);
 }
+
+.welcome-flip { display: flex; flex-direction: column; }
+.welcome-flip__mark { display: inline-flex; color: var(--welcome-cat, var(--accent)); flex: none; }
+.welcome-flip__body { margin: 0; }
 .welcome-flip:hover .welcome-flip__body,
 .welcome-flip__face:focus-visible ~ .welcome-flip__body {
   max-height: 200px;
@@ -468,19 +489,10 @@
    why this keeps the locked li.textContent byte-for-byte unchanged. The
    check itself is drawn with a rotated border, not a Unicode glyph — a
    literal check mark character sits inside welcomePage.test.js's no-emoji
-   range (U+2600–U+27BF covers the dingbats block, U+2713 included). */
-.welcome-steps__btn {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: 0;
-  border: 0;
-  background: none;
-  font: inherit;
-  color: inherit;
-  text-align: left;
-  cursor: pointer;
-}
+   range (U+2600–U+27BF covers the dingbats block, U+2713 included). The
+   button-reset properties live on .welcome-reset-btn now (shared with §2's
+   .welcome-flip__face, fix round); .welcome-steps__btn itself is kept only
+   as the hook li.is-done re-colours below. */
 .welcome-steps__check {
   display: inline-flex;
   width: 18px;
@@ -854,12 +866,8 @@ a.welcome-stat:hover .welcome-stat__label { color: var(--text-bright); text-deco
    numbers ledger never counts up") holds by construction. */
 .welcome-stat__note {
   display: block;
-  max-height: 0;
-  opacity: 0;
-  overflow: hidden;
   font-size: var(--fs-2xs);
   color: var(--text-dim);
-  transition: max-height var(--transition), opacity var(--transition), margin var(--transition);
 }
 .welcome-stat:hover .welcome-stat__note,
 .welcome-stat:focus-visible .welcome-stat__note {
@@ -1059,8 +1067,7 @@ a.welcome-stat:hover .welcome-stat__label { color: var(--text-bright); text-deco
      glow-brighten (a colour change, not motion) and the sync chip's instant
      label swap (never a transition to begin with) need no entry — see their
      own CSS comments for why. */
-  .welcome-flip__body,
-  .welcome-stat__note {
+  .welcome-reveal-note {
     transition: none;
   }
   .welcome-steps__check {

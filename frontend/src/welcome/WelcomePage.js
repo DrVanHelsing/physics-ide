@@ -51,10 +51,16 @@
  *                          "run / stop", not "run". Esc is stop-only by design
  *                          (a key that could START a simulation is not what
  *                          anyone reaches for Escape expecting), Ctrl/Cmd+S
- *                          saves. F5 is named in §4's prose, not the row.
+ *                          saves. F5 is named in §4's helpref pointer to
+ *                          Help (fix round, review edc4a7b: previously named
+ *                          in §4's prose before that prose was cut to one
+ *                          sentence; this comment was not updated to match
+ *                          until now), not the row.
  *                          Space / F10 / Shift+F10 are debug-mode-only
- *                          (hooks/useDebugHotkeys.js) and are named in prose,
- *                          never in the keycap row.
+ *                          (hooks/useDebugHotkeys.js) and are named in §5's
+ *                          helpref pointer to Help (same fix-round note —
+ *                          right-click/Alt-click to set a breakpoint is
+ *                          there too), never in the keycap row.
  *   01–09 and 1–3        the anchor rail's section numbers and the first-five-
  *                          minutes step numbers are CSS counters (welcome.css),
  *                          never source literals — ordinals of the page's own
@@ -536,31 +542,31 @@ export default function WelcomePage() {
       <section className="welcome-band welcome-reveal" aria-labelledby="s-what">
         <h2 id="s-what" className="welcome-sr">What Physics IDE is</h2>
         <div className="welcome-flip">
-          <button type="button" className="welcome-flip__face">
+          <button type="button" className="welcome-reset-btn welcome-flip__face">
             <span className="welcome-flip__mark" aria-hidden="true"><LocalFirstIcon size={18} /></span>
             <strong>Runs in your browser.</strong>
           </button>
-          <p className="welcome-flip__body">
+          <p className="welcome-reveal-note welcome-flip__body">
             GlowScript 3.2 VPython, the Monaco code editor and the block editor all ship
             with the app; no server does your physics.
           </p>
         </div>
         <div className="welcome-flip">
-          <button type="button" className="welcome-flip__face">
+          <button type="button" className="welcome-reset-btn welcome-flip__face">
             <span className="welcome-flip__mark" aria-hidden="true"><BlocksIcon size={18} /></span>
             <strong>Two editors, one project.</strong>
           </button>
-          <p className="welcome-flip__body">
+          <p className="welcome-reveal-note welcome-flip__body">
             Drag blocks or write Python — the toolbar toggle switches views, and the
             blocks generate readable Python you can flip to and inspect.
           </p>
         </div>
         <div className="welcome-flip">
-          <button type="button" className="welcome-flip__face">
+          <button type="button" className="welcome-reset-btn welcome-flip__face">
             <span className="welcome-flip__mark" aria-hidden="true"><AtomIcon size={18} /></span>
             <strong>Three kinds of project.</strong>
           </button>
-          <p className="welcome-flip__body">
+          <p className="welcome-reveal-note welcome-flip__body">
             Physics modelling, data science, or hybrid — a simulation and the analysis of
             the data it just produced.
           </p>
@@ -586,7 +592,7 @@ export default function WelcomePage() {
             "Press Run, then change one number.",
           ].map((text, i) => (
             <li key={text} className={doneSteps.has(i) ? "is-done" : undefined}>
-              <button type="button" className="welcome-steps__btn" onClick={() => toggleStep(i)}>
+              <button type="button" className="welcome-reset-btn welcome-steps__btn" onClick={() => toggleStep(i)}>
                 <span className="welcome-steps__check" aria-hidden="true" />
                 {text}
               </button>
@@ -695,7 +701,11 @@ export default function WelcomePage() {
           {VECTOR_OPS.map((o) => <li key={o} className="badge badge--accent">{o}</li>)}
         </ul>
         <p className="welcome-helpref">
-          Camera reset, fit, fullscreen and snapshot are covered in Viewport, inside Help.
+          Camera reset, fit, fullscreen and snapshot are covered in Help — so is{" "}
+          <kbd className="tb-kbd">F5</kbd>, a bare-key match for{" "}
+          <kbd className="tb-kbd">Ctrl</kbd>
+          <span className="welcome-keys__plus">+</span>
+          <kbd className="tb-kbd">Enter</kbd>.
         </p>
         <ul className="welcome-keys">
           <li><kbd className="tb-kbd">Ctrl</kbd><span className="welcome-keys__plus">+</span><kbd className="tb-kbd">Enter</kbd> run / stop</li>
@@ -740,6 +750,14 @@ export default function WelcomePage() {
             demonstrates the dashed/solid outline claim above instead of only
             stating it. */}
         <DebugDemo />
+        <p className="welcome-helpref">
+          Right-click a block — or Alt-click it — to set a breakpoint on it; the toolbar
+          counts how many are set. <kbd className="tb-kbd">Space</kbd> pauses and resumes,{" "}
+          <kbd className="tb-kbd">F10</kbd> steps a frame,{" "}
+          <kbd className="tb-kbd">Shift</kbd>
+          <span className="welcome-keys__plus">+</span>
+          <kbd className="tb-kbd">F10</kbd> steps to the next value.
+        </p>
         <p className="welcome-helpref">
           Pin, filter, threshold alerts, snapshots and watch expressions are covered in
           Debug Mode, inside Help.
@@ -908,7 +926,7 @@ export default function WelcomePage() {
             <>
               <span className="welcome-stat__n">{n}</span>
               <span className="welcome-stat__label">{label}</span>
-              <span className="welcome-stat__note">{note}</span>
+              <span className="welcome-reveal-note welcome-stat__note">{note}</span>
             </>
           );
           return target ? (
