@@ -199,6 +199,16 @@ export default function AssignmentEditorPage() {
   // on why the starter row and lifecycle controls are gated on `!isNew`.
   const assignment = isNew ? null : assignmentQuery.data?.assignment;
   const isDraft = assignment?.phase === "draft";
+  // Publish acts on the PERSISTED row — it POSTs no body — so a live, unsaved
+  // edit to a date field must never let the consequence sentence promise a
+  // schedule Publish itself won't honor (fix round, review 9c831c0: the
+  // sentence used to read `form.opensAt` directly). Save first; only then is
+  // the live form's dates the same as what Publish will act on.
+  const datesDirty =
+    isDraft &&
+    (toMs(form.opensAt) !== assignment.opensAt ||
+      toMs(form.dueAt) !== assignment.dueAt ||
+      toMs(form.lateUntil) !== assignment.lateUntil);
 
   function updateField(key, value) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -403,7 +413,17 @@ export default function AssignmentEditorPage() {
           ) : null}
 
           {isDraft ? (
-            <p className="auth-text auth-text--dim">{publishConsequence(toMs(form.opensAt))}</p>
+            <>
+              {/* Reads the PERSISTED opensAt, not the live form field — this
+                  sentence describes what clicking Publish right now will
+                  actually do, and Publish itself sends no body. */}
+              <p className="auth-text auth-text--dim">{publishConsequence(assignment.opensAt)}</p>
+              {datesDirty ? (
+                <p className="auth-text auth-text--dim" role="status">
+                  Save your changes first — unsaved date edits do not apply.
+                </p>
+              ) : null}
+            </>
           ) : null}
 
           <div className="assignments-actions">
@@ -427,7 +447,7 @@ export default function AssignmentEditorPage() {
               <button
                 className="btn btn--primary"
                 type="button"
-                disabled={publish.isPending}
+                disabled={publish.isPending || datesDirty}
                 onClick={() => publish.mutate()}
               >
                 Publish
