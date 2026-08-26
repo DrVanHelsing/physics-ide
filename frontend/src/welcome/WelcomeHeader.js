@@ -63,7 +63,15 @@ export default function WelcomeHeader({ onSignIn, teachersHref = "#s-class" }) {
   );
 
   return (
-    <header className="welcome-header">
+    // role="banner" set explicitly: on /welcome this <header> is a
+    // descendant of <main> (WelcomePage.js's long-standing single-<main>
+    // shape) so the implicit HTML-ARIA mapping would suppress the banner
+    // role there while granting it on /about and /contact (WelcomeSubpage.js
+    // renders it as <main>'s sibling) — the same component landing two
+    // different landmark roles depending on which page mounts it. Setting
+    // the role explicitly makes it consistent everywhere, regardless of
+    // ancestry.
+    <header className="welcome-header" role="banner">
       <div className="welcome-header__bar">
         <Link to="/welcome" className="auth-brand welcome-header__brand">
           Physics<span>IDE</span>
