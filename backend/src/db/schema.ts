@@ -156,3 +156,197 @@ export const projectVersions = pgTable(
     }).onDelete("cascade"),
   ],
 );
+
+/** One assignment = instructions + optional starter + settings (spec §5.1).
+ *  status: "draft" | "published" | "marks_released" — everything between
+ *  (scheduled/open/late_window/closed) is COMPUTED from the timestamps
+ *  by computeAssignmentPhase (shared), never stored (design D§6). */
+export const assignments = pgTable(
+  "assignments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    classId: uuid("class_id")
+      .notNull()
+      .references(() => classes.id, { onDelete: "cascade" }),
+    createdBy: uuid("created_by")
+      .notNull()
+      .references(() => users.id),
+    title: text("title").notNull(),
+    /** TipTap JSON, validated by InstructionsDocSchema (images are capped data-URIs). */
+    instructions: jsonb("instructions").notNull(),
+    projectType: text("project_type").notNull(),
+    /** null points = complete / not-complete marking (spec §5.1). */
+    points: bigint("points", { mode: "number" }),
+    submissionMode: text("submission_mode").notNull().default("individual"),
+    individualWork: boolean("individual_work").notNull().default(false),
+    /** Workspace rules jsonb (WorkspaceRulesSchema) — frozen per assignment (spec §5.4). */
+    rules: jsonb("rules").notNull(),
+    /** A frozen COPY of the teacher's starter manifest — never an FK to a live project (D§6). */
+    starterManifest: jsonb("starter_manifest"),
+    status: text("status").notNull().default("draft"),
+    opensAt: timestamp("opens_at", { withTimezone: true }),
+    dueAt: timestamp("due_at", { withTimezone: true }),
+    lateUntil: timestamp("late_until", { withTimezone: true }),
+    closedAt: timestamp("closed_at", { withTimezone: true }),
+    publishedAt: timestamp("published_at", { withTimezone: true }),
+    marksReleasedAt: timestamp("marks_released_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("assignments_class_idx").on(t.classId)],
+);
+
+/** The student(or group)↔assignment↔project link (design D§2) — the server
+ *  is the authority; the manifest is never tagged. */
+export const assignmentWork = pgTable(
+  "assignment_work",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    assignmentId: uuid("assignment_id")
+      .notNull()
+      .references(() => assignments.id, { onDelete: "cascade" }),
+    /** Exactly one of userId / groupId is set (individual vs pair/group). */
+    userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
+    groupId: uuid("group_id"),
+    ownerId: uuid("owner_id").notNull(),
+    projectId: text("project_id").notNull(),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    unique("assignment_work_assignment_user_uq").on(t.assignmentId, t.userId),
+    unique("assignment_work_assignment_group_uq").on(t.assignmentId, t.groupId),
+    index("assignment_work_project_idx").on(t.ownerId, t.projectId),
+    foreignKey({
+      columns: [t.ownerId, t.projectId],
+      foreignColumns: [projects.ownerId, projects.id],
+    }).onDelete("cascade"),
+  ],
+);
+
+/** Frozen, fingerprinted snapshots (spec §6.4). One row per attempt;
+ *  resubmission replaces the head (isCurrent) and keeps the history. */
+export const submissions = pgTable(
+  "submissions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    assignmentId: uuid("assignment_id")
+      .notNull()
+      .references(() => assignments.id, { onDelete: "cascade" }),
+    /** Individual: the student. Pair/group: null, groupId set instead. */
+    submitterId: uuid("submitter_id").references(() => users.id, { onDelete: "cascade" }),
+    groupId: uuid("group_id"),
+    /** Who pressed Submit (a group member; equals submitterId when individual). */
+    submittedBy: uuid("submitted_by").notNull(),
+    /** User ids credited on the receipt — every member for groups (spec §5.5). */
+    creditedIds: jsonb("credited_ids").notNull(),
+    manifest: jsonb("manifest").notNull(),
+    /** sha256 of the stable-stringified manifest — the dispute authority (D§11.6). */
+    fingerprint: text("fingerprint").notNull(),
+    late: boolean("late").notNull().default(false),
+    isCurrent: boolean("is_current").notNull().default(true),
+    attempt: bigint("attempt", { mode: "number" }).notNull().default(1),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("submissions_assignment_idx").on(t.assignmentId),
+    index("submissions_assignment_submitter_idx").on(t.assignmentId, t.submitterId),
+  ],
+);
+
+/** One mark per (assignment, student) — spec §7.3. status: "draft" | "released".
+ *  TA drafts await teacher release BY CONSTRUCTION: release is teacher-only. */
+export const marks = pgTable(
+  "marks",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    assignmentId: uuid("assignment_id")
+      .notNull()
+      .references(() => assignments.id, { onDelete: "cascade" }),
+    studentId: uuid("student_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    points: bigint("points", { mode: "number" }),
+    comment: text("comment").notNull().default(""),
+    privateNote: text("private_note").notNull().default(""),
+    status: text("status").notNull().default("draft"),
+    returned: boolean("returned").notNull().default(false),
+    markedBy: uuid("marked_by").notNull(),
+    releasedAt: timestamp("released_at", { withTimezone: true }),
+    /** The submission the draft was written against — a newer attempt flags
+     *  the draft stale instead of silently deleting it (design D§11.3). */
+    basedOnSubmissionId: uuid("based_on_submission_id"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [unique("marks_assignment_student_uq").on(t.assignmentId, t.studentId)],
+);
+
+/** Pair/group composition per assignment plus the editing baton — a polled
+ *  lease (holder + expiry), no live connections (stack §sync, spec §5.5). */
+export const groups = pgTable(
+  "groups",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    assignmentId: uuid("assignment_id")
+      .notNull()
+      .references(() => assignments.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    /** The shared group project (owned by the founding member's account). */
+    ownerId: uuid("owner_id"),
+    projectId: text("project_id"),
+    batonHolderId: uuid("baton_holder_id"),
+    batonExpiresAt: timestamp("baton_expires_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("groups_assignment_idx").on(t.assignmentId)],
+);
+
+export const groupMembers = pgTable(
+  "group_members",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    groupId: uuid("group_id")
+      .notNull()
+      .references(() => groups.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [unique("group_members_group_user_uq").on(t.groupId, t.userId)],
+);
+
+/** A teacher's saved custom rule combinations (spec §5.4 "Custom…"). */
+export const ruleSets = pgTable(
+  "rule_sets",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    ownerId: uuid("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    rules: jsonb("rules").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [unique("rule_sets_owner_name_uq").on(t.ownerId, t.name)],
+);
+
+/** Standalone guide pages — same rich format as instructions (spec §4). */
+export const guides = pgTable(
+  "guides",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    classId: uuid("class_id")
+      .notNull()
+      .references(() => classes.id, { onDelete: "cascade" }),
+    createdBy: uuid("created_by")
+      .notNull()
+      .references(() => users.id),
+    title: text("title").notNull(),
+    body: jsonb("body").notNull(),
+    publishedAt: timestamp("published_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("guides_class_idx").on(t.classId)],
+);
