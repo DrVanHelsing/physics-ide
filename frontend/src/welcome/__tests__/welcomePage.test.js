@@ -253,6 +253,78 @@ describe("the front page", () => {
   });
 });
 
+/* ── Tranche 2.5's polish pass: the site header, chapter bands and framed
+   screenshots (polish-design-brief.md moves 1, 3 and 4). ───────────────── */
+describe("the site header, mounted on the front page", () => {
+  test("WelcomeHeader is mounted, outside the hero/footer CTA counts the tests above lock", () => {
+    const { container, unmount } = mount();
+    expect(container.querySelector(".welcome-header")).toBeTruthy();
+    // The header's own controls are not inside .welcome-hero or .welcome-foot
+    // — the "seven CTAs" and worked-tile locks above count only those two
+    // regions on purpose, and must not move because of this mount.
+    expect(container.querySelector(".welcome-hero .welcome-header")).toBeNull();
+    unmount();
+  });
+
+  test("the header's Sign in is wired to this page's own go(), not a bare Link", () => {
+    const { container, unmount } = mount();
+    const btn = container.querySelector(".welcome-header__signin button");
+    expect(btn).toBeTruthy();
+    sessionStorage.clear();
+    click(btn);
+    expect(sessionStorage.getItem(WELCOME_PASSED_SESSION_KEY)).toBe("1");
+    unmount();
+  });
+
+  test("the header's For teachers uses the in-page anchor here, not a full navigation", () => {
+    const { container, unmount } = mount();
+    const teachers = [...container.querySelectorAll(".welcome-header__nav a")].find(
+      (a) => a.textContent === "For teachers",
+    );
+    expect(teachers.getAttribute("href")).toBe("#s-class");
+    unmount();
+  });
+});
+
+describe("chapter bands (brief move 1) — every second .welcome-section, exactly", () => {
+  test("s-view, s-measure, s-start and s-class carry the band; the other four don't", () => {
+    const { container, unmount } = mount();
+    const banded = ["s-view", "s-measure", "s-start", "s-class"];
+    const plain = ["s-editor", "s-debug", "s-data", "s-yours"];
+    for (const id of banded) {
+      const section = container.querySelector(`section[aria-labelledby="${id}"]`);
+      expect(section.className).toContain("welcome-section--band");
+    }
+    for (const id of plain) {
+      const section = container.querySelector(`section[aria-labelledby="${id}"]`);
+      expect(section.className).not.toContain("welcome-section--band");
+    }
+    unmount();
+  });
+});
+
+describe("framed evidence (brief move 3) — the two product screenshots", () => {
+  test("both figures use the shot-figure frame, and both images carry their real dimensions", () => {
+    const { container, unmount } = mount();
+    const figures = [...container.querySelectorAll("figure.welcome-shot-figure")];
+    expect(figures).toHaveLength(2);
+    const imgs = figures.map((f) => f.querySelector("img.welcome-shot"));
+    expect(imgs.every(Boolean)).toBe(true);
+
+    const [editorImg, viewportImg] = imgs;
+    // Unchanged since tranche 2 — the brief kept this pair as-is.
+    expect(editorImg.getAttribute("width")).toBe("1280");
+    expect(editorImg.getAttribute("height")).toBe("730");
+    // Re-captured, closer-cropped (tranche 2.5 move 3) — real pixel
+    // dimensions of the replaced file, not the old 635×730.
+    expect(viewportImg.getAttribute("width")).toBe("635");
+    expect(viewportImg.getAttribute("height")).toBe("255");
+
+    for (const f of figures) expect(f.querySelector("figcaption")).toBeTruthy();
+    unmount();
+  });
+});
+
 /* ── The numbers ledger, checked against the tree rather than against a note.
    Plan 5's rule is "if a claim cannot be pointed at a file, it does not ship";
    these three read the file and compare. ─────────────────────────────────── */
