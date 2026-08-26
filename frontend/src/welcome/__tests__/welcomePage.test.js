@@ -5,6 +5,9 @@ import { MemoryRouter } from "react-router-dom";
 import { mountComponent, click, byText } from "../../test/renderHelpers";
 import WelcomePage from "../WelcomePage";
 import { WELCOME_PASSED_SESSION_KEY } from "../../constants";
+import { BLOCK_TEMPLATES, DS_TEMPLATES } from "../../utils/blockTemplates";
+
+const PENDING_TEMPLATE_KEY = "pide_pending_template";
 
 const SRC = readFileSync(resolve(__dirname, "../WelcomePage.js"), "utf8");
 const mount = () => mountComponent(<MemoryRouter><WelcomePage /></MemoryRouter>);
@@ -203,6 +206,49 @@ describe("the front page", () => {
       "Open a worked project.",
       "Press Run, then change one number.",
     ]);
+    unmount();
+  });
+
+  /* ── Tranche 2's worked-project tiles: §8, four real templates opened in
+     one click. Same click-through pass-stamp idiom as the "all seven"
+     test above, plus the pending-template key each tile is responsible
+     for. Scoped to .welcome-tile, NOT .welcome-hero/.welcome-foot, so the
+     existing "seven CTAs" lock above does not move — these are a distinct,
+     separately-locked set of gated CTAs. ─────────────────────────────── */
+
+  test("exactly four worked-project tiles, each naming a real template id", () => {
+    const { container, unmount } = mount();
+    const tiles = [...container.querySelectorAll(".welcome-tile")];
+    expect(tiles).toHaveLength(4);
+    const ids = tiles.map((t) => t.getAttribute("data-template-id"));
+    expect(ids).toEqual([
+      "blocks_projectile",
+      "blocks_pendulum",
+      "blocks_orbits",
+      "ds_penguins_stats",
+    ]);
+    // Verified against the actual registries the IDE opens them from — not
+    // just internally consistent with this file's own copy of the ids.
+    for (const id of ids) {
+      const isReal =
+        BLOCK_TEMPLATES.some((t) => t.id === id) || DS_TEMPLATES.some((t) => t.id === id);
+      expect(isReal).toBe(true);
+    }
+    unmount();
+  });
+
+  test("each tile writes its template id to sessionStorage and stamps the welcome pass through go()", () => {
+    const { container, unmount } = mount();
+    const tiles = [...container.querySelectorAll(".welcome-tile")];
+    for (const tile of tiles) {
+      const id = tile.getAttribute("data-template-id");
+      sessionStorage.clear();
+      expect(sessionStorage.getItem(PENDING_TEMPLATE_KEY)).toBeNull();
+      expect(sessionStorage.getItem(WELCOME_PASSED_SESSION_KEY)).toBeNull();
+      click(tile);
+      expect(sessionStorage.getItem(PENDING_TEMPLATE_KEY)).toBe(id);
+      expect(sessionStorage.getItem(WELCOME_PASSED_SESSION_KEY)).toBe("1");
+    }
     unmount();
   });
 });

@@ -66,6 +66,29 @@
  *   100 projects         backend routes/projects.ts MAX_PROJECTS_PER_USER
  *   0 servers            GlowScript is vendored, Monaco and Blockly are
  *                          bundled, the data-science blocks run as JS.
+ *   4 worked-project     Tranche 2, §8: blocks_projectile, blocks_pendulum,
+ *   tiles opened           blocks_orbits (blockTemplates.js BLOCK_TEMPLATES)
+ *                          and ds_penguins_stats (blockTemplates.js
+ *                          DS_TEMPLATES) — verified against those exports
+ *                          directly, opened via pendingTemplate.js +
+ *                          hooks/usePendingTemplateSeed.js onto StartMenu's
+ *                          own buildManifestSpec.
+ *   2 screenshot pairs   assets/welcome/*.webp, captured live via
+ *                          e2e/welcome-shots-probe.mjs against the running
+ *                          product on the Projectile Motion template
+ *                          (blocks_projectile), both themes:
+ *                            §3 editor-{dark,light}.webp — the block editor,
+ *                              viewport hidden for width, showing Simulation
+ *                              Start through the geometry constants
+ *                              (61548B / 66146B).
+ *                            §4 viewport-{dark,light}.webp — the 3D viewport
+ *                              mid-run, ball past the bounce peak with its
+ *                              trail and the vy telemetry label (6706B /
+ *                              6526B).
+ *                          140926B total, well under the 1.2MB budget. A
+ *                          data-science chart pair was not attempted — it
+ *                          needs its own template run + pipeline wait on top
+ *                          of the two pairs above; ships as two pairs.
  *
  * ── THE TWO HARD CONSTRAINTS ─────────────────────────────────────────────
  * 1. WelcomeGate.js is correct and is not touched by this file.
@@ -84,6 +107,7 @@ import { useNavigate } from "react-router-dom";
 import GravityPlayground from "./GravityPlayground";
 import ThemeToggleButton from "../components/layout/ThemeToggleButton";
 import { useTheme } from "../contexts/ThemeContext";
+import { setPendingTemplate } from "./pendingTemplate";
 import {
   BlocksIcon,
   OrbitIcon,
@@ -95,8 +119,16 @@ import {
   ZapIcon,
   GraduationCapIcon,
   PrivacyIcon,
+  RocketIcon,
+  AtomIcon,
+  GlobeIcon,
+  TableIcon,
 } from "../components/Icons";
 import { WELCOME_PASSED_SESSION_KEY } from "../constants";
+import editorLightShot from "../assets/welcome/editor-light.webp";
+import editorDarkShot from "../assets/welcome/editor-dark.webp";
+import viewportLightShot from "../assets/welcome/viewport-light.webp";
+import viewportDarkShot from "../assets/welcome/viewport-dark.webp";
 
 /* The section identity ramp, exactly as pane headers use it
    (workspace.css:65-67). Resolved by name — never string-concatenated. */
@@ -182,6 +214,43 @@ const STATS = [
   ["0", "servers doing your physics", "s-yours"],
 ];
 
+/* §8 — the four worked-project tiles a visitor can open right now, each a
+   real template id verified against blockTemplates.js's BLOCK_TEMPLATES /
+   DS_TEMPLATES (see the ledger). A click stamps the id via pendingTemplate.js
+   and goes through go("/") like every other CTA on this page; the IDE's
+   usePendingTemplateSeed picks it up and builds the project through the
+   wizard's own buildManifestSpec — this file never touches manifest shape.
+   Mechanism line only: what the template computes, not how good it is. */
+const WORKED_TILES = [
+  {
+    id: "blocks_projectile",
+    title: "Projectile Motion",
+    Icon: RocketIcon,
+    mechanism:
+      "Drag scales with speed squared; the ball loses energy at each bounce until it settles.",
+  },
+  {
+    id: "blocks_pendulum",
+    title: "Simple Pendulum",
+    Icon: AtomIcon,
+    mechanism:
+      "A nonlinear restoring force and linear damping set the angular acceleration every frame.",
+  },
+  {
+    id: "blocks_orbits",
+    title: "Sun, Earth & Moon",
+    Icon: GlobeIcon,
+    mechanism:
+      "Two gravity sources at once — the Moon orbits Earth while Earth orbits the Sun — integrated with velocity-Verlet.",
+  },
+  {
+    id: "ds_penguins_stats",
+    title: "Penguins: Exploratory Analysis",
+    Icon: TableIcon,
+    mechanism: "Bill length regressed against body mass, with Pearson’s r and a fitted line over the scatter.",
+  },
+];
+
 /** An eyebrow micro-label carrying its section's category mark. */
 function Eyebrow({ Icon, children }) {
   return (
@@ -189,6 +258,21 @@ function Eyebrow({ Icon, children }) {
       <span className="welcome-eyebrow__mark" aria-hidden="true"><Icon size={14} /></span>
       {children}
     </p>
+  );
+}
+
+/* A theme-matched product screenshot: dark src in dark, light in light.
+   Real width/height (no CLS), lazy — these sit well below the fold. */
+function ThemeImage({ isDark, light, dark, alt, width, height }) {
+  return (
+    <img
+      className="welcome-shot"
+      src={isDark ? dark : light}
+      alt={alt}
+      width={width}
+      height={height}
+      loading="lazy"
+    />
   );
 }
 
@@ -204,6 +288,17 @@ export default function WelcomePage() {
       navigate(path);
     },
     [navigate],
+  );
+
+  /* A worked-project tile: stamp the template id, then the same go("/") every
+     other CTA on this page uses — the gate stamp and navigation discipline
+     stay untouched (hard constraint 2, above). */
+  const openTile = useCallback(
+    (id) => {
+      setPendingTemplate(id);
+      go("/");
+    },
+    [go],
   );
 
   useEffect(() => {
@@ -390,6 +485,21 @@ export default function WelcomePage() {
             ))}</code></pre>
           </div>
         </div>
+
+        <figure className="welcome-shot-figure">
+          <ThemeImage
+            isDark={isDark}
+            light={editorLightShot}
+            dark={editorDarkShot}
+            alt="The block editor open on the Projectile Motion template: Simulation Start, a run-Python block setting scene.range, and a stack of named colour and geometry constants each set to a vector block."
+            width={1280}
+            height={730}
+          />
+          <figcaption>
+            A real project, not a mock-up: blocks nest into value slots — vectors, math and
+            physics constants compose the way the generated Python reads them.
+          </figcaption>
+        </figure>
       </section>
 
       {/* §4 — the 3D viewport. */}
@@ -429,6 +539,21 @@ export default function WelcomePage() {
           <li><kbd className="tb-kbd">Esc</kbd> stop</li>
           <li><kbd className="tb-kbd">Ctrl</kbd><span className="welcome-keys__plus">+</span><kbd className="tb-kbd">S</kbd> save</li>
         </ul>
+
+        <figure className="welcome-shot-figure">
+          <ThemeImage
+            isDark={isDark}
+            light={viewportLightShot}
+            dark={viewportDarkShot}
+            alt="The 3D viewport mid-run on the Projectile Motion template: the ball past the peak of its bounce, its trail arcing behind it over the ground, with a live vy telemetry label."
+            width={635}
+            height={730}
+          />
+          <figcaption>
+            The scene renders live while the loop runs — the telemetry label rewrites itself
+            every frame.
+          </figcaption>
+        </figure>
       </section>
 
       {/* §5 — the debugger, the strongest differentiator. */}
@@ -526,6 +651,22 @@ export default function WelcomePage() {
           four rebuilt as block templates. Seven data-science investigations. Three hybrid
           topics that pair a simulation with its matching analysis.
         </p>
+        <p>Four are one click away, open as a guest, no setup:</p>
+        <div className="welcome-grid">
+          {WORKED_TILES.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              className="card card--interactive welcome-tile"
+              data-template-id={t.id}
+              onClick={() => openTile(t.id)}
+            >
+              <span className="welcome-tile__icon" aria-hidden="true"><t.Icon size={20} /></span>
+              <h3 className="welcome-tile__title">{t.title}</h3>
+              <p className="welcome-tile__mech">{t.mechanism}</p>
+            </button>
+          ))}
+        </div>
         <ul className="welcome-chips">
           <li className="badge badge--accent">measure damping from the pendulum</li>
           <li className="badge badge--accent">measure g from the projectile</li>

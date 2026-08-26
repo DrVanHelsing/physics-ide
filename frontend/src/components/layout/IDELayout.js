@@ -66,6 +66,7 @@ import { useTrace }       from "../../hooks/useTrace";
 import { useExport }      from "../../hooks/useExport";
 import { useSplitPane }   from "../../hooks/useSplitPane";
 import { useProject }     from "../../hooks/useProject";
+import { usePendingTemplateSeed } from "../../hooks/usePendingTemplateSeed";
 import SimControls       from "../SimControls";
 import { useHotkeys }     from "../../hooks/useHotkeys";
 import { useDebugHotkeys } from "../../hooks/useDebugHotkeys";
@@ -94,6 +95,11 @@ export default function IDELayout() {
   const trc = useTrace();
   const exp = useExport();
   const proj = useProject();
+  /* The welcome page's worked-project tiles (welcome/pendingTemplate.js):
+     picks up a pending template id, if any, and seeds a project from it
+     through the wizard's own creation path. No-ops when nothing is
+     pending. */
+  usePendingTemplateSeed(proj);
   const { splitPct, handleDividerPointerDown, handleDividerKeyDown } = useSplitPane();
   /* Space / F10 / Shift+F10, alive only while debug mode is on. */
   useDebugHotkeys();

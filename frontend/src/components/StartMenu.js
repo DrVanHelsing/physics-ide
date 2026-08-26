@@ -90,7 +90,7 @@ const CARD_ICONS = {
 
 /* ── Map a wizard spec to a manifest spec + content ──────── */
 
-function buildManifestSpec({ goal, title, startPath, templateId, editor, hybridEntry }) {
+export function buildManifestSpec({ goal, title, startPath, templateId, editor, hybridEntry }) {
   const preferredEditor = editor === "code" ? "code" : "blocks";
   const trimmedTitle = (title || "").trim();
 
@@ -164,6 +164,57 @@ function buildManifestSpec({ goal, title, startPath, templateId, editor, hybridE
   }
 
   return spec;
+}
+
+/**
+ * resolvePendingTemplateSpec — turns a template id pending from a welcome-
+ * page tile (welcome/pendingTemplate.js) into a manifest spec, via the SAME
+ * buildManifestSpec the wizard's "Create project" button calls — never a
+ * forked copy of its lookup logic.
+ *
+ * Returns null for any id that is not a real template. That check has to
+ * happen HERE, before buildManifestSpec runs: an unmatched templateId falls
+ * through buildManifestSpec's own template branch to `projectType: "custom"`
+ * (a blank project), which would silently create *something* instead of
+ * doing nothing — and "unknown id → today's behaviour" means nothing.
+ *
+ * Goal is read off the template's own record where one exists — DS_TEMPLATES
+ * entries carry "datascience" or "hybrid" — since a wrong goal changes which
+ * pane the IDE renders (DataPanel vs. the 3D viewport) for the project this
+ * creates. BLOCK_TEMPLATES and EXAMPLES are always physics templates.
+ */
+export function resolvePendingTemplateSpec(id) {
+  const dsTpl = DS_TEMPLATES.find((t) => t.id === id);
+  if (dsTpl) {
+    return buildManifestSpec({
+      goal: dsTpl.goal === "hybrid" ? "hybrid" : "datascience",
+      title: "",
+      startPath: "template",
+      templateId: id,
+      editor: "blocks",
+    });
+  }
+  const codeTpl = EXAMPLES.find((e) => e.id === id);
+  if (codeTpl) {
+    return buildManifestSpec({
+      goal: "physics",
+      title: "",
+      startPath: "template",
+      templateId: id,
+      editor: "code",
+    });
+  }
+  const blocksTpl = BLOCK_TEMPLATES.find((t) => t.id === id);
+  if (blocksTpl) {
+    return buildManifestSpec({
+      goal: "physics",
+      title: "",
+      startPath: "template",
+      templateId: id,
+      editor: "blocks",
+    });
+  }
+  return null;
 }
 
 /* ── Component ───────────────────────────────────────────── */
