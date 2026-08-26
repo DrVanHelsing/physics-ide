@@ -44,10 +44,21 @@
  *                          drawer holds six blocks and the product six types —
  *                          the same number for two different reasons.
  *   14 doc sections      components/HelpPage.js — 14 section objects
- *   3 hotkeys shown      hooks/useHotkeys.js — Ctrl/Cmd+Enter, Esc, Ctrl/Cmd+S.
+ *   3 keycaps shown      utils/hotkeys.js matchHotkey — Ctrl/Cmd+Enter and bare
+ *                          F5 both return "runToggle": Run and Stop are ONE
+ *                          button in the viewport header and the keyboard
+ *                          matches it, so the row's first keycap says
+ *                          "run / stop", not "run". Esc is stop-only by design
+ *                          (a key that could START a simulation is not what
+ *                          anyone reaches for Escape expecting), Ctrl/Cmd+S
+ *                          saves. F5 is named in §4's prose, not the row.
  *                          Space / F10 / Shift+F10 are debug-mode-only
  *                          (hooks/useDebugHotkeys.js) and are named in prose,
  *                          never in the keycap row.
+ *   01–09 and 1–3        the anchor rail's section numbers and the first-five-
+ *                          minutes step numbers are CSS counters (welcome.css),
+ *                          never source literals — ordinals of the page's own
+ *                          structure, not claims about the product.
  *   5 roles              docs/classroom-platform.md §2 — "Five kinds of people"
  *   4 join doors         code, link, QR (PeopleTab.js), email invite
  *   3 join policies      shared/src/classes.ts JOIN_MODES
@@ -62,7 +73,11 @@
  *    before navigating. A bare router Link pointed at the IDE anywhere on this
  *    page bounces the visitor straight back here and reads as an infinite loop.
  *    welcomePage.test.js greps this file for that mistake, so do not write the
- *    forbidden form here even as an example.
+ *    forbidden form here even as an example. Two shapes are NOT calls to
+ *    action and stay outside go(): in-page anchors (#s-…), which never leave
+ *    the page, and nothing else — the /join door IS a call to action and goes
+ *    through go() like the rest (go() takes any path, and a visitor who chose
+ *    a door has passed the welcome page in every sense the gate cares about).
  */
 import React, { useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
@@ -96,6 +111,23 @@ const CAT = {
   play: "motion",
   classrooms: "communicate",
 };
+
+/* The anchor rail: the nine sections that carry an eyebrow, in page order,
+   each pointing at the id its h2 already owns. §2 (s-what) and §10
+   (s-numbers) are deliberately absent — their headings are visually hidden
+   landmarks, not destinations a reader names. Numbers come from a CSS
+   counter, so the rail renders 01–09 without a numeral in this file. */
+const RAIL = [
+  ["s-editor", "Editor", BlocksIcon, CAT.editor],
+  ["s-view", "Run", OrbitIcon, CAT.viewport],
+  ["s-debug", "Debug", BugIcon, CAT.debugger],
+  ["s-measure", "Measure", RecordIcon, CAT.measure],
+  ["s-data", "Analyse", ChartIcon, CAT.data],
+  ["s-start", "Projects", BookOpenIcon, CAT.starting],
+  ["s-yours", "Your work", LocalFirstIcon, CAT.yours],
+  ["s-play", "Try it", ZapIcon, CAT.play],
+  ["s-class", "Teachers", GraduationCapIcon, CAT.classrooms],
+];
 
 /* §3's artefact: a block stack and the Python it generates. Hand-spanned, no
    highlighting library (Budget §4.4). The Python is what blocklyGenerator.js
@@ -137,13 +169,17 @@ const PIPELINE = [
   ["Communicate", "Write a note, print a result, compare two results side by side, state a conclusion, export the table as CSV, and reveal the generated Python."],
 ];
 
+/* [numeral, label, in-page target or null]. A tile whose subject has a
+   section on this page is a real <a href="#…"> to it; the documentation
+   lives inside the IDE, not on this page, so that tile stays plain text.
+   Both dataset and chart tiles point at §7 — the data section covers both. */
 const STATS = [
-  ["151", "block types"],
-  ["18", "worked projects"],
-  ["6", "built-in datasets"],
-  ["6", "chart types"],
-  ["14", "documentation sections"],
-  ["0", "servers doing your physics"],
+  ["151", "block types", "s-editor"],
+  ["18", "worked projects", "s-start"],
+  ["6", "built-in datasets", "s-data"],
+  ["6", "chart types", "s-data"],
+  ["14", "documentation sections", null],
+  ["0", "servers doing your physics", "s-yours"],
 ];
 
 /** An eyebrow micro-label carrying its section's category mark. */
@@ -212,21 +248,56 @@ export default function WelcomePage() {
         <p className="welcome-subline">
           Free, offline-capable, and open to guests. Built for physics classrooms.
         </p>
+        {/* The primary door is a row of its own so its size can say what the
+            copy already says: this is the one most visitors want. The two
+            account doors sit beneath it at their old size. */}
         <div className="welcome-cta">
           <button className="btn btn--primary btn--lg" type="button" onClick={() => go("/")}>
             Use the IDE — no account needed
           </button>
-          <button className="btn btn--lg" type="button" onClick={() => go("/auth/signup")}>
-            Create an account
-          </button>
-          <button className="btn btn--lg" type="button" onClick={() => go("/auth/signin")}>
-            Sign in
-          </button>
+          <div className="welcome-cta__alt">
+            <button className="btn btn--lg" type="button" onClick={() => go("/auth/signup")}>
+              Create an account
+            </button>
+            <button className="btn btn--lg" type="button" onClick={() => go("/auth/signin")}>
+              Sign in
+            </button>
+          </div>
         </div>
         <p className="welcome-reassure">Guests get the complete IDE. Nothing is held back.</p>
+        {/* An in-page anchor, not a door — it never leaves the page, so it
+            does not go through go() and is not a hero <button>. */}
+        <p className="welcome-hero__quiet">
+          <a className="welcome-hero__peek" href="#s-play">See it run — the gravity playground ↓</a>
+        </p>
+        {/* The fourth door: /join is ungated, but go() stamps the pass first
+            like every other door — see hard constraint 2 in the header. */}
+        <p className="welcome-hero__quiet">
+          Have a class code?{" "}
+          <button className="welcome-linklike" type="button" onClick={() => go("/join")}>
+            Join your class
+          </button>
+        </p>
       </header>
 
       <div id="welcome-main" tabIndex={-1} />
+
+      {/* The anchor rail — fixed to the left edge, ≥1280px only (welcome.css
+          hides it below that, where it would cover content). It sits directly
+          after the skip target on purpose: a keyboard visitor who skips the
+          hero lands on the list of places to go. */}
+      <nav className="welcome-rail" aria-label="Page sections">
+        <ol>
+          {RAIL.map(([id, label, Icon, cat]) => (
+            <li key={id} className={`welcome-section--${cat}`}>
+              <a href={`#${id}`}>
+                <span className="welcome-rail__mark" aria-hidden="true"><Icon size={12} /></span>
+                {label}
+              </a>
+            </li>
+          ))}
+        </ol>
+      </nav>
 
       {/* §2 — the fast orientation for someone who will not scroll far. */}
       <section className="welcome-band welcome-reveal" aria-labelledby="s-what">
@@ -246,6 +317,17 @@ export default function WelcomePage() {
         </p>
       </section>
 
+      {/* §2b — the first five minutes. Three imperatives the reader verifies
+          by doing them; the step numbers are a CSS counter, not copy. */}
+      <section className="welcome-steps welcome-reveal" aria-labelledby="s-first">
+        <h2 id="s-first" className="welcome-sr">The first five minutes</h2>
+        <ol className="welcome-steps__list">
+          <li>Open the IDE — no account needed.</li>
+          <li>Open a worked project.</li>
+          <li>Press Run, then change one number.</li>
+        </ol>
+      </section>
+
       {/* §3 — blocks and code. */}
       <section
         className={`welcome-section welcome-section--${CAT.editor} welcome-reveal`}
@@ -261,9 +343,26 @@ export default function WelcomePage() {
           project never shows Objects or Motion.
         </p>
         <p>
-          Search the whole library by name or keyword from the box above the canvas.
-          Right-click a block and choose <strong>Help</strong> to jump straight to its
-          entry in the built-in documentation.
+          {/* "inserts straight into the program" is a checked claim:
+              BlocklyWorkspace.js insertBlock() builds the block and
+              appendToSetup() attaches it to the end of the simulation's
+              setup, selected; when there is nothing to attach to it lands
+              selected at the centre of the view. */}
+          Search the whole library by name or keyword from the box above the canvas —
+          choose a result and the block is inserted straight into your program,
+          selected and ready to wire in. Right-click a block and choose{" "}
+          <strong>Help</strong> to jump straight to its entry in the built-in
+          documentation.
+        </p>
+        <p>
+          {/* Each clause checked: CodeEditor.js (bundled dynamic import, the
+              <textarea> fallback and its test), monacoThemes.js (VPython
+              vocabulary in the monarch grammar; physics-light / physics-dark
+              built from BLOCK_PALETTE). */}
+          The Python side is the Monaco editor, bundled with the app and Python-aware —
+          it knows the VPython vocabulary and colours it from the same palette the
+          blocks use, in both themes. If the editor bundle ever fails to load, a plain
+          text area takes over so you can keep writing.
         </p>
 
         <div className="welcome-compare">
@@ -312,8 +411,21 @@ export default function WelcomePage() {
           fit scene to view, fullscreen, and copy a snapshot to a new tab. Drag the divider
           to resize, or hide the viewport and work full-width.
         </p>
+        <p>
+          {/* Checked: label_full_block and telemetry_update_block
+              (blocklyGenerator.js) render a live in-scene label as
+              "name = round(value, dp) unit"; HelpPage's four examples show
+              elapsed time, speed and KE/PE energy on exactly that label. */}
+          A simulation can carry its own read-out in the scene: telemetry blocks keep a
+          live label showing values like elapsed time, speed and energy, rounded,
+          unit-labelled and rewritten every frame. Run and Stop are one button in the
+          viewport header, and the keyboard matches it — <kbd className="tb-kbd">F5</kbd>{" "}
+          does the same as <kbd className="tb-kbd">Ctrl</kbd>
+          <span className="welcome-keys__plus">+</span>
+          <kbd className="tb-kbd">Enter</kbd>.
+        </p>
         <ul className="welcome-keys">
-          <li><kbd className="tb-kbd">Ctrl</kbd><span className="welcome-keys__plus">+</span><kbd className="tb-kbd">Enter</kbd> run</li>
+          <li><kbd className="tb-kbd">Ctrl</kbd><span className="welcome-keys__plus">+</span><kbd className="tb-kbd">Enter</kbd> run / stop</li>
           <li><kbd className="tb-kbd">Esc</kbd> stop</li>
           <li><kbd className="tb-kbd">Ctrl</kbd><span className="welcome-keys__plus">+</span><kbd className="tb-kbd">S</kbd> save</li>
         </ul>
@@ -359,7 +471,8 @@ export default function WelcomePage() {
         <p>
           <strong>Record a run</strong> to capture every value as it changes, then export
           it as CSV — or press <strong>Chart</strong> to turn that recording into a dataset
-          you can work on with the data blocks.
+          you can work on with the data blocks. Telemetry labels put the numbers in the
+          scene while it runs; recording puts them in a table when it stops.
         </p>
         <p>
           When you save a run as a dataset you choose exactly which variables to keep and
@@ -465,12 +578,21 @@ export default function WelcomePage() {
       {/* §10 — by the numbers. */}
       <section className="welcome-numbers welcome-reveal" aria-labelledby="s-numbers">
         <h2 id="s-numbers" className="welcome-sr">Physics IDE by the numbers</h2>
-        {STATS.map(([n, label]) => (
-          <div key={label} className="welcome-stat">
-            <span className="welcome-stat__n">{n}</span>
-            <span className="welcome-stat__label">{label}</span>
-          </div>
-        ))}
+        {/* A tile with an in-page section is a real anchor to it; the global
+            focus-visible ring covers a[href], so no :focus rule anywhere. */}
+        {STATS.map(([n, label, target]) => {
+          const body = (
+            <>
+              <span className="welcome-stat__n">{n}</span>
+              <span className="welcome-stat__label">{label}</span>
+            </>
+          );
+          return target ? (
+            <a key={label} className="welcome-stat" href={`#${target}`}>{body}</a>
+          ) : (
+            <div key={label} className="welcome-stat">{body}</div>
+          );
+        })}
       </section>
 
       {/* §11 — the playground, moved here as the reward at the end of the read. */}
@@ -498,7 +620,8 @@ export default function WelcomePage() {
           Anyone can sign up as a teacher — choose <strong>I&rsquo;m a teacher</strong> on
           the signup form, no approval queue. Create a class with a name and an optional
           subject or year label. There are four ways in: a short join code (like
-          <code>KQ4-7PM</code>), a copyable link, a QR code for the board, and email
+          <code>KQ4-7PM</code> — its alphabet was chosen so no two characters look alike
+          read off a projector), a copyable link, a QR code for the board, and email
           invites you can paste as a whole list. Invite people as
           students, teaching assistants or co-teachers; pending invites can be resent or
           revoked.
@@ -534,6 +657,33 @@ export default function WelcomePage() {
             so a student can be watched.
           </p>
         </div>
+
+        <div className="welcome-access">
+          <h3>Accessibility is a code path, too</h3>
+          <p>
+            {/* Every clause checked against its file: blockPalette.js ships
+                relativeLuminance/contrastRatio and blockPalette.test.js holds
+                every category's fill and secondary to the 4.5:1 AA floor;
+                tokens.css defines the one :where() focus-visible ring;
+                welcome.css / workspace.css / viewport.css carry the
+                reduced-motion guards and e2e-test.mjs asserts the guard is in
+                the shipped CSS; AdminConsole.js is a role="tablist" with
+                ArrowLeft/ArrowRight, ClassChrome link tabs carry
+                aria-current="page", and JoinClassPage / PeopleTab /
+                InviteLandingPage / SyncChip are aria-live regions. */}
+            The block palette ships its own contrast arithmetic, and the test suite holds
+            every generated block colour to the WCAG AA floor. One keyboard focus ring
+            serves the whole product, defined once at zero specificity so no component
+            overrides it by accident. Ask your system for reduced motion and the animation
+            stops — this page&rsquo;s orbit, the IDE&rsquo;s idle screen — with an
+            end-to-end test asserting the guard ships in the CSS. The classroom portal
+            works from a keyboard: the admin console&rsquo;s tabs are ARIA tabs the arrow
+            keys walk, class tabs are plain links that declare the current page, and
+            joining, inviting and syncing announce their progress through live regions.
+            And the theme toggle is at the top of this page, so you can check both themes
+            before you commit to anything.
+          </p>
+        </div>
       </section>
 
       <footer className="welcome-foot welcome-reveal">
@@ -542,6 +692,12 @@ export default function WelcomePage() {
         </p>
         <p>
           No charge and no billing. A hard 200-account cap keeps the site small on purpose.
+        </p>
+        <p>
+          A hosted tool lasts only as long as someone pays for its servers. This one has
+          no such dependency — the physics runs on your machine, projects are saved there
+          first, the account cap is enforced by the software itself, and there is no bill
+          whose failure can switch anything off.
         </p>
         <button className="btn btn--primary btn--lg" type="button" onClick={() => go("/")}>
           Open the IDE

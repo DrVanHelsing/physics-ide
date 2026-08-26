@@ -67,6 +67,52 @@
   white-space: nowrap;
 }
 
+/* ── Anchor rail ──────────────────────────────────────────
+   A slim fixed nav of the nine eyebrowed sections, numbered by a CSS
+   counter (01–09) so no ordinal is a source literal. Hidden by default;
+   the min-width block at the tail shows it from 1280px, where the
+   980px-wide sections leave ~150px of margin — the rail's ~130px never
+   covers content. No z-index: nothing on the page overlaps its edge. */
+.welcome-rail {
+  position: fixed;
+  top: 50%;
+  left: var(--space-4);
+  transform: translateY(-50%);
+  display: none;
+}
+.welcome-rail ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  counter-reset: welcome-rail;
+}
+.welcome-rail a {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--fs-xs);
+  color: var(--text-dim);
+  text-decoration: none;
+  border-radius: var(--radius-sm);
+  transition: color var(--transition), background var(--transition);
+}
+.welcome-rail a::before {
+  counter-increment: welcome-rail;
+  content: counter(welcome-rail, decimal-leading-zero);
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-2xs);
+  color: var(--text-dim);
+}
+.welcome-rail a:hover { color: var(--text-bright); background: var(--bg-hover); }
+/* The section's own category mark, reusing the eyebrow's colour classes —
+   .welcome-section--* only sets --welcome-cat, so it is safe on an <li>. */
+.welcome-rail__mark { display: inline-flex; color: var(--welcome-cat, var(--accent)); }
+
 /* ── Hero ─────────────────────────────────────────────────── */
 .welcome-hero { max-width: 760px; margin: 0 auto; text-align: center; }
 .welcome-hero h1 {
@@ -90,12 +136,43 @@
   color: var(--text-dim);
   margin: 0 0 var(--space-6);
 }
-.welcome-cta { display: flex; gap: var(--space-3); justify-content: center; flex-wrap: wrap; }
+/* The primary door is a row of its own, the two account doors a row beneath —
+   hierarchy by size and placement, no new colour (the emphasis is --space and
+   --fs rungs the ramp already has). */
+.welcome-cta { display: flex; flex-direction: column; align-items: center; gap: var(--space-3); }
+.welcome-cta__alt { display: flex; gap: var(--space-3); justify-content: center; flex-wrap: wrap; }
+.welcome-cta .btn--primary {
+  min-height: var(--space-8);
+  padding: var(--space-3) var(--space-7);
+  font-size: var(--fs-xl);
+}
 .welcome-reassure {
   font-size: var(--fs-md);
   color: var(--text-dim);
   margin: var(--space-4) 0 0;
 }
+/* The two quiet lines under the doors: an in-page anchor to the playground
+   and the /join door. Links follow the portal's own convention
+   (platform.css .auth-footer a: --accent-bright). */
+.welcome-hero__quiet {
+  font-size: var(--fs-md);
+  color: var(--text-dim);
+  margin: var(--space-3) 0 0;
+}
+.welcome-hero__peek { color: var(--accent-bright); text-decoration: none; }
+.welcome-hero__peek:hover { text-decoration: underline; }
+/* A button that reads as a link: it navigates, but through go(), so it cannot
+   be an <a> without forfeiting the session-pass stamp. */
+.welcome-linklike {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: inherit;
+  font-size: inherit;
+  color: var(--accent-bright);
+  cursor: pointer;
+}
+.welcome-linklike:hover { text-decoration: underline; }
 
 /* Decorative orbit. Every literal below is a figure's geometry — a circle's
    diameter and the half-width centring of an absolutely positioned ring —
@@ -126,6 +203,7 @@
    limits on this page entirely. */
 .welcome-band,
 .welcome-section,
+.welcome-steps,
 .welcome-numbers,
 .welcome-play,
 .welcome-foot { margin: var(--space-9) auto 0; }
@@ -199,6 +277,35 @@
 }
 .welcome-band p { margin: 0; }
 .welcome-band strong { display: block; color: var(--text-bright); }
+
+/* ── §2b first-five-minutes strip ─────────────────────────
+   Three imperatives, numbered by a CSS counter — same reason as the rail:
+   an ordinal of the page's structure is not a numeral claim, so it does
+   not belong in the JSX where the ledger governs numerals. */
+.welcome-steps { max-width: 980px; }
+.welcome-steps__list {
+  list-style: none;
+  counter-reset: welcome-step;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  font-size: var(--fs-lg);
+  line-height: var(--lh-normal);
+  color: var(--text);
+}
+.welcome-steps__list li { display: flex; align-items: baseline; gap: var(--space-3); }
+.welcome-steps__list li::before {
+  counter-increment: welcome-step;
+  content: counter(welcome-step);
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-2xl);
+  font-weight: var(--fw-semibold);
+  line-height: var(--lh-tight);
+  color: var(--text-bright);
+}
 
 /* ── §3 blocks ↔ Python ───────────────────────────────────── */
 .welcome-compare {
@@ -329,6 +436,11 @@
   grid-template-columns: repeat(6, 1fr);
 }
 .welcome-stat { display: flex; flex-direction: column; gap: var(--space-1); text-align: center; }
+/* A tile with an in-page section is an <a>; it keeps the tile treatment and
+   gains only a hover affordance. Keyboard focus is the one global ring
+   (D8, tokens.css) — this file adds no focus rule of any kind. */
+a.welcome-stat { text-decoration: none; }
+a.welcome-stat:hover .welcome-stat__label { color: var(--text-bright); text-decoration: underline; }
 .welcome-stat__n {
   font-family: var(--mono);
   font-variant-numeric: tabular-nums;
@@ -411,6 +523,13 @@
 }
 .welcome-privacy__mark { display: inline-flex; color: var(--welcome-cat, var(--accent)); }
 .welcome-privacy p { font-size: var(--fs-md); line-height: var(--lh-normal); color: var(--text-dim); margin: 0; }
+.welcome-access { margin-top: var(--space-5); }
+.welcome-access h3 {
+  font-size: var(--fs-xl);
+  color: var(--text-bright);
+  margin: 0 0 var(--space-2);
+}
+.welcome-access p { font-size: var(--fs-md); line-height: var(--lh-normal); color: var(--text-dim); margin: 0; }
 
 /* ── §13 footer ───────────────────────────────────────────── */
 .welcome-foot { max-width: 640px; text-align: center; }
@@ -449,6 +568,13 @@
      nothing left here to guard. */
 }
 
+/* The anchor rail appears only where it cannot cover content: at 1280px the
+   980px sections leave ~150px of margin a side, and the rail needs ~130px.
+   Below that it is display: none in the base rules — never merely moved. */
+@media (min-width: 1280px) {
+  .welcome-rail { display: block; }
+}
+
 /* ═══════════════════════════════════════════════════════════
    RESPONSIVE — must stay last in this file.
    The page had none at all before: a 44px hero, a 260px canvas and a
@@ -480,11 +606,13 @@
      browser; a visual check belongs in Step 6 of the human browser pass. */
   .welcome-band,
   .welcome-section,
+  .welcome-steps,
   .welcome-numbers,
   .welcome-play,
   .welcome-foot { margin-top: var(--space-7); }
   .welcome-grid { grid-template-columns: 1fr; }
   .welcome-compare { grid-template-columns: 1fr; }
+  .welcome-steps__list { grid-template-columns: 1fr; }
   .welcome-keys { gap: var(--space-4); }
 }
 
@@ -499,6 +627,7 @@
   .welcome-hero h1 { margin-top: var(--space-3); }
   .welcome-tagline { font-size: var(--fs-lg); }
   .welcome-cta { flex-direction: column; align-items: stretch; }
+  .welcome-cta__alt { flex-direction: column; align-items: stretch; }
   .welcome-cta .btn { width: 100%; }
   .welcome-numbers { grid-template-columns: repeat(2, 1fr); }
   .welcome-playground__canvas { height: 180px; }
