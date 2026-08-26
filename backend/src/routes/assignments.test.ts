@@ -5,7 +5,7 @@ import { BUILT_IN_RULE_SETS } from "@physics-ide/shared";
 import { buildApp } from "../app.js";
 import { testDb, testPool, truncateAuthTables } from "../db/testClient.js";
 import { setSetting } from "../db/settings.js";
-import { users, classMembers, assignments, events, projects, submissions, assignmentWork } from "../db/schema.js";
+import { users, classMembers, assignments, events, projects, submissions, assignmentWork, marks } from "../db/schema.js";
 
 const app = buildApp({ db: testDb });
 let teacherCookie: string;
@@ -833,6 +833,289 @@ describe("GET /api/assignments/:id — starterSeed and myWork", () => {
     expect(body.myWork).toEqual({
       projectId: seedStudentProjectId,
       startedAt: expect.any(Number),
+    });
+  });
+});
+
+describe("GET /api/assignments/upcoming", () => {
+  const DAY = 24 * 60 * 60 * 1000;
+  let studentId: string;
+  let teacherId: string;
+  let upcomingClassId: string;
+  let freshCookie: string;
+
+  async function createPublished(payload: Record<string, unknown>) {
+    const draftRes = await app.inject({
+      method: "POST",
+      url: `/api/classes/${upcomingClassId}/assignments`,
+      cookies: { pide_session: teacherCookie },
+      payload,
+    });
+    const id = draftRes.json().assignment.id;
+    await app.inject({
+      method: "POST",
+      url: `/api/assignments/${id}/publish`,
+      cookies: { pide_session: teacherCookie },
+    });
+    return id;
+  }
+
+  beforeAll(async () => {
+    const [studentRow] = await testDb.select().from(users).where(eq(users.email, "akid@example.com"));
+    studentId = studentRow.id;
+    const [teacherRow] = await testDb.select().from(users).where(eq(users.email, "ateach@example.com"));
+    teacherId = teacherRow.id;
+
+    const classRes = await app.inject({
+      method: "POST",
+      url: "/api/classes",
+      cookies: { pide_session: teacherCookie },
+      payload: { name: "Upcoming Strip Test Class" },
+    });
+    upcomingClassId = classRes.json().class.id;
+    await testDb
+      .insert(classMembers)
+      .values({ classId: upcomingClassId, userId: studentId, role: "student", status: "active" });
+
+    await makeUser("freshstudent@example.com");
+    freshCookie = await signin("freshstudent@example.com");
+  });
+
+  test("empty result: a member of no classes with no marks gets both lists empty", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/assignments/upcoming",
+      cookies: { pide_session: freshCookie },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ dueSoon: [], recentFeedback: [] });
+  });
+
+  describe("dueSoon", () => {
+    let inWindowId: string;
+    let tooFarId: string;
+    let lateWindowId: string;
+    let submittedId: string;
+    let groupOnlyId: string;
+    let staleSubmissionId: string;
+
+    beforeAll(async () => {
+      const now = Date.now();
+      inWindowId = await createPublished({ title: "Due in 2 days", dueAt: now + 2 * DAY });
+      tooFarId = await createPublished({ title: "Due in 20 days", dueAt: now + 20 * DAY });
+      lateWindowId = await createPublished({
+        title: "Just went late",
+        dueAt: now - 2 * 60 * 60 * 1000,
+        lateUntil: now + DAY,
+      });
+      submittedId = await createPublished({ title: "Already submitted", dueAt: now + 3 * DAY });
+      groupOnlyId = await createPublished({ title: "Group submission only", dueAt: now + 3 * DAY });
+      staleSubmissionId = await createPublished({ title: "Superseded submission", dueAt: now + 3 * DAY });
+
+      await testDb.insert(submissions).values({
+        assignmentId: submittedId,
+        submitterId: studentId,
+        submittedBy: studentId,
+        creditedIds: [studentId],
+        manifest: {},
+        fingerprint: "submitted-1",
+        isCurrent: true,
+      });
+      // Group submission: no submitterId (groupId instead) — group membership
+      // resolution is Stage D, so this must NOT read as "submitted" yet.
+      await testDb.insert(submissions).values({
+        assignmentId: groupOnlyId,
+        groupId: "11111111-1111-1111-1111-111111111111",
+        submittedBy: studentId,
+        creditedIds: [studentId],
+        manifest: {},
+        fingerprint: "group-1",
+        isCurrent: true,
+      });
+      await testDb.insert(submissions).values({
+        assignmentId: staleSubmissionId,
+        submitterId: studentId,
+        submittedBy: studentId,
+        creditedIds: [studentId],
+        manifest: {},
+        fingerprint: "stale-old",
+        isCurrent: false,
+      });
+    });
+
+    test("includes an assignment due within 14 days and excludes one due much later", async () => {
+      const res = await app.inject({
+        method: "GET",
+        url: "/api/assignments/upcoming",
+        cookies: { pide_session: studentCookie },
+      });
+      expect(res.statusCode).toBe(200);
+      const ids = res.json().dueSoon.map((d: { assignmentId: string }) => d.assignmentId);
+      expect(ids).toContain(inWindowId);
+      expect(ids).not.toContain(tooFarId);
+    });
+
+    test("a past-due assignment still in its late window shows up regardless of the 14-day window", async () => {
+      const res = await app.inject({
+        method: "GET",
+        url: "/api/assignments/upcoming",
+        cookies: { pide_session: studentCookie },
+      });
+      const row = res.json().dueSoon.find((d: { assignmentId: string }) => d.assignmentId === lateWindowId);
+      expect(row).toBeDefined();
+      expect(row.className).toBe("Upcoming Strip Test Class");
+      expect(row.classId).toBe(upcomingClassId);
+    });
+
+    test("submitted reflects a current individual submission; unsubmitted assignments read false", async () => {
+      const res = await app.inject({
+        method: "GET",
+        url: "/api/assignments/upcoming",
+        cookies: { pide_session: studentCookie },
+      });
+      const list = res.json().dueSoon;
+      expect(list.find((d: { assignmentId: string }) => d.assignmentId === submittedId).submitted).toBe(
+        true,
+      );
+      expect(list.find((d: { assignmentId: string }) => d.assignmentId === inWindowId).submitted).toBe(
+        false,
+      );
+    });
+
+    test("a superseded (non-current) submission does not count as submitted", async () => {
+      const res = await app.inject({
+        method: "GET",
+        url: "/api/assignments/upcoming",
+        cookies: { pide_session: studentCookie },
+      });
+      const row = res
+        .json()
+        .dueSoon.find((d: { assignmentId: string }) => d.assignmentId === staleSubmissionId);
+      expect(row.submitted).toBe(false);
+    });
+
+    test("a group-only submission (no submitterId) does not count as submitted", async () => {
+      const res = await app.inject({
+        method: "GET",
+        url: "/api/assignments/upcoming",
+        cookies: { pide_session: studentCookie },
+      });
+      const row = res.json().dueSoon.find((d: { assignmentId: string }) => d.assignmentId === groupOnlyId);
+      expect(row.submitted).toBe(false);
+    });
+
+    test("archiving the class removes its assignments from dueSoon", async () => {
+      const before = await app.inject({
+        method: "GET",
+        url: "/api/assignments/upcoming",
+        cookies: { pide_session: studentCookie },
+      });
+      expect(before.json().dueSoon.map((d: { assignmentId: string }) => d.assignmentId)).toContain(
+        inWindowId,
+      );
+
+      await app.inject({
+        method: "POST",
+        url: `/api/classes/${upcomingClassId}/archive`,
+        cookies: { pide_session: teacherCookie },
+      });
+
+      const after = await app.inject({
+        method: "GET",
+        url: "/api/assignments/upcoming",
+        cookies: { pide_session: studentCookie },
+      });
+      expect(after.json().dueSoon).toEqual([]);
+    });
+  });
+
+  describe("recentFeedback", () => {
+    let feedbackClassId: string;
+    let releasedAssignmentId: string;
+    let olderReleasedAssignmentId: string;
+    let draftMarkAssignmentId: string;
+    let staleReleaseAssignmentId: string;
+
+    beforeAll(async () => {
+      const classRes = await app.inject({
+        method: "POST",
+        url: "/api/classes",
+        cookies: { pide_session: teacherCookie },
+        payload: { name: "Feedback Strip Test Class" },
+      });
+      feedbackClassId = classRes.json().class.id;
+      await testDb
+        .insert(classMembers)
+        .values({ classId: feedbackClassId, userId: studentId, role: "student", status: "active" });
+
+      async function makeAssignment(title: string) {
+        const res = await app.inject({
+          method: "POST",
+          url: `/api/classes/${feedbackClassId}/assignments`,
+          cookies: { pide_session: teacherCookie },
+          payload: { title },
+        });
+        return res.json().assignment.id;
+      }
+      releasedAssignmentId = await makeAssignment("Released Recently");
+      olderReleasedAssignmentId = await makeAssignment("Released A Few Days Before That");
+      draftMarkAssignmentId = await makeAssignment("Marked But Not Released");
+      staleReleaseAssignmentId = await makeAssignment("Released Long Ago");
+
+      const now = Date.now();
+      // Task 18 (marking) doesn't exist yet — mark rows are seeded directly,
+      // exactly as the brief calls for.
+      await testDb.insert(marks).values({
+        assignmentId: releasedAssignmentId,
+        studentId,
+        points: 8,
+        status: "released",
+        markedBy: teacherId,
+        releasedAt: new Date(now - 3 * DAY),
+      });
+      await testDb.insert(marks).values({
+        assignmentId: olderReleasedAssignmentId,
+        studentId,
+        points: 6,
+        status: "released",
+        markedBy: teacherId,
+        releasedAt: new Date(now - 6 * DAY),
+      });
+      await testDb.insert(marks).values({
+        assignmentId: draftMarkAssignmentId,
+        studentId,
+        points: 7,
+        status: "draft",
+        markedBy: teacherId,
+        releasedAt: null,
+      });
+      await testDb.insert(marks).values({
+        assignmentId: staleReleaseAssignmentId,
+        studentId,
+        points: 9,
+        status: "released",
+        markedBy: teacherId,
+        releasedAt: new Date(now - 20 * DAY),
+      });
+    });
+
+    test("only released marks within the last 14 days appear, newest first", async () => {
+      const res = await app.inject({
+        method: "GET",
+        url: "/api/assignments/upcoming",
+        cookies: { pide_session: studentCookie },
+      });
+      const feedback = res.json().recentFeedback;
+      const ids = feedback.map((f: { assignmentId: string }) => f.assignmentId);
+      expect(ids).not.toContain(draftMarkAssignmentId);
+      expect(ids).not.toContain(staleReleaseAssignmentId);
+      expect(ids.indexOf(releasedAssignmentId)).toBeGreaterThanOrEqual(0);
+      expect(ids.indexOf(olderReleasedAssignmentId)).toBeGreaterThan(ids.indexOf(releasedAssignmentId));
+
+      const row = feedback.find((f: { assignmentId: string }) => f.assignmentId === releasedAssignmentId);
+      expect(row.classId).toBe(feedbackClassId);
+      expect(row.title).toBe("Released Recently");
+      expect(typeof row.releasedAt).toBe("number");
     });
   });
 });
