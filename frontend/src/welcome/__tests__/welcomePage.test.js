@@ -131,6 +131,80 @@ describe("the front page", () => {
   test("no emoji", () => {
     expect(SRC).not.toMatch(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/u);
   });
+
+  /* ── Tranche 1's three structural locks. Same discipline as the keycap
+     row: the page's copy and shape are test-locked, so a later edit moves
+     a test in the same commit or does not move the page. ─────────────── */
+
+  test("the linked stat tiles are real anchors to their exact sections — and the unlinked one is not", () => {
+    /* The four tiles whose subject has an in-page section are <a>; the
+       documentation tile has no target on this page and must stay a <div>.
+       Both dataset and chart tiles point at §7 — the data section covers
+       both. */
+    const { container, unmount } = mount();
+    const tiles = [...container.querySelectorAll(".welcome-stat")].map((t) => [
+      t.querySelector(".welcome-stat__n").textContent,
+      t.tagName,
+      t.getAttribute("href"),
+    ]);
+    expect(tiles).toEqual([
+      ["151", "A", "#s-editor"],
+      ["18", "A", "#s-start"],
+      ["6", "A", "#s-data"],
+      ["6", "A", "#s-data"],
+      ["14", "DIV", null],
+      ["0", "A", "#s-yours"],
+    ]);
+    // …and every linked target actually exists on this page.
+    for (const [, tag, href] of tiles) {
+      if (tag === "A") expect(container.querySelector(href)).toBeTruthy();
+    }
+    unmount();
+  });
+
+  test("the anchor rail is a nav of exactly the nine eyebrowed sections, in page order", () => {
+    /* s-what and s-numbers are deliberately absent — their headings are
+       visually hidden landmarks, not destinations a reader names. The
+       order is the page's true section order (play BEFORE class). */
+    const { container, unmount } = mount();
+    const rail = container.querySelector('nav[aria-label="Page sections"]');
+    expect(rail).toBeTruthy();
+    const links = [...rail.querySelectorAll("a")];
+    expect(links).toHaveLength(9);
+    expect(links.map((a) => a.getAttribute("href"))).toEqual([
+      "#s-editor",
+      "#s-view",
+      "#s-debug",
+      "#s-measure",
+      "#s-data",
+      "#s-start",
+      "#s-yours",
+      "#s-play",
+      "#s-class",
+    ]);
+    // Every rail target is a real id on this page.
+    for (const a of links) {
+      expect(container.querySelector(a.getAttribute("href"))).toBeTruthy();
+    }
+    unmount();
+  });
+
+  test("the first-five-minutes strip is an ol of exactly three imperatives, text locked", () => {
+    /* Locked the way the keycap row is: these are the three things a
+       reader is told to do, and each is a claim verified by doing it. The
+       step numbers are CSS counters, so the text carries no numerals. */
+    const { container, unmount } = mount();
+    const list = container.querySelector("ol.welcome-steps__list");
+    expect(list).toBeTruthy();
+    const items = [...list.querySelectorAll(":scope > li")];
+    expect(items).toHaveLength(3);
+    expect(items.map((li) => li.textContent.replace(/\s+/g, " ").trim())).toEqual([
+      "Open the IDE — no account needed.",
+      "Open a worked project.",
+      "Press Run, then change one number.",
+    ]);
+    unmount();
+  });
 });
 
 /* ── The numbers ledger, checked against the tree rather than against a note.
