@@ -468,15 +468,6 @@ p.welcome-helpref {
 .welcome-tile__title { font-size: var(--fs-lg); color: var(--text-bright); margin: 0; }
 .welcome-tile__mech { font-size: var(--fs-sm); line-height: var(--lh-normal); color: var(--text-dim); margin: 0; }
 
-/* ── §5 the honesty panel ───────────────────────────────────── */
-.welcome-notbuilt { margin: 0 0 var(--space-4); }
-.welcome-notbuilt h3 {
-  font-size: var(--fs-xl);
-  color: var(--text-bright);
-  margin: 0 0 var(--space-2);
-}
-.welcome-notbuilt p { font-size: var(--fs-md); line-height: var(--lh-normal); color: var(--text); margin: 0; }
-
 /* ── Closing ribbon ────────────────────────────────────────
    Compressed from nine linked, hover-revealing stat tiles to one quiet
    line — no tiles, no hover-reveals (redesign brief). Following

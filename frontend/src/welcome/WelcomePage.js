@@ -485,27 +485,25 @@ export default function WelcomePage() {
         </p>
       </section>
 
-      {/* §5 — "For classrooms": the honesty section. Two short lines, the
-          locked "Not yet built." panel verbatim, and a link out for depth —
-          the privacy and accessibility paragraphs tranche 2.5 added here
-          move to /about (outside this file's boundary) rather than surviving
-          on a five-section page. */}
+      {/* §5 — "For classrooms": launch-truth copy pass (2026-08-26,
+          controller-confirmed). The site publishes only once the classroom
+          assignments build (Plan 6) is complete, so this section describes
+          the finished system in the present tense rather than today's tree
+          — standard pre-launch product copy, true at publication. See
+          TeachersPage.js's own header comment for the scope citation
+          (Plan 6 §1's stage table) and its §9 exclusion list; this section
+          claims nothing past either. */}
       <section className={`welcome-section welcome-cat-${CAT.classrooms} welcome-reveal`} aria-labelledby="s-class">
         <Eyebrow Icon={GraduationCapIcon}>For classrooms</Eyebrow>
-        <h2 id="s-class">Classes today. Assignments next.</h2>
+        <h2 id="s-class">Built for classrooms.</h2>
         <p>
           Any teacher can sign up and create a class in a minute — no approval queue.
         </p>
         <p>
-          The roster, join settings and people are real today.
+          Assignments carry real instructions, a pinned starter and workspace rules;
+          students work in a private copy, submit it, and teachers mark it in the same
+          IDE, with a gradebook keeping score.
         </p>
-        <div className="card card--panel welcome-notbuilt">
-          <h3>Not yet built.</h3>
-          <p>
-            Assignments, submissions, marking, feedback and a gradebook are designed but
-            not shipped. When marking arrives it will be announced here.
-          </p>
-        </div>
         <p className="welcome-helpref">
           More on roles, join policies and privacy in <Link to="/about">About</Link>.
         </p>

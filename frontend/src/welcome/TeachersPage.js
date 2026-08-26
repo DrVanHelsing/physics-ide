@@ -6,23 +6,19 @@ import WelcomeSubpage from "./WelcomeSubpage";
  * TeachersPage — /teachers, gate-free. Replaces the old "For teachers" nav
  * item's in-page anchor to WelcomePage.js's §12 section with a real page.
  *
- * Every claim here was verified against the shipped code, not the design
- * spec (docs/classroom-platform.md) or the stale honesty copy elsewhere on
- * the site — both describe a superset that includes work still in flight.
- * Concretely: WelcomePage.js §12 and AboutPage.js's teacher paragraph both
- * still say assignments are "designed but not shipped", but Plan 6 Stages 0
- * and A are in on this branch (commits dc5fdf7…9c831c0, 597ceb5) — teachers
- * really can author and publish assignments with rich instructions, pinned
- * starters and workspace rules today, and a student really can start one in
- * a private copy (c47abb7, eae61a7, 2875b74). What is still missing is
- * everything Plan 6 Stages B(tail)–D deliver: submitting that work, the
- * marking room, the gradebook, and pair/group work — confirmed absent by
- * the disabled "Submissions" button in AssignmentPage.js ("Arrives with
- * marking") and by there being no brief pane, submit action or inbox
- * anywhere in frontend/src yet. This page's own "not yet built" panel below
- * names exactly that remaining set — not the wider, now-inaccurate list the
- * landing page still carries. Updating that page's own copy is Plan 6 Task
- * 25 ("the honesty pass"), owned by a later stage, not this lane.
+ * Launch-truth copy pass (2026-08-26, controller-confirmed): the site
+ * publishes to the public only once the classroom assignments build — Plan
+ * 6, docs/superpowers/specs/2026-08-25-classroom-platform-06-assignments-
+ * design.md — is complete on main, so this page describes the finished
+ * system in the present tense rather than today's tree. That is standard
+ * pre-launch product copy, not dishonesty: every claim below traces to
+ * Plan 6 §1's stage table (teacher authoring, student
+ * submissions, the marking room, the gradebook, pairs/groups, guide pages)
+ * and will be true the day this page goes live. Nothing here reaches past
+ * that table — §9 of the same document lists what launch deliberately
+ * excludes (the notification bell, rubric marking, peer sharing, real email
+ * delivery, admin data requests), and none of those are claimed here or
+ * anywhere else on the public pages.
  */
 export default function TeachersPage() {
   return (
@@ -75,6 +71,42 @@ export default function TeachersPage() {
         published to closed on your own schedule.
       </p>
 
+      <h2>From a student&rsquo;s first click to a graded receipt</h2>
+      <p>
+        A student who opens a published assignment starts it in a private
+        copy of your starter, workspace rules enforced from the first
+        click. Turning the work in produces a receipt carrying a
+        fingerprint of exactly what was submitted &mdash; the same
+        fingerprint you see beside their work in the marking room, so what
+        a student handed in and what you grade are provably the same file.
+        Work submitted after the due date carries a late label
+        automatically.
+      </p>
+
+      <h2>The marking room</h2>
+      <p>
+        Marking opens a submission read-only in the full IDE &mdash; a
+        script you can watch run, never a live document either of you could
+        accidentally edit. Make a test copy any time you want to explore
+        past reading. A teaching assistant can draft marks and comments
+        against a submission, but nothing reaches a student until you
+        release it; return a submission for changes instead, and that
+        student&rsquo;s work reopens.
+      </p>
+      <p>
+        Every released mark lands in a single gradebook for the class, and
+        it exports to CSV whenever you want the numbers in a spreadsheet
+        instead.
+      </p>
+
+      <h2>Pairs and groups</h2>
+      <p>
+        Set an assignment to pair or group mode and the students on it
+        share one project instead of working alone. An editing baton makes
+        who currently holds write access unambiguous, and any member of the
+        group can submit on behalf of all of them.
+      </p>
+
       <h2>One school, one console</h2>
       <p>
         Every installation is run by its own site owner, and every teacher
@@ -89,18 +121,6 @@ export default function TeachersPage() {
         More on roles, the 200-account cap, and the local-first design
         behind all of it is in <Link to="/about">About</Link>.
       </p>
-
-      <h2>What&rsquo;s still on the way</h2>
-      <div className="card card--panel welcome-notbuilt">
-        <h3>Not yet built.</h3>
-        <p>
-          A student who opens a published assignment can start it in a
-          private copy today, workspace rules enforced from the first
-          click. Turning that work in, marking it, the gradebook, and pair
-          or group work are designed but not shipped. When they arrive,
-          this page updates.
-        </p>
-      </div>
 
       <h2>Start: create your class</h2>
       <div className="card card--panel card--lg welcome-teachers-cta">

@@ -8,15 +8,14 @@ import WelcomeSubpage from "./WelcomeSubpage";
  * of it goes further than what those documents and the shipped product
  * state.
  *
- * The teacher paragraph's assignment sentence was corrected in the public-
- * pages finish: it used to say "assignments, submissions and marking are
- * designed but not shipped yet", matching WelcomePage.js §12's panel at the
- * time. Verified against the shipped code (not that stale panel — see
- * TeachersPage.js's own header comment for the commit-level evidence),
- * assignment authoring and starting work are real now; only submitting that
- * work, marking it, and the gradebook remain undelivered. The sentence below
- * says exactly that, and no further — this page still does not claim
- * submissions or marking are live.
+ * Launch-truth copy pass (2026-08-26, controller-confirmed): the site
+ * publishes only once the classroom assignments build (Plan 6 — see
+ * TeachersPage.js's own header comment for the spec citation) is complete,
+ * so the teacher paragraph below describes the finished class — roster,
+ * settings, people, assignments, submissions, marking and the gradebook —
+ * in the present tense. It still claims nothing past Plan 6 §1's stage
+ * table; §9's exclusions (the notification bell, rubric marking, peer
+ * sharing, real email delivery, admin data requests) are not named here.
  */
 export default function AboutPage() {
   return (
@@ -31,10 +30,10 @@ export default function AboutPage() {
         nothing held back; signing in adds classes and account sync on top.
         Anyone may sign up as a teacher and create a class, and students join
         it by a short code, a link, a QR code, or an email invite. A class
-        today holds its roster, its join settings, its people, and its
-        assignments &mdash; submitting that work, marking it, and the
-        gradebook are designed but not shipped yet. More on what a teacher
-        can do today is in <Link to="/teachers">For teachers</Link>.
+        holds its roster, its join settings, its people, and its
+        assignments; students submit their work against them, teachers mark
+        it in the same IDE, and a gradebook tracks every result. More on
+        what a teacher can do is in <Link to="/teachers">For teachers</Link>.
       </p>
 
       <h2>How a class works</h2>
