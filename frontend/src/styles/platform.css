@@ -299,6 +299,22 @@
 .sync-chip--offline { --sync-color: var(--yellow); }
 .sync-chip--error { --sync-color: var(--red); }
 
+/* ---- Rules chip (Plan 6, assignments — spec §5.4) ----
+   Same .sync-chip pill shape, no state tint (there's nothing to tint —
+   it's either announcing the rules or it isn't rendered at all). Its
+   sentence can run long ("Your teacher has turned off: import, export &
+   copy, advanced blocks, templates"), so the text — not the chip itself —
+   is what's allowed to ellipsize; the chip must never unmount (delta S4). */
+.rules-chip {
+  max-width: 32ch;
+}
+.rules-chip__text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
 /* ---- Guest import prompt (Plan 4) ---- */
 .guest-import {
   position: fixed;

@@ -40,6 +40,7 @@ import ChartOverlay from "../ChartOverlay";
 import DataPanel    from "../DataPanel";
 import TracePromoteDialog from "../TracePromoteDialog";
 import SaveState    from "./SaveState";
+import RulesChip    from "./RulesChip";
 import RunErrorBanner from "./RunErrorBanner";
 import { BlocksIcon, CodeIcon, GlobeIcon } from "../Icons";
 
@@ -59,6 +60,7 @@ import { SPLIT_MIN, SPLIT_MAX } from "../../constants";
 import { useTheme }              from "../../contexts/ThemeContext";
 import { useSimulationContext }  from "../../contexts/SimulationContext";
 import { useTraceContext }       from "../../contexts/TraceContext";
+import { AssignmentProvider }    from "../../contexts/AssignmentContext";
 
 import { useSimulation }  from "../../hooks/useSimulation";
 import { useDebug }       from "../../hooks/useDebug";
@@ -479,6 +481,7 @@ export default function IDELayout() {
   );
 
   return (
+    <AssignmentProvider projectId={proj.activeProjectId}>
     <div className="app-shell">
       <VariableDialog />
       {showHelp && (
@@ -707,6 +710,7 @@ export default function IDELayout() {
           {proj.activeManifest?.title || "No project open"}
         </span>
         <SaveState updatedAt={proj.activeManifest?.updatedAt} />
+        <RulesChip />
         <span className="status-bar__spacer" />
         <span
           className={running ? "console-bar console-bar--running" : statusClass}
@@ -731,5 +735,6 @@ export default function IDELayout() {
         />
       )}
     </div>
+    </AssignmentProvider>
   );
 }
