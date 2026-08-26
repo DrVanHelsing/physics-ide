@@ -354,28 +354,87 @@ p.welcome-helpref {
   overflow-x: auto;
 }
 .welcome-code--blocks { display: flex; flex-direction: column; gap: var(--space-1); }
-.welcome-code__row--d1 { padding-left: var(--space-4); }
-/* Blocks read as blocks: a pill in the drawer's own colour, not a code line.
-   A <button> so it stays keyboard-focusable while reading as a chip.
-   Kept as one plain-class rule (not `button.welcome-code__chip`) so the
-   reduced-motion guard below can win on equal specificity, source order. */
-.welcome-code__chip {
-  display: inline-block;
-  padding: var(--space-1) var(--space-2);
+
+/* Real block facsimiles (welcome-real-blocks plan) — CSS only, no drag, no
+   library. Each block's colour is its REAL toolbox category (blockPalette.js
+   BLOCK_PALETTE via the --cat-* tokens, WelcomePage.js's own per-block `cat`),
+   not the section's --welcome-cat accent used elsewhere on this page — the
+   whole point is these read as the actual editor's blocks. --cat-* is
+   theme-independent (tokens.css: declared once, outside both theme blocks),
+   so every block fill is identical in light and dark; only this panel's own
+   background (.welcome-code, above) adapts. */
+.welcome-block--objects { --block-fill: var(--cat-objects); }
+.welcome-block--motion  { --block-fill: var(--cat-motion); }
+.welcome-block--control { --block-fill: var(--cat-control); }
+
+/* The block itself: solid category fill, bold white label (--on-accent —
+   the same token every filled control on this product uses for its label,
+   and the exact colour blockPalette.js's own AA pass verified against each
+   category's fill as its "on" colour), tightly rounded corners, and a
+   darkened bottom edge for the Zelos-style 3D "lip" (blocklyTheme.js: the
+   real editor's base theme). The darken amount and the lip's own width are
+   block geometry, not spacing — color-mix darkens the block's own fill, no
+   new hex, and border-width sits outside the metric pass entirely
+   (metricLint.js's own header: "there is no border-width token"). */
+.welcome-block__bar {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-2) var(--space-3);
   font-family: inherit;
   font-size: inherit;
-  color: var(--text-bright);
-  background: color-mix(in srgb, var(--welcome-cat, var(--accent)) 18%, transparent);
-  border: 1px solid color-mix(in srgb, var(--welcome-cat, var(--accent)) 40%, transparent);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition: background var(--transition), border-color var(--transition);
+  font-weight: var(--fw-semibold);
+  color: var(--on-accent);
+  background: var(--block-fill);
+  border-radius: var(--radius-lg);
+  border-bottom: 3px solid color-mix(in srgb, var(--block-fill), black 28%);
+  transition: transform var(--transition), box-shadow var(--transition);
 }
-/* Hover or tab-focus a block chip and its index-aligned Python line lights
-   up — one integer of React state (activeLine), no highlighting library. */
-.welcome-code__chip.is-active {
-  background: color-mix(in srgb, var(--welcome-cat, var(--accent)) 34%, transparent);
-  border-color: var(--welcome-cat, var(--accent));
+/* Hover (real pointer) or the mouse-driven line-sync below both read as the
+   same "this is the block behind that Python line" cue — a subtle lift, the
+   product's own --shadow-sm for the "picked up" read a real block editor
+   gives a hovered block. Colour-only elsewhere on this page (D8's own
+   convention); this is the one place a transform is warranted, block
+   geometry rather than a page chrome hover. */
+.welcome-block__bar:hover,
+.welcome-block__bar.is-active {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+/* Input slots: the numbers/values inside each block's label, rendered as
+   lighter inline pills the way the real editor's own fields sit lighter
+   than the block body around them. Exactly the reverse pairing of the bar's
+   own already-AA-verified (white on fill) contrast — contrast ratio is
+   symmetric, so fill-on-white here passes by the identical margin
+   blockPalette.js verified for white-on-fill, for every category, not only
+   the three this panel uses. */
+.welcome-block__slot {
+  display: inline-block;
+  padding: 0 var(--space-1);
+  color: var(--block-fill);
+  background: var(--on-accent);
+  border-radius: var(--radius-pill);
+}
+/* forever_loop_block's C-wrap: the one C-block among these six. Its three
+   children sit indented to the right of a rail in the parent's own fill —
+   not painted with it, the same way the real workspace shows a C-block's
+   body on the plain canvas, only the rail and the closing foot coloured —
+   then a short closing "foot" the width/height of a stub connector tab
+   (width/height sit outside the metric pass — see metricLint.js's own
+   header) closes the C the way the real block's bottom puzzle-tab does. */
+.welcome-block--c > .welcome-block__c-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
+  padding: var(--space-1) 0 var(--space-1) var(--space-4);
+  border-left: 3px solid var(--block-fill);
+}
+.welcome-block__c-foot {
+  width: var(--space-6);
+  height: var(--space-2);
+  background: var(--block-fill);
+  border-radius: var(--radius-sm);
+  border-bottom: 3px solid color-mix(in srgb, var(--block-fill), black 28%);
 }
 .welcome-code__line {
   display: block;
@@ -561,7 +620,7 @@ p.welcome-helpref {
 @media (prefers-reduced-motion: reduce) {
   .welcome-reveal { opacity: 1; transform: none; transition: none; }
   .welcome-skip { transition: none; }
-  .welcome-code__chip,
+  .welcome-block__bar,
   .welcome-code__line {
     transition: none;
   }

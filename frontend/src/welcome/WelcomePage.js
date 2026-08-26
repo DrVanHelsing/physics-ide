@@ -129,16 +129,76 @@ const CAT = {
    Hand-spanned, no highlighting library (Budget §4.4). The Python is what
    blocklyGenerator.js actually emits for these blocks — sphere_block,
    set_velocity_block, forever_loop_block, rate_block, apply_force_block,
-   update_position_block. Unchanged from tranche 2 — this artifact survives
-   v2 verbatim (redesign brief: "the one artifact the user's 'interactivity'
-   is already served by"). */
+   update_position_block. The COPY (every character these six lines render)
+   is unchanged from tranche 2 — only the markup changed, to real block
+   facsimiles (welcome-real-blocks plan). `cat` is each block's REAL
+   registry category (blockRegistry.js — sphere_block: Objects,
+   set_velocity_block/apply_force_block/update_position_block: Motion,
+   forever_loop_block/rate_block: Control), not the section's own accent.
+   `segs` replaces the old flat `t` string: an array of plain strings and
+   `slot(...)`-wrapped value spans that render as lighter input pills — but
+   every segment's text, concatenated in order, reproduces the original `t`
+   character-for-character (checked line by line below), so the ledger
+   discipline holds under the new markup. `children` replaces the old `d`
+   depth flag: forever_loop_block is the toolbox's one C-block among these
+   six, and its three children (rate/apply_force/update_position) now nest
+   inside its own DOM node — real C-wrap geometry, not a padding-left
+   indent. `i` is each block's index into the index-aligned PYTHON array
+   below, preserved through the nesting so the hover-link still lights up
+   the right Python line regardless of DOM depth. */
+function slot(text) {
+  return { text, slot: true };
+}
 const BLOCK_STACK = [
-  { d: 0, t: "ball = sphere   pos (0, 5, 0)   radius 0.5" },
-  { d: 0, t: "set ball velocity to   vector 3, 0, 0" },
-  { d: 0, t: "forever" },
-  { d: 1, t: "rate 60" },
-  { d: 1, t: "apply force to ball   accel (0, -9.81, 0)   dt 0.01" },
-  { d: 1, t: "update position of ball   dt 0.01" },
+  {
+    i: 0,
+    cat: "objects", // sphere_block
+    // "ball = sphere" + "   " + "pos " + "(0, 5, 0)" + "   " + "radius " + "0.5"
+    //   = "ball = sphere   pos (0, 5, 0)   radius 0.5"
+    segs: ["ball = sphere", "   ", "pos ", slot("(0, 5, 0)"), "   ", "radius ", slot("0.5")],
+  },
+  {
+    i: 1,
+    cat: "motion", // set_velocity_block
+    // "set ball velocity to" + "   " + "vector " + "3, 0, 0"
+    //   = "set ball velocity to   vector 3, 0, 0"
+    segs: ["set ball velocity to", "   ", "vector ", slot("3, 0, 0")],
+  },
+  {
+    i: 2,
+    cat: "control", // forever_loop_block — the one C-block among these six
+    segs: ["forever"],
+    children: [
+      {
+        i: 3,
+        cat: "control", // rate_block
+        // "rate " + "60" = "rate 60"
+        segs: ["rate ", slot("60")],
+      },
+      {
+        i: 4,
+        cat: "motion", // apply_force_block
+        // "apply force to ball" + "   " + "accel " + "(0, -9.81, 0)" + "   " + "dt " + "0.01"
+        //   = "apply force to ball   accel (0, -9.81, 0)   dt 0.01"
+        segs: [
+          "apply force to ball",
+          "   ",
+          "accel ",
+          slot("(0, -9.81, 0)"),
+          "   ",
+          "dt ",
+          slot("0.01"),
+        ],
+      },
+      {
+        i: 5,
+        cat: "motion", // update_position_block
+        // "update position of ball" + "   " + "dt " + "0.01"
+        //   = "update position of ball   dt 0.01"
+        segs: ["update position of ball", "   ", "dt ", slot("0.01")],
+      },
+    ],
+  },
 ];
 
 /* [text, accent] — "k" keyword, "f" call, null plain. */
@@ -210,6 +270,45 @@ function prefersReducedMotion() {
   } catch {
     return false;
   }
+}
+
+/* A real block facsimile for §"Blocks or Python" — CSS-only, category-fill,
+   white label, a slot pill per value, C-wrap for forever_loop_block's three
+   children (welcome.css .welcome-block*). Deliberately non-interactive: the
+   hover-link that syncs the matching Python line is a mouse-only nicety
+   (onMouseEnter/onMouseLeave), not a control — no button role, no tabindex,
+   no keyboard handler, so a diagram never reads as a fake interactive
+   widget. Recurses once in practice (forever_loop_block's children do not
+   themselves nest), but is written generally rather than special-cased. */
+function Block({ b, activeLine, setActiveLine }) {
+  const isActive = activeLine === b.i;
+  return (
+    <div className={`welcome-block welcome-block--${b.cat}${b.children ? " welcome-block--c" : ""}`}>
+      <div
+        className={`welcome-block__bar${isActive ? " is-active" : ""}`}
+        onMouseEnter={() => setActiveLine(b.i)}
+        onMouseLeave={() => setActiveLine((cur) => (cur === b.i ? null : cur))}
+      >
+        <span className="welcome-block__label">
+          {b.segs.map((s, j) =>
+            typeof s === "string" ? (
+              s
+            ) : (
+              <span key={j} className="welcome-block__slot">{s.text}</span>
+            ),
+          )}
+        </span>
+      </div>
+      {b.children ? (
+        <div className="welcome-block__c-body">
+          {b.children.map((c) => (
+            <Block key={c.i} b={c} activeLine={activeLine} setActiveLine={setActiveLine} />
+          ))}
+          <div className="welcome-block__c-foot" aria-hidden="true" />
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 /** An eyebrow micro-label carrying its section's category mark. */
@@ -401,19 +500,8 @@ export default function WelcomePage() {
           <div className="welcome-compare__side">
             <p className="welcome-compare__label">What you drag</p>
             <div className="welcome-code welcome-code--blocks">
-              {BLOCK_STACK.map((b, i) => (
-                <div key={b.t} className={`welcome-code__row welcome-code__row--d${b.d}`}>
-                  <button
-                    type="button"
-                    className={`welcome-code__chip${activeLine === i ? " is-active" : ""}`}
-                    onMouseEnter={() => setActiveLine(i)}
-                    onMouseLeave={() => setActiveLine((cur) => (cur === i ? null : cur))}
-                    onFocus={() => setActiveLine(i)}
-                    onBlur={() => setActiveLine((cur) => (cur === i ? null : cur))}
-                  >
-                    {b.t}
-                  </button>
-                </div>
+              {BLOCK_STACK.map((b) => (
+                <Block key={b.i} b={b} activeLine={activeLine} setActiveLine={setActiveLine} />
               ))}
             </div>
           </div>
