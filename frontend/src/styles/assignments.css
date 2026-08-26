@@ -1,0 +1,28 @@
+/* ═══════════════════════════════════════════════════════════
+   ASSIGNMENTS — the /classes/:id tab (Plan 6 Task 5) and the
+   detail/edit screens later tasks in the same plan add to it.
+   Loads AFTER platform.css and BEFORE welcome.css in the
+   manifest (styles.css) and after primitives.css, so it may
+   override either; nothing in the portal may rely on
+   overriding it.
+   ═══════════════════════════════════════════════════════════ */
+
+.assignments-actions { display: flex; gap: var(--space-2); }
+
+.assignment-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.assignment-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.assignment-row__title { font-size: var(--fs-lg); color: var(--text-bright); }
+.assignment-row__due,
+.assignment-row__count { font-size: var(--fs-sm); color: var(--text-muted); }
