@@ -5,7 +5,7 @@ import { BUILT_IN_RULE_SETS } from "@physics-ide/shared";
 import { buildApp } from "../app.js";
 import { testDb, testPool, truncateAuthTables } from "../db/testClient.js";
 import { setSetting } from "../db/settings.js";
-import { users, classMembers, assignments, events, projects, submissions } from "../db/schema.js";
+import { users, classMembers, assignments, events, projects, submissions, assignmentWork } from "../db/schema.js";
 
 const app = buildApp({ db: testDb });
 let teacherCookie: string;
@@ -528,5 +528,269 @@ describe("starter pinning: POST/DELETE /api/assignments/:id/starter", () => {
       payload: { projectId: teacherProjectId },
     });
     expect(res.statusCode).toBe(400);
+  });
+});
+
+describe("POST /api/assignments/:id/start", () => {
+  let openAssignmentId: string;
+  let studentProjectId: string;
+  let studentId: string;
+
+  beforeAll(async () => {
+    const [studentRow] = await testDb.select().from(users).where(eq(users.email, "akid@example.com"));
+    studentId = studentRow.id;
+
+    const draftRes = await app.inject({
+      method: "POST",
+      url: `/api/classes/${classId}/assignments`,
+      cookies: { pide_session: teacherCookie },
+      payload: { title: "Start Work Test" },
+    });
+    openAssignmentId = draftRes.json().assignment.id;
+    await app.inject({
+      method: "POST",
+      url: `/api/assignments/${openAssignmentId}/publish`,
+      cookies: { pide_session: teacherCookie },
+    });
+
+    studentProjectId = "p-start-work-student-project";
+    await testDb.insert(projects).values({
+      id: studentProjectId,
+      ownerId: studentId,
+      title: "My Copy",
+      goal: "physics",
+      projectType: "physics",
+      manifest: { schemaVersion: 2, marker: "student-copy" },
+      clientUpdatedAt: Date.now(),
+    });
+  });
+
+  test("a member with a pushed project starts -> 201, work.projectId, event logged", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/assignments/${openAssignmentId}/start`,
+      cookies: { pide_session: studentCookie },
+      payload: { projectId: studentProjectId },
+    });
+    expect(res.statusCode).toBe(201);
+    expect(res.json().work.projectId).toBe(studentProjectId);
+
+    const rows = await testDb
+      .select()
+      .from(assignmentWork)
+      .where(eq(assignmentWork.assignmentId, openAssignmentId));
+    expect(rows).toHaveLength(1);
+    expect(rows[0].userId).toBe(studentId);
+    expect(rows[0].ownerId).toBe(studentId);
+    expect(rows[0].projectId).toBe(studentProjectId);
+
+    const evts = await eventsOfType("assignment.started");
+    expect(
+      evts.some((e) => (e.payload as Record<string, unknown>).assignmentId === openAssignmentId),
+    ).toBe(true);
+  });
+
+  test("starting again returns 200 with the existing row and does not insert a second one", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/assignments/${openAssignmentId}/start`,
+      cookies: { pide_session: studentCookie },
+      payload: { projectId: studentProjectId },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().work.projectId).toBe(studentProjectId);
+
+    const rows = await testDb
+      .select()
+      .from(assignmentWork)
+      .where(eq(assignmentWork.assignmentId, openAssignmentId));
+    expect(rows).toHaveLength(1);
+  });
+
+  test("a non-member 403s", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/assignments/${openAssignmentId}/start`,
+      cookies: { pide_session: strangerCookie },
+      payload: { projectId: studentProjectId },
+    });
+    expect(res.statusCode).toBe(403);
+    expect(res.json().error).toBe("Not a member of this class.");
+  });
+
+  test("starting a draft assignment 400s", async () => {
+    const draftRes = await app.inject({
+      method: "POST",
+      url: `/api/classes/${classId}/assignments`,
+      cookies: { pide_session: teacherCookie },
+      payload: { title: "Still Draft" },
+    });
+    const draftId = draftRes.json().assignment.id;
+
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/assignments/${draftId}/start`,
+      cookies: { pide_session: teacherCookie },
+      payload: { projectId: studentProjectId },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toBe("This assignment is not open.");
+  });
+
+  test("starting a closed assignment 400s", async () => {
+    const draftRes = await app.inject({
+      method: "POST",
+      url: `/api/classes/${classId}/assignments`,
+      cookies: { pide_session: teacherCookie },
+      payload: { title: "Soon Closed" },
+    });
+    const closedId = draftRes.json().assignment.id;
+    await app.inject({
+      method: "POST",
+      url: `/api/assignments/${closedId}/publish`,
+      cookies: { pide_session: teacherCookie },
+    });
+    await app.inject({
+      method: "POST",
+      url: `/api/assignments/${closedId}/close`,
+      cookies: { pide_session: teacherCookie },
+    });
+
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/assignments/${closedId}/start`,
+      cookies: { pide_session: studentCookie },
+      payload: { projectId: studentProjectId },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toBe("This assignment is not open.");
+  });
+
+  test("a projectId the caller does not own 404s", async () => {
+    const draftRes = await app.inject({
+      method: "POST",
+      url: `/api/classes/${classId}/assignments`,
+      cookies: { pide_session: teacherCookie },
+      payload: { title: "Foreign Project Test" },
+    });
+    const aId = draftRes.json().assignment.id;
+    await app.inject({
+      method: "POST",
+      url: `/api/assignments/${aId}/publish`,
+      cookies: { pide_session: teacherCookie },
+    });
+
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/assignments/${aId}/start`,
+      cookies: { pide_session: studentCookie },
+      payload: { projectId: "p-does-not-exist-for-student" },
+    });
+    expect(res.statusCode).toBe(404);
+    expect(res.json().error).toBe("No such project.");
+  });
+});
+
+describe("GET /api/assignments/:id — starterSeed and myWork", () => {
+  let seedAssignmentId: string;
+  let seedTeacherProjectId: string;
+  let seedStudentProjectId: string;
+  let studentId: string;
+
+  beforeAll(async () => {
+    const [teacherRow] = await testDb.select().from(users).where(eq(users.email, "ateach@example.com"));
+    const [studentRow] = await testDb.select().from(users).where(eq(users.email, "akid@example.com"));
+    studentId = studentRow.id;
+
+    seedTeacherProjectId = "p-seed-teacher-project";
+    await testDb.insert(projects).values({
+      id: seedTeacherProjectId,
+      ownerId: teacherRow.id,
+      title: "Seed Source",
+      goal: "datascience",
+      projectType: "block_template",
+      manifest: {
+        schemaVersion: 2,
+        id: "m-seed",
+        title: "Seed Source",
+        goal: "datascience",
+        projectType: "block_template",
+        preferredEditor: "blocks",
+        workspace: { xml: "<xml>seed</xml>" },
+        source: { python: "" },
+      },
+      clientUpdatedAt: Date.now(),
+    });
+
+    const draftRes = await app.inject({
+      method: "POST",
+      url: `/api/classes/${classId}/assignments`,
+      cookies: { pide_session: teacherCookie },
+      payload: { title: "Seeded Assignment" },
+    });
+    seedAssignmentId = draftRes.json().assignment.id;
+    await app.inject({
+      method: "POST",
+      url: `/api/assignments/${seedAssignmentId}/starter`,
+      cookies: { pide_session: teacherCookie },
+      payload: { projectId: seedTeacherProjectId },
+    });
+    await app.inject({
+      method: "POST",
+      url: `/api/assignments/${seedAssignmentId}/publish`,
+      cookies: { pide_session: teacherCookie },
+    });
+  });
+
+  test("starterSeed is present for a student before they start, derived from the starter manifest", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/assignments/${seedAssignmentId}`,
+      cookies: { pide_session: studentCookie },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json().assignment;
+    expect(body.myWork).toBeNull();
+    expect(body.starterSeed).toEqual({
+      goal: "datascience",
+      workspaceXml: "<xml>seed</xml>",
+      python: "",
+      preferredEditor: "blocks",
+    });
+    // Students now get their own rules too (only the teacher LIST omits them).
+    expect(body.rules).toBeDefined();
+  });
+
+  test("starterSeed disappears and myWork reflects the row once the student has started", async () => {
+    seedStudentProjectId = "p-seed-student-copy";
+    await testDb.insert(projects).values({
+      id: seedStudentProjectId,
+      ownerId: studentId,
+      title: "My Copy",
+      goal: "datascience",
+      projectType: "block_template",
+      manifest: { schemaVersion: 2, marker: "student-copy" },
+      clientUpdatedAt: Date.now(),
+    });
+
+    const start = await app.inject({
+      method: "POST",
+      url: `/api/assignments/${seedAssignmentId}/start`,
+      cookies: { pide_session: studentCookie },
+      payload: { projectId: seedStudentProjectId },
+    });
+    expect(start.statusCode).toBe(201);
+
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/assignments/${seedAssignmentId}`,
+      cookies: { pide_session: studentCookie },
+    });
+    const body = res.json().assignment;
+    expect(body.starterSeed).toBeNull();
+    expect(body.myWork).toEqual({
+      projectId: seedStudentProjectId,
+      startedAt: expect.any(Number),
+    });
   });
 });
