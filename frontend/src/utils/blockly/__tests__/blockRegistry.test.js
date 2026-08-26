@@ -236,4 +236,41 @@ describe("buildToolboxXml goal filtering", () => {
     }
     expect(xml).not.toMatch(/colour="#/);
   });
+
+  // Task 12: advancedBlocks:false (a locked assignment's WorkspaceRules) —
+  // display-time only, so this is buildToolboxXml's own concern, not the
+  // registry's. hideAdvanced defaults to false: every assertion above this
+  // point already proves the unfiltered case is untouched.
+  describe("hideAdvanced (Task 12 — advancedBlocks:false)", () => {
+    test("drops the Advanced drawer and every block inside it", () => {
+      const xml = buildToolboxXml("physics", true);
+      expect(xml).not.toContain('name="Advanced"');
+      // Its children — the categories nested inside the drawer — go with it.
+      for (const name of ["3D Math", "Raw Python", "Loops", "Text", "Lists", "Functions"]) {
+        expect(xml, name).not.toContain(`name="${name}"`);
+      }
+      for (const type of ["vector_compose_block", "python_raw_block", "controls_repeat_ext", "text_join", "lists_create_with"]) {
+        expect(xml, type).not.toContain(`type="${type}"`);
+      }
+    });
+
+    test("leaves every other category standing — filtering is scoped to the one drawer", () => {
+      const xml = buildToolboxXml("physics", true);
+      for (const name of ["Values", "Objects", "Motion", "State", "Control", "Logic", "Math"]) {
+        expect(xml, name).toContain(`name="${name}"`);
+      }
+    });
+
+    test("hideAdvanced defaults to false — the drawer stays unless a rule says otherwise", () => {
+      expect(buildToolboxXml("physics")).toContain('name="Advanced"');
+      expect(buildToolboxXml("physics", false)).toContain('name="Advanced"');
+    });
+
+    test("works alongside goal filtering — a hybrid toolbox still loses Advanced", () => {
+      const xml = buildToolboxXml("hybrid", true);
+      expect(xml).not.toContain('name="Advanced"');
+      expect(xml).toContain('name="Data Science"'); // goal filtering is untouched
+      expect(xml).toContain('name="Objects"');
+    });
+  });
 });

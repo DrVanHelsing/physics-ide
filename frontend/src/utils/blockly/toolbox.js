@@ -451,9 +451,14 @@ export const MASTER_TOOLBOX_XML = `
 </xml>`;
 
 /* ──────────────────────────────────────────────────────────────
-   buildToolboxXml(goal) — filter the master to one goal.
+   buildToolboxXml(goal, hideAdvanced) — filter the master to one goal, and
+   (Task 12) optionally drop the Advanced drawer entirely for a workspace
+   whose assignment rules say advancedBlocks:false. Display-time only — the
+   block registry itself is untouched, so npm run check:blocks stays green;
+   a block already placed on the canvas from before the rule applied still
+   runs, it just can't be dragged back in from the toolbox.
    ────────────────────────────────────────────────────────────── */
-export function buildToolboxXml(goal = "physics") {
+export function buildToolboxXml(goal = "physics", hideAdvanced = false) {
   // No DOM available (shouldn't happen in browser/jsdom) → ship master as-is.
   if (typeof DOMParser === "undefined") return MASTER_TOOLBOX_XML;
 
@@ -475,6 +480,16 @@ export function buildToolboxXml(goal = "physics") {
     if (!domainAllowedForGoal(goal, blockDomain(type))) {
       el.remove();
     }
+  }
+
+  // 1b) A locked assignment drops the Advanced drawer and everything in it,
+  // found by its `name` attribute — never by position, since goal filtering
+  // above may already have shifted where it sits among its siblings.
+  if (hideAdvanced) {
+    const advanced = [...doc.querySelectorAll("category")].find(
+      (cat) => cat.getAttribute("name") === "Advanced",
+    );
+    if (advanced) advanced.remove();
   }
 
   // 2) Prune categories (bottom-up) that hold no blocks and aren't dynamic.

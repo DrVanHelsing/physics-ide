@@ -330,6 +330,10 @@ function BlocklyWorkspace({
   breakpoints = EMPTY_BREAKPOINTS,
   breakableIds,
   executingBlockId = null,
+  /* Task 12: advancedBlocks:false from the active assignment's workspace
+     rules. IDELayout threads it down the same way it threads debugMode —
+     display-time only, filtered into buildToolboxXml(). */
+  hideAdvanced = false,
 }) {
   const hostRef = useRef(null);
   const workspaceRef = useRef(null);
@@ -341,10 +345,12 @@ function BlocklyWorkspace({
   const initialZoomRef = useRef(initialZoom);
   const goalRef = useRef(goal);
   const isDarkRef = useRef(isDark);
+  const hideAdvancedRef = useRef(hideAdvanced);
   onReadyRef.current = onWorkspaceReady;
   onChangeRef.current = onWorkspaceChange;
   goalRef.current = goal;
   isDarkRef.current = isDark;
+  hideAdvancedRef.current = hideAdvanced;
   const onCountRef = useRef(onBlockCountChange);
   onCountRef.current = onBlockCountChange;
   const onScaleRef = useRef(onScaleChange);
@@ -386,7 +392,7 @@ function BlocklyWorkspace({
     let workspace;
     try {
       workspace = Blockly.inject(hostRef.current, {
-        toolbox: buildToolboxXml(goalRef.current),
+        toolbox: buildToolboxXml(goalRef.current, hideAdvancedRef.current),
         theme,
         comments: true,
         trashcan: false,
@@ -640,18 +646,23 @@ function BlocklyWorkspace({
     }
   }, [executingBlockId, debugMode]);
 
-  /* ── Rebuild the toolbox when the project goal changes ─── */
+  /* ── Rebuild the toolbox when the project goal changes, or when the
+     assignment's advancedBlocks rule (re)resolves ── AssignmentContext's own
+     docs: a cached record is served after mount, so hideAdvanced can still
+     be false at the moment this component first injects the toolbox — this
+     effect is what corrects it once the real rules arrive, exactly like the
+     goal-change rebuild it already shared this job with. */
   useEffect(() => {
     const ws = workspaceRef.current;
     if (!ws) return;
     try {
-      ws.updateToolbox(buildToolboxXml(goal));
+      ws.updateToolbox(buildToolboxXml(goal, hideAdvanced));
       decorateToolboxRows(ws);
       greyOrphanedBlocks(ws);
     } catch (e) {
       console.warn("BlocklyWorkspace: could not rebuild toolbox for goal", goal, e);
     }
-  }, [goal]);
+  }, [goal, hideAdvanced]);
 
   /* ── React to theme changes ────────────────────────────── */
   useEffect(() => {
