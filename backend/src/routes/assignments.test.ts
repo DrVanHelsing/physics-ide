@@ -1,11 +1,13 @@
 import { describe, test, expect, beforeAll, afterAll } from "vitest";
 import argon2 from "argon2";
+import crypto from "node:crypto";
 import { eq } from "drizzle-orm";
 import { BUILT_IN_RULE_SETS } from "@physics-ide/shared";
 import { buildApp } from "../app.js";
 import { testDb, testPool, truncateAuthTables } from "../db/testClient.js";
 import { setSetting } from "../db/settings.js";
-import { users, classMembers, assignments, events, projects, submissions, assignmentWork, marks } from "../db/schema.js";
+import { users, classMembers, assignments, events, projects, submissions, assignmentWork, marks, emails } from "../db/schema.js";
+import { stableStringify } from "./projects.js";
 
 const app = buildApp({ db: testDb });
 let teacherCookie: string;
@@ -834,6 +836,377 @@ describe("GET /api/assignments/:id — starterSeed and myWork", () => {
       projectId: seedStudentProjectId,
       startedAt: expect.any(Number),
     });
+  });
+});
+
+describe("POST /api/assignments/:id/submit", () => {
+  // A dedicated class AND a dedicated student — the shared top-level
+  // `classId`/`akid@example.com` pair is asserted against by the /upcoming
+  // describe block below (dueSoon/recentFeedback), and a late-window or
+  // overdue assignment submitted here would leak into those counts (a
+  // late_window assignment is a dueSoon candidate regardless of the 14-day
+  // window). Shadowing `studentCookie`/`studentId` here keeps every helper
+  // and test below unchanged while pointing them at the isolated account.
+  let submitClassId: string;
+  let studentId: string;
+  let studentCookie: string;
+
+  function fingerprintOf(manifest: unknown): string {
+    return crypto.createHash("sha256").update(stableStringify(manifest)).digest("hex");
+  }
+
+  async function createPublished(payload: Record<string, unknown>) {
+    const draftRes = await app.inject({
+      method: "POST",
+      url: `/api/classes/${submitClassId}/assignments`,
+      cookies: { pide_session: teacherCookie },
+      payload,
+    });
+    return draftRes.json().assignment.id;
+  }
+
+  async function publish(id: string) {
+    await app.inject({
+      method: "POST",
+      url: `/api/assignments/${id}/publish`,
+      cookies: { pide_session: teacherCookie },
+    });
+  }
+
+  async function pushAndStart(assignmentId: string, projectId: string, manifest: Record<string, unknown>) {
+    await testDb.insert(projects).values({
+      id: projectId,
+      ownerId: studentId,
+      title: "My Copy",
+      goal: "physics",
+      projectType: "physics",
+      manifest,
+      clientUpdatedAt: Date.now(),
+    });
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/assignments/${assignmentId}/start`,
+      cookies: { pide_session: studentCookie },
+      payload: { projectId },
+    });
+    expect(res.statusCode).toBe(201);
+  }
+
+  beforeAll(async () => {
+    const student = await makeUser("submitkid@example.com");
+    studentId = student.id;
+    studentCookie = await signin("submitkid@example.com");
+
+    const classRes = await app.inject({
+      method: "POST",
+      url: "/api/classes",
+      cookies: { pide_session: teacherCookie },
+      payload: { name: "Submit Test Class" },
+    });
+    submitClassId = classRes.json().class.id;
+    await testDb
+      .insert(classMembers)
+      .values({ classId: submitClassId, userId: studentId, role: "student", status: "active" });
+  });
+
+  test("submit before start -> 400", async () => {
+    const id = await createPublished({ title: "Submit Before Start" });
+    await publish(id);
+
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/assignments/${id}/submit`,
+      cookies: { pide_session: studentCookie },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toBe("Start this assignment before submitting.");
+  });
+
+  test("submit snapshots the current server-head manifest of the linked project, fingerprinted with stableStringify", async () => {
+    const id = await createPublished({ title: "Snapshot Test" });
+    await publish(id);
+    const projectId = "p-submit-snapshot";
+    const manifest = { schemaVersion: 2, marker: "server-head", nested: { b: 2, a: 1 } };
+    await pushAndStart(id, projectId, manifest);
+
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/assignments/${id}/submit`,
+      cookies: { pide_session: studentCookie },
+    });
+    expect(res.statusCode).toBe(201);
+    const body = res.json().submission;
+    expect(body.attempt).toBe(1);
+    expect(body.late).toBe(false);
+    expect(body.fingerprint).toBe(fingerprintOf(manifest));
+    expect(typeof body.submittedAt).toBe("number");
+
+    const [row] = await testDb
+      .select()
+      .from(submissions)
+      .where(eq(submissions.id, body.id));
+    expect(row.manifest).toEqual(manifest);
+    expect(row.fingerprint).toBe(fingerprintOf(manifest));
+    expect(row.isCurrent).toBe(true);
+    expect(row.submitterId).toBe(studentId);
+    expect(row.creditedIds).toEqual([studentId]);
+  });
+
+  test("resubmit flips isCurrent off the previous attempt and increments attempt", async () => {
+    const id = await createPublished({ title: "Resubmit Test" });
+    await publish(id);
+    const projectId = "p-resubmit";
+    const manifestV1 = { schemaVersion: 2, marker: "v1" };
+    await pushAndStart(id, projectId, manifestV1);
+
+    const first = await app.inject({
+      method: "POST",
+      url: `/api/assignments/${id}/submit`,
+      cookies: { pide_session: studentCookie },
+    });
+    expect(first.statusCode).toBe(201);
+    expect(first.json().submission.attempt).toBe(1);
+    const firstId = first.json().submission.id;
+
+    // The project's own server head moves between attempts, same as a real
+    // edit-then-resubmit — submit always reads whatever is there NOW.
+    const manifestV2 = { schemaVersion: 2, marker: "v2" };
+    await testDb
+      .update(projects)
+      .set({ manifest: manifestV2 })
+      .where(eq(projects.id, projectId));
+
+    const second = await app.inject({
+      method: "POST",
+      url: `/api/assignments/${id}/submit`,
+      cookies: { pide_session: studentCookie },
+    });
+    expect(second.statusCode).toBe(201);
+    expect(second.json().submission.attempt).toBe(2);
+    expect(second.json().submission.fingerprint).toBe(fingerprintOf(manifestV2));
+
+    const rows = await testDb.select().from(submissions).where(eq(submissions.assignmentId, id));
+    expect(rows).toHaveLength(2);
+    const firstRow = rows.find((r) => r.id === firstId)!;
+    const secondRow = rows.find((r) => r.id === second.json().submission.id)!;
+    expect(firstRow.isCurrent).toBe(false);
+    expect(secondRow.isCurrent).toBe(true);
+  });
+
+  test("submit inside the late window sets late: true", async () => {
+    const now = Date.now();
+    const id = await createPublished({
+      title: "Late Window Submit",
+      dueAt: now - 1000,
+      lateUntil: now + 10 * 60 * 1000,
+    });
+    await publish(id);
+    const projectId = "p-late-window";
+    await pushAndStart(id, projectId, { schemaVersion: 2, marker: "late" });
+
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/assignments/${id}/submit`,
+      cookies: { pide_session: studentCookie },
+    });
+    expect(res.statusCode).toBe(201);
+    expect(res.json().submission.late).toBe(true);
+
+    const [row] = await testDb.select().from(submissions).where(eq(submissions.id, res.json().submission.id));
+    expect(row.late).toBe(true);
+  });
+
+  test("after lateUntil -> 400 (\"The due date has passed.\")", async () => {
+    // /start itself refuses outside open/late_window, so the assignment has
+    // to be started while its dates still allow that, then moved into the
+    // past — the same "closed later, was open when the student began" shape
+    // a real overdue assignment has.
+    const id = await createPublished({ title: "Past Late Until" });
+    await publish(id);
+    const projectId = "p-past-late-until";
+    await pushAndStart(id, projectId, { schemaVersion: 2, marker: "too-late" });
+
+    const now = Date.now();
+    const patch = await app.inject({
+      method: "PATCH",
+      url: `/api/assignments/${id}`,
+      cookies: { pide_session: teacherCookie },
+      payload: { dueAt: now - 20 * 60 * 1000, lateUntil: now - 10 * 60 * 1000 },
+    });
+    expect(patch.statusCode).toBe(200);
+
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/assignments/${id}/submit`,
+      cookies: { pide_session: studentCookie },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toBe("The due date has passed.");
+  });
+
+  test("the receipt lands in the emails table addressed to the submitter", async () => {
+    const id = await createPublished({ title: "Receipt Test" });
+    await publish(id);
+    const projectId = "p-receipt";
+    await pushAndStart(id, projectId, { schemaVersion: 2, marker: "receipt" });
+
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/assignments/${id}/submit`,
+      cookies: { pide_session: studentCookie },
+    });
+    expect(res.statusCode).toBe(201);
+    const { fingerprint, attempt } = res.json().submission;
+
+    const rows = await testDb
+      .select()
+      .from(emails)
+      .where(eq(emails.toUserId, studentId));
+    const receipt = rows.find((r) => r.template === "submission-receipt" && r.subject.includes("Receipt Test"));
+    expect(receipt).toBeDefined();
+    expect(receipt!.toEmail).toBe("submitkid@example.com");
+    expect(receipt!.bodyText).toContain(fingerprint);
+    expect(receipt!.bodyText).toContain(String(attempt));
+  });
+
+  test("a student with a RETURNED, unreleased mark may resubmit even while the assignment is manually closed (fiat D§11.2)", async () => {
+    const id = await createPublished({ title: "Returned Mark Reopen" });
+    await publish(id);
+    const projectId = "p-returned-reopen";
+    await pushAndStart(id, projectId, { schemaVersion: 2, marker: "reopen" });
+
+    await app.inject({
+      method: "POST",
+      url: `/api/assignments/${id}/close`,
+      cookies: { pide_session: teacherCookie },
+    });
+
+    // Closed, no returned mark yet -> still refused.
+    const stillClosed = await app.inject({
+      method: "POST",
+      url: `/api/assignments/${id}/submit`,
+      cookies: { pide_session: studentCookie },
+    });
+    expect(stillClosed.statusCode).toBe(400);
+    expect(stillClosed.json().error).toBe("This assignment is closed.");
+
+    // Task 18 doesn't exist yet — a returned, unreleased mark row is seeded
+    // directly, exactly as the brief calls for.
+    await testDb.insert(marks).values({
+      assignmentId: id,
+      studentId,
+      points: null,
+      status: "draft",
+      returned: true,
+      markedBy: studentId,
+    });
+
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/assignments/${id}/submit`,
+      cookies: { pide_session: studentCookie },
+    });
+    expect(res.statusCode).toBe(201);
+    expect(res.json().submission.attempt).toBe(1);
+  });
+
+  test("a non-member 403s", async () => {
+    const id = await createPublished({ title: "Non Member Submit" });
+    await publish(id);
+
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/assignments/${id}/submit`,
+      cookies: { pide_session: strangerCookie },
+    });
+    expect(res.statusCode).toBe(403);
+    expect(res.json().error).toBe("Not a member of this class.");
+  });
+});
+
+describe("GET /api/assignments/:id/my-submission", () => {
+  let studentId: string;
+
+  beforeAll(async () => {
+    const [studentRow] = await testDb.select().from(users).where(eq(users.email, "akid@example.com"));
+    studentId = studentRow.id;
+  });
+
+  test("no submission yet -> { submission: null }", async () => {
+    const draftRes = await app.inject({
+      method: "POST",
+      url: `/api/classes/${classId}/assignments`,
+      cookies: { pide_session: teacherCookie },
+      payload: { title: "No Submission Yet" },
+    });
+    const id = draftRes.json().assignment.id;
+    await app.inject({
+      method: "POST",
+      url: `/api/assignments/${id}/publish`,
+      cookies: { pide_session: teacherCookie },
+    });
+
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/assignments/${id}/my-submission`,
+      cookies: { pide_session: studentCookie },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ submission: null });
+  });
+
+  test("a current submission is returned; a superseded one is not", async () => {
+    const draftRes = await app.inject({
+      method: "POST",
+      url: `/api/classes/${classId}/assignments`,
+      cookies: { pide_session: teacherCookie },
+      payload: { title: "My Submission Round Trip" },
+    });
+    const id = draftRes.json().assignment.id;
+    await app.inject({
+      method: "POST",
+      url: `/api/assignments/${id}/publish`,
+      cookies: { pide_session: teacherCookie },
+    });
+    const projectId = "p-my-submission";
+    await testDb.insert(projects).values({
+      id: projectId,
+      ownerId: studentId,
+      title: "My Copy",
+      goal: "physics",
+      projectType: "physics",
+      manifest: { schemaVersion: 2, marker: "my-submission" },
+      clientUpdatedAt: Date.now(),
+    });
+    await app.inject({
+      method: "POST",
+      url: `/api/assignments/${id}/start`,
+      cookies: { pide_session: studentCookie },
+      payload: { projectId },
+    });
+    const submitRes = await app.inject({
+      method: "POST",
+      url: `/api/assignments/${id}/submit`,
+      cookies: { pide_session: studentCookie },
+    });
+    expect(submitRes.statusCode).toBe(201);
+
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/assignments/${id}/my-submission`,
+      cookies: { pide_session: studentCookie },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().submission).toEqual(submitRes.json().submission);
+  });
+
+  test("a non-member 403s", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/assignments/${assignmentId}/my-submission`,
+      cookies: { pide_session: strangerCookie },
+    });
+    expect(res.statusCode).toBe(403);
   });
 });
 

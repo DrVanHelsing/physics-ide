@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { and, eq, gte, inArray, sql } from "drizzle-orm";
+import crypto from "node:crypto";
 import {
   CreateAssignmentInputSchema,
   UpdateAssignmentInputSchema,
@@ -24,6 +25,8 @@ import {
 } from "../classes/guards.js";
 import { logEvent } from "../db/events.js";
 import type { Db } from "../db/types.js";
+import { stableStringify } from "./projects.js";
+import { submissionReceipt } from "../email/templates.js";
 
 type AssignmentRow = typeof assignments.$inferSelect;
 
@@ -33,6 +36,9 @@ const TEACHERS_ONLY = "Teachers only.";
 const STARTER_LOCKED = "This assignment already has submissions — the starter is a starting point, not a mid-flight swap.";
 const NOT_OPEN = "This assignment is not open.";
 const NO_SUCH_PROJECT = "No such project.";
+const NOT_STARTED = "Start this assignment before submitting.";
+const DUE_DATE_PASSED = "The due date has passed.";
+const ASSIGNMENT_CLOSED = "This assignment is closed.";
 
 function toEpoch(d: Date | null): number | null {
   return d ? d.getTime() : null;
@@ -123,6 +129,61 @@ async function myWorkFor(
     .where(and(eq(assignmentWork.assignmentId, assignmentId), eq(assignmentWork.userId, userId)));
   const row = rows[0];
   return row ? { projectId: row.projectId, startedAt: row.startedAt.getTime() } : null;
+}
+
+/** The caller's full assignment_work row (not just the projectId/startedAt
+ *  pair myWorkFor hands back) — submit needs ownerId too, to look up the
+ *  linked project's current server-head row. */
+async function myWorkRowFor(
+  db: Db,
+  assignmentId: string,
+  userId: string,
+): Promise<typeof assignmentWork.$inferSelect | null> {
+  const rows = await db
+    .select()
+    .from(assignmentWork)
+    .where(and(eq(assignmentWork.assignmentId, assignmentId), eq(assignmentWork.userId, userId)));
+  return rows[0] ?? null;
+}
+
+/** Fiat D§11.2: a returned, unreleased mark reopens submission for that one
+ *  student regardless of Closed — the teacher's Return is the authority,
+ *  until marks release (computeAssignmentPhase then reads marks_released,
+ *  which this override deliberately does not touch). Task 18 is what
+ *  actually WRITES a returned mark; this branch just has to be ready. */
+async function returnedUnreleasedMarkExists(db: Db, assignmentId: string, studentId: string): Promise<boolean> {
+  const rows = await db
+    .select({ id: marks.id })
+    .from(marks)
+    .where(
+      and(
+        eq(marks.assignmentId, assignmentId),
+        eq(marks.studentId, studentId),
+        eq(marks.returned, true),
+        eq(marks.status, "draft"),
+      ),
+    )
+    .limit(1);
+  return rows.length > 0;
+}
+
+/** The two honest sentences a refused submit can show. Only the "closed"
+ *  phase (not marks_released, and not the unreachable-post-start
+ *  scheduled/draft cases) splits by cause: a teacher's manual Close, or the
+ *  due date + late window simply having elapsed on their own. */
+function submitRefusalMessage(a: AssignmentRow, phase: string, now: Date): string {
+  if (phase === "closed" && !(a.closedAt && a.closedAt <= now)) return DUE_DATE_PASSED;
+  return ASSIGNMENT_CLOSED;
+}
+
+function toSubmissionSummary(row: typeof submissions.$inferSelect) {
+  return {
+    id: row.id,
+    fingerprint: row.fingerprint,
+    late: row.late,
+    attempt: row.attempt,
+    submittedAt: row.createdAt.getTime(),
+  };
 }
 
 /** D§2's four seed fields, never the raw manifest — derived from the
@@ -662,6 +723,134 @@ export function assignmentRoutes(app: FastifyInstance): void {
       .sort((x, y) => (y.releasedAt ?? 0) - (x.releasedAt ?? 0));
 
     return { dueSoon, recentFeedback };
+  });
+
+  /* ── Task 14: submit ── */
+  // The frozen snapshot: submit reads the caller's LINKED project's current
+  // server-head manifest (never a client-uploaded copy — the client pushes
+  // first, per the design, so the server head already IS what the student
+  // sees by the time this runs), fingerprints it, and files it as the new
+  // current attempt in one transaction. Individual submission mode only —
+  // group crediting is Stage D (design §9); creditedIds is `[callerId]` with
+  // that noted below rather than silently half-implemented.
+
+  app.post("/api/assignments/:id/submit", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const a = await loadAssignment(app.db, id);
+    if (!a) return reply.code(404).send({ error: NO_SUCH_ASSIGNMENT });
+    const m = await getMembership(app.db, a.classId, req.user!.id);
+    if (!m || m.status !== "active") {
+      return reply.code(403).send({ error: NOT_A_MEMBER });
+    }
+
+    const work = await myWorkRowFor(app.db, id, req.user!.id);
+    if (!work) return reply.code(400).send({ error: NOT_STARTED });
+
+    const now = new Date();
+    const phase = computeAssignmentPhase(a, now);
+    let allowed = phase === "open" || phase === "late_window";
+    if (!allowed && phase === "closed") {
+      // Fiat D§11.2 — a returned, unreleased mark reopens work for this
+      // student regardless of Closed, until marks release.
+      allowed = await returnedUnreleasedMarkExists(app.db, id, req.user!.id);
+    }
+    if (!allowed) {
+      return reply.code(400).send({ error: submitRefusalMessage(a, phase, now) });
+    }
+
+    // Fiat D§11.4 — late is computed against the dates in force AT SUBMIT
+    // TIME (the `a` row was just loaded fresh above), never retroactively
+    // re-stamped if the teacher moves dates later.
+    const late = a.dueAt != null && now.getTime() >= a.dueAt.getTime();
+
+    const projectRows = await app.db
+      .select()
+      .from(projects)
+      .where(and(eq(projects.ownerId, work.ownerId), eq(projects.id, work.projectId)));
+    const project = projectRows[0];
+    if (!project) return reply.code(404).send({ error: NO_SUCH_PROJECT });
+
+    const manifest = project.manifest;
+    const fingerprint = crypto.createHash("sha256").update(stableStringify(manifest)).digest("hex");
+
+    const created = await app.db.transaction(async (tx) => {
+      const priorRows = await tx
+        .select()
+        .from(submissions)
+        .where(and(eq(submissions.assignmentId, id), eq(submissions.submitterId, req.user!.id)));
+      const maxAttempt = priorRows.reduce((max, r) => Math.max(max, r.attempt), 0);
+      const currentRow = priorRows.find((r) => r.isCurrent);
+      if (currentRow) {
+        await tx.update(submissions).set({ isCurrent: false }).where(eq(submissions.id, currentRow.id));
+      }
+      const [row] = await tx
+        .insert(submissions)
+        .values({
+          assignmentId: id,
+          submitterId: req.user!.id,
+          submittedBy: req.user!.id,
+          // Individual work only for now — every group member gets credited
+          // once Stage D's group support lands (design §9).
+          creditedIds: [req.user!.id],
+          manifest,
+          fingerprint,
+          late,
+          isCurrent: true,
+          attempt: maxAttempt + 1,
+        })
+        .returning();
+      await logEvent(tx, "assignment.submitted", req.user!.id, {
+        assignmentId: id,
+        submissionId: row.id,
+        attempt: row.attempt,
+        late,
+      });
+      return row;
+    });
+
+    const classRows = await app.db.select({ name: classes.name }).from(classes).where(eq(classes.id, a.classId));
+    const mail = submissionReceipt({
+      title: a.title,
+      className: classRows[0]?.name ?? "",
+      submittedAt: now.toISOString(),
+      attempt: created.attempt,
+      fingerprint: created.fingerprint,
+    });
+    // Individual submission: the submitter is the sole credited recipient —
+    // one email per credited user, same as every other credited-recipient
+    // template; groups (every member) arrive with Stage D.
+    await app.mailer.send({
+      to: req.user!.email,
+      toUserId: req.user!.id,
+      template: "submission-receipt",
+      ...mail,
+    });
+
+    return reply.code(201).send({ submission: toSubmissionSummary(created) });
+  });
+
+  // The caller's own current submission, if any — read-only, no class-teacher
+  // gate (every confirmed member reads their own row, same posture as the
+  // upcoming strip above).
+  app.get("/api/assignments/:id/my-submission", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const a = await loadAssignment(app.db, id);
+    if (!a) return reply.code(404).send({ error: NO_SUCH_ASSIGNMENT });
+    const m = await getMembership(app.db, a.classId, req.user!.id);
+    if (!m || m.status !== "active") {
+      return reply.code(403).send({ error: NOT_A_MEMBER });
+    }
+    const rows = await app.db
+      .select()
+      .from(submissions)
+      .where(
+        and(
+          eq(submissions.assignmentId, id),
+          eq(submissions.submitterId, req.user!.id),
+          eq(submissions.isCurrent, true),
+        ),
+      );
+    return { submission: rows[0] ? toSubmissionSummary(rows[0]) : null };
   });
 }
 

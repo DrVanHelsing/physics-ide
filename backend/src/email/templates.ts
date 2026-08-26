@@ -76,3 +76,31 @@ Join here: ${p.joinUrl}
 If you don't have an account yet, the link will walk you through signing up first.`,
   };
 }
+
+/** The submission receipt — spec §6.4/design D§11.6: the fingerprint here
+ *  IS the dispute authority, so it always renders in full (never truncated,
+ *  the way the UI's own success alert shortens it for display). */
+export function submissionReceipt(p: {
+  title: string;
+  className: string;
+  submittedAt: string;
+  attempt: number;
+  fingerprint: string;
+}) {
+  // Same CRLF-strip as classInvite — title/className are teacher- or
+  // student-supplied free text, never trusted to sit unescaped in a subject.
+  const title = p.title.replace(/[\r\n]+/g, " ");
+  const className = p.className.replace(/[\r\n]+/g, " ");
+  return {
+    subject: `Submission received — ${title}`,
+    text: `Hi,
+
+Your submission for "${title}" (${className}) was received.
+
+Submitted: ${p.submittedAt}
+Attempt:   ${p.attempt}
+Fingerprint: ${p.fingerprint}
+
+Keep this fingerprint — it's the record of exactly what was submitted, and the answer if there's ever a dispute about what was turned in.`,
+  };
+}

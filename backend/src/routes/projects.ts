@@ -34,7 +34,7 @@ const ManifestSchema = z
  * the freshly-parsed incoming one could report "different" for two objects that are
  * actually equal — this comparison is immune to that.
  */
-function stableStringify(value: unknown): string {
+export function stableStringify(value: unknown): string {
   if (Array.isArray(value)) {
     return `[${value.map(stableStringify).join(",")}]`;
   }

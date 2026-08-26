@@ -141,7 +141,7 @@ async function findPendingLocalProject(assignmentId) {
   return manifest;
 }
 
-function assertPushSucceeded(engine) {
+export function assertPushSucceeded(engine) {
   const status = engine.getStatus();
   if (status.state === "error" || status.state === "offline") {
     throw new Error(PUSH_FAILED_MESSAGE);
