@@ -81,6 +81,31 @@ describe("AboutPage — /about", () => {
     expect(text).not.toMatch(/gradebook (is|lets|gives|includes)/i);
     expect(text).toMatch(/designed but not shipped/);
   });
+
+  test("accessibility section is present with WCAG AA floor commitment", () => {
+    const container = render(<AboutPage />);
+    const text = container.textContent.replace(/\s+/g, " ");
+    // Verify the h2 exists
+    const h2s = container.querySelectorAll("h2");
+    const accessibilityH2 = [...h2s].find((h) => h.textContent === "Accessibility");
+    expect(accessibilityH2).toBeTruthy();
+    // Lock a signature sentence from the accessibility section
+    expect(text).toContain("the test suite holds every generated block colour to the WCAG AA floor");
+  });
+
+  test("new content covers class roles, guest import, and local-first dependency", () => {
+    const container = render(<AboutPage />);
+    const text = container.textContent.replace(/\s+/g, " ");
+    // Roles and join policies
+    expect(text).toContain("Five roles exist across the system");
+    expect(text).toContain("short join code");
+    expect(text).toContain("three join policies");
+    // Guest import and limits
+    expect(text).toContain("Signing up after working as a guest");
+    expect(text).toContain("100 projects per account");
+    // Local-first dependency
+    expect(text).toContain("no bill whose failure could switch anything off");
+  });
 });
 
 describe("ContactPage — /contact", () => {
