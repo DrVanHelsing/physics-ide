@@ -55,8 +55,17 @@ describe("welcome.css — built from the ramp, not from pixels", () => {
 
   test("reduced motion is handled, and degrades rather than deletes", () => {
     expect(CSS).toMatch(/@media \(prefers-reduced-motion: reduce\)/);
-    // The orbit keeps its shape; only the spin stops.
-    expect(CSS).toMatch(/animation:\s*none/);
+    /* v2: the decorative orbit (a CSS @keyframes animation, degraded here
+       via `animation: none`) retired with the rest of the old hero — the
+       promoted hero canvas is rAF-driven, not CSS-animated, so its own
+       degradation is a JS-side check (GravityPlayground.js's
+       prefersReducedMotion(), read once at mount, decides whether the
+       render loop starts at all). This file's own share of the RM
+       discipline is the transitions below still degrading in the usual
+       way — a new exemption idiom this welcomeTokens.test.js file update
+       is the brief's own "touch only if the hero pattern genuinely needs
+       it" case. */
+    expect(CSS).toMatch(/transition:\s*none/);
   });
 
   test("the page has small-screen handling at all — it had none before", () => {
@@ -84,8 +93,17 @@ describe("welcome.css — built from the ramp, not from pixels", () => {
     expect(CSS).not.toMatch(/\.welcome-btn\b/);
   });
 
-  test("the slider is the shared .range primitive, not a bare input[type=range]", () => {
-    expect(CSS).toMatch(/\.welcome-playground__controls \.range\b/);
+  /* v2: the boxed "try it" playground — slider, Play/Pause, gravity presets
+     — retired in full when GravityPlayground.js was promoted into the
+     hero's own full-bleed, ambient canvas (redesign brief: "no slider, no
+     play/pause, no presets ... this is decoration behind a title, not a
+     control panel"). .welcome-playground__controls and the .range slider
+     it hosted no longer exist anywhere on the page, so the two locks below
+     — one for each shape the removed markup could have regressed back
+     into — replace the old "is the shared .range primitive" positive
+     assertion. */
+  test("the retired playground's boxed controls do not come back", () => {
+    expect(CSS).not.toMatch(/\.welcome-playground__controls\b/);
     expect(CSS).not.toMatch(/input\[type="range"\]/);
   });
 });
