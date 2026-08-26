@@ -9,17 +9,45 @@ import { MAX_INSTRUCTIONS_IMAGE_BYTES } from "@physics-ide/shared";
  * module (and every package it imports) is teacher-only weight; nothing
  * here may be imported eagerly by any student-facing screen.
  *
- * Its node vocabulary is a strict contract with InstructionsView.js
- * (Task 6, the read-only renderer): `youtube` emits exactly
+ * Its node/mark vocabulary is a strict contract with InstructionsView.js
+ * (Task 6, the read-only renderer) — the editor must never be able to
+ * produce vocabulary the renderer drops. `youtube` emits exactly
  * `{type:"youtube", attrs:{src}}` and `math` emits exactly
  * `{type:"math", attrs:{latex}}`, the same shapes that renderer's switch
- * matches on. StarterKit + `@tiptap/extension-image` cover every other
- * node/mark InstructionsView knows (paragraph, heading, lists, bold,
- * italic, code, image) — the renderer tolerates any node it doesn't
- * recognise (own doc comment: "Unknown node types render nothing rather
- * than throwing"), so StarterKit's few extras (blockquote, links, ...)
- * degrade gracefully there rather than needing to be pared down here.
+ * matches on.
+ *
+ * StarterKit v3 bundles more than InstructionsView renders, and unlike an
+ * unrecognised *future* node type (which the renderer's own doc comment
+ * explains it tolerates on purpose), this is *current* vocabulary the
+ * *current* renderer already can't handle — so it is disabled here rather
+ * than left to "degrade gracefully":
+ *   - `blockquote` / `codeBlock`: InstructionsView's `default: return null`
+ *     doesn't just drop styling, it drops the node's entire nested
+ *     subtree — real content loss, not a cosmetic gap.
+ *   - `link`: `renderText`'s mark loop has no `link` case, so the anchor
+ *     text survives but its `href` — the only place the destination
+ *     lived — disappears with no fallback.
+ *   - `strike` / `underline`: silently render as unstyled plain text,
+ *     losing the emphasis the author added.
+ * All five are reachable through ordinary typing (`"> "`, triple-backtick,
+ * `~~x~~`, Ctrl/Cmd+U, pasting a URL over a selection) with no toolbar
+ * button warning a teacher off them, so this isn't a corner case.
  */
+export const STARTER_KIT_OPTIONS = {
+  // The renderer steps headings down one level (attrs.level 2 -> <h3>,
+  // spec: the page's own <h2> owns the top of the hierarchy) and has no
+  // <hr> presentation at all.
+  heading: { levels: [2, 3, 4] },
+  horizontalRule: false,
+  // Bundled by @tiptap/starter-kit v3 but unsupported by InstructionsView
+  // (see the module doc comment above) — disabled so the editor cannot
+  // emit vocabulary the renderer silently drops.
+  blockquote: false,
+  codeBlock: false,
+  link: false,
+  strike: false,
+  underline: false,
+};
 
 const IMAGE_TOO_LARGE = "That image is too large (200 KB max).";
 const IMAGE_BAD_TYPE = "Images must be PNG, JPEG, or WebP.";
@@ -117,13 +145,7 @@ export default function RichTextEditor({ value, onChange }) {
 
   const editor = useEditor({
     extensions: [
-      StarterKit.configure({
-        // The renderer steps headings down one level (attrs.level 2 -> <h3>,
-        // spec: the page's own <h2> owns the top of the hierarchy) and has
-        // no <hr> presentation at all.
-        heading: { levels: [2, 3, 4] },
-        horizontalRule: false,
-      }),
+      StarterKit.configure(STARTER_KIT_OPTIONS),
       Image.configure({ allowBase64: true }),
       YoutubeNode,
       MathNode,
