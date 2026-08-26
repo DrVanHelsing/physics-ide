@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { and, eq, gte, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import crypto from "node:crypto";
 import {
   CreateAssignmentInputSchema,
@@ -39,6 +39,9 @@ const NO_SUCH_PROJECT = "No such project.";
 const NOT_STARTED = "Start this assignment before submitting.";
 const DUE_DATE_PASSED = "The due date has passed.";
 const ASSIGNMENT_CLOSED = "This assignment is closed.";
+// Same exact sentence as AssignmentPage.js's own gateSentence(phase) for the
+// Start/Continue button — the two surfaces must agree (review finding).
+const MARKS_RELEASED_CLOSED = "This assignment is closed — marks have been released.";
 
 function toEpoch(d: Date | null): number | null {
   return d ? d.getTime() : null;
@@ -167,11 +170,14 @@ async function returnedUnreleasedMarkExists(db: Db, assignmentId: string, studen
   return rows.length > 0;
 }
 
-/** The two honest sentences a refused submit can show. Only the "closed"
- *  phase (not marks_released, and not the unreachable-post-start
- *  scheduled/draft cases) splits by cause: a teacher's manual Close, or the
- *  due date + late window simply having elapsed on their own. */
+/** The honest sentences a refused submit can show. `marks_released` gets
+ *  its own (matching AssignmentPage.js's gateSentence for the Start
+ *  button — the two surfaces must agree, review finding). Only the
+ *  "closed" phase (not the unreachable-post-start scheduled/draft cases)
+ *  splits further by cause: a teacher's manual Close, or the due date +
+ *  late window simply having elapsed on their own. */
 function submitRefusalMessage(a: AssignmentRow, phase: string, now: Date): string {
+  if (phase === "marks_released") return MARKS_RELEASED_CLOSED;
   if (phase === "closed" && !(a.closedAt && a.closedAt <= now)) return DUE_DATE_PASSED;
   return ASSIGNMENT_CLOSED;
 }
@@ -763,17 +769,40 @@ export function assignmentRoutes(app: FastifyInstance): void {
     // re-stamped if the teacher moves dates later.
     const late = a.dueAt != null && now.getTime() >= a.dueAt.getTime();
 
-    const projectRows = await app.db
-      .select()
-      .from(projects)
-      .where(and(eq(projects.ownerId, work.ownerId), eq(projects.id, work.projectId)));
-    const project = projectRows[0];
-    if (!project) return reply.code(404).send({ error: NO_SUCH_PROJECT });
-
-    const manifest = project.manifest;
-    const fingerprint = crypto.createHash("sha256").update(stableStringify(manifest)).digest("hex");
-
     const created = await app.db.transaction(async (tx) => {
+      // Lock this student's assignment_work row FIRST — it becomes the
+      // serialization mutex for the whole submit critical section (same
+      // FOR UPDATE idiom as projects.ts's isAtCap). Two genuinely
+      // concurrent submits for the SAME student now execute this block
+      // ONE AT A TIME: the second blocks here until the first commits,
+      // then re-reads the now-current state — the same guarantee that
+      // makes /start's own race safe, but via a row lock instead of a
+      // unique-constraint-then-catch, since submissions carries no unique
+      // constraint to catch on (review finding: the isCurrent invariant
+      // does not self-correct without this).
+      const workRows = await tx
+        .select()
+        .from(assignmentWork)
+        .where(and(eq(assignmentWork.assignmentId, id), eq(assignmentWork.userId, req.user!.id)))
+        .for("update");
+      const lockedWork = workRows[0];
+      if (!lockedWork) return { kind: "not-started" as const };
+
+      // The server-head read happens under the SAME lock, inside the SAME
+      // transaction as the flip+insert below — "snapshots the CURRENT
+      // SERVER HEAD manifest ... inside ONE transaction" is the brief's own
+      // wording; reading it outside the tx would leave a gap where a
+      // genuinely concurrent push could land unreflected.
+      const projectRows = await tx
+        .select()
+        .from(projects)
+        .where(and(eq(projects.ownerId, lockedWork.ownerId), eq(projects.id, lockedWork.projectId)));
+      const project = projectRows[0];
+      if (!project) return { kind: "no-project" as const };
+
+      const manifest = project.manifest;
+      const fingerprint = crypto.createHash("sha256").update(stableStringify(manifest)).digest("hex");
+
       const priorRows = await tx
         .select()
         .from(submissions)
@@ -805,16 +834,22 @@ export function assignmentRoutes(app: FastifyInstance): void {
         attempt: row.attempt,
         late,
       });
-      return row;
+      return { kind: "submitted" as const, row };
     });
+
+    // Neither branch is reachable in practice today (the pre-tx checks
+    // above already proved a work row exists, and the client pushes the
+    // project before POSTing) — handled honestly rather than assumed away.
+    if (created.kind === "not-started") return reply.code(400).send({ error: NOT_STARTED });
+    if (created.kind === "no-project") return reply.code(404).send({ error: NO_SUCH_PROJECT });
 
     const classRows = await app.db.select({ name: classes.name }).from(classes).where(eq(classes.id, a.classId));
     const mail = submissionReceipt({
       title: a.title,
       className: classRows[0]?.name ?? "",
       submittedAt: now.toISOString(),
-      attempt: created.attempt,
-      fingerprint: created.fingerprint,
+      attempt: created.row.attempt,
+      fingerprint: created.row.fingerprint,
     });
     // Individual submission: the submitter is the sole credited recipient —
     // one email per credited user, same as every other credited-recipient
@@ -826,7 +861,7 @@ export function assignmentRoutes(app: FastifyInstance): void {
       ...mail,
     });
 
-    return reply.code(201).send({ submission: toSubmissionSummary(created) });
+    return reply.code(201).send({ submission: toSubmissionSummary(created.row) });
   });
 
   // The caller's own current submission, if any — read-only, no class-teacher
@@ -840,6 +875,10 @@ export function assignmentRoutes(app: FastifyInstance): void {
     if (!m || m.status !== "active") {
       return reply.code(403).send({ error: NOT_A_MEMBER });
     }
+    // Belt-and-braces ORDER BY (review finding): the isCurrent invariant is
+    // now enforced by the submit route's FOR UPDATE mutex, but this read
+    // stays deterministic even if that were ever violated — attempt DESC
+    // picks the latest, never an arbitrary row-order pick.
     const rows = await app.db
       .select()
       .from(submissions)
@@ -849,7 +888,8 @@ export function assignmentRoutes(app: FastifyInstance): void {
           eq(submissions.submitterId, req.user!.id),
           eq(submissions.isCurrent, true),
         ),
-      );
+      )
+      .orderBy(desc(submissions.attempt));
     return { submission: rows[0] ? toSubmissionSummary(rows[0]) : null };
   });
 }
