@@ -54,6 +54,7 @@ function assignmentData(overrides = {}) {
       myWork: null,
       starterSeed: null,
       hasStarter: false,
+      myMark: null,
       ...overrides,
     },
   };
@@ -185,6 +186,88 @@ describe("AssignmentPage — phase gating", () => {
     const container = render();
     const btn = byText(container, "Start work");
     expect(btn.disabled).toBe(false);
+  });
+});
+
+describe("AssignmentPage — released mark and returned state (Task 18)", () => {
+  test("no myMark -> neither the feedback card nor the returned alert render", () => {
+    const container = render();
+    expect(container.querySelector(".card")).toBeNull();
+    expect(container.querySelector(".alert.alert--warning")).toBeNull();
+  });
+
+  test("a released mark on a points-having assignment renders a .card with the score and the comment", () => {
+    useQuery.mockReturnValue({
+      data: assignmentData({
+        points: 10,
+        myMark: { points: 8, comment: "Nice work overall.", released: true, returned: false },
+      }),
+      error: null,
+      isLoading: false,
+    });
+    const container = render();
+    const card = container.querySelector(".card");
+    expect(card).not.toBeNull();
+    expect(card.textContent).toContain("Score: 8/10");
+    expect(card.textContent).toContain("Nice work overall.");
+  });
+
+  test("a released mark on a points-less assignment reads 'Marked complete.' — no score line", () => {
+    useQuery.mockReturnValue({
+      data: assignmentData({
+        points: null,
+        myMark: { points: null, comment: "", released: true, returned: false },
+      }),
+      error: null,
+      isLoading: false,
+    });
+    const container = render();
+    expect(container.querySelector(".card").textContent).toContain("Marked complete.");
+  });
+
+  test("a returned (not yet released) mark renders alert--warning with the comment and an honest 'You can resubmit.'", () => {
+    useQuery.mockReturnValue({
+      data: assignmentData({
+        points: 10,
+        myMark: { points: null, comment: "Please fix the units.", released: false, returned: true },
+      }),
+      error: null,
+      isLoading: false,
+    });
+    const container = render();
+    expect(container.querySelector(".card")).toBeNull();
+    const alert = container.querySelector(".alert.alert--warning");
+    expect(alert).not.toBeNull();
+    expect(alert.textContent).toContain("Please fix the units.");
+    expect(alert.textContent).toContain("You can resubmit.");
+  });
+
+  test("a returned, unreleased mark reopens Submit even while the assignment is closed (fiat D§11.2, mirrored client-side)", () => {
+    useQuery.mockReturnValue({
+      data: assignmentData({
+        phase: "closed",
+        myWork: { projectId: "p-1", startedAt: 1 },
+        myMark: { points: null, comment: "Please fix the units.", released: false, returned: true },
+      }),
+      error: null,
+      isLoading: false,
+    });
+    const container = render();
+    expect(byText(container, "Submit")).not.toBeNull();
+  });
+
+  test("a mark that is BOTH released and returned does NOT reopen Submit while closed — the server's reopen rule is unreleased-only", () => {
+    useQuery.mockReturnValue({
+      data: assignmentData({
+        phase: "closed",
+        myWork: { projectId: "p-1", startedAt: 1 },
+        myMark: { points: 8, comment: "Already graded.", released: true, returned: true },
+      }),
+      error: null,
+      isLoading: false,
+    });
+    const container = render();
+    expect(byText(container, "Submit")).toBeNull();
   });
 });
 

@@ -85,6 +85,45 @@ export const MarkDraftInputSchema = z.object({
   privateNote: z.string().max(5000).default(""),
 });
 
+/** Release names EITHER a list of students OR the whole assignment — never
+ *  both (the two mean different things: `all` also stamps the assignment
+ *  marks_released), never neither. An empty list stays a legal no-op: the
+ *  caller named a selection, it just happened to be empty. */
+export const MarksReleaseInputSchema = z
+  .object({
+    studentIds: z
+      .array(z.string().min(1), { invalid_type_error: "Choose which students to release marks for." })
+      .max(500, "That is too many students to release in one go.")
+      .optional(),
+    all: z.boolean({ invalid_type_error: "Release either a list of students or all of them." }).optional(),
+  })
+  .superRefine((v, ctx) => {
+    const releaseAll = v.all === true;
+    if (releaseAll && v.studentIds != null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Release either a list of students or all of them, not both.",
+      });
+    }
+    if (!releaseAll && v.studentIds == null) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Choose which students to release marks for." });
+    }
+  });
+
+/** Return-for-changes: the comment is the whole point of the action — the
+ *  student reads it in the email and on their assignment page — so it is
+ *  required, trimmed, and capped like every other mark comment. */
+export const MarkReturnInputSchema = z.object({
+  comment: z
+    .string({
+      required_error: "Say what needs to change — the student sees this.",
+      invalid_type_error: "Say what needs to change — the student sees this.",
+    })
+    .trim()
+    .min(1, "Say what needs to change — the student sees this.")
+    .max(5000, "That comment is too long."),
+});
+
 export const GuideInputSchema = z.object({
   title: z.string().trim().min(1).max(140),
   body: InstructionsDocSchema,

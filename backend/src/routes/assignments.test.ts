@@ -1,7 +1,7 @@
 import { describe, test, expect, beforeAll, afterAll } from "vitest";
 import argon2 from "argon2";
 import crypto from "node:crypto";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { BUILT_IN_RULE_SETS } from "@physics-ide/shared";
 import { buildApp } from "../app.js";
 import { testDb, testPool, truncateAuthTables } from "../db/testClient.js";
@@ -2377,5 +2377,594 @@ describe("GET /api/assignments/:id/submissions/:studentId", () => {
     expect(body.submission.attempt).toBe(2);
     expect(body.submission.workspaceXml).toBe("<xml>v2</xml>");
     expect(body.history.map((h: { attempt: number }) => h.attempt)).toEqual([2, 1]);
+  });
+});
+
+/* ── Task 18: marks — drafts, release, return for changes ── */
+// PUT (TA-or-teacher drafts) / POST release (teacher only, per-student or
+// all) / POST return (TA-or-teacher). Its own dedicated class+student+TA,
+// same isolation reasoning the submit/gradebook describes already use —
+// fresh assignments per test avoid the marks table's (assignmentId,
+// studentId) unique constraint colliding with any other describe's rows.
+describe("Task 18: marks — PUT / release / return", () => {
+  let markingClassId: string;
+  let studentId: string;
+  let taCookie: string;
+  let taId: string;
+  let strangerId: string;
+
+  async function makePublishedAssignment(payload: Record<string, unknown>) {
+    const draftRes = await app.inject({
+      method: "POST",
+      url: `/api/classes/${markingClassId}/assignments`,
+      cookies: { pide_session: teacherCookie },
+      payload,
+    });
+    const id = draftRes.json().assignment.id;
+    await app.inject({
+      method: "POST",
+      url: `/api/assignments/${id}/publish`,
+      cookies: { pide_session: teacherCookie },
+    });
+    return id as string;
+  }
+
+  async function submitAs(assignmentId: string, projectId: string, manifest: object = { schemaVersion: 2 }) {
+    await testDb.insert(projects).values({
+      id: projectId,
+      ownerId: studentId,
+      title: "Student Copy",
+      goal: "physics",
+      projectType: "physics",
+      manifest,
+      clientUpdatedAt: Date.now(),
+    });
+    await app.inject({
+      method: "POST",
+      url: `/api/assignments/${assignmentId}/start`,
+      cookies: { pide_session: studentCookie },
+      payload: { projectId },
+    });
+    return app.inject({
+      method: "POST",
+      url: `/api/assignments/${assignmentId}/submit`,
+      cookies: { pide_session: studentCookie },
+    });
+  }
+
+  function putMark(assignmentId: string, cookie: string, body: Record<string, unknown>) {
+    return app.inject({
+      method: "PUT",
+      url: `/api/assignments/${assignmentId}/marks/${studentId}`,
+      cookies: { pide_session: cookie },
+      payload: body,
+    });
+  }
+
+  function returnMark(assignmentId: string, cookie: string, targetId: string, body: Record<string, unknown>) {
+    return app.inject({
+      method: "POST",
+      url: `/api/assignments/${assignmentId}/marks/${targetId}/return`,
+      cookies: { pide_session: cookie },
+      payload: body,
+    });
+  }
+
+  function releaseMarks(assignmentId: string, cookie: string, body: Record<string, unknown>) {
+    return app.inject({
+      method: "POST",
+      url: `/api/assignments/${assignmentId}/marks/release`,
+      cookies: { pide_session: cookie },
+      payload: body,
+    });
+  }
+
+  function markRow(assignmentId: string) {
+    return testDb
+      .select()
+      .from(marks)
+      .where(and(eq(marks.assignmentId, assignmentId), eq(marks.studentId, studentId)))
+      .then((rows) => rows[0]);
+  }
+
+  function myMarkOf(assignmentId: string) {
+    return app
+      .inject({ method: "GET", url: `/api/assignments/${assignmentId}`, cookies: { pide_session: studentCookie } })
+      .then((res) => res.json().assignment.myMark);
+  }
+
+  beforeAll(async () => {
+    const [studentRow] = await testDb.select().from(users).where(eq(users.email, "akid@example.com"));
+    studentId = studentRow.id;
+    const [strangerRow] = await testDb.select().from(users).where(eq(users.email, "stranger@example.com"));
+    strangerId = strangerRow.id;
+
+    const classRes = await app.inject({
+      method: "POST",
+      url: "/api/classes",
+      cookies: { pide_session: teacherCookie },
+      payload: { name: "Marking Test Class" },
+    });
+    markingClassId = classRes.json().class.id;
+    await testDb.insert(classMembers).values({ classId: markingClassId, userId: studentId, role: "student", status: "active" });
+
+    const ta = await makeUser("marks-ta@example.com");
+    await testDb.insert(classMembers).values({ classId: markingClassId, userId: ta.id, role: "ta", status: "active" });
+    taId = ta.id;
+    taCookie = await signin("marks-ta@example.com");
+  });
+
+  test("a TA saves a draft via PUT — status stays draft, markedBy is the TA, basedOnSubmissionId is the current submission", async () => {
+    const id = await makePublishedAssignment({ title: "TA Draft", points: 10 });
+    const submitRes = await submitAs(id, "p-ta-draft");
+    expect(submitRes.statusCode).toBe(201);
+
+    const res = await putMark(id, taCookie, { points: 7, comment: "Good start", privateNote: "watch this one" });
+    expect(res.statusCode).toBe(200);
+    const mark = res.json().mark;
+    expect(mark.points).toBe(7);
+    expect(mark.comment).toBe("Good start");
+    expect(mark.privateNote).toBe("watch this one");
+    expect(mark.status).toBe("draft");
+    expect(mark.returned).toBe(false);
+    expect(mark.basedOnSubmissionId).toBe(submitRes.json().submission.id);
+
+    const [row] = await testDb.select().from(marks).where(and(eq(marks.assignmentId, id), eq(marks.studentId, studentId)));
+    expect(row.markedBy).toBe((await testDb.select().from(users).where(eq(users.email, "marks-ta@example.com")))[0].id);
+  });
+
+  test("a TA cannot release — 403, and the mark it drafted stays a draft", async () => {
+    const id = await makePublishedAssignment({ title: "TA Cannot Release", points: 10 });
+    await submitAs(id, "p-ta-no-release");
+    await putMark(id, taCookie, { points: 5, comment: "", privateNote: "" });
+
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/assignments/${id}/marks/release`,
+      cookies: { pide_session: taCookie },
+      payload: { studentIds: [studentId] },
+    });
+    expect(res.statusCode).toBe(403);
+
+    const [row] = await testDb.select().from(marks).where(and(eq(marks.assignmentId, id), eq(marks.studentId, studentId)));
+    expect(row.status).toBe("draft");
+  });
+
+  test("a student cannot PUT a mark — 403, staff only", async () => {
+    const id = await makePublishedAssignment({ title: "Student Cannot Mark", points: 10 });
+    const res = await putMark(id, studentCookie, { points: 5, comment: "", privateNote: "" });
+    expect(res.statusCode).toBe(403);
+  });
+
+  test("points may not exceed the assignment's own points", async () => {
+    const id = await makePublishedAssignment({ title: "Points Cap", points: 10 });
+    const res = await putMark(id, teacherCookie, { points: 11, comment: "", privateNote: "" });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toBe("That is more than the assignment is out of.");
+  });
+
+  test("a points-less assignment: PUT always stores points: null regardless of what's sent — existence is what marks it complete", async () => {
+    const id = await makePublishedAssignment({ title: "Points Less Draft", points: null });
+    const res = await putMark(id, teacherCookie, { points: 999, comment: "nice work", privateNote: "" });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().mark.points).toBeNull();
+
+    const [row] = await testDb.select().from(marks).where(and(eq(marks.assignmentId, id), eq(marks.studentId, studentId)));
+    expect(row.points).toBeNull();
+  });
+
+  test("the teacher releases one student by studentIds — status flips to released, releasedAt is set, an email lands", async () => {
+    const id = await makePublishedAssignment({ title: "Teacher Releases One", points: 10 });
+    await submitAs(id, "p-release-one");
+    await putMark(id, teacherCookie, { points: 9, comment: "Excellent.", privateNote: "" });
+
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/assignments/${id}/marks/release`,
+      cookies: { pide_session: teacherCookie },
+      payload: { studentIds: [studentId] },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.released).toEqual([studentId]);
+    expect(body.refused).toEqual([]);
+
+    const [row] = await testDb.select().from(marks).where(and(eq(marks.assignmentId, id), eq(marks.studentId, studentId)));
+    expect(row.status).toBe("released");
+    expect(row.releasedAt).not.toBeNull();
+
+    const emailRows = await testDb.select().from(emails).where(eq(emails.toUserId, studentId));
+    const released = emailRows.find((e) => e.template === "marks-released" && e.subject.includes("Teacher Releases One"));
+    expect(released).toBeDefined();
+    expect(released!.bodyText).toContain("9/10");
+    expect(released!.bodyText).toContain("Excellent.");
+  });
+
+  test("release-all flips the assignment's stored status to marks_released and releases every draft in one go", async () => {
+    const id = await makePublishedAssignment({ title: "Release All Stamps Assignment", points: 10 });
+    await submitAs(id, "p-release-all");
+    await putMark(id, teacherCookie, { points: 6, comment: "", privateNote: "" });
+
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/assignments/${id}/marks/release`,
+      cookies: { pide_session: teacherCookie },
+      payload: { all: true },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().released).toEqual([studentId]);
+
+    const [aRow] = await testDb.select().from(assignments).where(eq(assignments.id, id));
+    expect(aRow.status).toBe("marks_released");
+    expect(aRow.marksReleasedAt).not.toBeNull();
+  });
+
+  test("stale-draft refusal: a draft written against a superseded attempt is refused with the D§11.3 sentence, and stays a draft", async () => {
+    const id = await makePublishedAssignment({ title: "Stale Draft Refusal", points: 10 });
+    const projectId = "p-stale-draft";
+    const submit1 = await submitAs(id, projectId, { schemaVersion: 2, marker: "v1" });
+    expect(submit1.statusCode).toBe(201);
+    await putMark(id, teacherCookie, { points: 4, comment: "first pass", privateNote: "" });
+
+    // The student resubmits — a NEWER current attempt now exists that the
+    // draft above was never written against.
+    await testDb.update(projects).set({ manifest: { schemaVersion: 2, marker: "v2" } }).where(eq(projects.id, projectId));
+    const submit2 = await app.inject({
+      method: "POST",
+      url: `/api/assignments/${id}/submit`,
+      cookies: { pide_session: studentCookie },
+    });
+    expect(submit2.statusCode).toBe(201);
+
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/assignments/${id}/marks/release`,
+      cookies: { pide_session: teacherCookie },
+      payload: { studentIds: [studentId] },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().released).toEqual([]);
+    expect(res.json().refused).toEqual([
+      { studentId, error: "This draft was written against a previous attempt — re-save it before releasing." },
+    ]);
+
+    const [row] = await testDb.select().from(marks).where(and(eq(marks.assignmentId, id), eq(marks.studentId, studentId)));
+    expect(row.status).toBe("draft");
+
+    // Re-saving against the NEW current attempt clears the staleness and
+    // release succeeds.
+    await putMark(id, teacherCookie, { points: 4, comment: "first pass", privateNote: "" });
+    const retry = await app.inject({
+      method: "POST",
+      url: `/api/assignments/${id}/marks/release`,
+      cookies: { pide_session: teacherCookie },
+      payload: { studentIds: [studentId] },
+    });
+    expect(retry.json().released).toEqual([studentId]);
+  });
+
+  test("return for changes: sets returned, emails workReturned with the comment, and reopens submit-after-close (D§11.2) through the real routes", async () => {
+    const id = await makePublishedAssignment({ title: "Return Reopens Submit", points: 10 });
+    const projectId = "p-return-reopen";
+    const submit1 = await submitAs(id, projectId, { schemaVersion: 2, marker: "reopen-v1" });
+    expect(submit1.statusCode).toBe(201);
+
+    await app.inject({
+      method: "POST",
+      url: `/api/assignments/${id}/close`,
+      cookies: { pide_session: teacherCookie },
+    });
+    const stillClosed = await app.inject({
+      method: "POST",
+      url: `/api/assignments/${id}/submit`,
+      cookies: { pide_session: studentCookie },
+    });
+    expect(stillClosed.statusCode).toBe(400);
+
+    const returnRes = await app.inject({
+      method: "POST",
+      url: `/api/assignments/${id}/marks/${studentId}/return`,
+      cookies: { pide_session: teacherCookie },
+      payload: { comment: "Please redo part 2." },
+    });
+    expect(returnRes.statusCode).toBe(200);
+    expect(returnRes.json().mark.returned).toBe(true);
+    expect(returnRes.json().mark.comment).toBe("Please redo part 2.");
+
+    const emailRows = await testDb.select().from(emails).where(eq(emails.toUserId, studentId));
+    const returned = emailRows.find((e) => e.template === "work-returned" && e.subject.includes("Return Reopens Submit"));
+    expect(returned).toBeDefined();
+    expect(returned!.bodyText).toContain("Please redo part 2.");
+
+    const reopened = await app.inject({
+      method: "POST",
+      url: `/api/assignments/${id}/submit`,
+      cookies: { pide_session: studentCookie },
+    });
+    expect(reopened.statusCode).toBe(201);
+    expect(reopened.json().submission.attempt).toBe(2);
+  });
+
+  test("return requires a non-empty comment", async () => {
+    const id = await makePublishedAssignment({ title: "Return Needs Comment", points: 10 });
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/assignments/${id}/marks/${studentId}/return`,
+      cookies: { pide_session: teacherCookie },
+      payload: { comment: "   " },
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
+  test("404 on PUT/release/return for a non-existent assignment", async () => {
+    const fakeId = "00000000-0000-0000-0000-000000000000";
+    const put = await app.inject({
+      method: "PUT",
+      url: `/api/assignments/${fakeId}/marks/${studentId}`,
+      cookies: { pide_session: teacherCookie },
+      payload: { points: 1, comment: "", privateNote: "" },
+    });
+    expect(put.statusCode).toBe(404);
+    const release = await app.inject({
+      method: "POST",
+      url: `/api/assignments/${fakeId}/marks/release`,
+      cookies: { pide_session: teacherCookie },
+      payload: { all: true },
+    });
+    expect(release.statusCode).toBe(404);
+    const ret = await app.inject({
+      method: "POST",
+      url: `/api/assignments/${fakeId}/marks/${studentId}/return`,
+      cookies: { pide_session: teacherCookie },
+      payload: { comment: "x" },
+    });
+    expect(ret.statusCode).toBe(404);
+  });
+
+  test("the marking room's submission read (Task 17) now carries the staff mark shape, including privateNote", async () => {
+    const id = await makePublishedAssignment({ title: "Submission Read Carries Mark", points: 10 });
+    await submitAs(id, "p-submission-mark");
+    await putMark(id, teacherCookie, { points: 8, comment: "solid", privateNote: "confidential note" });
+
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/assignments/${id}/submissions/${studentId}`,
+      cookies: { pide_session: teacherCookie },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().mark).toMatchObject({
+      studentId,
+      points: 8,
+      comment: "solid",
+      privateNote: "confidential note",
+      status: "draft",
+    });
+  });
+
+  test("student privacy: GET /api/assignments/:id — a plain draft never surfaces as myMark, and privateNote never appears in the payload at all", async () => {
+    const id = await makePublishedAssignment({ title: "Privacy Draft Not Visible", points: 10 });
+    await submitAs(id, "p-privacy-draft");
+    await putMark(id, teacherCookie, { points: 8, comment: "for later", privateNote: "SECRET-MARKER-XYZ" });
+
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/assignments/${id}`,
+      cookies: { pide_session: studentCookie },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().assignment.myMark).toBeNull();
+    expect(JSON.stringify(res.json())).not.toContain("SECRET-MARKER-XYZ");
+  });
+
+  test("student read: a released mark surfaces as myMark with released: true; a returned-but-unreleased mark surfaces with returned: true", async () => {
+    const releasedId = await makePublishedAssignment({ title: "Released Visible To Student", points: 10 });
+    await submitAs(releasedId, "p-released-visible");
+    await putMark(releasedId, teacherCookie, { points: 10, comment: "Perfect.", privateNote: "" });
+    await app.inject({
+      method: "POST",
+      url: `/api/assignments/${releasedId}/marks/release`,
+      cookies: { pide_session: teacherCookie },
+      payload: { studentIds: [studentId] },
+    });
+    const releasedRes = await app.inject({
+      method: "GET",
+      url: `/api/assignments/${releasedId}`,
+      cookies: { pide_session: studentCookie },
+    });
+    expect(releasedRes.json().assignment.myMark).toEqual({
+      points: 10,
+      comment: "Perfect.",
+      released: true,
+      returned: false,
+    });
+
+    const returnedId = await makePublishedAssignment({ title: "Returned Visible To Student", points: 10 });
+    await submitAs(returnedId, "p-returned-visible");
+    await app.inject({
+      method: "POST",
+      url: `/api/assignments/${returnedId}/marks/${studentId}/return`,
+      cookies: { pide_session: teacherCookie },
+      payload: { comment: "Fix the units." },
+    });
+    const returnedRes = await app.inject({
+      method: "GET",
+      url: `/api/assignments/${returnedId}`,
+      cookies: { pide_session: studentCookie },
+    });
+    expect(returnedRes.json().assignment.myMark).toEqual({
+      points: null,
+      comment: "Fix the units.",
+      released: false,
+      returned: true,
+    });
+  });
+
+  /* ── Fix round 1: the mark state machine (controller ruling R5) ──
+   * Each of the three writes settles `returned` (and, for return, `status`
+   * and `releasedAt`) rather than leaving the row in a state no surface can
+   * render honestly: return un-releases, a fresh draft supersedes the
+   * return, and release ends the return episode. */
+
+  test("R5: a fresh draft after a return clears returned — the resubmitted student never sees the unreleased draft", async () => {
+    const id = await makePublishedAssignment({ title: "Draft Supersedes Return", points: 10 });
+    await submitAs(id, "p-draft-supersedes-return", { schemaVersion: 2, marker: "supersede-v1" });
+
+    expect((await returnMark(id, teacherCookie, studentId, { comment: "Redo the graph." })).statusCode).toBe(200);
+    expect(await myMarkOf(id)).toMatchObject({ returned: true, released: false, comment: "Redo the graph." });
+
+    // The student takes the invitation up.
+    const resubmit = await app.inject({
+      method: "POST",
+      url: `/api/assignments/${id}/submit`,
+      cookies: { pide_session: studentCookie },
+    });
+    expect(resubmit.statusCode).toBe(201);
+
+    // The teacher starts marking the new attempt. That draft is staff-only
+    // business — the return episode is over, so nothing leaks.
+    const put = await putMark(id, teacherCookie, { points: 6, comment: "UNRELEASED-DRAFT-MARKER", privateNote: "" });
+    expect(put.statusCode).toBe(200);
+    expect(put.json().mark.returned).toBe(false);
+    expect((await markRow(id)).returned).toBe(false);
+
+    expect(await myMarkOf(id)).toBeNull();
+    const studentPayload = await app.inject({
+      method: "GET",
+      url: `/api/assignments/${id}`,
+      cookies: { pide_session: studentCookie },
+    });
+    expect(JSON.stringify(studentPayload.json())).not.toContain("UNRELEASED-DRAFT-MARKER");
+  });
+
+  test("R5: return after release un-releases the row — the student sees a return, not a mark, and can resubmit while closed", async () => {
+    const id = await makePublishedAssignment({ title: "Return After Release", points: 10 });
+    await submitAs(id, "p-return-after-release", { schemaVersion: 2, marker: "rar-v1" });
+    await putMark(id, teacherCookie, { points: 9, comment: "Nearly.", privateNote: "" });
+    expect((await releaseMarks(id, teacherCookie, { studentIds: [studentId] })).json().released).toEqual([studentId]);
+
+    await app.inject({ method: "POST", url: `/api/assignments/${id}/close`, cookies: { pide_session: teacherCookie } });
+    const shut = await app.inject({
+      method: "POST",
+      url: `/api/assignments/${id}/submit`,
+      cookies: { pide_session: studentCookie },
+    });
+    expect(shut.statusCode).toBe(400);
+
+    // D§11.2: the teacher's Return is the authority — it takes the mark back.
+    const ret = await returnMark(id, teacherCookie, studentId, { comment: "Second thoughts — redo part 3." });
+    expect(ret.statusCode).toBe(200);
+    expect(ret.json().mark.status).toBe("draft");
+    expect(ret.json().mark.releasedAt).toBeNull();
+    const row = await markRow(id);
+    expect(row.status).toBe("draft");
+    expect(row.releasedAt).toBeNull();
+    expect(row.returned).toBe(true);
+
+    expect(await myMarkOf(id)).toEqual({
+      points: 9,
+      comment: "Second thoughts — redo part 3.",
+      released: false,
+      returned: true,
+    });
+
+    // The email's "You can resubmit" promise is now true.
+    const reopened = await app.inject({
+      method: "POST",
+      url: `/api/assignments/${id}/submit`,
+      cookies: { pide_session: studentCookie },
+    });
+    expect(reopened.statusCode).toBe(201);
+  });
+
+  test("R5: release after a return clears returned — no released-and-returned row, and a closed assignment stays shut", async () => {
+    const id = await makePublishedAssignment({ title: "Release After Return", points: 10 });
+    await submitAs(id, "p-release-after-return", { schemaVersion: 2, marker: "rr-v1" });
+    expect((await returnMark(id, teacherCookie, studentId, { comment: "Have another go." })).statusCode).toBe(200);
+
+    await putMark(id, teacherCookie, { points: 7, comment: "Better.", privateNote: "" });
+    expect((await releaseMarks(id, teacherCookie, { studentIds: [studentId] })).json().released).toEqual([studentId]);
+
+    const row = await markRow(id);
+    expect(row.status).toBe("released");
+    expect(row.returned).toBe(false);
+    expect(row.releasedAt).not.toBeNull();
+    expect(await myMarkOf(id)).toEqual({ points: 7, comment: "Better.", released: true, returned: false });
+
+    // A released row can never hold the door open: submit stays shut once closed.
+    await app.inject({ method: "POST", url: `/api/assignments/${id}/close`, cookies: { pide_session: teacherCookie } });
+    const shut = await app.inject({
+      method: "POST",
+      url: `/api/assignments/${id}/submit`,
+      cookies: { pide_session: studentCookie },
+    });
+    expect(shut.statusCode).toBe(400);
+  });
+
+  /* ── Fix round 1: the TARGET of a mark must be a student of this class ──
+   * Membership was checked for the caller only, so a teacher of any class
+   * could write orphan mark rows against — and email — arbitrary user ids. */
+
+  test("PUT refuses a target who is not a member of the class — 404, and no orphan mark row", async () => {
+    const id = await makePublishedAssignment({ title: "Target Not A Member", points: 10 });
+    const res = await app.inject({
+      method: "PUT",
+      url: `/api/assignments/${id}/marks/${strangerId}`,
+      cookies: { pide_session: teacherCookie },
+      payload: { points: 5, comment: "", privateNote: "" },
+    });
+    expect(res.statusCode).toBe(404);
+    expect(res.json().error).toBe("No such student in this class.");
+    const rows = await testDb.select().from(marks).where(and(eq(marks.assignmentId, id), eq(marks.studentId, strangerId)));
+    expect(rows).toHaveLength(0);
+  });
+
+  test("PUT refuses a target who is staff in the class rather than a student — 404", async () => {
+    const id = await makePublishedAssignment({ title: "Target Is Staff", points: 10 });
+    const res = await app.inject({
+      method: "PUT",
+      url: `/api/assignments/${id}/marks/${taId}`,
+      cookies: { pide_session: teacherCookie },
+      payload: { points: 5, comment: "", privateNote: "" },
+    });
+    expect(res.statusCode).toBe(404);
+    const rows = await testDb.select().from(marks).where(and(eq(marks.assignmentId, id), eq(marks.studentId, taId)));
+    expect(rows).toHaveLength(0);
+  });
+
+  test("return refuses a target who is not a student of the class — 404, no row and no email", async () => {
+    const id = await makePublishedAssignment({ title: "Return Target Not A Member", points: 10 });
+    const before = await testDb.select().from(emails).where(eq(emails.toUserId, strangerId));
+    const res = await returnMark(id, teacherCookie, strangerId, { comment: "you have been returned" });
+    expect(res.statusCode).toBe(404);
+    expect(res.json().error).toBe("No such student in this class.");
+    const rows = await testDb.select().from(marks).where(and(eq(marks.assignmentId, id), eq(marks.studentId, strangerId)));
+    expect(rows).toHaveLength(0);
+    const after = await testDb.select().from(emails).where(eq(emails.toUserId, strangerId));
+    expect(after).toHaveLength(before.length);
+  });
+
+  /* ── Fix round 1: release and return bodies are zod-validated from
+   * @physics-ide/shared, with honest refusal sentences. */
+
+  test("release refuses a body naming neither studentIds nor all, and one naming both — real sentences", async () => {
+    const id = await makePublishedAssignment({ title: "Release Body Validated", points: 10 });
+    const neither = await releaseMarks(id, teacherCookie, {});
+    expect(neither.statusCode).toBe(400);
+    expect(neither.json().error).toBe("Choose which students to release marks for.");
+
+    const both = await releaseMarks(id, teacherCookie, { all: true, studentIds: [studentId] });
+    expect(both.statusCode).toBe(400);
+    expect(both.json().error).toBe("Release either a list of students or all of them, not both.");
+  });
+
+  test("return refuses a missing or over-long comment with a real sentence", async () => {
+    const id = await makePublishedAssignment({ title: "Return Body Validated", points: 10 });
+    const missing = await returnMark(id, teacherCookie, studentId, {});
+    expect(missing.statusCode).toBe(400);
+    expect(missing.json().error).toBe("Say what needs to change — the student sees this.");
+
+    const tooLong = await returnMark(id, teacherCookie, studentId, { comment: "x".repeat(5001) });
+    expect(tooLong.statusCode).toBe(400);
+    expect(tooLong.json().error).toBe("That comment is too long.");
   });
 });

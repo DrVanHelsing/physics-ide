@@ -76,6 +76,8 @@ function InboxBody({ classData }) {
   const [filter, setFilter] = useState("all");
   const [remindNote, setRemindNote] = useState(null);
   const [remindError, setRemindError] = useState(null);
+  const [releaseNote, setReleaseNote] = useState(null);
+  const [releaseError, setReleaseError] = useState(null);
 
   const q = useQuery({
     queryKey: ["assignment", aid, "inbox"],
@@ -92,6 +94,28 @@ function InboxBody({ classData }) {
     onError: (err) => {
       setRemindNote(null);
       setRemindError(err.message);
+    },
+  });
+
+  // Task 18: release every draft mark on this assignment in one go, and
+  // flip the assignment's own status to marks_released (the server does
+  // both in one call — { all: true }).
+  const releaseAll = useMutation({
+    mutationFn: () => api(`/api/assignments/${aid}/marks/release`, { method: "POST", body: { all: true } }),
+    onSuccess: (data) => {
+      setReleaseError(null);
+      const refusedCount = data.refused?.length ?? 0;
+      const skippedNote =
+        refusedCount > 0
+          ? ` ${refusedCount} skipped — written against a previous attempt.`
+          : "";
+      setReleaseNote(
+        `Released ${data.released.length} mark${data.released.length === 1 ? "" : "s"}.${skippedNote}`,
+      );
+    },
+    onError: (err) => {
+      setReleaseNote(null);
+      setReleaseError(err.message);
     },
   });
 
@@ -137,6 +161,14 @@ function InboxBody({ classData }) {
     const ok = window.confirm(`Email ${missingRows.length} students who have not submitted?`);
     if (!ok) return;
     remind.mutate();
+  }
+
+  function handleReleaseAll() {
+    setReleaseNote(null);
+    setReleaseError(null);
+    const ok = window.confirm("Release all marks for this assignment? Students will be notified by email.");
+    if (!ok) return;
+    releaseAll.mutate();
   }
 
   return (
@@ -185,6 +217,14 @@ function InboxBody({ classData }) {
           >
             <BellIcon size={14} /> Remind
           </button>
+          <button
+            className="btn btn--primary"
+            type="button"
+            disabled={releaseAll.isPending}
+            onClick={handleReleaseAll}
+          >
+            Release all
+          </button>
         </div>
       ) : null}
       {remindNote ? (
@@ -195,6 +235,16 @@ function InboxBody({ classData }) {
       {remindError ? (
         <div className="alert alert--danger" role="alert">
           {remindError}
+        </div>
+      ) : null}
+      {releaseNote ? (
+        <div className="alert alert--success" role="status">
+          {releaseNote}
+        </div>
+      ) : null}
+      {releaseError ? (
+        <div className="alert alert--danger" role="alert">
+          {releaseError}
         </div>
       ) : null}
 

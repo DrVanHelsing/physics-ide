@@ -5,6 +5,9 @@ import {
   CreateAssignmentInputSchema,
   UpdateAssignmentInputSchema,
   SaveRuleSetInputSchema,
+  MarkDraftInputSchema,
+  MarksReleaseInputSchema,
+  MarkReturnInputSchema,
   computeAssignmentPhase,
 } from "@physics-ide/shared";
 import {
@@ -28,7 +31,7 @@ import {
 import { logEvent } from "../db/events.js";
 import type { Db } from "../db/types.js";
 import { stableStringify } from "./projects.js";
-import { submissionReceipt, dueReminder } from "../email/templates.js";
+import { submissionReceipt, dueReminder, marksReleased, workReturned } from "../email/templates.js";
 
 type AssignmentRow = typeof assignments.$inferSelect;
 
@@ -44,6 +47,7 @@ const ASSIGNMENT_CLOSED = "This assignment is closed.";
 const NO_SUCH_SUBMISSION = "No submission from this student.";
 const STAFF_ONLY_FOR_CLASS = "Teachers and TAs only for this class.";
 const NO_SUCH_STUDENT_WORK = "This student has not started this assignment.";
+const NO_SUCH_STUDENT_IN_CLASS = "No such student in this class.";
 // Same exact sentence as AssignmentPage.js's own gateSentence(phase) for the
 // Start/Continue button — the two surfaces must agree (review finding).
 const MARKS_RELEASED_CLOSED = "This assignment is closed — marks have been released.";
@@ -214,6 +218,59 @@ function starterSeedFrom(
   };
 }
 
+/** One mark row for (assignmentId, studentId), or undefined — the shared
+ *  read every Task 18 surface (myMark, the marking-room read, release,
+ *  return) starts from. */
+async function loadMark(db: Db, assignmentId: string, studentId: string) {
+  const rows = await db
+    .select()
+    .from(marks)
+    .where(and(eq(marks.assignmentId, assignmentId), eq(marks.studentId, studentId)));
+  return rows[0];
+}
+
+/** The TARGET of a mark must be an active student of the assignment's own
+ *  class. The caller's own membership says nothing about whose row is being
+ *  written: without this, a teacher of any class could create orphan mark
+ *  rows against arbitrary user ids — and the return route would email
+ *  teacher-supplied text to any account in the system. 404 rather than 403
+ *  in this file's established idiom: the caller is entitled to be here, the
+ *  student they named simply is not in this class. */
+async function isMarkableStudent(db: Db, classId: string, studentId: string): Promise<boolean> {
+  const m = await getMembership(db, classId, studentId);
+  return !!m && m.status === "active" && m.role === "student";
+}
+
+/** The full staff shape — privateNote included, since every caller of this
+ *  helper is already behind a staff-only gate (PUT/return/the marking
+ *  room's submission read). Never handed to a student-facing route. */
+function toMarkStaffShape(row: typeof marks.$inferSelect) {
+  return {
+    studentId: row.studentId,
+    points: row.points,
+    comment: row.comment,
+    privateNote: row.privateNote,
+    status: row.status,
+    returned: row.returned,
+    basedOnSubmissionId: row.basedOnSubmissionId,
+    releasedAt: toEpoch(row.releasedAt),
+  };
+}
+
+/** The student's own read — released or returned rows only (drafts are
+ *  staff-only business), and privateNote is never even read into the
+ *  shape returned here (by construction, not by omission after the fact). */
+function toMyMark(row: (typeof marks.$inferSelect) | undefined) {
+  if (!row) return null;
+  if (row.status !== "released" && !row.returned) return null;
+  return {
+    points: row.points,
+    comment: row.comment,
+    released: row.status === "released",
+    returned: row.returned,
+  };
+}
+
 export function assignmentRoutes(app: FastifyInstance): void {
   app.addHook("preHandler", requireConfirmed);
 
@@ -303,11 +360,16 @@ export function assignmentRoutes(app: FastifyInstance): void {
       (phase === "open" || phase === "late_window") && !myWork
         ? starterSeedFrom(a.starterManifest)
         : null;
+    // Task 18: myMark — released or returned rows only. A plain draft is
+    // staff-only business and must never surface here; toMyMark enforces
+    // that by construction (privateNote is never even read into the shape).
+    const myMark = toMyMark(await loadMark(app.db, id, req.user!.id));
     const extras: Record<string, unknown> = {
       instructions: a.instructions,
       rules: a.rules,
       myWork,
       starterSeed,
+      myMark,
     };
     return { assignment: toAssignmentSummary(a, extras) };
   });
@@ -1256,6 +1318,10 @@ export function assignmentRoutes(app: FastifyInstance): void {
     // the linked project's manifest as-is) — starterSeedFrom's extraction
     // already knows that shape, so it's reused rather than duplicated here.
     const seed = starterSeedFrom(current.submission.manifest);
+    // Task 18: the marking panel's prefill — the existing draft/released/
+    // returned row, in the full staff shape (this route is already
+    // staff-gated above, same as the PUT/return routes below).
+    const markRow = await loadMark(app.db, id, studentId);
 
     return {
       submission: {
@@ -1266,7 +1332,265 @@ export function assignmentRoutes(app: FastifyInstance): void {
         python: seed?.python ?? "",
       },
       history: rows.map((r) => toSubmissionSummary(r.submission)),
+      mark: markRow ? toMarkStaffShape(markRow) : null,
     };
+  });
+
+  /* ── Task 18: marks ── */
+  // Drafts, release, return for changes — spec §7.3, design D§11.2/D§11.3.
+  // TA drafts await teacher release BY CONSTRUCTION: PUT never touches
+  // `status`, and only requireClassTeacher (not isStaffRole) guards release.
+
+  /** D§11.3: a draft written against an OLDER attempt than the student's
+   *  current one is stale and must be re-saved before it can be released.
+   *  A mark with no basedOnSubmissionId at all (manual credit, entered
+   *  before — or without — any submission) is never stale by this rule;
+   *  there is no "previous attempt" for it to be stale against. */
+  function staleReason(mark: typeof marks.$inferSelect, currentSubmissionId: string | null): string | null {
+    if (mark.basedOnSubmissionId == null) return null;
+    if (mark.basedOnSubmissionId === currentSubmissionId) return null;
+    return "This draft was written against a previous attempt — re-save it before releasing.";
+  }
+
+  app.put("/api/assignments/:id/marks/:studentId", async (req, reply) => {
+    const { id, studentId } = req.params as { id: string; studentId: string };
+    const a = await loadAssignment(app.db, id);
+    if (!a) return reply.code(404).send({ error: NO_SUCH_ASSIGNMENT });
+    const m = await getMembership(app.db, a.classId, req.user!.id);
+    if (!m || m.status !== "active" || !isStaffRole(m.role)) {
+      return reply.code(403).send({ error: STAFF_ONLY });
+    }
+    if (!(await isMarkableStudent(app.db, a.classId, studentId))) {
+      return reply.code(404).send({ error: NO_SUCH_STUDENT_IN_CLASS });
+    }
+    const parsed = MarkDraftInputSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: parsed.error.issues[0]?.message ?? "Invalid input." });
+    }
+    const d = parsed.data;
+    if (a.points != null && d.points != null && d.points > a.points) {
+      return reply.code(400).send({ error: "That is more than the assignment is out of." });
+    }
+    // A points-less assignment is complete/not-complete: existence of the
+    // mark row is what "complete" means (gradebook carries the same rule),
+    // so the stored points ALWAYS stay null here, regardless of what the
+    // client sent — never trust the client alone for an invariant this load-
+    // bearing (Task 19's gradebook already renders on this assumption).
+    const points = a.points == null ? null : d.points;
+
+    const currentSubRows = await app.db
+      .select({ id: submissions.id })
+      .from(submissions)
+      .where(
+        and(
+          eq(submissions.assignmentId, id),
+          eq(submissions.submitterId, studentId),
+          eq(submissions.isCurrent, true),
+        ),
+      );
+    const basedOnSubmissionId = currentSubRows[0]?.id ?? null;
+
+    // Ruling R5: a fresh draft SUPERSEDES a return — the marker has looked
+    // at the work again and written a mark on it, so the return episode is
+    // over. Leaving `returned` set would surface this unreleased draft's
+    // comment and points to the student through myMark (a draft leak) and
+    // keep "You can resubmit." on their page next to it.
+    const saved = await app.db.transaction(async (tx) => {
+      const [row] = await tx
+        .insert(marks)
+        .values({
+          assignmentId: id,
+          studentId,
+          points,
+          comment: d.comment,
+          privateNote: d.privateNote,
+          returned: false,
+          markedBy: req.user!.id,
+          basedOnSubmissionId,
+        })
+        .onConflictDoUpdate({
+          target: [marks.assignmentId, marks.studentId],
+          set: {
+            points,
+            comment: d.comment,
+            privateNote: d.privateNote,
+            returned: false,
+            markedBy: req.user!.id,
+            basedOnSubmissionId,
+            updatedAt: new Date(),
+          },
+        })
+        .returning();
+      await logEvent(tx, "assignment.mark_drafted", req.user!.id, { assignmentId: id, studentId });
+      return row;
+    });
+    return { mark: toMarkStaffShape(saved) };
+  });
+
+  app.post("/api/assignments/:id/marks/release", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const a = await loadAssignment(app.db, id);
+    if (!a) return reply.code(404).send({ error: NO_SUCH_ASSIGNMENT });
+    try {
+      await requireClassTeacher(app.db, a.classId, req.user!.id);
+    } catch (err) {
+      if (await sendClassAuthError(reply, err)) return;
+      throw err;
+    }
+    const parsed = MarksReleaseInputSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: parsed.error.issues[0]?.message ?? "Invalid input." });
+    }
+    const releaseAll = parsed.data.all === true;
+    const ids = parsed.data.studentIds ?? [];
+
+    const draftRows = releaseAll
+      ? await app.db.select().from(marks).where(and(eq(marks.assignmentId, id), eq(marks.status, "draft")))
+      : ids.length === 0
+        ? []
+        : await app.db
+            .select()
+            .from(marks)
+            .where(and(eq(marks.assignmentId, id), eq(marks.status, "draft"), inArray(marks.studentId, ids)));
+
+    const targetStudentIds = draftRows.map((r) => r.studentId);
+    const currentSubs = targetStudentIds.length
+      ? await app.db
+          .select({ studentId: submissions.submitterId, id: submissions.id })
+          .from(submissions)
+          .where(
+            and(
+              eq(submissions.assignmentId, id),
+              eq(submissions.isCurrent, true),
+              inArray(submissions.submitterId, targetStudentIds),
+            ),
+          )
+      : [];
+    const currentByStudent = new Map(
+      currentSubs.filter((s): s is { studentId: string; id: string } => !!s.studentId).map((s) => [s.studentId, s.id]),
+    );
+
+    const releasable: typeof marks.$inferSelect[] = [];
+    const refused: Array<{ studentId: string; error: string }> = [];
+    for (const row of draftRows) {
+      const reason = staleReason(row, currentByStudent.get(row.studentId) ?? null);
+      if (reason) refused.push({ studentId: row.studentId, error: reason });
+      else releasable.push(row);
+    }
+
+    const releasedAt = new Date();
+    await app.db.transaction(async (tx) => {
+      for (const row of releasable) {
+        // Ruling R5: releasing ENDS any return episode. A row that stayed
+        // `returned` while released would render the student's feedback
+        // card and the "You can resubmit." warning at the same time, and
+        // would hold submission open on a closed assignment.
+        await tx
+          .update(marks)
+          .set({ status: "released", returned: false, releasedAt, updatedAt: releasedAt })
+          .where(eq(marks.id, row.id));
+      }
+      if (releaseAll) {
+        await tx
+          .update(assignments)
+          .set({ status: "marks_released", marksReleasedAt: releasedAt, updatedAt: releasedAt })
+          .where(eq(assignments.id, id));
+      }
+      await logEvent(tx, "assignment.marks_released", req.user!.id, {
+        assignmentId: id,
+        releasedCount: releasable.length,
+        refusedCount: refused.length,
+        all: releaseAll,
+      });
+    });
+
+    // Fans out AFTER the tx commits — same ordering submit's receipt and
+    // remind's due-reminder both already use (the durable fact lands first).
+    if (releasable.length > 0) {
+      const classRows = await app.db.select({ name: classes.name }).from(classes).where(eq(classes.id, a.classId));
+      const className = classRows[0]?.name ?? "";
+      const studentRows = await app.db
+        .select({ id: users.id, name: users.name, email: users.email })
+        .from(users)
+        .where(inArray(users.id, releasable.map((r) => r.studentId)));
+      const studentById = new Map(studentRows.map((s) => [s.id, s]));
+      for (const row of releasable) {
+        const student = studentById.get(row.studentId);
+        if (!student) continue;
+        const mail = marksReleased({
+          title: a.title,
+          className,
+          points: row.points,
+          outOf: a.points,
+          comment: row.comment,
+        });
+        await app.mailer.send({ to: student.email, toUserId: student.id, template: "marks-released", ...mail });
+      }
+    }
+
+    return {
+      released: releasable.map((r) => r.studentId),
+      refused,
+    };
+  });
+
+  app.post("/api/assignments/:id/marks/:studentId/return", async (req, reply) => {
+    const { id, studentId } = req.params as { id: string; studentId: string };
+    const a = await loadAssignment(app.db, id);
+    if (!a) return reply.code(404).send({ error: NO_SUCH_ASSIGNMENT });
+    const m = await getMembership(app.db, a.classId, req.user!.id);
+    if (!m || m.status !== "active" || !isStaffRole(m.role)) {
+      return reply.code(403).send({ error: STAFF_ONLY });
+    }
+    if (!(await isMarkableStudent(app.db, a.classId, studentId))) {
+      return reply.code(404).send({ error: NO_SUCH_STUDENT_IN_CLASS });
+    }
+    const parsed = MarkReturnInputSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: parsed.error.issues[0]?.message ?? "Invalid input." });
+    }
+    const comment = parsed.data.comment;
+
+    // Ruling R5: a return UN-RELEASES the row — D§11.2 makes the teacher's
+    // Return the authority, and only a draft-status returned row actually
+    // reopens submission (the submit route's own branch), which is what the
+    // workReturned email promises the student.
+    const saved = await app.db.transaction(async (tx) => {
+      const [row] = await tx
+        .insert(marks)
+        .values({
+          assignmentId: id,
+          studentId,
+          comment,
+          returned: true,
+          status: "draft",
+          releasedAt: null,
+          markedBy: req.user!.id,
+        })
+        .onConflictDoUpdate({
+          target: [marks.assignmentId, marks.studentId],
+          set: {
+            comment,
+            returned: true,
+            status: "draft",
+            releasedAt: null,
+            markedBy: req.user!.id,
+            updatedAt: new Date(),
+          },
+        })
+        .returning();
+      await logEvent(tx, "assignment.mark_returned", req.user!.id, { assignmentId: id, studentId });
+      return row;
+    });
+
+    const classRows = await app.db.select({ name: classes.name }).from(classes).where(eq(classes.id, a.classId));
+    const studentRows = await app.db.select({ email: users.email }).from(users).where(eq(users.id, studentId));
+    if (studentRows[0]) {
+      const mail = workReturned({ title: a.title, className: classRows[0]?.name ?? "", comment });
+      await app.mailer.send({ to: studentRows[0].email, toUserId: studentId, template: "work-returned", ...mail });
+    }
+
+    return { mark: toMarkStaffShape(saved) };
   });
 }
 
