@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, notInArray } from "drizzle-orm";
 import {
   CreateGroupInputSchema,
   GroupProjectSaveInputSchema,
@@ -18,7 +18,13 @@ import { requireConfirmed } from "../auth/guards.js";
 import { ClassAuthError, getMembership, sendClassAuthError } from "../classes/guards.js";
 import { logEvent } from "../db/events.js";
 import type { Db } from "../db/types.js";
-import { MAX_MANIFEST_BYTES, OVERSIZE_ERROR, pruneVersions } from "./projects.js";
+import {
+  INVALID_PROJECT_ERROR,
+  ManifestSchema,
+  MAX_MANIFEST_BYTES,
+  OVERSIZE_ERROR,
+  pruneVersions,
+} from "./projects.js";
 
 type AssignmentRow = typeof assignments.$inferSelect;
 type GroupRow = typeof groups.$inferSelect;
@@ -450,7 +456,19 @@ export function groupRoutes(app: FastifyInstance): void {
     if (!parsed.success) {
       return reply.code(400).send({ error: parsed.error.issues[0]?.message ?? "Invalid input." });
     }
-    const manifest = parsed.data.manifest;
+    // The shared schema above says the BODY carries a manifest. This says the
+    // manifest is one this server may store: a group's shared project is an
+    // ordinary row on the founding member's account, and their own sync
+    // engine hands back whatever a member saves into it — so a group save is
+    // held to exactly the contract that client's own push is held to, from
+    // the one schema, and must NAME the project it is actually saving.
+    // Without the id check a member could plant, under the founder's account,
+    // a manifest calling itself some other project of theirs.
+    const checked = ManifestSchema.safeParse(parsed.data.manifest);
+    if (!checked.success || checked.data.id !== ctx.group.projectId) {
+      return reply.code(400).send({ error: INVALID_PROJECT_ERROR });
+    }
+    const manifest = checked.data;
     // The same byte bound the personal engine enforces — a group project is
     // an ordinary project row, and two members' saves must not buy a bigger
     // one than one member's would.
@@ -495,10 +513,11 @@ export function groupRoutes(app: FastifyInstance): void {
         .set({
           manifest,
           clientUpdatedAt: manifest.updatedAt,
-          title: typeof manifest.title === "string" ? manifest.title : head.title,
-          goal: typeof manifest.goal === "string" ? manifest.goal : head.goal,
-          projectType:
-            typeof manifest.projectType === "string" ? manifest.projectType : head.projectType,
+          // Validated above, so the denormalised columns come straight off
+          // the manifest — the same three the owner's own push maintains.
+          title: manifest.title,
+          goal: manifest.goal,
+          projectType: manifest.projectType,
           updatedAt: now,
         })
         .where(and(eq(projects.ownerId, ownerId), eq(projects.id, projectId)));
@@ -527,16 +546,34 @@ export function groupRoutes(app: FastifyInstance): void {
   });
 }
 
+/** Reasons whose version row records a push that did NOT become the head.
+ *  `conflict-loser` is the only one: the personal sync engine files a stale
+ *  push under it and leaves the head exactly where it was (projects.ts's
+ *  kept-remote branch). Every other reason archives the OUTGOING head at the
+ *  moment it is replaced, which is what makes the lookup below work. */
+const NON_HEAD_REASONS = ["conflict-loser"];
+
 /** Who saved what is now the head. There is no savedBy column on the head
- *  row, and there does not need to be one: an overwrite archives the OLD
- *  manifest stamped with the member performing the save, so the newest
- *  version row's savedBy is precisely the author of the CURRENT head. With
- *  no history at all, the head is still exactly as its owner pushed it. */
+ *  row, and there does not need to be one: a head-moving write archives the
+ *  OLD manifest stamped with the member performing the save, so the newest
+ *  such version row's savedBy is precisely the author of the CURRENT head.
+ *  With no history at all, the head is still exactly as its owner pushed it.
+ *
+ *  Conflict-losers must be skipped or this lies: the founding member's own
+ *  client pushing a stale local copy of the shared project files one under
+ *  their name without touching the head, which would otherwise re-credit
+ *  them for a checkpoint another member wrote. */
 async function headSavedBy(db: Db, ownerId: string, projectId: string): Promise<string> {
   const rows = await db
     .select({ savedBy: projectVersions.savedBy })
     .from(projectVersions)
-    .where(and(eq(projectVersions.ownerId, ownerId), eq(projectVersions.projectId, projectId)))
+    .where(
+      and(
+        eq(projectVersions.ownerId, ownerId),
+        eq(projectVersions.projectId, projectId),
+        notInArray(projectVersions.reason, NON_HEAD_REASONS),
+      ),
+    )
     .orderBy(desc(projectVersions.id))
     .limit(1);
   return rows[0]?.savedBy ?? ownerId;

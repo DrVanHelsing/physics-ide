@@ -702,7 +702,19 @@ describe("the group project — GET/PUT /api/groups/:gid/project", () => {
   let projectAssignmentId: string;
   let groupId: string;
   const sharedProjectId = "p-group-project-head";
-  const v1 = { schemaVersion: 2, id: sharedProjectId, marker: "v1", updatedAt: 1_000 };
+  // A real manifest: a group save writes into an ordinary project row on the
+  // founder's account, so it has to satisfy the same contract their own
+  // client's push does.
+  const v1 = {
+    schemaVersion: 2,
+    id: sharedProjectId,
+    title: "Shared Work",
+    goal: "physics",
+    projectType: "physics",
+    createdAt: 1,
+    updatedAt: 1_000,
+    marker: "v1",
+  };
 
   beforeAll(async () => {
     projectAssignmentId = await makeAssignment("group", "Shared Project");
@@ -780,6 +792,37 @@ describe("the group project — GET/PUT /api/groups/:gid/project", () => {
     expect((res.json().manifest as Record<string, unknown>).marker).toBe("v2-by-bravo");
   });
 
+  test("a stale personal-engine push by the founder does not steal credit for the head", async () => {
+    // The founder's own client still syncs this project personally (they own
+    // it), and an offline copy can arrive stale. projects.ts files that under
+    // `conflict-loser` in the FOUNDER's name and leaves the head alone — the
+    // one version row that must never be mistaken for the head's author.
+    const stalePush = await app.inject({
+      method: "PUT",
+      url: `/api/projects/${sharedProjectId}`,
+      cookies: { pide_session: alpha.cookie },
+      payload: { manifest: { ...v1, marker: "alphas-stale-offline-copy", updatedAt: 1_500 } },
+    });
+    expect(stalePush.statusCode).toBe(200);
+    expect(stalePush.json().outcome).toBe("kept-remote");
+
+    const versions = await testDb
+      .select()
+      .from(projectVersions)
+      .where(and(eq(projectVersions.ownerId, alpha.id), eq(projectVersions.projectId, sharedProjectId)))
+      .orderBy(desc(projectVersions.id));
+    expect(versions[0].reason).toBe("conflict-loser");
+    expect(versions[0].savedBy).toBe(alpha.id);
+
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/groups/${groupId}/project`,
+      cookies: { pide_session: bravo.cookie },
+    });
+    expect((res.json().manifest as Record<string, unknown>).marker).toBe("v2-by-bravo");
+    expect(res.json().savedBy).toBe(bravo.id);
+  });
+
   test("the other member cannot save while the baton is held", async () => {
     const res = await app.inject({
       method: "PUT",
@@ -836,6 +879,34 @@ describe("the group project — GET/PUT /api/groups/:gid/project", () => {
     });
     expect(res.statusCode).toBe(400);
     expect(res.json().error).toBe("That doesn't look like a valid project.");
+  });
+
+  test("a group save is held to the OWNER's manifest contract — the row is theirs to sync back", async () => {
+    const refusals: Record<string, Record<string, unknown>> = {
+      "names a different project": { ...v1, id: "p-some-other-project", updatedAt: 6_000 },
+      "carries no schemaVersion": { ...v1, schemaVersion: undefined, updatedAt: 6_100 },
+      "carries the wrong schemaVersion": { ...v1, schemaVersion: 1, updatedAt: 6_200 },
+      "has an over-long title": { ...v1, title: "t".repeat(201), updatedAt: 6_300 },
+      "has an over-long goal": { ...v1, goal: "g".repeat(41), updatedAt: 6_400 },
+      "has no title at all": { ...v1, title: undefined, updatedAt: 6_500 },
+    };
+    for (const [why, manifest] of Object.entries(refusals)) {
+      const res = await app.inject({
+        method: "PUT",
+        url: `/api/groups/${groupId}/project`,
+        cookies: { pide_session: bravo.cookie },
+        payload: { manifest },
+      });
+      expect(res.statusCode, why).toBe(400);
+      expect(res.json().error, why).toBe("That doesn't look like a valid project.");
+    }
+
+    // Nothing was written by any of them.
+    const [head] = await testDb
+      .select()
+      .from(projects)
+      .where(and(eq(projects.ownerId, alpha.id), eq(projects.id, sharedProjectId)));
+    expect((head.manifest as Record<string, unknown>).marker).toBe("v3-still-bravo");
   });
 
   test("someone outside the group can neither read nor write it", async () => {
