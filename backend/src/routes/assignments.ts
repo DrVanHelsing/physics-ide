@@ -16,6 +16,7 @@ import {
   classes,
   classMembers,
   marks,
+  users,
 } from "../db/schema.js";
 import { requireConfirmed } from "../auth/guards.js";
 import {
@@ -39,6 +40,8 @@ const NO_SUCH_PROJECT = "No such project.";
 const NOT_STARTED = "Start this assignment before submitting.";
 const DUE_DATE_PASSED = "The due date has passed.";
 const ASSIGNMENT_CLOSED = "This assignment is closed.";
+const STAFF_ONLY = "Teachers and assistants only.";
+const NO_SUCH_SUBMISSION = "No submission from this student.";
 // Same exact sentence as AssignmentPage.js's own gateSentence(phase) for the
 // Start/Continue button — the two surfaces must agree (review finding).
 const MARKS_RELEASED_CLOSED = "This assignment is closed — marks have been released.";
@@ -891,6 +894,50 @@ export function assignmentRoutes(app: FastifyInstance): void {
       )
       .orderBy(desc(submissions.attempt));
     return { submission: rows[0] ? toSubmissionSummary(rows[0]) : null };
+  });
+
+  /* ── Task 17: submission read ── */
+  // The marking room's read (spec §7.2): the exam script itself — a staff
+  // member's view of one student's CURRENT submission snapshot plus their
+  // full attempt history. Never the student's own read (that's my-submission
+  // above); this 404s rather than 403s-with-empty-body when the student has
+  // no submission at all, same "don't pretend it exists" posture
+  // NO_SUCH_ASSIGNMENT uses elsewhere in this file.
+  app.get("/api/assignments/:id/submissions/:studentId", async (req, reply) => {
+    const { id, studentId } = req.params as { id: string; studentId: string };
+    const a = await loadAssignment(app.db, id);
+    if (!a) return reply.code(404).send({ error: NO_SUCH_ASSIGNMENT });
+    const m = await getMembership(app.db, a.classId, req.user!.id);
+    if (!m || m.status !== "active" || !isStaffRole(m.role)) {
+      return reply.code(403).send({ error: STAFF_ONLY });
+    }
+
+    // Every attempt, newest first — the current one (isCurrent) is the
+    // snapshot rendered; the rest is the honest attempt history.
+    const rows = await app.db
+      .select({ submission: submissions, studentName: users.name })
+      .from(submissions)
+      .innerJoin(users, eq(submissions.submitterId, users.id))
+      .where(and(eq(submissions.assignmentId, id), eq(submissions.submitterId, studentId)))
+      .orderBy(desc(submissions.attempt));
+    if (rows.length === 0) return reply.code(404).send({ error: NO_SUCH_SUBMISSION });
+
+    const current = rows.find((r) => r.submission.isCurrent) ?? rows[0];
+    // manifest is the same shape createManifest produces (submit.ts stores
+    // the linked project's manifest as-is) — starterSeedFrom's extraction
+    // already knows that shape, so it's reused rather than duplicated here.
+    const seed = starterSeedFrom(current.submission.manifest);
+
+    return {
+      submission: {
+        studentId,
+        studentName: current.studentName,
+        ...toSubmissionSummary(current.submission),
+        workspaceXml: seed?.workspaceXml ?? "",
+        python: seed?.python ?? "",
+      },
+      history: rows.map((r) => toSubmissionSummary(r.submission)),
+    };
   });
 }
 
