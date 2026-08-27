@@ -1,0 +1,239 @@
+import React, { useState } from "react";
+import { Link, useParams } from "react-router-dom";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { api } from "../../utils/api/client";
+import { BellIcon } from "../Icons";
+import ClassChrome from "../classes/ClassChrome";
+
+/**
+ * The inbox — /classes/:id/assignments/:aid/inbox. Every active roster
+ * student, submitted or missing, on one screen (Plan 6 Task 16). Mounted
+ * inside ClassChrome like AssignmentPage/PeopleTab; `tab="assignments"`
+ * keeps the Assignments tab lit since this is a sub-page of it, same
+ * convention AssignmentPage.js itself already uses.
+ *
+ * One query — `["assignment", aid, "inbox"]` — backs the whole page; the
+ * four filter tabs (All/Submitted/Late/Missing/Marked) are client-side
+ * slices over that single result, never separate requests.
+ */
+
+const FILTERS = [
+  { key: "all", label: "All" },
+  { key: "submitted", label: "Submitted" },
+  { key: "late", label: "Late" },
+  { key: "missing", label: "Missing" },
+  { key: "marked", label: "Marked" },
+];
+
+/** Fiat D§11.1: "missing" softens to "not yet submitted" while the
+ *  assignment is still open — same row state, a kinder label before the
+ *  due date has actually passed. */
+function stateBadge(row, phase) {
+  if (row.state === "missing") {
+    return phase === "open"
+      ? { label: "not yet submitted", cls: "badge" }
+      : { label: "missing", cls: "badge badge--danger" };
+  }
+  return row.late
+    ? { label: "late", cls: "badge badge--warning" }
+    : { label: "submitted", cls: "badge badge--success" };
+}
+
+function markBadge(status) {
+  switch (status) {
+    case "released":
+      return { label: "released", cls: "badge badge--accent" };
+    case "draft":
+      return { label: "draft", cls: "badge badge--warning" };
+    default:
+      return { label: "not marked", cls: "badge" };
+  }
+}
+
+function matchesFilter(row, filter) {
+  switch (filter) {
+    case "submitted":
+      return row.state === "submitted";
+    case "late":
+      return row.state === "submitted" && row.late;
+    case "missing":
+      return row.state === "missing";
+    case "marked":
+      return row.markStatus !== "none";
+    default:
+      return true;
+  }
+}
+
+export default function InboxPage() {
+  return <ClassChrome tab="assignments">{(c) => <InboxBody classData={c} />}</ClassChrome>;
+}
+
+function InboxBody({ classData }) {
+  const { id, aid } = useParams();
+  const isTeacher = classData.myRole === "teacher";
+  const isStaff = isTeacher || classData.myRole === "ta";
+  const [filter, setFilter] = useState("all");
+  const [remindNote, setRemindNote] = useState(null);
+  const [remindError, setRemindError] = useState(null);
+
+  const q = useQuery({
+    queryKey: ["assignment", aid, "inbox"],
+    queryFn: () => api(`/api/assignments/${aid}/inbox`),
+    enabled: isStaff,
+  });
+
+  const remind = useMutation({
+    mutationFn: () => api(`/api/assignments/${aid}/remind`, { method: "POST", body: {} }),
+    onSuccess: (data) => {
+      setRemindError(null);
+      setRemindNote(`Reminded ${data.reminded} student${data.reminded === 1 ? "" : "s"}.`);
+    },
+    onError: (err) => {
+      setRemindNote(null);
+      setRemindError(err.message);
+    },
+  });
+
+  if (!isStaff) {
+    return (
+      <div className="page-body">
+        <div className="alert alert--danger" role="alert">
+          Teachers and assistants only.
+        </div>
+        <Link className="btn" to={`/classes/${id}/assignments/${aid}`}>
+          Back to assignment
+        </Link>
+      </div>
+    );
+  }
+
+  if (q.isLoading) return null;
+  if (q.error) {
+    return (
+      <div className="page-body">
+        <div className="alert alert--danger" role="alert">
+          {q.error.message}
+        </div>
+        <Link className="btn" to={`/classes/${id}/assignments/${aid}`}>
+          Back to assignment
+        </Link>
+      </div>
+    );
+  }
+
+  const rows = q.data?.rows ?? [];
+  const phase = q.data?.phase;
+  const total = rows.length;
+  const submittedCount = rows.filter((r) => r.state === "submitted").length;
+  const missingRows = rows.filter((r) => r.state === "missing");
+  const pct = total > 0 ? Math.round((submittedCount / total) * 100) : 0;
+  const filtered = rows.filter((r) => matchesFilter(r, filter));
+
+  function handleRemind() {
+    setRemindNote(null);
+    setRemindError(null);
+    // The exact consequence sentence — its own precise wording is the point.
+    const ok = window.confirm(`Email ${missingRows.length} students who have not submitted?`);
+    if (!ok) return;
+    remind.mutate();
+  }
+
+  return (
+    <div className="page-body">
+      <div className="assignment-page-header">
+        <h2>Inbox</h2>
+      </div>
+      <Link className="auth-text auth-text--dim" to={`/classes/${id}/assignments/${aid}`}>
+        Back to assignment
+      </Link>
+
+      <p className="inbox-progress-line">
+        {submittedCount} of {total} submitted
+      </p>
+      <div
+        className="inbox-progress-bar"
+        role="progressbar"
+        aria-valuenow={pct}
+        aria-valuemin={0}
+        aria-valuemax={100}
+      >
+        <div className="inbox-progress-bar__fill" style={{ width: `${pct}%` }} />
+      </div>
+
+      <nav className="tabs inbox-filters" aria-label="Filter">
+        {FILTERS.map((f) => (
+          <button
+            key={f.key}
+            type="button"
+            className="tab"
+            aria-current={filter === f.key ? "page" : undefined}
+            onClick={() => setFilter(f.key)}
+          >
+            {f.label}
+          </button>
+        ))}
+      </nav>
+
+      {isTeacher ? (
+        <div className="assignments-actions inbox-actions">
+          <button
+            className="btn"
+            type="button"
+            disabled={missingRows.length === 0 || remind.isPending}
+            onClick={handleRemind}
+          >
+            <BellIcon size={14} /> Remind
+          </button>
+        </div>
+      ) : null}
+      {remindNote ? (
+        <div className="alert alert--success" role="status">
+          {remindNote}
+        </div>
+      ) : null}
+      {remindError ? (
+        <div className="alert alert--danger" role="alert">
+          {remindError}
+        </div>
+      ) : null}
+
+      {filtered.length === 0 ? (
+        <p className="empty">Nothing here.</p>
+      ) : (
+        <table className="admin-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Status</th>
+              <th>Submitted</th>
+              <th>Attempt</th>
+              <th>Mark</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map((r) => {
+              const badge = stateBadge(r, phase);
+              const mark = markBadge(r.markStatus);
+              return (
+                <tr key={r.studentId}>
+                  <td>
+                    <Link to={`/classes/${id}/assignments/${aid}/marking/${r.studentId}`}>{r.name}</Link>
+                  </td>
+                  <td>
+                    <span className={badge.cls}>{badge.label}</span>
+                  </td>
+                  <td>{r.submittedAt ? new Date(r.submittedAt).toLocaleString() : "—"}</td>
+                  <td>{r.attempt ?? "—"}</td>
+                  <td>
+                    <span className={mark.cls}>{mark.label}</span>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}

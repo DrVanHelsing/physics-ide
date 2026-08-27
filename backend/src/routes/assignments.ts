@@ -16,6 +16,7 @@ import {
   classes,
   classMembers,
   marks,
+  users,
 } from "../db/schema.js";
 import { requireConfirmed } from "../auth/guards.js";
 import {
@@ -26,7 +27,7 @@ import {
 import { logEvent } from "../db/events.js";
 import type { Db } from "../db/types.js";
 import { stableStringify } from "./projects.js";
-import { submissionReceipt } from "../email/templates.js";
+import { submissionReceipt, dueReminder } from "../email/templates.js";
 
 type AssignmentRow = typeof assignments.$inferSelect;
 
@@ -891,6 +892,169 @@ export function assignmentRoutes(app: FastifyInstance): void {
       )
       .orderBy(desc(submissions.attempt));
     return { submission: rows[0] ? toSubmissionSummary(rows[0]) : null };
+  });
+
+  /* ── Task 16: inbox ── */
+  // The teacher's (and TA's) roster-wide view of one assignment: every
+  // active student, submitted or missing, their mark status, and a
+  // one-click reminder for whoever hasn't turned it in yet. GET is staff
+  // (teacher + TA, same "Teachers and assistants only." wording as
+  // members.ts's own roster route); the reminder itself is teacher-only.
+
+  const STAFF_ONLY = "Teachers and assistants only.";
+
+  type InboxEntry = {
+    studentId: string;
+    name: string;
+    email: string;
+    state: "submitted" | "missing";
+    late: boolean;
+    submittedAt: number | null;
+    attempt: number | null;
+    markStatus: "none" | "draft" | "released";
+  };
+
+  /** Fiat D§11.1: "missing" is an active roster student with no CURRENT
+   *  submission — one join, roster (active students) ← submissions(current)
+   *  ← marks, shared by both the read (GET /inbox) and the write
+   *  (POST /remind, which only needs the "missing" half of it). */
+  async function inboxEntriesFor(db: Db, a: AssignmentRow): Promise<InboxEntry[]> {
+    const roster = await db
+      .select({ user: users })
+      .from(classMembers)
+      .innerJoin(users, eq(classMembers.userId, users.id))
+      .where(
+        and(
+          eq(classMembers.classId, a.classId),
+          eq(classMembers.status, "active"),
+          eq(classMembers.role, "student"),
+        ),
+      );
+    const studentIds = roster.map((r) => r.user.id);
+
+    const subRows = studentIds.length
+      ? await db
+          .select()
+          .from(submissions)
+          .where(
+            and(
+              eq(submissions.assignmentId, a.id),
+              eq(submissions.isCurrent, true),
+              inArray(submissions.submitterId, studentIds),
+            ),
+          )
+      : [];
+    const subByStudent = new Map(
+      subRows.filter((s): s is typeof s & { submitterId: string } => !!s.submitterId).map((s) => [s.submitterId, s]),
+    );
+
+    const markRows = studentIds.length
+      ? await db
+          .select()
+          .from(marks)
+          .where(and(eq(marks.assignmentId, a.id), inArray(marks.studentId, studentIds)))
+      : [];
+    const markByStudent = new Map(markRows.map((m) => [m.studentId, m]));
+
+    return roster
+      .map(({ user }): InboxEntry => {
+        const sub = subByStudent.get(user.id);
+        const mark = markByStudent.get(user.id);
+        const markStatus: InboxEntry["markStatus"] = !mark ? "none" : mark.status === "released" ? "released" : "draft";
+        return sub
+          ? {
+              studentId: user.id,
+              name: user.name,
+              email: user.email,
+              state: "submitted",
+              late: sub.late,
+              submittedAt: sub.createdAt.getTime(),
+              attempt: sub.attempt,
+              markStatus,
+            }
+          : {
+              studentId: user.id,
+              name: user.name,
+              email: user.email,
+              state: "missing",
+              late: false,
+              submittedAt: null,
+              attempt: null,
+              markStatus,
+            };
+      })
+      .sort((x, y) => x.name.localeCompare(y.name));
+  }
+
+  /** The public row shape (cross-lane contract, Task 17 consumes it) —
+   *  `email` above is internal-only, never serialized. */
+  function toInboxRow(e: InboxEntry) {
+    return {
+      studentId: e.studentId,
+      name: e.name,
+      state: e.state,
+      late: e.late,
+      submittedAt: e.submittedAt,
+      attempt: e.attempt,
+      markStatus: e.markStatus,
+    };
+  }
+
+  app.get("/api/assignments/:id/inbox", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const a = await loadAssignment(app.db, id);
+    if (!a) return reply.code(404).send({ error: NO_SUCH_ASSIGNMENT });
+    const m = await getMembership(app.db, a.classId, req.user!.id);
+    if (!m || m.status !== "active" || !isStaffRole(m.role)) {
+      return reply.code(403).send({ error: STAFF_ONLY });
+    }
+    const entries = await inboxEntriesFor(app.db, a);
+    return {
+      phase: computeAssignmentPhase(a, new Date()),
+      rows: entries.map(toInboxRow),
+    };
+  });
+
+  app.post("/api/assignments/:id/remind", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const a = await loadAssignment(app.db, id);
+    if (!a) return reply.code(404).send({ error: NO_SUCH_ASSIGNMENT });
+    try {
+      await requireClassTeacher(app.db, a.classId, req.user!.id);
+    } catch (err) {
+      if (await sendClassAuthError(reply, err)) return;
+      throw err;
+    }
+
+    const entries = await inboxEntriesFor(app.db, a);
+    const missing = entries.filter((e) => e.state === "missing");
+
+    // The audit record is the durable fact; it lands in its own small
+    // transaction the same weight as this file's other single-write routes
+    // (publish/close/etc). Email is best-effort ON TOP of that fact, so it
+    // runs AFTER the tx commits — same ordering submit's own receipt uses.
+    await app.db.transaction(async (tx) => {
+      await logEvent(tx, "assignment.reminded", req.user!.id, {
+        assignmentId: id,
+        remindedCount: missing.length,
+      });
+    });
+
+    if (missing.length > 0) {
+      const classRows = await app.db.select({ name: classes.name }).from(classes).where(eq(classes.id, a.classId));
+      const className = classRows[0]?.name ?? "";
+      for (const s of missing) {
+        const mail = dueReminder({
+          name: s.name,
+          title: a.title,
+          className,
+          dueAt: a.dueAt ? a.dueAt.toISOString() : null,
+        });
+        await app.mailer.send({ to: s.email, toUserId: s.studentId, template: "due-reminder", ...mail });
+      }
+    }
+
+    return { reminded: missing.length };
   });
 }
 
