@@ -30,6 +30,38 @@
 import { api } from "../api/client";
 import { listProjects, onProjectSaved, saveProject } from "../storage/projectStore";
 
+/* ── The push-failure channel ───────────────────────────────────
+ *
+ * A refused push is the earliest and most reliable news that this member's
+ * turn is over: the server has just said so in as many words ("Another
+ * member holds the baton." / "Take the baton before saving."). Swallowing
+ * it into console.warn left the chip claiming a baton the member no longer
+ * has — and the workspace editable — until the next 20-second poll.
+ *
+ * So a failed push announces itself, and BatonChip re-reads the baton at
+ * once (the same re-read it already does after a 409 on take). Same
+ * subscribe-and-unsubscribe shape as projectStore's own listeners, for the
+ * same reason: the failure happens down here, and the thing that has to
+ * react to it is up there.
+ */
+const pushFailedListeners = new Set();
+
+/** @param {(err: Error) => void} fn @returns {() => void} unsubscribe */
+export function onGroupPushFailed(fn) {
+  pushFailedListeners.add(fn);
+  return () => pushFailedListeners.delete(fn);
+}
+
+function announcePushFailed(err) {
+  for (const fn of pushFailedListeners) {
+    try {
+      fn(err);
+    } catch {
+      /* a listener never breaks the save path it hangs off */
+    }
+  }
+}
+
 /**
  * Fetch the group's shared head and write it into the local library.
  *
@@ -69,10 +101,11 @@ export function pushGroupProject(groupId, manifest) {
  * in the library, and a member's own personal work must never be written into
  * the group's row.
  *
- * A refused or unreachable push is logged and swallowed — a local save is
- * never failed by the network (the same local-first guarantee the personal
- * engine gives), and the baton chip's next poll is what tells the member
- * their turn is over.
+ * A refused or unreachable push never fails the local save — that is the
+ * same local-first guarantee the personal engine gives — but it is not
+ * swallowed either: it is announced (see the push-failure channel above) so
+ * the baton chip can correct itself within a second, instead of leaving the
+ * member typing into a workspace they no longer own until the next poll.
  */
 export function startGroupSaves(groupId, projectId) {
   return onProjectSaved((manifest, opts) => {
@@ -80,6 +113,7 @@ export function startGroupSaves(groupId, projectId) {
     if (manifest.id !== projectId) return; // another project in the same library
     pushGroupProject(groupId, manifest).catch((err) => {
       console.warn(`group sync: could not save to the group — ${err.message}`);
+      announcePushFailed(err);
     });
   });
 }
