@@ -29,6 +29,7 @@ vi.mock("../../../contexts/AssignmentContext", () => ({
 vi.mock("@tanstack/react-query", () => ({
   useQuery: vi.fn(),
   useMutation: vi.fn(),
+  useQueryClient: vi.fn(() => ({ invalidateQueries: vi.fn() })),
 }));
 vi.mock("../InstructionsView", () => ({ default: () => null }));
 vi.mock("../../../auth/useAuth", () => ({ useMe: vi.fn() }));
@@ -285,5 +286,30 @@ describe("Submit — AssignmentPage", () => {
   test("closed: no Submit button even though myWork exists (never promises what the server will refuse)", () => {
     const container = render({ phase: "closed" });
     expect(byText(container, "Submit", "button")).toBeNull();
+  });
+
+  /* Task 22: myWork.projectId for group work names the FOUNDING member's
+     project — a row this member does not own. Pushing it through the
+     personal engine would plant a copy of someone else's work under their
+     own account (and burn their project cap) before the POST is even
+     refused. Group work never rides the personal engine; the group route
+     already holds the current head. */
+  test("group work: the personal engine is never asked to push another member's project", async () => {
+    const pushProject = vi.fn().mockResolvedValue(undefined);
+    getGlobalSyncEngine.mockResolvedValue(engineWith(pushProject));
+    api.mockResolvedValue({
+      submission: { id: "s-1", fingerprint: "abcd1234ef56", late: false, attempt: 1, submittedAt: 1 },
+    });
+
+    const container = render({
+      submissionMode: "group",
+      myGroup: { id: "g1", name: "Group 1", projectId: "p-1", members: [] },
+    });
+    click(byText(container, "Submit", "button"));
+    await flush();
+
+    expect(getGlobalSyncEngine).not.toHaveBeenCalled();
+    expect(pushProject).not.toHaveBeenCalled();
+    expect(api).toHaveBeenCalledWith("/api/assignments/a1/submit", { method: "POST" });
   });
 });

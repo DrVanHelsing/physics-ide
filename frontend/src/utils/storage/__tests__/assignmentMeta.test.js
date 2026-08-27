@@ -30,7 +30,9 @@ describe("assignment-meta store — mirrors syncMeta.js's own harness", () => {
 
     const meta = { assignmentId: "a-1", classId: "c-1", title: "Pendulum Lab", dueAt: 1000, rules: RULES };
     await setAssignmentMeta("p-1", meta);
-    expect(await getAssignmentMeta("p-1")).toEqual(meta);
+    // groupId is an explicit null, not an absent key: "this project is not
+    // group work" is a fact the IDE reads offline, so it is written down.
+    expect(await getAssignmentMeta("p-1")).toEqual({ ...meta, groupId: null });
 
     await setAssignmentMeta("p-2", { ...meta, assignmentId: "a-2" });
     const all = await listAssignmentMeta();
@@ -53,7 +55,20 @@ describe("assignment-meta store — mirrors syncMeta.js's own harness", () => {
       rules: { editors: "both", debug: true, importFiles: true, exportAndCopy: true, advancedBlocks: true, templates: true },
     };
     await setAssignmentMeta("p-pending", pending);
-    expect(await getAssignmentMeta("p-pending")).toEqual(pending);
+    expect(await getAssignmentMeta("p-pending")).toEqual({ ...pending, groupId: null });
+  });
+
+  test("group work: the group id rides with the rest of the context, so the IDE knows offline which routes its saves take", async () => {
+    const meta = {
+      assignmentId: "a-5",
+      classId: "c-5",
+      title: "Collisions",
+      dueAt: null,
+      rules: RULES,
+      groupId: "g-7",
+    };
+    await setAssignmentMeta("p-group", meta);
+    expect(await getAssignmentMeta("p-group")).toEqual(meta);
   });
 
   test("blocked storage: getAssignmentMeta rejects rather than silently returning null", async () => {

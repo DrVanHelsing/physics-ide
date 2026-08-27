@@ -2,10 +2,18 @@
  * AssignmentContext — Plan 6 (assignments), Task 11.
  *
  * Exposes the active project's assignment context — `{ assignmentId,
- * classId, title, dueAt, rules } | null` — to the IDE shell, keyed on the
- * active project id. Backed by utils/storage/assignmentMeta.js, the same
- * outside-the-manifest store startWork.js's D§2 sequence writes to
+ * classId, title, dueAt, rules, groupId } | null` — to the IDE shell, keyed
+ * on the active project id. Backed by utils/storage/assignmentMeta.js, the
+ * same outside-the-manifest store startWork.js's D§2 sequence writes to
  * (cacheContext).
+ *
+ * `groupId` (Task 22) is what makes this project group work: BatonChip polls
+ * that group's lease off it, and IDELayout locks the workspace to read-only
+ * while the baton is elsewhere. It follows the same cache-then-refresh rule
+ * as the rules do — a student who LEAVES their group has the group dropped
+ * from their context on the next refresh (`myGroup: null`), and an offline
+ * open keeps the cached group so group work opens read-only-aware without
+ * the network.
  *
  * Behaviour (design D§2 + the task-10 review's pending-record fix round):
  *   - No project open, or signed out: null. Assignment work is signed-in by
@@ -70,6 +78,7 @@ export function AssignmentProvider({ projectId, children }) {
           title: fresh.assignment.title,
           dueAt: fresh.assignment.dueAt,
           rules: fresh.assignment.rules ?? null,
+          groupId: fresh.assignment.myGroup?.id ?? null,
         };
         await setAssignmentMeta(projectId, meta);
         setCtx(meta);

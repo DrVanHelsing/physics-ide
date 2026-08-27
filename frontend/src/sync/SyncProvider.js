@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useMe } from "../auth/useAuth";
 import { listProjects, saveProject, onProjectSaved, onProjectDeleted } from "../utils/storage/projectStore";
 import { getSyncMeta, listSyncMeta } from "../utils/storage/syncMeta";
+import { getAssignmentMeta } from "../utils/storage/assignmentMeta";
 import { getGlobalSyncEngine } from "../utils/sync/syncEngine";
 import { readLegacyV1, migrate } from "../utils/manifest/migrate";
 import GuestImportPrompt from "./GuestImportPrompt";
@@ -148,6 +149,14 @@ export default function SyncProvider({ children }) {
       unsubSave = onProjectSaved(async (manifest, opts) => {
         try {
           if (opts?.preserveTimestamp) return; // sync-pulled writes never re-push
+          // Group work never rides the personal engine (Plan 6 Stage D): a
+          // group's shared project lives on the FOUNDING member's account and
+          // every member — founder included — writes it through the group
+          // routes instead (utils/assignments/groupSync.js). Without this,
+          // a member's first edit would hit the auto-adopt branch below and
+          // upload a copy of someone else's project under their own account,
+          // against their own project cap.
+          if ((await getAssignmentMeta(manifest.id))?.groupId) return;
           const meta = await getSyncMeta(manifest.id);
           if (meta && meta.ownerId && meta.ownerId !== me.id) return; // another account's project
           if (meta) {

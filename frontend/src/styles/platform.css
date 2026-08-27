@@ -321,6 +321,25 @@
   min-width: 0;
 }
 
+/* ---- Baton chip (Plan 6, group work — spec §5.5) ----
+   Lives beside .rules-chip in the status bar and takes the same .sync-chip
+   pill, so it is defined here with the family rather than in
+   assignments.css. The tint is a SECOND channel only — the chip's own
+   sentence always says which state it is in. Its sentence can also run long
+   ("Read-only — Thabo is editing"), so the text ellipsizes exactly as the
+   rules note's does; the Take over button beside it never shrinks away. */
+.baton-chip {
+  max-width: 32ch;
+  gap: var(--space-2);
+}
+.baton-chip--held { --sync-color: var(--green); }
+.baton-chip__text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
 /* ---- Guest import prompt (Plan 4) ---- */
 .guest-import {
   position: fixed;

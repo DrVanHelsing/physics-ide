@@ -43,6 +43,14 @@
  *     working in its own now-orphaned copy — see the `linkedProjectId`
  *     handling below, which also drops the loser's now-stale pending cache.
  *
+ * Task 22 adds one branch and changes nothing else: for pair/group work the
+ * founding member's path above is untouched (their push IS what /start
+ * links), while every member who arrives after the group has started gets
+ * their local copy from `pullGroupProject` instead of minting and pushing
+ * one of their own. The same applies to the race loser, who in a group is a
+ * different PERSON rather than a second tab — the winning project sits on
+ * someone else's account, so there is nothing local to adopt.
+ *
  * Requires the network — the assignment page is server data anyway, so
  * there is no offline path to preserve here. Deliberately does NOT go
  * through useProject().createNew: that hook needs the IDE's Simulation/
@@ -50,6 +58,7 @@
  * saveProject are the context-free storage primitives underneath it.
  */
 import { api } from "../api/client";
+import { pullGroupProject } from "./groupSync";
 import { createManifest } from "../manifest/factory";
 import { saveProject, loadProject } from "../storage/projectStore";
 import { setAssignmentMeta, listAssignmentMeta, deleteAssignmentMeta } from "../storage/assignmentMeta";
@@ -63,18 +72,24 @@ const PUSH_FAILED_MESSAGE = "Could not reach the server — check your connectio
  * @returns {Promise<string>} the local projectId to open at "/"
  */
 export async function startAssignmentWork({ assignment, me }) {
+  // Pair/group work (Task 22): the FIRST member to start pushes their own
+  // copy exactly as an individual does — it becomes the group's shared
+  // project, on their account. Every LATER member has nothing of their own
+  // to offer: the server hands back the existing row, and their local copy
+  // comes down the group route (`/api/projects/:id` would 404 for them,
+  // since they do not own it).
+  const groupId = assignment.myGroup?.id ?? null;
+
   if (assignment.myWork) {
     await cacheContext(assignment, assignment.myWork.projectId);
+    stampLastProject(assignment.myWork.projectId);
+    if (groupId) await pullGroupProject(groupId);
     return assignment.myWork.projectId;
   }
 
   const saved = await resolveLocalProject(assignment);
 
-  try {
-    localStorage.setItem(LAST_PROJECT_KEY, saved.id);
-  } catch {
-    /* storage blocked */
-  }
+  stampLastProject(saved.id);
 
   const engine = await getGlobalSyncEngine();
   await engine.pushProject(saved.id, me.id); // the FK needs the row server-side
@@ -92,7 +107,25 @@ export async function startAssignmentWork({ assignment, me }) {
     await deleteAssignmentMeta(saved.id);
   }
   await cacheContext(assignment, linkedProjectId);
+  if (linkedProjectId !== saved.id) {
+    stampLastProject(linkedProjectId);
+    // In a group the winner is usually a DIFFERENT MEMBER, so the linked
+    // project is not on this account at all — there is nothing local to
+    // adopt and the group route is the only way to it.
+    if (groupId) await pullGroupProject(groupId);
+  }
   return linkedProjectId;
+}
+
+/** So a reload of "/" — and the bootstrap restore ProjectContext runs there
+ *  — finds the project this click just settled on, not whichever one was
+ *  open last. */
+function stampLastProject(projectId) {
+  try {
+    localStorage.setItem(LAST_PROJECT_KEY, projectId);
+  } catch {
+    /* storage blocked */
+  }
 }
 
 /**
@@ -155,5 +188,8 @@ async function cacheContext(assignment, projectId) {
     title: assignment.title,
     dueAt: assignment.dueAt,
     rules: assignment.rules ?? null,
+    // Which routes this project's saves take, cached with everything else so
+    // the IDE knows it offline (Task 22).
+    groupId: assignment.myGroup?.id ?? null,
   });
 }
