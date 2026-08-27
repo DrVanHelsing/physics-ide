@@ -19,6 +19,7 @@ import {
   projects,
   classes,
   classMembers,
+  groups,
   marks,
   users,
 } from "../db/schema.js";
@@ -31,6 +32,7 @@ import {
 import { logEvent } from "../db/events.js";
 import type { Db } from "../db/types.js";
 import { stableStringify } from "./projects.js";
+import { groupShape, myGroupFor } from "./groups.js";
 import { submissionReceipt, dueReminder, marksReleased, workReturned } from "../email/templates.js";
 
 type AssignmentRow = typeof assignments.$inferSelect;
@@ -48,6 +50,7 @@ const NO_SUCH_SUBMISSION = "No submission from this student.";
 const STAFF_ONLY_FOR_CLASS = "Teachers and TAs only for this class.";
 const NO_SUCH_STUDENT_WORK = "This student has not started this assignment.";
 const NO_SUCH_STUDENT_IN_CLASS = "No such student in this class.";
+const JOIN_A_GROUP_FIRST = "Join a group before starting this assignment.";
 // Same exact sentence as AssignmentPage.js's own gateSentence(phase) for the
 // Start/Continue button — the two surfaces must agree (review finding).
 const MARKS_RELEASED_CLOSED = "This assignment is closed — marks have been released.";
@@ -130,17 +133,51 @@ async function loadAssignment(db: Db, id: string): Promise<AssignmentRow | null>
   return rows[0] ?? null;
 }
 
+/** The two fields a member's own read needs from their work row. */
+function toMyWork(row: (typeof assignmentWork.$inferSelect) | null | undefined) {
+  return row ? { projectId: row.projectId, startedAt: row.startedAt.getTime() } : null;
+}
+
 async function myWorkFor(
   db: Db,
   assignmentId: string,
   userId: string,
 ): Promise<{ projectId: string; startedAt: number } | null> {
+  return toMyWork(await myWorkRowFor(db, assignmentId, userId));
+}
+
+/** Pair/group mode keys the work row by the GROUP, not by the member — one
+ *  shared row for the whole group (design D§2, plan Stage D). */
+async function groupWorkFor(
+  db: Db,
+  assignmentId: string,
+  groupId: string,
+): Promise<typeof assignmentWork.$inferSelect | null> {
   const rows = await db
     .select()
     .from(assignmentWork)
-    .where(and(eq(assignmentWork.assignmentId, assignmentId), eq(assignmentWork.userId, userId)));
-  const row = rows[0];
-  return row ? { projectId: row.projectId, startedAt: row.startedAt.getTime() } : null;
+    .where(and(eq(assignmentWork.assignmentId, assignmentId), eq(assignmentWork.groupId, groupId)));
+  return rows[0] ?? null;
+}
+
+/** The body both /start branches read: the client's own already-pushed
+ *  project id, which the FK on assignment_work points at. */
+function readProjectId(body: unknown): string | null {
+  const b = body as { projectId?: unknown } | null | undefined;
+  return typeof b?.projectId === "string" && b.projectId.length > 0 ? b.projectId : null;
+}
+
+/** The caller must own a LIVE copy of the project they are linking — a
+ *  tombstone or someone else's row is "No such project.", never a raw FK
+ *  violation. */
+async function ownsLiveProject(db: Db, ownerId: string, projectId: string): Promise<boolean> {
+  const rows = await db
+    .select({ id: projects.id })
+    .from(projects)
+    .where(
+      and(eq(projects.ownerId, ownerId), eq(projects.id, projectId), sql`${projects.deletedAt} IS NULL`),
+    );
+  return rows.length > 0;
 }
 
 /** The caller's full assignment_work row (not just the projectId/startedAt
@@ -351,7 +388,14 @@ export function assignmentRoutes(app: FastifyInstance): void {
     if (!staff && !visibleToStudent(a)) {
       return reply.code(404).send({ error: NO_SUCH_ASSIGNMENT });
     }
-    const myWork = await myWorkFor(app.db, id, req.user!.id);
+    // Carry-forward from Task 3: myWork is userId-keyed, but a pair/group
+    // assignment's work row is keyed by the GROUP — resolved through the
+    // caller's membership, or every member after the founding one would
+    // read "not started" on work that is plainly under way.
+    const group = a.submissionMode === "individual" ? null : await myGroupFor(app.db, id, req.user!.id);
+    const myWork = group
+      ? toMyWork(await groupWorkFor(app.db, id, group.id))
+      : await myWorkFor(app.db, id, req.user!.id);
     // rules reach every member here (spec: it's the teacher LIST view, not
     // the detail, that omits them for brevity — a member must know their
     // own workspace constraints).
@@ -368,6 +412,7 @@ export function assignmentRoutes(app: FastifyInstance): void {
       instructions: a.instructions,
       rules: a.rules,
       myWork,
+      myGroup: group ? await groupShape(app.db, group) : null,
       starterSeed,
       myMark,
     };
@@ -390,8 +435,62 @@ export function assignmentRoutes(app: FastifyInstance): void {
     if (phase !== "open" && phase !== "late_window") {
       return reply.code(400).send({ error: NOT_OPEN });
     }
-    const body = req.body as { projectId?: unknown };
-    if (typeof body?.projectId !== "string" || body.projectId.length === 0) {
+    // Pair/group mode: one shared row for the whole group (plan Stage D).
+    // The FIRST member to start supplies their own already-pushed project
+    // exactly as an individual does — it becomes the group's shared project,
+    // owned by their account, because `projects` is keyed by a real user and
+    // there is no group account to hang it on. Every later member simply
+    // adopts that row, which is why the body is only read when there isn't
+    // one yet: a second member has nothing of their own to offer.
+    if (a.submissionMode !== "individual") {
+      const group = await myGroupFor(app.db, id, req.user!.id);
+      if (!group) return reply.code(400).send({ error: JOIN_A_GROUP_FIRST });
+
+      const existingGroupWork = await groupWorkFor(app.db, id, group.id);
+      if (existingGroupWork) {
+        return reply.code(200).send({ work: { projectId: existingGroupWork.projectId } });
+      }
+
+      const groupProjectId = readProjectId(req.body);
+      if (!groupProjectId) return reply.code(400).send({ error: "Invalid input." });
+      if (!(await ownsLiveProject(app.db, req.user!.id, groupProjectId))) {
+        return reply.code(404).send({ error: NO_SUCH_PROJECT });
+      }
+
+      try {
+        await app.db.transaction(async (tx) => {
+          // The work row goes in FIRST: its unique (assignment, group)
+          // constraint is what settles a race between two members starting
+          // at the same instant, and the loser's group stamp rolls back
+          // with it rather than disagreeing with the row that survived.
+          await tx.insert(assignmentWork).values({
+            assignmentId: id,
+            groupId: group.id,
+            ownerId: req.user!.id,
+            projectId: groupProjectId,
+          });
+          await tx
+            .update(groups)
+            .set({ ownerId: req.user!.id, projectId: groupProjectId })
+            .where(eq(groups.id, group.id));
+          await logEvent(tx, "assignment.started", req.user!.id, {
+            assignmentId: id,
+            groupId: group.id,
+            projectId: groupProjectId,
+          });
+        });
+      } catch (err) {
+        if (pgErrorCode(err) === "23505") {
+          const winner = await groupWorkFor(app.db, id, group.id);
+          if (winner) return reply.code(200).send({ work: { projectId: winner.projectId } });
+        }
+        throw err;
+      }
+      return reply.code(201).send({ work: { projectId: groupProjectId } });
+    }
+
+    const projectId = readProjectId(req.body);
+    if (!projectId) {
       return reply.code(400).send({ error: "Invalid input." });
     }
 
@@ -402,17 +501,9 @@ export function assignmentRoutes(app: FastifyInstance): void {
       return reply.code(200).send({ work: { projectId: existing.projectId } });
     }
 
-    const projectRows = await app.db
-      .select()
-      .from(projects)
-      .where(
-        and(
-          eq(projects.ownerId, req.user!.id),
-          eq(projects.id, body.projectId),
-          sql`${projects.deletedAt} IS NULL`,
-        ),
-      );
-    if (!projectRows[0]) return reply.code(404).send({ error: NO_SUCH_PROJECT });
+    if (!(await ownsLiveProject(app.db, req.user!.id, projectId))) {
+      return reply.code(404).send({ error: NO_SUCH_PROJECT });
+    }
 
     try {
       await app.db.transaction(async (tx) => {
@@ -420,9 +511,9 @@ export function assignmentRoutes(app: FastifyInstance): void {
           assignmentId: id,
           userId: req.user!.id,
           ownerId: req.user!.id,
-          projectId: body.projectId as string,
+          projectId,
         });
-        await logEvent(tx, "assignment.started", req.user!.id, { assignmentId: id, projectId: body.projectId });
+        await logEvent(tx, "assignment.started", req.user!.id, { assignmentId: id, projectId });
       });
     } catch (err) {
       // The pre-check above is TOCTOU under true concurrency — two genuinely
@@ -437,7 +528,7 @@ export function assignmentRoutes(app: FastifyInstance): void {
       throw err;
     }
 
-    return reply.code(201).send({ work: { projectId: body.projectId } });
+    return reply.code(201).send({ work: { projectId } });
   });
 
   app.patch("/api/assignments/:id", async (req, reply) => {
