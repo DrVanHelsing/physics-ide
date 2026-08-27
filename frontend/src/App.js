@@ -33,6 +33,7 @@ import AssignmentsTab         from "./components/assignments/AssignmentsTab";
 import AssignmentPage         from "./components/assignments/AssignmentPage";
 import AssignmentEditorPage   from "./components/assignments/AssignmentEditorPage";
 import InboxPage              from "./components/assignments/InboxPage";
+import MarkingRoom            from "./components/assignments/MarkingRoom";
 import GuidesTab              from "./components/assignments/GuidesTab";
 import GuidePage              from "./components/assignments/GuidePage";
 import GradebookTab           from "./components/assignments/GradebookTab";
@@ -78,6 +79,10 @@ function App() {
                         <Route path="/classes/:id/assignments/:aid/edit" element={<AssignmentEditorPage />} />
                         <Route path="/classes/:id/assignments/:aid" element={<AssignmentPage />} />
                         <Route path="/classes/:id/assignments/:aid/inbox" element={<InboxPage />} />
+                        <Route
+                          path="/classes/:id/assignments/:aid/marking/:studentId"
+                          element={<MarkingRoom />}
+                        />
                         <Route path="/classes/:id/guides" element={<GuidesTab />} />
                         <Route path="/classes/:id/guides/new" element={<GuidePage mode="edit" />} />
                         <Route path="/classes/:id/guides/:gid" element={<GuidePage mode="read" />} />

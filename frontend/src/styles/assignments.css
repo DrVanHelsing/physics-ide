@@ -247,3 +247,45 @@
 .history-checkpoint__by { color: var(--text-muted); font-weight: normal; }
 
 .history-checkpoint__time { font-size: var(--fs-sm); color: var(--text-muted); }
+/* ── The marking room (Task 17) ─────────────────────────────────
+   MarkingRoom.js — the exam script (spec §7.2): a wider, unconstrained
+   page body (the 1000px .page-body default is for prose, not a code/blocks
+   viewer), a header carrying the student, attempt, late badge and
+   fingerprint, and Previous/Next docked in the header's own nav row. */
+.marking-room__body {
+  max-width: none;
+}
+.marking-room__header {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.marking-room__fingerprint {
+  font-family: var(--mono);
+  font-size: var(--fs-sm);
+  color: var(--text-dim);
+}
+.marking-room__nav {
+  display: flex;
+  gap: var(--space-2);
+}
+
+/* ── Submission viewer (Task 17) ────────────────────────────────
+   SubmissionViewer.js — a Blocks/Code .tabs pair over ReadOnlyBlockly and
+   CodeEditor(readOnly). A fixed, generous height: this page is not the
+   IDE's own 100vh shell, so .blockly-host/.monaco-host's `flex: 1` (which
+   assumes a bounded flex ancestor) needs one supplied here instead. */
+.submission-viewer {
+  display: flex;
+  flex-direction: column;
+  height: 70vh;
+  min-height: 420px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.submission-viewer__pane {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
