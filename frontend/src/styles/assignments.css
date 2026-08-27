@@ -168,3 +168,34 @@
   border-top: 2px solid var(--cat-communicate);
   cursor: pointer;
 }
+
+/* ── Inbox (Task 16) ─────────────────────────────────────────────
+   InboxPage.js — the roster-wide submission view: a progress line + a
+   token-styled bar, the four client-side filter tabs (reusing .tabs/.tab),
+   and the roster table itself (reuses .admin-table, same as PeopleTab's
+   own roster). */
+.inbox-progress-line {
+  margin: 0 0 var(--space-2);
+  font-size: var(--fs-sm);
+  color: var(--text-dim);
+}
+
+.inbox-progress-bar {
+  height: var(--space-2);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+  margin-bottom: var(--space-4);
+}
+
+.inbox-progress-bar__fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: var(--radius-pill);
+  transition: width var(--transition-slow);
+}
+
+.inbox-filters { margin: var(--space-4) 0 var(--space-3); }
+
+.inbox-actions { margin-bottom: var(--space-4); }

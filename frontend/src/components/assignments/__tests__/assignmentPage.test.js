@@ -189,7 +189,7 @@ describe("AssignmentPage — phase gating", () => {
 });
 
 describe("AssignmentPage — staff controls", () => {
-  test("teacher view adds an Edit link and a disabled Submissions control", () => {
+  test("teacher view adds an Edit link and a Submissions link to the inbox", () => {
     roleHolder.myRole = "teacher";
     const container = render();
 
@@ -197,10 +197,9 @@ describe("AssignmentPage — staff controls", () => {
     expect(editLink).not.toBeNull();
     expect(editLink.getAttribute("href")).toBe("/classes/c1/assignments/a1/edit");
 
-    const submissions = byText(container, "Submissions", "button");
+    const submissions = byText(container, "Submissions", "a");
     expect(submissions).not.toBeNull();
-    expect(submissions.disabled).toBe(true);
-    expect(submissions.title).toBe("Arrives with marking");
+    expect(submissions.getAttribute("href")).toBe("/classes/c1/assignments/a1/inbox");
   });
 
   test("ta view also gets the staff controls", () => {
@@ -209,10 +208,10 @@ describe("AssignmentPage — staff controls", () => {
     expect(byText(container, "Edit", "a")).not.toBeNull();
   });
 
-  test("student view has neither the Edit link nor the Submissions control", () => {
+  test("student view has neither the Edit link nor the Submissions link", () => {
     roleHolder.myRole = "student";
     const container = render();
     expect(byText(container, "Edit", "a")).toBeNull();
-    expect(byText(container, "Submissions", "button")).toBeNull();
+    expect(byText(container, "Submissions", "a")).toBeNull();
   });
 });
