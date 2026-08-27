@@ -134,6 +134,31 @@ Log in to Physics IDE and submit when you're ready.`,
   };
 }
 
+/* ── Task 24: the daily tick ── */
+/** The one scheduled email (design D§6's one scheduler) — a student with no
+ *  current submission, one day out from the due date. Same CRLF-strip and
+ *  shape as dueReminder (the teacher's own one-click nudge); this is the
+ *  system's, sent once per (assignment, student) via the events-table dedupe
+ *  in tick.ts, never re-sent by a later tick. */
+export function dueTomorrow(p: {
+  name: string;
+  title: string;
+  className: string;
+  dueAt: string | null;
+}) {
+  const title = p.title.replace(/[\r\n]+/g, " ");
+  const className = p.className.replace(/[\r\n]+/g, " ");
+  const dueLine = p.dueAt ? ` It's due ${p.dueAt}.` : "";
+  return {
+    subject: `Due tomorrow — ${title}`,
+    text: `Hi ${p.name},
+
+"${title}" (${className}) is due soon and you haven't submitted yet.${dueLine}
+
+Log in to Physics IDE and submit when you're ready.`,
+  };
+}
+
 /* ── Task 18: marks ── */
 /** Released feedback (spec §7.3) — the score (or a plain complete line for
  *  a points-less assignment) and the teacher's comment. privateNote never
