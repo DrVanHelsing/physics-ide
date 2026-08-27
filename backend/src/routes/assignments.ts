@@ -944,6 +944,10 @@ export function assignmentRoutes(app: FastifyInstance): void {
             ),
           )
       : [];
+    // Individual submissions only — group submissions carry groupId instead
+    // (submitterId null) and resolving "did my group submit" is Stage D's
+    // job, not this one's (same exclusion /upcoming's dueSoon filter makes).
+    // The filter also narrows the type for the Map key below.
     const subByStudent = new Map(
       subRows.filter((s): s is typeof s & { submitterId: string } => !!s.submitterId).map((s) => [s.submitterId, s]),
     );
