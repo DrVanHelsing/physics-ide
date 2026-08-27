@@ -6,6 +6,8 @@ import {
   UpdateAssignmentInputSchema,
   SaveRuleSetInputSchema,
   MarkDraftInputSchema,
+  MarksReleaseInputSchema,
+  MarkReturnInputSchema,
   computeAssignmentPhase,
 } from "@physics-ide/shared";
 import {
@@ -45,6 +47,7 @@ const ASSIGNMENT_CLOSED = "This assignment is closed.";
 const NO_SUCH_SUBMISSION = "No submission from this student.";
 const STAFF_ONLY_FOR_CLASS = "Teachers and TAs only for this class.";
 const NO_SUCH_STUDENT_WORK = "This student has not started this assignment.";
+const NO_SUCH_STUDENT_IN_CLASS = "No such student in this class.";
 // Same exact sentence as AssignmentPage.js's own gateSentence(phase) for the
 // Start/Continue button — the two surfaces must agree (review finding).
 const MARKS_RELEASED_CLOSED = "This assignment is closed — marks have been released.";
@@ -224,6 +227,18 @@ async function loadMark(db: Db, assignmentId: string, studentId: string) {
     .from(marks)
     .where(and(eq(marks.assignmentId, assignmentId), eq(marks.studentId, studentId)));
   return rows[0];
+}
+
+/** The TARGET of a mark must be an active student of the assignment's own
+ *  class. The caller's own membership says nothing about whose row is being
+ *  written: without this, a teacher of any class could create orphan mark
+ *  rows against arbitrary user ids — and the return route would email
+ *  teacher-supplied text to any account in the system. 404 rather than 403
+ *  in this file's established idiom: the caller is entitled to be here, the
+ *  student they named simply is not in this class. */
+async function isMarkableStudent(db: Db, classId: string, studentId: string): Promise<boolean> {
+  const m = await getMembership(db, classId, studentId);
+  return !!m && m.status === "active" && m.role === "student";
 }
 
 /** The full staff shape — privateNote included, since every caller of this
@@ -1345,6 +1360,9 @@ export function assignmentRoutes(app: FastifyInstance): void {
     if (!m || m.status !== "active" || !isStaffRole(m.role)) {
       return reply.code(403).send({ error: STAFF_ONLY });
     }
+    if (!(await isMarkableStudent(app.db, a.classId, studentId))) {
+      return reply.code(404).send({ error: NO_SUCH_STUDENT_IN_CLASS });
+    }
     const parsed = MarkDraftInputSchema.safeParse(req.body);
     if (!parsed.success) {
       return reply.code(400).send({ error: parsed.error.issues[0]?.message ?? "Invalid input." });
@@ -1372,6 +1390,11 @@ export function assignmentRoutes(app: FastifyInstance): void {
       );
     const basedOnSubmissionId = currentSubRows[0]?.id ?? null;
 
+    // Ruling R5: a fresh draft SUPERSEDES a return — the marker has looked
+    // at the work again and written a mark on it, so the return episode is
+    // over. Leaving `returned` set would surface this unreleased draft's
+    // comment and points to the student through myMark (a draft leak) and
+    // keep "You can resubmit." on their page next to it.
     const saved = await app.db.transaction(async (tx) => {
       const [row] = await tx
         .insert(marks)
@@ -1381,6 +1404,7 @@ export function assignmentRoutes(app: FastifyInstance): void {
           points,
           comment: d.comment,
           privateNote: d.privateNote,
+          returned: false,
           markedBy: req.user!.id,
           basedOnSubmissionId,
         })
@@ -1390,6 +1414,7 @@ export function assignmentRoutes(app: FastifyInstance): void {
             points,
             comment: d.comment,
             privateNote: d.privateNote,
+            returned: false,
             markedBy: req.user!.id,
             basedOnSubmissionId,
             updatedAt: new Date(),
@@ -1412,22 +1437,21 @@ export function assignmentRoutes(app: FastifyInstance): void {
       if (await sendClassAuthError(reply, err)) return;
       throw err;
     }
-    const body = req.body as { studentIds?: unknown; all?: unknown };
-    const releaseAll = body?.all === true;
-    if (!releaseAll && !Array.isArray(body?.studentIds)) {
-      return reply.code(400).send({ error: "Invalid input." });
+    const parsed = MarksReleaseInputSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: parsed.error.issues[0]?.message ?? "Invalid input." });
     }
+    const releaseAll = parsed.data.all === true;
+    const ids = parsed.data.studentIds ?? [];
 
     const draftRows = releaseAll
       ? await app.db.select().from(marks).where(and(eq(marks.assignmentId, id), eq(marks.status, "draft")))
-      : await (async () => {
-          const ids = (body.studentIds as unknown[]).filter((x): x is string => typeof x === "string");
-          if (ids.length === 0) return [];
-          return app.db
+      : ids.length === 0
+        ? []
+        : await app.db
             .select()
             .from(marks)
             .where(and(eq(marks.assignmentId, id), eq(marks.status, "draft"), inArray(marks.studentId, ids)));
-        })();
 
     const targetStudentIds = draftRows.map((r) => r.studentId);
     const currentSubs = targetStudentIds.length
@@ -1457,9 +1481,13 @@ export function assignmentRoutes(app: FastifyInstance): void {
     const releasedAt = new Date();
     await app.db.transaction(async (tx) => {
       for (const row of releasable) {
+        // Ruling R5: releasing ENDS any return episode. A row that stayed
+        // `returned` while released would render the student's feedback
+        // card and the "You can resubmit." warning at the same time, and
+        // would hold submission open on a closed assignment.
         await tx
           .update(marks)
-          .set({ status: "released", releasedAt, updatedAt: releasedAt })
+          .set({ status: "released", returned: false, releasedAt, updatedAt: releasedAt })
           .where(eq(marks.id, row.id));
       }
       if (releaseAll) {
@@ -1514,12 +1542,19 @@ export function assignmentRoutes(app: FastifyInstance): void {
     if (!m || m.status !== "active" || !isStaffRole(m.role)) {
       return reply.code(403).send({ error: STAFF_ONLY });
     }
-    const body = req.body as { comment?: unknown };
-    if (typeof body?.comment !== "string" || body.comment.trim().length === 0) {
-      return reply.code(400).send({ error: "Invalid input." });
+    if (!(await isMarkableStudent(app.db, a.classId, studentId))) {
+      return reply.code(404).send({ error: NO_SUCH_STUDENT_IN_CLASS });
     }
-    const comment = body.comment;
+    const parsed = MarkReturnInputSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: parsed.error.issues[0]?.message ?? "Invalid input." });
+    }
+    const comment = parsed.data.comment;
 
+    // Ruling R5: a return UN-RELEASES the row — D§11.2 makes the teacher's
+    // Return the authority, and only a draft-status returned row actually
+    // reopens submission (the submit route's own branch), which is what the
+    // workReturned email promises the student.
     const saved = await app.db.transaction(async (tx) => {
       const [row] = await tx
         .insert(marks)
@@ -1528,11 +1563,20 @@ export function assignmentRoutes(app: FastifyInstance): void {
           studentId,
           comment,
           returned: true,
+          status: "draft",
+          releasedAt: null,
           markedBy: req.user!.id,
         })
         .onConflictDoUpdate({
           target: [marks.assignmentId, marks.studentId],
-          set: { comment, returned: true, markedBy: req.user!.id, updatedAt: new Date() },
+          set: {
+            comment,
+            returned: true,
+            status: "draft",
+            releasedAt: null,
+            markedBy: req.user!.id,
+            updatedAt: new Date(),
+          },
         })
         .returning();
       await logEvent(tx, "assignment.mark_returned", req.user!.id, { assignmentId: id, studentId });

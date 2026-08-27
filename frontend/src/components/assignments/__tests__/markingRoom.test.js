@@ -64,7 +64,12 @@ const HISTORY = [
   { id: "sub-1", fingerprint: "0000000000000000", late: false, attempt: 1, submittedAt: 1699000000000 },
 ];
 
-function submissionData(overrides = {}) {
+/** GET /api/assignments/:id/submissions/:studentId, in the server's REAL
+ *  shape: `mark` is a SIBLING of `submission`/`history`, not a field inside
+ *  `submission` (backend assignments.test.ts asserts it at the top level).
+ *  Overrides that name `mark` land where the server puts it — the fixture
+ *  is the contract, so it may not quietly move the field. */
+function submissionData({ mark = null, ...submissionOverrides } = {}) {
   return {
     submission: {
       studentId: "s1",
@@ -76,10 +81,10 @@ function submissionData(overrides = {}) {
       submittedAt: 1700000000000,
       workspaceXml: "<xml>blocks-here</xml>",
       python: "print('hi')",
-      mark: null,
-      ...overrides,
+      ...submissionOverrides,
     },
     history: HISTORY,
+    mark,
   };
 }
 
@@ -285,6 +290,14 @@ describe("MarkingRoom — MarkPanel: mark input and Save draft (Task 18)", () =>
     expect(byText(container, "No mark yet.", "p")).not.toBeNull();
   });
 
+  test("the points field and both textareas use the .input primitive, not UA chrome", () => {
+    const container = render();
+    expect(container.querySelector(".marking-panel input[type='number']").className).toContain("input");
+    const areas = container.querySelectorAll(".marking-panel textarea");
+    expect(areas).toHaveLength(2);
+    for (const area of areas) expect(area.className).toContain("input");
+  });
+
   test("a points-less assignment shows a 'Mark complete' checkbox instead, and Save draft starts disabled", () => {
     useQuery.mockImplementation(({ queryKey }) => {
       // ["assignment", aid] only — NOT the submission/inbox/timeline keys,
@@ -323,6 +336,24 @@ describe("MarkingRoom — MarkPanel: mark input and Save draft (Task 18)", () =>
     expect(container.querySelectorAll(".marking-panel textarea")[0].value).toBe("Nice work");
     expect(container.querySelectorAll(".marking-panel textarea")[1].value).toBe("watch this one");
     expect(container.textContent).toContain("Status: draft");
+  });
+
+  test("the mark is read from the response's top level, never from inside `submission` — a nested decoy prefills nothing", () => {
+    useQuery.mockImplementation(({ queryKey }) => {
+      if (queryKey[2] === "submission") {
+        const data = submissionData();
+        // The shape the panel used to (wrongly) read. The server never
+        // sends this, so it must not prefill anything.
+        data.submission.mark = { points: 7, comment: "decoy", privateNote: "decoy", status: "draft", returned: false, basedOnSubmissionId: "sub-2", releasedAt: null };
+        return { data, error: null, isLoading: false };
+      }
+      return defaultUseQuery({ queryKey });
+    });
+    const container = render();
+    expect(container.querySelector(".marking-panel input[type='number']").value).toBe("");
+    expect(container.querySelectorAll(".marking-panel textarea")[0].value).toBe("");
+    expect(byText(container, "No mark yet.", "p")).not.toBeNull();
+    expect(byText(container, "Release", "button").disabled).toBe(true);
   });
 
   test("Save draft PUTs points/comment/privateNote and shows the success note on the returned mark", async () => {

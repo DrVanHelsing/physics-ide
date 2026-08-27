@@ -320,11 +320,9 @@
   font-size: var(--fs-sm);
   color: var(--text-dim);
 }
-.marking-panel__field textarea,
-.marking-panel__field input[type="number"] {
-  font: inherit;
-  color: var(--text-bright);
-}
+/* The three fields inside carry .input (primitives.css) — background,
+   border, radius, padding, family, size and colour all come from the
+   primitive, so none of that chrome is restated here. */
 .marking-panel__checkbox {
   flex-direction: row;
   align-items: center;

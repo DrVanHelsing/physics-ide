@@ -205,6 +205,9 @@ export default function MarkingRoom() {
             key={studentId}
             assignment={assignment}
             submission={submission}
+            /* The server returns `mark` as a SIBLING of submission/history,
+               not a field inside `submission` — read it where it lives. */
+            mark={submissionQuery.data?.mark ?? null}
             history={submissionQuery.data?.history ?? []}
             isTeacher={classData.myRole === "teacher"}
             aid={aid}
@@ -244,11 +247,15 @@ export default function MarkingRoom() {
  *
  * The Return-for-changes reason and the release-facing comment are the
  * SAME field — one comment, whichever action the marker takes with it.
+ *
+ * `mark` arrives as its own prop because that is its own place in the
+ * server's response ({ submission, history, mark }) — reading it off
+ * `submission` prefilled nothing against the real API, which meant a Save
+ * draft could overwrite an existing comment and private note with empties.
  */
-function MarkPanel({ assignment, submission, history, isTeacher, aid, studentId }) {
+function MarkPanel({ assignment, submission, mark: initialMark, history, isTeacher, aid, studentId }) {
   const outOf = assignment.points;
-  const initialMark = submission.mark ?? null;
-  const [mark, setMark] = useState(initialMark);
+  const [mark, setMark] = useState(initialMark ?? null);
   const [points, setPoints] = useState(initialMark?.points != null ? String(initialMark.points) : "");
   const [complete, setComplete] = useState(!!initialMark);
   const [comment, setComment] = useState(initialMark?.comment ?? "");
@@ -327,7 +334,9 @@ function MarkPanel({ assignment, submission, history, isTeacher, aid, studentId 
       if (data.refused?.length) {
         setReleaseError(data.refused[0].error);
       } else {
-        setMark((m) => (m ? { ...m, status: "released" } : m));
+        // Releasing ends any return episode (server ruling R5) — mirror
+        // that here so the panel never shows "released · returned".
+        setMark((m) => (m ? { ...m, status: "released", returned: false } : m));
         setReleaseNote("Released.");
       }
     } catch (err) {
@@ -343,7 +352,14 @@ function MarkPanel({ assignment, submission, history, isTeacher, aid, studentId 
       {outOf != null ? (
         <label className="marking-panel__field">
           Points (out of {outOf})
-          <input type="number" min="0" max={outOf} value={points} onChange={(e) => setPoints(e.target.value)} />
+          <input
+            className="input"
+            type="number"
+            min="0"
+            max={outOf}
+            value={points}
+            onChange={(e) => setPoints(e.target.value)}
+          />
         </label>
       ) : (
         <label className="marking-panel__field marking-panel__checkbox">
@@ -354,6 +370,7 @@ function MarkPanel({ assignment, submission, history, isTeacher, aid, studentId 
       <label className="marking-panel__field">
         Comment
         <textarea
+          className="input"
           value={comment}
           onChange={(e) => setComment(e.target.value)}
           rows={4}
@@ -362,7 +379,12 @@ function MarkPanel({ assignment, submission, history, isTeacher, aid, studentId 
       </label>
       <label className="marking-panel__field">
         Private — teachers and TAs only
-        <textarea value={privateNote} onChange={(e) => setPrivateNote(e.target.value)} rows={3} />
+        <textarea
+          className="input"
+          value={privateNote}
+          onChange={(e) => setPrivateNote(e.target.value)}
+          rows={3}
+        />
       </label>
 
       {staleAttempt != null ? (
