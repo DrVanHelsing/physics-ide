@@ -238,6 +238,16 @@
 
 .inbox-filters { margin: var(--space-4) 0 var(--space-3); }
 
+/* Task 23: a group's row names its members under the group's own name —
+   a second line in the same cell, dimmer and smaller, so the link stays
+   the row's anchor and the membership is read as detail, not as another
+   link. */
+.inbox-row__members {
+  display: block;
+  font-size: var(--fs-sm);
+  color: var(--text-dim);
+}
+
 .inbox-actions { margin-bottom: var(--space-4); }
 /* ── History (Task 20) ──────────────────────────────────────────
    HistoryTimeline.js's checkpoint list — one renderer for the student's
@@ -368,6 +378,60 @@
   align-items: center;
   gap: var(--space-2);
 }
+
+/* ── The group mark's per-member adjustments (Task 23, spec §7.3) ──
+   One row per member: their name, a small ± field, and the total that
+   adjustment actually produces. The total is the point of the row — it is
+   what the student will be told — so it sits at the end in the text
+   colour, not dimmed away like the label. */
+.marking-panel__members {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.marking-panel__members-label {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--text-dim);
+}
+.marking-panel__member {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-sm);
+}
+.marking-panel__member-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.marking-panel__member input {
+  width: 4.5rem;
+  flex-shrink: 0;
+}
+.marking-panel__member-total {
+  width: 4rem;
+  flex-shrink: 0;
+  text-align: right;
+  font-family: var(--mono);
+  color: var(--text);
+}
+
+/* The group's own header line: the members named under the group's name,
+   same treatment the inbox row gives them. */
+.marking-room__members {
+  font-size: var(--fs-sm);
+  color: var(--text-dim);
+}
+
+/* Task 23: the student page's "Submitted for all of them" card. */
+.group-submitted h3 { margin: 0 0 var(--space-2); }
+.group-submitted p { margin: 0 0 var(--space-1); }
 .marking-room__history {
   margin-top: var(--space-4);
 }

@@ -15,6 +15,12 @@ import ClassChrome from "../classes/ClassChrome";
  * One query — `["assignment", aid, "inbox"]` — backs the whole page; the
  * four filter tabs (All/Submitted/Late/Missing/Marked) are client-side
  * slices over that single result, never separate requests.
+ *
+ * Task 23: a pair/group assignment answers with one row per GROUP (`kind:
+ * "group"`, members named) plus a row for any rostered student who never
+ * joined one. The filters are unchanged — a group row carries the same
+ * state/late/markStatus fields a student row does — and only the link
+ * target and the reminder's headcount differ.
  */
 
 const FILTERS = [
@@ -151,6 +157,12 @@ function InboxBody({ classData }) {
   const total = rows.length;
   const submittedCount = rows.filter((r) => r.state === "submitted").length;
   const missingRows = rows.filter((r) => r.state === "missing");
+  // Task 23: a group row is ONE hand-in but several people. The progress line
+  // counts hand-ins (rows); the reminder counts the emails it will send.
+  const missingPeople = missingRows.reduce(
+    (n, r) => n + (r.kind === "group" ? r.members.length : 1),
+    0,
+  );
   const pct = total > 0 ? Math.round((submittedCount / total) * 100) : 0;
   const filtered = rows.filter((r) => matchesFilter(r, filter));
 
@@ -158,7 +170,7 @@ function InboxBody({ classData }) {
     setRemindNote(null);
     setRemindError(null);
     // The exact consequence sentence — its own precise wording is the point.
-    const ok = window.confirm(`Email ${missingRows.length} students who have not submitted?`);
+    const ok = window.confirm(`Email ${missingPeople} students who have not submitted?`);
     if (!ok) return;
     remind.mutate();
   }
@@ -265,10 +277,20 @@ function InboxBody({ classData }) {
             {filtered.map((r) => {
               const badge = stateBadge(r, phase);
               const mark = markBadge(r.markStatus);
+              // Task 23: a group's row IS the group — its name links into the
+              // group marking room, and its members are named beneath it so
+              // "who is this?" never needs a second screen.
+              const isGroup = r.kind === "group";
+              const href = isGroup
+                ? `/classes/${id}/assignments/${aid}/marking/group/${r.groupId}`
+                : `/classes/${id}/assignments/${aid}/marking/${r.studentId}`;
               return (
-                <tr key={r.studentId}>
+                <tr key={r.groupId ?? r.studentId}>
                   <td>
-                    <Link to={`/classes/${id}/assignments/${aid}/marking/${r.studentId}`}>{r.name}</Link>
+                    <Link to={href}>{r.name}</Link>
+                    {isGroup ? (
+                      <span className="inbox-row__members">{r.members.map((m) => m.name).join(", ")}</span>
+                    ) : null}
                   </td>
                   <td>
                     <span className={badge.cls}>{badge.label}</span>

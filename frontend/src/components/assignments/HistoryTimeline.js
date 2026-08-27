@@ -41,10 +41,14 @@ function epochOf(time) {
  * entries are BUILT, not just how they render.
  *
  * `savedByLabel`, when given, is stamped onto every checkpoint — the
- * teacher feed's attribution (D§6). Individual work only (Stage C): every
- * checkpoint in one student's project history is that same student's, so
- * one constant label covers the whole list; Stage D's group work is where
- * per-checkpoint attribution (project_versions.savedBy) starts to vary.
+ * teacher feed's attribution (D§6). Individual work: every checkpoint in one
+ * student's project history is that same student's, so one constant label
+ * covers the whole list.
+ *
+ * Group work (Task 23, spec §5.5 — "the history keeps every checkpoint,
+ * labelled with who saved it") is where that stops being constant: the group
+ * timeline route names the member behind each version, and a row's own
+ * `savedByName` wins over the label.
  */
 export function buildTimelineEntries({ versions = [], submissions = [], savedByLabel = null } = {}) {
   const checkpoints = versions.map((v) => ({
@@ -53,7 +57,7 @@ export function buildTimelineEntries({ versions = [], submissions = [], savedByL
     time: epochOf(v.savedAt),
     versionId: v.versionId,
     reason: v.reason,
-    savedBy: savedByLabel,
+    savedBy: v.savedByName ?? savedByLabel,
   }));
   const markers = submissions.map((s) => ({
     type: "submission",

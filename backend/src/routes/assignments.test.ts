@@ -1701,10 +1701,27 @@ describe("GET /api/assignments/:id/inbox / POST /api/assignments/:id/remind", ()
         markStatus: "none",
       });
 
-      // Exactly the cross-lane contract fields — no incidental leakage (e.g. email).
+      // Exactly the cross-lane contract fields — no incidental leakage (e.g.
+      // email, or Task 23's internal `recipients` list). `kind`/`groupId`/
+      // `members` joined the contract with Task 23's group rows; an
+      // individual assignment answers "student" / null / [] for them.
       expect(Object.keys(byId[missingId]).sort()).toEqual(
-        ["studentId", "name", "state", "late", "submittedAt", "attempt", "markStatus"].sort(),
+        [
+          "kind",
+          "studentId",
+          "groupId",
+          "name",
+          "members",
+          "state",
+          "late",
+          "submittedAt",
+          "attempt",
+          "markStatus",
+        ].sort(),
       );
+      expect(byId[missingId].kind).toBe("student");
+      expect(byId[missingId].groupId).toBeNull();
+      expect(byId[missingId].members).toEqual([]);
     });
 
     test("a TA may also view the inbox", async () => {

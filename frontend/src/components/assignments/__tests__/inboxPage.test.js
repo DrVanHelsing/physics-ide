@@ -331,3 +331,91 @@ describe("InboxPage — Release all (Task 18)", () => {
     expect(alert.textContent).toBe("Teachers only for this class.");
   });
 });
+
+/* Task 23, spec §5.5: group work hands in once, so the inbox row IS the
+   group — "one row per group (members named)". A rostered student who never
+   joined one still gets a row of their own; they are exactly who a reminder
+   is for. */
+describe("InboxPage — group rows (Task 23)", () => {
+  function groupInboxData() {
+    return {
+      phase: "closed",
+      rows: [
+        {
+          kind: "group",
+          studentId: null,
+          groupId: "g1",
+          name: "The Pair",
+          members: [
+            { userId: "s1", name: "Alice" },
+            { userId: "s2", name: "Bob" },
+          ],
+          state: "submitted",
+          late: false,
+          submittedAt: 1700000000000,
+          attempt: 1,
+          markStatus: "draft",
+        },
+        {
+          kind: "group",
+          studentId: null,
+          groupId: "g2",
+          name: "The Solo",
+          members: [
+            { userId: "s3", name: "Cleo" },
+            { userId: "s5", name: "Eve" },
+          ],
+          state: "missing",
+          late: false,
+          submittedAt: null,
+          attempt: null,
+          markStatus: "none",
+        },
+        {
+          kind: "student",
+          studentId: "s4",
+          groupId: null,
+          name: "Dee",
+          members: [],
+          state: "missing",
+          late: false,
+          submittedAt: null,
+          attempt: null,
+          markStatus: "none",
+        },
+      ],
+    };
+  }
+
+  beforeEach(() => {
+    useQuery.mockReturnValue({ data: groupInboxData(), error: null, isLoading: false });
+  });
+
+  test("a group row links into the GROUP marking room and names its members", () => {
+    const container = render();
+
+    const link = byText(container, "The Pair", "a");
+    expect(link.getAttribute("href")).toBe("/classes/c1/assignments/a1/marking/group/g1");
+    expect(container.querySelector(".inbox-row__members").textContent).toBe("Alice, Bob");
+  });
+
+  test("an ungrouped student keeps their own row, linking to their own marking room", () => {
+    const container = render();
+    expect(byText(container, "Dee", "a").getAttribute("href")).toBe("/classes/c1/assignments/a1/marking/s4");
+  });
+
+  test("the progress line counts groups, not people — one hand-in per group", () => {
+    const container = render();
+    expect(container.textContent).toContain("1 of 3 submitted");
+  });
+
+  test("Remind's confirm counts the PEOPLE it will email, not the rows", async () => {
+    const container = render();
+    click(byText(container, "Remind"));
+    await flush();
+
+    // Two missing ROWS, but three people: The Solo's two members plus the
+    // ungrouped student. The sentence promises emails, so it counts emails.
+    expect(window.confirm).toHaveBeenCalledWith("Email 3 students who have not submitted?");
+  });
+});

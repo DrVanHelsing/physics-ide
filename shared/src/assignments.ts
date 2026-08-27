@@ -85,6 +85,34 @@ export const MarkDraftInputSchema = z.object({
   privateNote: z.string().max(5000).default(""),
 });
 
+/** The group mark (spec §7.3, Task 23): ONE mark for the group, plus a small
+ *  per-member ± adjustment "where contribution clearly warrants it" (§5.5).
+ *  Deliberately the individual draft schema EXTENDED rather than a second
+ *  contract of its own: a group mark is an ordinary mark that happens to be
+ *  written for several people at once, and the route stores each member's
+ *  FINAL total (`points + adjustment`) in their own row.
+ *  A member named twice is a client bug, not two adjustments — the last one
+ *  would silently win, so it is refused here instead. */
+export const GroupMarkDraftInputSchema = MarkDraftInputSchema.extend({
+  adjustments: z
+    .array(
+      z.object({
+        studentId: z.string().min(1),
+        adjustment: z
+          .number({ invalid_type_error: "An adjustment must be a whole number of points." })
+          .int("An adjustment must be a whole number of points.")
+          .min(-1000)
+          .max(1000),
+      }),
+    )
+    .max(20, "That is more members than a group can hold.")
+    .default([])
+    .refine(
+      (list) => new Set(list.map((a) => a.studentId)).size === list.length,
+      "One adjustment per member.",
+    ),
+});
+
 /** Release names EITHER a list of students OR the whole assignment — never
  *  both (the two mean different things: `all` also stamps the assignment
  *  marks_released), never neither. An empty list stays a legal no-op: the

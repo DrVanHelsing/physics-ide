@@ -148,6 +148,21 @@ describe("buildTimelineEntries", () => {
     });
     expect(entries[0].savedBy).toBeNull();
   });
+
+  /* Task 23, spec §5.5: "the timeline still records which member made every
+     checkpoint". A group's checkpoints have different authors, so the row's
+     OWN name wins over the one constant label — which is exactly the
+     variation this helper's doc comment left to Stage D. */
+  test("group feeder: each version's own savedByName is used, label or no label", () => {
+    const entries = buildTimelineEntries({
+      versions: [
+        { versionId: 2, reason: "overwrite", savedAt: 2000, savedByName: "Naledi" },
+        { versionId: 1, reason: "overwrite", savedAt: 1000, savedByName: "Thabo" },
+      ],
+      savedByLabel: "Should not win",
+    });
+    expect(entries.map((e) => e.savedBy)).toEqual(["Naledi", "Thabo"]);
+  });
 });
 
 describe("HistoryPage", () => {

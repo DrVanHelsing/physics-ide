@@ -110,6 +110,7 @@ beforeEach(() => {
   paramsHolder.id = "c1";
   paramsHolder.aid = "a1";
   paramsHolder.studentId = "s1";
+  paramsHolder.gid = undefined; // group mode (Task 23) sets this instead
   useMe.mockReturnValue({ data: ME, isLoading: false });
   useQuery.mockImplementation(defaultUseQuery);
   localStorage.clear();
@@ -548,5 +549,264 @@ describe("MarkingRoom — the History panel (Task 20's deferred mount)", () => {
     const container = render();
     const history = container.querySelector(".marking-room__history");
     expect(byText(history, "No checkpoints yet.", "p")).not.toBeNull();
+  });
+});
+
+/* Task 23 — the marking room on a GROUP row (spec §7.3: "the panel shows all
+   the members, sets one mark for the group, and allows a per-member
+   adjustment where deserved"). The URL carries a group id instead of a
+   student id, and every read swings to the group's own endpoints. */
+describe("MarkingRoom — group mode (Task 23)", () => {
+  const GROUP_MEMBERS = [
+    { userId: "s1", name: "Alice" },
+    { userId: "s2", name: "Bob" },
+  ];
+
+  function groupSubmissionData({ groupMark = null } = {}) {
+    return {
+      submission: {
+        groupId: "g1",
+        groupName: "The Pair",
+        members: GROUP_MEMBERS,
+        id: "gsub-2",
+        attempt: 2,
+        late: false,
+        fingerprint: "beefcafe12345678",
+        submittedAt: 1700000000000,
+        workspaceXml: "<xml>group-blocks</xml>",
+        python: "print(1)",
+      },
+      history: [
+        { id: "gsub-2", fingerprint: "beefcafe12345678", late: false, attempt: 2, submittedAt: 1700000000000 },
+        { id: "gsub-1", fingerprint: "0000000000000000", late: false, attempt: 1, submittedAt: 1699000000000 },
+      ],
+      groupMark,
+    };
+  }
+
+  const GROUP_INBOX_ROWS = [
+    { kind: "student", studentId: "s9", groupId: null, name: "Ungrouped", members: [] },
+    { kind: "group", studentId: null, groupId: "g1", name: "The Pair", members: GROUP_MEMBERS },
+    { kind: "group", studentId: null, groupId: "g2", name: "The Solo", members: [] },
+  ];
+
+  function mockGroupQueries({ groupMark = null, timeline = null } = {}) {
+    useQuery.mockImplementation(({ queryKey }) => {
+      if (queryKey[0] === "class") return { data: CLASS_DATA, error: null, isLoading: false };
+      if (queryKey[2] === "submission") {
+        return { data: groupSubmissionData({ groupMark }), error: null, isLoading: false };
+      }
+      if (queryKey[2] === "inbox") return { data: { rows: GROUP_INBOX_ROWS }, error: null, isLoading: false };
+      if (queryKey[2] === "timeline") {
+        return { data: timeline ?? { versions: [], submissions: [] }, error: null, isLoading: false };
+      }
+      if (queryKey[0] === "assignment") return { data: ASSIGNMENT_DATA, error: null, isLoading: false };
+      return { data: undefined, error: null, isLoading: false };
+    });
+  }
+
+  /** The real queryFn react-query would have run — the only honest way to
+   *  assert WHICH endpoint a mocked useQuery would have hit. */
+  function queryFnFor(part) {
+    const opts = useQuery.mock.calls.map((c) => c[0]).find((o) => o.queryKey[2] === part);
+    return opts.queryFn;
+  }
+
+  beforeEach(() => {
+    paramsHolder.studentId = undefined;
+    paramsHolder.gid = "g1";
+    mockGroupQueries();
+  });
+
+  test("the submission and timeline reads swing to the group's own endpoints", async () => {
+    render();
+    await queryFnFor("submission")();
+    await queryFnFor("timeline")();
+
+    expect(api).toHaveBeenCalledWith("/api/assignments/a1/submissions/group/g1");
+    expect(api).toHaveBeenCalledWith("/api/assignments/a1/timeline/group/g1");
+  });
+
+  test("the header names the group and every member of it", () => {
+    const container = render();
+    expect(container.textContent).toContain("The Pair");
+    expect(container.textContent).toContain("Alice, Bob");
+    expect(byText(container, "Attempt 2", "span")).not.toBeNull();
+  });
+
+  test("one plus-or-minus adjustment field per member, defaulting to 0", () => {
+    const container = render();
+    const fields = container.querySelectorAll(".marking-panel__member input[type='number']");
+    expect(fields).toHaveLength(2);
+    expect([...fields].map((f) => f.value)).toEqual(["0", "0"]);
+    const panel = container.querySelector(".marking-panel");
+    expect(panel.textContent).toContain("Alice");
+    expect(panel.textContent).toContain("Bob");
+  });
+
+  test("an existing group mark prefills the group's own points AND each member's adjustment", () => {
+    mockGroupQueries({
+      groupMark: {
+        groupId: "g1",
+        points: 8,
+        comment: "Good teamwork.",
+        privateNote: "",
+        status: "draft",
+        returned: false,
+        basedOnSubmissionId: "gsub-2",
+        releasedAt: null,
+        members: [
+          { studentId: "s1", name: "Alice", adjustment: 0, points: 8 },
+          { studentId: "s2", name: "Bob", adjustment: -2, points: 6 },
+        ],
+      },
+    });
+    const container = render();
+    expect(container.querySelector(".marking-panel__field input[type='number']").value).toBe("8");
+    const fields = container.querySelectorAll(".marking-panel__member input[type='number']");
+    expect([...fields].map((f) => f.value)).toEqual(["0", "-2"]);
+    // Each member's own total, so the consequence of an adjustment is visible
+    // before it is ever saved.
+    expect(container.querySelector(".marking-panel").textContent).toContain("6/10");
+  });
+
+  test("Save draft PUTs the GROUP mark route, carrying one adjustment per member", async () => {
+    api.mockResolvedValueOnce({
+      groupMark: {
+        groupId: "g1",
+        points: 8,
+        comment: "Good teamwork.",
+        privateNote: "",
+        status: "draft",
+        returned: false,
+        basedOnSubmissionId: "gsub-2",
+        releasedAt: null,
+        members: [
+          { studentId: "s1", name: "Alice", adjustment: 0, points: 8 },
+          { studentId: "s2", name: "Bob", adjustment: 1, points: 9 },
+        ],
+      },
+    });
+    const container = render();
+    typeInto(container.querySelector(".marking-panel__field input[type='number']"), "8");
+    const [comment] = container.querySelectorAll(".marking-panel textarea");
+    typeInto(comment, "Good teamwork.");
+    typeInto(container.querySelectorAll(".marking-panel__member input[type='number']")[1], "1");
+
+    click(byText(container, "Save draft", "button"));
+    await flush();
+
+    expect(api).toHaveBeenCalledWith("/api/assignments/a1/marks/group/g1", {
+      method: "PUT",
+      body: {
+        points: 8,
+        comment: "Good teamwork.",
+        privateNote: "",
+        adjustments: [
+          { studentId: "s1", adjustment: 0 },
+          { studentId: "s2", adjustment: 1 },
+        ],
+      },
+    });
+    expect(byText(container, "Draft saved.", "div")).not.toBeNull();
+  });
+
+  test("Release names every member — one mark for the group, released to all of them", async () => {
+    mockGroupQueries({
+      groupMark: {
+        groupId: "g1",
+        points: 8,
+        comment: "",
+        privateNote: "",
+        status: "draft",
+        returned: false,
+        basedOnSubmissionId: "gsub-2",
+        releasedAt: null,
+        members: [
+          { studentId: "s1", name: "Alice", adjustment: 0, points: 8 },
+          { studentId: "s2", name: "Bob", adjustment: 0, points: 8 },
+        ],
+      },
+    });
+    api.mockResolvedValueOnce({ released: ["s1", "s2"], refused: [] });
+    const container = render();
+    click(byText(container, "Release", "button"));
+    await flush();
+
+    expect(api).toHaveBeenCalledWith("/api/assignments/a1/marks/release", {
+      method: "POST",
+      body: { studentIds: ["s1", "s2"] },
+    });
+    expect(byText(container, "Released.", "div")).not.toBeNull();
+  });
+
+  test("Return for changes sends the whole group back through the group route", async () => {
+    api.mockResolvedValueOnce({
+      groupMark: {
+        groupId: "g1",
+        points: null,
+        comment: "Show your working.",
+        privateNote: "",
+        status: "draft",
+        returned: true,
+        basedOnSubmissionId: "gsub-2",
+        releasedAt: null,
+        members: [
+          { studentId: "s1", name: "Alice", adjustment: 0, points: null },
+          { studentId: "s2", name: "Bob", adjustment: 0, points: null },
+        ],
+      },
+    });
+    const container = render();
+    const [comment] = container.querySelectorAll(".marking-panel textarea");
+    typeInto(comment, "Show your working.");
+    click(byText(container, "Return for changes", "button"));
+    await flush();
+
+    expect(api).toHaveBeenCalledWith("/api/assignments/a1/marks/group/g1/return", {
+      method: "POST",
+      body: { comment: "Show your working." },
+    });
+    expect(byText(container, "Sent back for changes.", "div")).not.toBeNull();
+  });
+
+  test("Previous / Next walk the mixed inbox order, each row to its own kind of URL", () => {
+    const container = render(); // "g1" is GROUP_INBOX_ROWS[1]
+    click(byText(container, "Previous", "button"));
+    expect(navigateSpy).toHaveBeenCalledWith("/classes/c1/assignments/a1/marking/s9");
+
+    click(byText(container, "Next", "button"));
+    expect(navigateSpy).toHaveBeenCalledWith("/classes/c1/assignments/a1/marking/group/g2");
+  });
+
+  test("the History panel attributes each checkpoint to the member who saved it (§5.5)", () => {
+    mockGroupQueries({
+      timeline: {
+        versions: [
+          { versionId: 2, clientUpdatedAt: 2000, reason: "overwrite", savedAt: "2026-08-20T10:00:00.000Z", savedByName: "Bob" },
+          { versionId: 1, clientUpdatedAt: 1000, reason: "overwrite", savedAt: "2026-08-19T10:00:00.000Z", savedByName: "Alice" },
+        ],
+        submissions: [],
+      },
+    });
+    const history = render().querySelector(".marking-room__history");
+    expect(history.textContent).toContain("Bob");
+    expect(history.textContent).toContain("Alice");
+  });
+
+  test("Open a test copy names the GROUP, since there is no one student to name", async () => {
+    createManifest.mockReturnValue({ id: "m-group" });
+    saveProject.mockResolvedValue({ id: "p-group-copy" });
+
+    const container = render();
+    click(byText(container, "Open a test copy", "button"));
+    await flush();
+
+    expect(createManifest).toHaveBeenCalledWith({
+      goal: "physics",
+      workspaceXml: "<xml>group-blocks</xml>",
+      python: "print(1)",
+      title: "Test copy — The Pair — Momentum Lab",
+    });
   });
 });

@@ -83,9 +83,9 @@ afterEach(() => {
 describe("Submit — BriefPane footer", () => {
   const CTX = { assignmentId: "a-1", classId: "c-1", title: "Pendulum Lab", dueAt: null, rules: {} };
 
-  function queryData({ myWork = { projectId: "p-1", startedAt: 1 }, phase = "open" } = {}) {
+  function queryData({ myWork = { projectId: "p-1", startedAt: 1 }, phase = "open", myGroup = null } = {}) {
     return {
-      data: { assignment: { instructions: null, myWork, phase } },
+      data: { assignment: { instructions: null, myWork, phase, myGroup } },
       error: null,
       isLoading: false,
     };
@@ -164,6 +164,28 @@ describe("Submit — BriefPane footer", () => {
     const alert = container.querySelector(".alert.alert--danger[role='alert']");
     expect(alert).not.toBeNull();
     expect(alert.textContent).toBe("This assignment is closed.");
+  });
+
+  /* Task 23: the same rule AssignmentPage's own submit follows — group work's
+     myWork.projectId names the FOUNDING member's project, which the personal
+     engine does not own. The group's head is already current: every save made
+     while the baton is held goes straight through the group route as it
+     happens (groupSync's listener), and a member WITHOUT the baton could not
+     push it here even if this tried. */
+  test("group work: the pane never pushes another member's project through the personal engine", async () => {
+    const pushProject = vi.fn().mockResolvedValue(undefined);
+    getGlobalSyncEngine.mockResolvedValue(engineWith(pushProject));
+    api.mockResolvedValue({
+      submission: { id: "s-1", fingerprint: "abcd1234ef56", late: false, attempt: 1, submittedAt: 1 },
+    });
+
+    const container = render({ myGroup: { id: "g1", name: "Group 1", projectId: "p-1", members: [] } });
+    click(byText(container, "Submit", "button"));
+    await flush();
+
+    expect(getGlobalSyncEngine).not.toHaveBeenCalled();
+    expect(pushProject).not.toHaveBeenCalled();
+    expect(api).toHaveBeenCalledWith("/api/assignments/a-1/submit", { method: "POST" });
   });
 
   test("late_window: the warning line renders BEFORE the button; open: no warning", () => {

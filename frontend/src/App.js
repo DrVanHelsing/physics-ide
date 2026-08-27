@@ -79,6 +79,13 @@ function App() {
                         <Route path="/classes/:id/assignments/:aid/edit" element={<AssignmentEditorPage />} />
                         <Route path="/classes/:id/assignments/:aid" element={<AssignmentPage />} />
                         <Route path="/classes/:id/assignments/:aid/inbox" element={<InboxPage />} />
+                        {/* Task 23: the same room on a group row. The static
+                            segment sits BEFORE the :studentId route so a
+                            group id is never mistaken for a student's. */}
+                        <Route
+                          path="/classes/:id/assignments/:aid/marking/group/:gid"
+                          element={<MarkingRoom />}
+                        />
                         <Route
                           path="/classes/:id/assignments/:aid/marking/:studentId"
                           element={<MarkingRoom />}
