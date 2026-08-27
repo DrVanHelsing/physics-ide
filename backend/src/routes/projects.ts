@@ -13,10 +13,15 @@ export const MAX_VERSIONS_PER_PROJECT = 20;
 const PROJECT_ID_REGEX = /^p-[A-Za-z0-9-]{3,60}$/;
 
 export const OVERSIZE_ERROR = "This project is too large to sync. Export it as a file instead.";
+export const INVALID_PROJECT_ERROR = "That doesn't look like a valid project.";
 const CAP_ERROR = "You've reached the 100-project limit — delete something first.";
 
-/** Just enough shape-checking to store it; the client owns full validation. */
-const ManifestSchema = z
+/** Just enough shape-checking to store it; the client owns full validation.
+ *  Exported for the group project PUT (plan Stage D): a group's shared
+ *  project IS one of these rows, and the founding member's own sync engine
+ *  reads back whatever a member saves into it — so a group save is held to
+ *  exactly the contract the owner's own push is held to, from one schema. */
+export const ManifestSchema = z
   .object({
     schemaVersion: z.literal(2),
     id: z.string().regex(PROJECT_ID_REGEX),
@@ -143,7 +148,7 @@ export function projectRoutes(app: FastifyInstance): void {
     const body = req.body as { manifest?: unknown };
     const parsed = ManifestSchema.safeParse(body?.manifest);
     if (!parsed.success || parsed.data.id !== id || !PROJECT_ID_REGEX.test(id)) {
-      return reply.code(400).send({ error: "That doesn't look like a valid project." });
+      return reply.code(400).send({ error: INVALID_PROJECT_ERROR });
     }
     const m = parsed.data;
     if (Buffer.byteLength(JSON.stringify(m), "utf8") > MAX_MANIFEST_BYTES) {
