@@ -4,6 +4,7 @@ import { saveProject, loadProject } from "../../storage/projectStore";
 import { setAssignmentMeta, listAssignmentMeta, deleteAssignmentMeta } from "../../storage/assignmentMeta";
 import { getGlobalSyncEngine } from "../../sync/syncEngine";
 import { api } from "../../api/client";
+import { pullGroupProject } from "../groupSync";
 import { LAST_PROJECT_KEY } from "../../../constants";
 
 /* createManifest (utils/manifest/factory.js) is pure and left real, so the
@@ -19,6 +20,7 @@ vi.mock("../../storage/assignmentMeta", () => ({
 }));
 vi.mock("../../sync/syncEngine", () => ({ getGlobalSyncEngine: vi.fn() }));
 vi.mock("../../api/client", () => ({ api: vi.fn() }));
+vi.mock("../groupSync", () => ({ pullGroupProject: vi.fn() }));
 
 const ME = { id: "u1" };
 
@@ -67,6 +69,9 @@ beforeEach(() => {
   });
   setAssignmentMeta.mockImplementation(async () => {
     order.push("setAssignmentMeta");
+  });
+  pullGroupProject.mockImplementation(async () => {
+    order.push("pullGroupProject");
   });
 });
 
@@ -155,6 +160,7 @@ describe("startAssignmentWork — fresh start (no myWork, no pending retry)", ()
       title: "Kinematics HW",
       dueAt: 1700000000000,
       rules: { debug: true },
+      groupId: null,
     });
   });
 });
@@ -174,7 +180,89 @@ describe("startAssignmentWork — myWork already present (Continue)", () => {
       title: "Kinematics HW",
       dueAt: 1700000000000,
       rules: { debug: true },
+      groupId: null,
     });
+  });
+
+  test("stamps LAST_PROJECT_KEY so 'Continue' reopens THIS assignment's project, not the last one touched", async () => {
+    localStorage.setItem(LAST_PROJECT_KEY, "p-something-else");
+    const a = assignment({ myWork: { projectId: "p-existing-1", startedAt: 123 } });
+
+    await startAssignmentWork({ assignment: a, me: ME });
+
+    expect(localStorage.getItem(LAST_PROJECT_KEY)).toBe("p-existing-1");
+  });
+
+  test("individual work never touches the group routes", async () => {
+    const a = assignment({ myWork: { projectId: "p-existing-1", startedAt: 123 } });
+    await startAssignmentWork({ assignment: a, me: ME });
+    expect(pullGroupProject).not.toHaveBeenCalled();
+  });
+});
+
+/* ── Task 22: group work ──────────────────────────────────────────────
+   The shared project lives under the FOUNDING member's account. Only the
+   founder ever pushes it through the personal engine (that is what /start
+   links); every other member's local copy arrives through the group route,
+   because /api/projects/:id would 404 for a project they do not own. */
+describe("startAssignmentWork — group work", () => {
+  const GROUP = { id: "g1", name: "Group 1", projectId: null, members: [] };
+
+  test("the founding member follows D§2 unchanged — their own push is what /start links", async () => {
+    const a = assignment({ submissionMode: "pair", myGroup: GROUP });
+    const id = await startAssignmentWork({ assignment: a, me: ME });
+
+    expect(id).toBe("p-saved-1");
+    expect(order).toEqual([
+      "saveProject",
+      "setAssignmentMeta",
+      "pushProject",
+      "api:/api/assignments/a1/start",
+      "setAssignmentMeta",
+    ]);
+    expect(pullGroupProject).not.toHaveBeenCalled();
+  });
+
+  test("the group id is cached alongside the rest of the assignment context", async () => {
+    const a = assignment({ submissionMode: "pair", myGroup: GROUP });
+    await startAssignmentWork({ assignment: a, me: ME });
+
+    expect(setAssignmentMeta).toHaveBeenCalledWith(
+      "p-saved-1",
+      expect.objectContaining({ assignmentId: "a1", groupId: "g1" }),
+    );
+  });
+
+  test("a LATER member gets their copy from the group route — never a create, a push, or /start", async () => {
+    const a = assignment({
+      submissionMode: "pair",
+      myGroup: { ...GROUP, projectId: "p-founder" },
+      myWork: { projectId: "p-founder", startedAt: 1 },
+    });
+
+    const id = await startAssignmentWork({ assignment: a, me: ME });
+
+    expect(id).toBe("p-founder");
+    expect(saveProject).not.toHaveBeenCalled();
+    expect(getGlobalSyncEngine).not.toHaveBeenCalled();
+    expect(api).not.toHaveBeenCalled();
+    expect(pullGroupProject).toHaveBeenCalledWith("g1");
+    expect(localStorage.getItem(LAST_PROJECT_KEY)).toBe("p-founder");
+  });
+
+  test("losing the race to another MEMBER: the winner's project is pulled, since it is on their account, not ours", async () => {
+    api.mockImplementation(async (path) => {
+      order.push(`api:${path}`);
+      return { work: { projectId: "p-other-member" } };
+    });
+    const a = assignment({ submissionMode: "pair", myGroup: GROUP });
+
+    const id = await startAssignmentWork({ assignment: a, me: ME });
+
+    expect(id).toBe("p-other-member");
+    expect(deleteAssignmentMeta).toHaveBeenCalledWith("p-saved-1");
+    expect(pullGroupProject).toHaveBeenCalledWith("g1");
+    expect(localStorage.getItem(LAST_PROJECT_KEY)).toBe("p-other-member");
   });
 });
 

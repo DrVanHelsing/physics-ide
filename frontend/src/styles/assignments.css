@@ -37,6 +37,46 @@
 .assignment-row__due,
 .assignment-row__count { font-size: var(--fs-sm); color: var(--text-muted); }
 
+/* ── Group panel (Task 22) ──────────────────────────────────────
+   AssignmentPage.js's pick-or-see-your-group card for pair/group work
+   (spec §5.5 / §6.2). One row per group: name, members, seat count, and
+   the one control that applies to this student. */
+.group-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  align-items: flex-start;
+}
+.group-panel h3 { margin: 0; }
+
+.group-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.group-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.group-row__name { color: var(--text-bright); }
+/* The members take the slack so the seat count and the control stay put as
+   the roster grows. */
+.group-row__members {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* ── Instructions doc renderer (Task 6) ────────────────────────
    InstructionsView.js's read-only render of the TipTap/ProseMirror doc
    InstructionsDocSchema validates. Headings step down one level from the

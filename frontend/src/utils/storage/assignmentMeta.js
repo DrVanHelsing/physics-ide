@@ -7,7 +7,15 @@
  * round trip once it opens (Task 11 wires the consumers + its own test file;
  * this task creates the module complete, per the controller ruling).
  *
- * One record per project: { assignmentId, classId, title, dueAt, rules }.
+ * One record per project: { assignmentId, classId, title, dueAt, rules,
+ * groupId }.
+ *
+ * `groupId` (Task 22) names the group whose SHARED project this local copy
+ * is, or null for ordinary individual work. It is written as an explicit
+ * null rather than left absent because "this project is not group work" is a
+ * fact the IDE reads offline, and it decides which routes the project's
+ * saves take: a group project's saves go through the group endpoints, never
+ * the personal sync engine (plan Stage D's architectural note).
  */
 import localforage from "localforage";
 
@@ -30,6 +38,7 @@ export async function setAssignmentMeta(projectId, meta) {
     title: meta.title,
     dueAt: meta.dueAt,
     rules: meta.rules,
+    groupId: meta.groupId ?? null,
   });
 }
 

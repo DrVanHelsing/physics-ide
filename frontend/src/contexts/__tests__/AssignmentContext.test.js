@@ -63,7 +63,7 @@ describe("AssignmentProvider — cache, refresh, and the guest gate (Task 11)", 
     mounted = mountComponent(<AssignmentProvider projectId="p-1"><Probe /></AssignmentProvider>);
     await flush();
 
-    expect(JSON.parse(probeText())).toEqual(CACHED);
+    expect(JSON.parse(probeText())).toEqual({ ...CACHED, groupId: null });
   });
 
   test("offline cache-stands: a rejected refresh leaves the rendered context and the stored cache both untouched", async () => {
@@ -75,8 +75,8 @@ describe("AssignmentProvider — cache, refresh, and the guest gate (Task 11)", 
     await flush();
     await flush();
 
-    expect(JSON.parse(probeText())).toEqual(CACHED);
-    expect(await getAssignmentMeta("p-1")).toEqual(CACHED);
+    expect(JSON.parse(probeText())).toEqual({ ...CACHED, groupId: null });
+    expect(await getAssignmentMeta("p-1")).toEqual({ ...CACHED, groupId: null });
   });
 
   test("fresh-refresh overwrite: a successful GET overwrites both the rendered context and the cache ('new rules next time they open the work')", async () => {
@@ -94,7 +94,7 @@ describe("AssignmentProvider — cache, refresh, and the guest gate (Task 11)", 
     await flush();
     await flush();
 
-    const expected = { assignmentId: "a-1", ...fresh };
+    const expected = { assignmentId: "a-1", ...fresh, groupId: null };
     expect(JSON.parse(probeText())).toEqual(expected);
     expect(await getAssignmentMeta("p-1")).toEqual(expected);
     expect(api).toHaveBeenCalledWith("/api/assignments/a-1");
@@ -135,7 +135,57 @@ describe("AssignmentProvider — cache, refresh, and the guest gate (Task 11)", 
     await flush();
 
     expect(() => JSON.parse(probeText())).not.toThrow();
-    expect(JSON.parse(probeText())).toEqual({ assignmentId: "a-pending", ...fresh });
+    expect(JSON.parse(probeText())).toEqual({ assignmentId: "a-pending", ...fresh, groupId: null });
     expect(api).toHaveBeenCalledWith("/api/assignments/a-pending");
+  });
+});
+
+describe("AssignmentProvider — the group id (Task 22)", () => {
+  test("the refresh picks up the group the student is in, so the IDE knows its saves take the group routes", async () => {
+    await setAssignmentMeta("p-1", CACHED);
+    useMe.mockReturnValue({ data: ME });
+    api.mockResolvedValue({
+      assignment: {
+        classId: "c-1",
+        title: "Pendulum Lab",
+        dueAt: 1000,
+        rules: CACHED.rules,
+        myGroup: { id: "g-4", name: "Group 1", projectId: "p-1", members: [] },
+      },
+    });
+
+    mounted = mountComponent(<AssignmentProvider projectId="p-1"><Probe /></AssignmentProvider>);
+    await flush();
+    await flush();
+
+    expect(JSON.parse(probeText()).groupId).toBe("g-4");
+    expect((await getAssignmentMeta("p-1")).groupId).toBe("g-4");
+  });
+
+  test("leaving the group drops it on the next refresh — the chip and the read-only lock go with it", async () => {
+    await setAssignmentMeta("p-1", { ...CACHED, groupId: "g-4" });
+    useMe.mockReturnValue({ data: ME });
+    api.mockResolvedValue({
+      assignment: { classId: "c-1", title: "Pendulum Lab", dueAt: 1000, rules: CACHED.rules, myGroup: null },
+    });
+
+    mounted = mountComponent(<AssignmentProvider projectId="p-1"><Probe /></AssignmentProvider>);
+    await flush();
+    await flush();
+
+    expect(JSON.parse(probeText()).groupId).toBeNull();
+    expect((await getAssignmentMeta("p-1")).groupId).toBeNull();
+  });
+
+  test("offline: a cached group id keeps standing, so group work opens read-only-aware without the network", async () => {
+    await setAssignmentMeta("p-1", { ...CACHED, groupId: "g-4" });
+    useMe.mockReturnValue({ data: ME });
+    api.mockRejectedValue(new Error("offline"));
+
+    mounted = mountComponent(<AssignmentProvider projectId="p-1"><Probe /></AssignmentProvider>);
+    await flush();
+    await flush();
+
+    expect(JSON.parse(probeText()).groupId).toBe("g-4");
   });
 });

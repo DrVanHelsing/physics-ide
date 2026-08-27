@@ -42,6 +42,7 @@ import DataPanel    from "../DataPanel";
 import TracePromoteDialog from "../TracePromoteDialog";
 import SaveState    from "./SaveState";
 import RulesChip    from "./RulesChip";
+import BatonChip    from "./BatonChip";
 import RunErrorBanner from "./RunErrorBanner";
 import BriefPane    from "../assignments/BriefPane";
 import { BlocksIcon, CodeIcon, GlobeIcon } from "../Icons";
@@ -57,6 +58,7 @@ import { runDsCode, clearCsvCache } from "../../utils/runner/dsRunner";
 import { GLOWSCRIPT_VERSION } from "../../utils/runner/glowRunner";
 import { renderDsChartToElement } from "../../utils/charts/chartSpec";
 import { migrate } from "../../utils/manifest/migrate";
+import { startGroupSaves } from "../../utils/assignments/groupSync";
 import { SPLIT_MIN, SPLIT_MAX } from "../../constants";
 
 import { useTheme }              from "../../contexts/ThemeContext";
@@ -136,6 +138,24 @@ export function WorkspaceRulesEnforcer({ mode, onModeChange, onRules, lockedMode
   return null;
 }
 
+/**
+ * groupReadOnly — Task 22, spec §5.5: "while one member has it open for
+ * editing, the others see it read-only".
+ *
+ * BatonChip reports `{ groupId, held }` upward (IDELayout's body cannot read
+ * useAssignmentContext() itself — same constraint WorkspaceRulesEnforcer
+ * documents above), and this turns it into the EXISTING `isReadOnlyView`
+ * flag. One mechanism, no new editor states.
+ *
+ * `held` is tri-state: null means the baton has not been read yet. That must
+ * not lock the workspace, or every open of group work would flash the
+ * read-only editors — and their swap remounts Blockly — before the first
+ * poll lands. Only a confirmed "not yours" locks.
+ */
+export function groupReadOnly(baton) {
+  return !!baton?.groupId && baton.held === false;
+}
+
 export default function IDELayout() {
   /* ── Theme ───────────────────────────────────────────── */
   const { isDark, toggle: toggleTheme } = useTheme();
@@ -182,6 +202,22 @@ export default function IDELayout() {
      that component's doc comment. Null outside assignment work. */
   const [assignmentRules, setAssignmentRules] = useState(null);
   const hideAdvanced = assignmentRules ? !assignmentRules.advancedBlocks : false;
+
+  /* Task 22: the group baton, mirrored down from BatonChip (rendered in the
+     status bar, inside AssignmentProvider) for the same reason the rules
+     are. Two things hang off it — the read-only lock below, and the group
+     save listener: while the baton is HERE, every local save of this project
+     goes into the group's shared row through the group routes (never the
+     personal sync engine, which does not own it). Registering the listener
+     is itself the permission, so a save can't slip out between polls. */
+  const [baton, setBaton] = useState(null);
+  const isGroupReadOnly = groupReadOnly(baton);
+  const batonGroupId = baton?.groupId ?? null;
+  const batonHeld = baton?.held ?? null;
+  useEffect(() => {
+    if (!batonGroupId || batonHeld !== true || !proj.activeProjectId) return undefined;
+    return startGroupSaves(batonGroupId, proj.activeProjectId);
+  }, [batonGroupId, batonHeld, proj.activeProjectId]);
 
   /* Click a variable name in the trace table → light up its block. The ref is
      the SHARED one (SimulationContext), filled by handleWorkspaceReady and —
@@ -497,7 +533,8 @@ export default function IDELayout() {
   const lockedMode     = projectType === "code_blank" ? "blocks" : null;
   const isReadOnlyView =
     (projectType === "block_template" && mode === "text") ||
-    (projectType === "code_template"  && mode === "blocks");
+    (projectType === "code_template"  && mode === "blocks") ||
+    isGroupReadOnly;   // group work: another member holds the baton (§5.5)
 
   /* ── Start menu ──────────────────────────────────────── */
   if (showStart) {
@@ -636,7 +673,14 @@ export default function IDELayout() {
                 }`}
               >
                 <BlocksIcon size={14} />{" "}
-                {isReadOnlyView ? "Block Reference (Read Only)" : "Block Editor"}
+                {/* "Block Reference" names the template case specifically; a
+                    group member locked out by the baton is looking at the
+                    group's own blocks, so it says so instead. */}
+                {isGroupReadOnly
+                  ? "Blocks (Read Only)"
+                  : isReadOnlyView
+                  ? "Block Reference (Read Only)"
+                  : "Block Editor"}
               </div>
               {isReadOnlyView ? (
                 <ReadOnlyBlockly xml={workspaceXml} isDark={isDark} />
@@ -695,6 +739,8 @@ export default function IDELayout() {
                 <CodeIcon size={14} />{" "}
                 {isCustom
                   ? "Code View Only"
+                  : isGroupReadOnly
+                  ? "Code (Read Only)"   /* not necessarily GENERATED code — see the blocks pane */
                   : isReadOnlyView
                   ? "Generated Code (Read Only)"
                   : "Code Editor"}
@@ -788,6 +834,7 @@ export default function IDELayout() {
         </span>
         <SaveState updatedAt={proj.activeManifest?.updatedAt} />
         <RulesChip />
+        <BatonChip onBaton={setBaton} />
         <span className="status-bar__spacer" />
         <span
           className={running ? "console-bar console-bar--running" : statusClass}
