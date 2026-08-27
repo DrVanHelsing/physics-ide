@@ -11,6 +11,8 @@ vi.mock("../auth/HeaderAccount", () => ({ default: () => null }));
 vi.mock("../../auth/useAuth", () => ({ useMe: vi.fn() }));
 // Task 12: same reason, same fix, for the workspace-rules context read.
 vi.mock("../../contexts/AssignmentContext", () => ({ useAssignmentContext: vi.fn() }));
+// Task 20: same reason, same fix, for the fileMenu History item's useNavigate().
+vi.mock("react-router-dom", () => ({ useNavigate: () => vi.fn() }));
 
 let mounted = null;
 const realMatchMedia = globalThis.matchMedia;
