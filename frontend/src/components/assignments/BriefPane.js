@@ -47,6 +47,7 @@ import { api } from "../../utils/api/client";
 import { useMe } from "../../auth/useAuth";
 import { getGlobalSyncEngine } from "../../utils/sync/syncEngine";
 import { assertPushSucceeded } from "../../utils/assignments/startWork";
+import { flushGroupSaves } from "../../utils/assignments/groupSync";
 import { useAssignmentContext } from "../../contexts/AssignmentContext";
 import InstructionsView from "./InstructionsView";
 import Overlay from "../common/Overlay";
@@ -103,7 +104,7 @@ export default function BriefPane() {
   const assignment = q.data?.assignment ?? null;
   const myWorkProjectId = assignment?.myWork?.projectId ?? null;
   const phase = assignment?.phase ?? null;
-  const isGroupWork = !!assignment?.myGroup;
+  const myGroupId = assignment?.myGroup?.id ?? null;
   const canSubmit = !!myWorkProjectId && (phase === "open" || phase === "late_window");
 
   const handleSubmit = useCallback(async () => {
@@ -112,13 +113,15 @@ export default function BriefPane() {
     try {
       // Group work (Task 23): myWork.projectId names the FOUNDING member's
       // project, which this member's own engine does not own — pushing it
-      // would plant a copy of someone else's work under their account, and a
-      // member without the baton could not push it to the group either. The
-      // group's head is already current: while the baton is held, every local
-      // save goes straight through the group route as it happens (groupSync's
-      // listener), which is the same "last saved copy" the personal push
-      // sends. So there is nothing left to push here.
-      if (!isGroupWork) {
+      // through the personal engine would plant a copy of someone else's
+      // work under their account. The group's own barrier stands in its
+      // place, and does the same job: settle the group push FIRST (awaited,
+      // and checked), so the snapshot is the save the student just made and
+      // not the one before it. A push that never landed throws here, and the
+      // catch below refuses the submit with its sentence.
+      if (myGroupId) {
+        await flushGroupSaves(myGroupId); // group push, THEN submit
+      } else {
         const engine = await getGlobalSyncEngine();
         await engine.pushProject(myWorkProjectId, me.id); // push FIRST — the snapshot must be what the student sees
         assertPushSucceeded(engine);
@@ -132,7 +135,7 @@ export default function BriefPane() {
     } catch (err) {
       setSubmitState({ status: "error", message: err.message });
     }
-  }, [assignmentId, myWorkProjectId, me, isGroupWork]);
+  }, [assignmentId, myWorkProjectId, me, myGroupId]);
 
   const toggleCollapsed = useCallback(() => {
     setCollapsed((prev) => {
