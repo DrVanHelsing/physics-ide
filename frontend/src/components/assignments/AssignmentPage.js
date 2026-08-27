@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../utils/api/client";
 import { startAssignmentWork, assertPushSucceeded } from "../../utils/assignments/startWork";
+import { flushGroupSaves } from "../../utils/assignments/groupSync";
 import { getGlobalSyncEngine } from "../../utils/sync/syncEngine";
 import ClassChrome from "../classes/ClassChrome";
 import { phaseBadge } from "./AssignmentsTab";
@@ -207,10 +208,14 @@ function AssignmentBody({ classData, me }) {
       // Group work's projectId names the FOUNDING member's project — a row
       // this member may not own, so the personal engine must never be asked
       // to push it (that would plant a copy of someone else's work under
-      // their account). The group's head is already current: every group
-      // save goes straight through the group route as it happens. Group
-      // submit itself is Task 23.
-      if (!assignment.myGroup) {
+      // their account). The group's own push barrier stands in its place:
+      // it settles whatever this browser still owes the group's row before
+      // the server snapshots it, and throws if a save never got there.
+      // Usually a no-op on this page — the IDE is not mounted here, so this
+      // member holds no save session — but a failed push must still refuse.
+      if (assignment.myGroup) {
+        await flushGroupSaves(assignment.myGroup.id); // group push, THEN submit
+      } else {
         const engine = await getGlobalSyncEngine();
         await engine.pushProject(assignment.myWork.projectId, me.id); // push FIRST — the snapshot must be what the student sees
         assertPushSucceeded(engine);

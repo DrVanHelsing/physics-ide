@@ -8,6 +8,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useMe } from "../../../auth/useAuth";
 import { getGlobalSyncEngine } from "../../../utils/sync/syncEngine";
 import { api } from "../../../utils/api/client";
+import { flushGroupSaves, GROUP_PUSH_FAILED_MESSAGE } from "../../../utils/assignments/groupSync";
 
 /**
  * Task 14 — Submit. Exercises the click flow itself (push happens BEFORE
@@ -35,6 +36,16 @@ vi.mock("../InstructionsView", () => ({ default: () => null }));
 vi.mock("../../../auth/useAuth", () => ({ useMe: vi.fn() }));
 vi.mock("../../../utils/sync/syncEngine", () => ({ getGlobalSyncEngine: vi.fn() }));
 vi.mock("../../../utils/api/client", () => ({ api: vi.fn() }));
+/* Fix round 1: group work's push barrier. Mocked here (its own contract is
+   groupSync.test.js's business) so these suites can assert the ORDER — the
+   barrier settles before the POST — and the refusal. `pullGroupProject` is
+   in the factory because startWork.js, deliberately left unmocked above,
+   imports it from the same module. */
+vi.mock("../../../utils/assignments/groupSync", () => ({
+  flushGroupSaves: vi.fn(),
+  pullGroupProject: vi.fn(),
+  GROUP_PUSH_FAILED_MESSAGE: "Your last change hasn't reached the group yet — save it again before submitting.",
+}));
 
 const { paramsHolder, navigateSpy } = vi.hoisted(() => ({
   paramsHolder: { id: "c1", aid: "a1" },
@@ -104,6 +115,7 @@ describe("Submit — BriefPane footer", () => {
     useAssignmentContext.mockReturnValue(CTX);
     useQuery.mockReturnValue(queryData());
     useMe.mockReturnValue({ data: ME });
+    flushGroupSaves.mockResolvedValue(undefined);
   });
 
   function render(overrides) {
@@ -188,6 +200,43 @@ describe("Submit — BriefPane footer", () => {
     expect(api).toHaveBeenCalledWith("/api/assignments/a-1/submit", { method: "POST" });
   });
 
+  /* Fix round 1: the group's push barrier is the group path's own version of
+     the personal path's awaited pushProject + assertPushSucceeded. Without
+     it the PUT carrying the student's newest save could still be in flight
+     when the POST landed, and the receipt would fingerprint the PREVIOUS
+     head — the fingerprint being the documented dispute authority. */
+  test("group work: the push barrier settles BEFORE the submit POST", async () => {
+    const calls = [];
+    flushGroupSaves.mockImplementation(async (groupId) => {
+      calls.push(["flush", groupId]);
+    });
+    api.mockImplementation(async (url) => {
+      calls.push(["post", url]);
+      return { submission: { id: "s-1", fingerprint: "abcd1234ef56", late: false, attempt: 1, submittedAt: 1 } };
+    });
+
+    const container = render({ myGroup: { id: "g1", name: "Group 1", projectId: "p-1", members: [] } });
+    click(byText(container, "Submit", "button"));
+    await flush();
+
+    expect(calls).toEqual([
+      ["flush", "g1"],
+      ["post", "/api/assignments/a-1/submit"],
+    ]);
+  });
+
+  test("group work: a change that never reached the group refuses the submit — no POST, the honest sentence", async () => {
+    flushGroupSaves.mockRejectedValue(new Error(GROUP_PUSH_FAILED_MESSAGE));
+
+    const container = render({ myGroup: { id: "g1", name: "Group 1", projectId: "p-1", members: [] } });
+    click(byText(container, "Submit", "button"));
+    await flush();
+
+    expect(api).not.toHaveBeenCalledWith("/api/assignments/a-1/submit", { method: "POST" });
+    const alert = container.querySelector(".alert.alert--danger[role='alert']");
+    expect(alert.textContent).toBe(GROUP_PUSH_FAILED_MESSAGE);
+  });
+
   test("late_window: the warning line renders BEFORE the button; open: no warning", () => {
     const lateContainer = render({ phase: "late_window" });
     const html = lateContainer.querySelector(".brief-pane__footer").innerHTML;
@@ -233,6 +282,7 @@ describe("Submit — AssignmentPage", () => {
       },
       isPending: false,
     }));
+    flushGroupSaves.mockResolvedValue(undefined);
   });
 
   function render(overrides) {
@@ -333,5 +383,47 @@ describe("Submit — AssignmentPage", () => {
     expect(getGlobalSyncEngine).not.toHaveBeenCalled();
     expect(pushProject).not.toHaveBeenCalled();
     expect(api).toHaveBeenCalledWith("/api/assignments/a1/submit", { method: "POST" });
+  });
+
+  /* Fix round 1 — the same barrier on the portal surface. Usually a no-op
+     here (the IDE is not mounted, so this member holds no save session), but
+     a push that failed on the way out must still refuse rather than let the
+     student hand in the head without their last change. */
+  test("group work: the push barrier settles BEFORE the submit POST", async () => {
+    const calls = [];
+    flushGroupSaves.mockImplementation(async (groupId) => {
+      calls.push(["flush", groupId]);
+    });
+    api.mockImplementation(async (url) => {
+      calls.push(["post", url]);
+      return { submission: { id: "s-1", fingerprint: "abcd1234ef56", late: false, attempt: 1, submittedAt: 1 } };
+    });
+
+    const container = render({
+      submissionMode: "group",
+      myGroup: { id: "g1", name: "Group 1", projectId: "p-1", members: [] },
+    });
+    click(byText(container, "Submit", "button"));
+    await flush();
+
+    expect(calls).toEqual([
+      ["flush", "g1"],
+      ["post", "/api/assignments/a1/submit"],
+    ]);
+  });
+
+  test("group work: a change that never reached the group refuses the submit — no POST, the honest sentence", async () => {
+    flushGroupSaves.mockRejectedValue(new Error(GROUP_PUSH_FAILED_MESSAGE));
+
+    const container = render({
+      submissionMode: "group",
+      myGroup: { id: "g1", name: "Group 1", projectId: "p-1", members: [] },
+    });
+    click(byText(container, "Submit", "button"));
+    await flush();
+
+    expect(api).not.toHaveBeenCalledWith("/api/assignments/a1/submit", { method: "POST" });
+    const alerts = [...container.querySelectorAll(".alert.alert--danger[role='alert']")];
+    expect(alerts.map((a) => a.textContent)).toEqual([GROUP_PUSH_FAILED_MESSAGE]);
   });
 });

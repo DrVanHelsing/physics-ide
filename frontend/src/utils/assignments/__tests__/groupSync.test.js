@@ -5,6 +5,8 @@ import {
   pushGroupProject,
   startGroupSaves,
   onGroupPushFailed,
+  flushGroupSaves,
+  GROUP_PUSH_FAILED_MESSAGE,
 } from "../groupSync";
 import { api } from "../../api/client";
 import { createManifest } from "../../manifest/factory";
@@ -181,6 +183,195 @@ describe("startGroupSaves — pushes only while it is registered (i.e. only whil
     expect(saved.id).toBe(m.id);
     expect(warn).toHaveBeenCalledWith(expect.stringContaining("Take the baton before saving."));
     warn.mockRestore();
+  });
+});
+
+/**
+ * Task 23, fix round 1 — the push barrier submit depends on.
+ *
+ * The listener above is fire-and-forget by design (a refused push must never
+ * fail the local save it hangs off), which left group submit able to outrun
+ * it: the PUT carrying the student's newest save could still be in flight
+ * when POST /submit was issued, and the server would then snapshot — and
+ * FINGERPRINT — the previous head. `flushGroupSaves` is the awaited barrier
+ * that closes that, and the refusal that replaces a silent stale hand-in.
+ */
+describe("flushGroupSaves — the barrier submit waits on", () => {
+  /** A push that hangs until the test lets it land (or fail). */
+  function deferredPush() {
+    let settle;
+    const gate = new Promise((resolve, reject) => {
+      settle = { land: () => resolve({ ok: true, clientUpdatedAt: 1 }), fail: (e) => reject(e) };
+    });
+    return { gate, ...settle };
+  }
+
+  async function tick() {
+    for (let i = 0; i < 4; i += 1) await Promise.resolve();
+  }
+
+  /** A real macrotask boundary — the store's own reads land across one, so a
+   *  "has NOT resolved yet" claim needs this rather than a microtask drain. */
+  async function settleTasks() {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+
+  test("a push still in flight is awaited — submit can never outrun the save it depends on", async () => {
+    const m = manifestAt(1000);
+    await saveProject(m, { preserveTimestamp: true });
+    const push = deferredPush();
+    const order = [];
+    api.mockImplementation(() => push.gate.then((r) => { order.push("push"); return r; }));
+
+    unsubscribe = startGroupSaves(GROUP_ID, m.id);
+    await saveProject({ ...m, title: "The change being handed in" });
+    await tick();
+
+    let settled = false;
+    const flushed = flushGroupSaves(GROUP_ID).then(() => { order.push("flush"); settled = true; });
+    await tick();
+    expect(settled).toBe(false); // still waiting on the push, as it must
+
+    push.land();
+    await flushed;
+    expect(order).toEqual(["push", "flush"]);
+  });
+
+  test("a save that fires WHILE the barrier waits is waited on too — submit lands behind the LAST push", async () => {
+    const m = manifestAt(1000);
+    await saveProject(m, { preserveTimestamp: true });
+    const first = deferredPush();
+    const second = deferredPush();
+    const order = [];
+    let call = 0;
+    api.mockImplementation(() => {
+      call += 1;
+      const n = call;
+      const gate = n === 1 ? first : second;
+      return gate.gate.then((r) => {
+        order.push(`push-${n}`);
+        return r;
+      });
+    });
+
+    unsubscribe = startGroupSaves(GROUP_ID, m.id);
+    await saveProject({ ...m, title: "First" });
+    await tick();
+
+    let settled = false;
+    const flushed = flushGroupSaves(GROUP_ID).then(() => { order.push("flush"); settled = true; });
+    await tick();
+
+    // The autosave the student's last keystroke started, arriving mid-wait.
+    await saveProject({ ...m, title: "Second" });
+    await tick();
+    first.land();
+    await settleTasks(); // a real macrotask boundary — no timing luck in the claim below
+    expect(settled).toBe(false); // the second push is still out there
+
+    second.land();
+    await flushed;
+    expect(order).toEqual(["push-1", "push-2", "flush"]);
+  });
+
+  test("a push that never landed refuses the submit instead of handing in the previous save", async () => {
+    const m = manifestAt(1000);
+    await saveProject(m, { preserveTimestamp: true });
+    api.mockRejectedValue(new Error("Another member holds the baton."));
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    unsubscribe = startGroupSaves(GROUP_ID, m.id);
+    await saveProject({ ...m, title: "Never reached the group" });
+    await tick();
+
+    await expect(flushGroupSaves(GROUP_ID)).rejects.toThrow(GROUP_PUSH_FAILED_MESSAGE);
+    warn.mockRestore();
+  });
+
+  test("a later push that lands clears the refusal — the member fixed it, so submit is allowed again", async () => {
+    const m = manifestAt(1000);
+    await saveProject(m, { preserveTimestamp: true });
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    api.mockRejectedValueOnce(new Error("Another member holds the baton."));
+
+    unsubscribe = startGroupSaves(GROUP_ID, m.id);
+    await saveProject({ ...m, title: "Refused" });
+    await tick();
+
+    api.mockResolvedValue({ ok: true, clientUpdatedAt: 2 });
+    await saveProject({ ...m, title: "Landed" });
+    await tick();
+
+    await expect(flushGroupSaves(GROUP_ID)).resolves.toBeUndefined();
+    warn.mockRestore();
+  });
+
+  test("holding the baton: the current local copy is pushed BEFORE submit, even if no save fired the listener", async () => {
+    const m = manifestAt(1000);
+    await saveProject(m, { preserveTimestamp: true });
+    api.mockResolvedValue({ ok: true, clientUpdatedAt: 1000 });
+
+    unsubscribe = startGroupSaves(GROUP_ID, m.id);
+    await flushGroupSaves(GROUP_ID);
+
+    expect(api).toHaveBeenCalledWith(
+      `/api/groups/${GROUP_ID}/project`,
+      expect.objectContaining({ method: "PUT" }),
+    );
+    expect(api.mock.calls[0][1].body.manifest.id).toBe(m.id);
+  });
+
+  test("a copy the listener already pushed is not pushed a second time", async () => {
+    const m = manifestAt(1000);
+    await saveProject(m, { preserveTimestamp: true });
+    api.mockResolvedValue({ ok: true, clientUpdatedAt: 1000 });
+
+    unsubscribe = startGroupSaves(GROUP_ID, m.id);
+    await saveProject({ ...m, title: "Edited" });
+    await tick();
+    expect(api).toHaveBeenCalledTimes(1);
+
+    await flushGroupSaves(GROUP_ID);
+    expect(api).toHaveBeenCalledTimes(1);
+  });
+
+  test("not the baton holder: nothing of theirs is in flight, so the barrier is a no-op", async () => {
+    const m = manifestAt(1000);
+    await saveProject(m, { preserveTimestamp: true });
+    api.mockResolvedValue({ ok: true, clientUpdatedAt: 1000 });
+
+    await expect(flushGroupSaves(GROUP_ID)).resolves.toBeUndefined();
+    expect(api).not.toHaveBeenCalled();
+  });
+
+  test("another group's submit never waits on — or pushes — this group's work", async () => {
+    const m = manifestAt(1000);
+    await saveProject(m, { preserveTimestamp: true });
+    api.mockResolvedValue({ ok: true, clientUpdatedAt: 1000 });
+
+    unsubscribe = startGroupSaves(GROUP_ID, m.id);
+    await flushGroupSaves("g-someone-else");
+
+    expect(api).not.toHaveBeenCalled();
+  });
+
+  /* The barrier is the HOLDER's: the listener existing is the permission to
+     write, so once it is gone there is nothing this member may push and
+     nothing of theirs still in flight to wait for. A member who lost the
+     baton mid-edit is then in the same position as any other non-holder —
+     the head is whatever the group last saved. That is inherent to group
+     work (see the report's "known limitation"), not something this barrier
+     can detect from one browser. */
+  test("after the baton is gone the barrier is a no-op — a member with no turn has nothing to push", async () => {
+    const m = manifestAt(1000);
+    await saveProject(m, { preserveTimestamp: true });
+    api.mockResolvedValue({ ok: true, clientUpdatedAt: 1000 });
+
+    startGroupSaves(GROUP_ID, m.id)();
+    api.mockClear();
+
+    await expect(flushGroupSaves(GROUP_ID)).resolves.toBeUndefined();
+    expect(api).not.toHaveBeenCalled();
   });
 });
 
