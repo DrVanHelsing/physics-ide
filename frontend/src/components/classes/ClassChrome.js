@@ -42,6 +42,7 @@ export default function ClassChrome({ tab, children }) {
   const tabs = [
     { key: "assignments", label: "Assignments", to: `/classes/${c.id}`, show: true },
     { key: "guides", label: "Guides", to: `/classes/${c.id}/guides`, show: true },
+    { key: "gradebook", label: "Gradebook", to: `/classes/${c.id}/gradebook`, show: isStaff },
     { key: "people", label: "People", to: `/classes/${c.id}/people`, show: isStaff },
     { key: "settings", label: "Settings", to: `/classes/${c.id}/settings`, show: isTeacher },
   ].filter((t) => t.show);

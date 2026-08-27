@@ -1561,3 +1561,200 @@ describe("GET /api/assignments/upcoming", () => {
     });
   });
 });
+
+/* ── Task 19: gradebook ── */
+describe("GET /api/classes/:id/gradebook", () => {
+  let gradebookClassId: string;
+  let taCookie: string;
+  let teacherIdForGradebook: string;
+  let taId: string;
+  // Names/titles chosen so alphabetical order and creation order DISAGREE —
+  // a test that only checked one would pass even if the route sorted by the
+  // wrong key.
+  let zachId: string; // "Zach Wolfe" — created FIRST, sorts SECOND by name
+  let amyId: string; // "Amy Chen" — created SECOND, sorts FIRST by name
+  let zetaLabId: string; // "Zeta Lab" — created FIRST, sorts SECOND by title
+  let alphaLabId: string; // "Alpha Lab" — created SECOND, sorts FIRST by title
+
+  beforeAll(async () => {
+    const [teacherRow] = await testDb.select().from(users).where(eq(users.email, "ateach@example.com"));
+    teacherIdForGradebook = teacherRow.id;
+
+    const classRes = await app.inject({
+      method: "POST",
+      url: "/api/classes",
+      cookies: { pide_session: teacherCookie },
+      payload: { name: "Gradebook Test Class" },
+    });
+    gradebookClassId = classRes.json().class.id;
+
+    const zach = await makeUser("gb-zach@example.com", { name: "Zach Wolfe" });
+    zachId = zach.id;
+    const amy = await makeUser("gb-amy@example.com", { name: "Amy Chen" });
+    amyId = amy.id;
+    const ta = await makeUser("gb-ta@example.com");
+    taId = ta.id;
+    taCookie = await signin("gb-ta@example.com");
+
+    await testDb.insert(classMembers).values([
+      { classId: gradebookClassId, userId: zachId, role: "student", status: "active" },
+      { classId: gradebookClassId, userId: amyId, role: "student", status: "active" },
+      { classId: gradebookClassId, userId: taId, role: "ta", status: "active" },
+    ]);
+
+    async function makeAssignment(title: string, points: number | null) {
+      const res = await app.inject({
+        method: "POST",
+        url: `/api/classes/${gradebookClassId}/assignments`,
+        cookies: { pide_session: teacherCookie },
+        payload: { title, points },
+      });
+      return res.json().assignment.id;
+    }
+    zetaLabId = await makeAssignment("Zeta Lab", 10);
+    alphaLabId = await makeAssignment("Alpha Lab", null);
+
+    // Zach turned in Zeta Lab late; it's already been marked and released.
+    await testDb.insert(submissions).values({
+      assignmentId: zetaLabId,
+      submitterId: zachId,
+      submittedBy: zachId,
+      creditedIds: [zachId],
+      manifest: { schemaVersion: 2, marker: "gradebook-zeta" },
+      fingerprint: "gradebook-zeta-fp",
+      late: true,
+      isCurrent: true,
+      attempt: 1,
+    });
+    await testDb.insert(marks).values({
+      assignmentId: zetaLabId,
+      studentId: zachId,
+      points: 8,
+      status: "released",
+      markedBy: teacherIdForGradebook,
+    });
+
+    // Zach never submitted Alpha Lab (points-less), but the TA already left
+    // a DRAFT mark — the grid is a preparation tool, so this must show up,
+    // flagged as a draft, not be hidden or treated as "missing".
+    await testDb.insert(marks).values({
+      assignmentId: alphaLabId,
+      studentId: zachId,
+      points: 1,
+      status: "draft",
+      markedBy: taId,
+    });
+
+    // Amy has neither submitted nor been marked for anything — every one of
+    // her cells should read as genuinely missing.
+  });
+
+  test("a student gets 403 — this route is staff-only, same idiom as GET /members", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/classes/${gradebookClassId}/gradebook`,
+      cookies: { pide_session: studentCookie },
+    });
+    expect(res.statusCode).toBe(403);
+    expect(res.json().error).toBe("Teachers and assistants only.");
+  });
+
+  test("a non-member 403s", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/classes/${gradebookClassId}/gradebook`,
+      cookies: { pide_session: strangerCookie },
+    });
+    expect(res.statusCode).toBe(403);
+  });
+
+  test("teacher sees students sorted by name and assignments sorted by creation order — both disagreeing with the other's sort key", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/classes/${gradebookClassId}/gradebook`,
+      cookies: { pide_session: teacherCookie },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+
+    expect(body.students).toEqual([
+      { id: amyId, name: "Amy Chen" },
+      { id: zachId, name: "Zach Wolfe" },
+    ]);
+    expect(body.assignments).toEqual([
+      { id: zetaLabId, title: "Zeta Lab", points: 10 },
+      { id: alphaLabId, title: "Alpha Lab", points: null },
+    ]);
+  });
+
+  test("cells: a released mark, a draft mark on an unsubmitted points-less assignment, and two genuinely missing cells", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/classes/${gradebookClassId}/gradebook`,
+      cookies: { pide_session: teacherCookie },
+    });
+    const cells = res.json().cells;
+    expect(cells).toHaveLength(4);
+
+    function cellFor(studentId: string, assignmentId: string) {
+      return cells.find((c: { studentId: string; assignmentId: string }) =>
+        c.studentId === studentId && c.assignmentId === assignmentId,
+      );
+    }
+
+    // Zach × Zeta Lab: submitted late, released for 8/10.
+    expect(cellFor(zachId, zetaLabId)).toEqual({
+      studentId: zachId,
+      assignmentId: zetaLabId,
+      points: 8,
+      released: true,
+      late: true,
+      missing: false,
+    });
+
+    // Zach × Alpha Lab: never submitted, but a TA draft exists — NOT missing,
+    // and released stays false (drafts are visible, never silently promoted).
+    expect(cellFor(zachId, alphaLabId)).toEqual({
+      studentId: zachId,
+      assignmentId: alphaLabId,
+      points: 1,
+      released: false,
+      late: false,
+      missing: false,
+    });
+
+    // Amy has nothing on file for either assignment — genuinely missing.
+    expect(cellFor(amyId, zetaLabId)).toEqual({
+      studentId: amyId,
+      assignmentId: zetaLabId,
+      points: null,
+      released: false,
+      late: false,
+      missing: true,
+    });
+    expect(cellFor(amyId, alphaLabId)).toEqual({
+      studentId: amyId,
+      assignmentId: alphaLabId,
+      points: null,
+      released: false,
+      late: false,
+      missing: true,
+    });
+  });
+
+  test("a TA also gets 200 and sees the same draft mark value the teacher does — the grid doesn't hide drafts from TAs", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/classes/${gradebookClassId}/gradebook`,
+      cookies: { pide_session: taCookie },
+    });
+    expect(res.statusCode).toBe(200);
+    const cells = res.json().cells;
+    const draftCell = cells.find(
+      (c: { studentId: string; assignmentId: string }) =>
+        c.studentId === zachId && c.assignmentId === alphaLabId,
+    );
+    expect(draftCell.points).toBe(1);
+    expect(draftCell.released).toBe(false);
+  });
+});
