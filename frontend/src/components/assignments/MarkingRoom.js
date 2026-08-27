@@ -8,6 +8,7 @@ import { saveProject } from "../../utils/storage/projectStore";
 import { LAST_PROJECT_KEY } from "../../constants";
 import PortalHeader from "../layout/PortalHeader";
 import SubmissionViewer from "./SubmissionViewer";
+import HistoryTimeline, { buildTimelineEntries } from "./HistoryTimeline";
 
 /**
  * The marking room — /classes/:id/assignments/:aid/marking/:studentId
@@ -28,8 +29,10 @@ import SubmissionViewer from "./SubmissionViewer";
  *     here straight from the inbox reuses its already-cached rows; a
  *     direct link fetches them itself.
  *
- * Task 18 adds the marking panel beside SubmissionViewer in this same file
- * — this task only builds the read-only room the panel will sit inside.
+ * Task 18 adds the marking panel beside SubmissionViewer (MarkPanel below),
+ * plus the History timeline panel deferred by Task 20 (its own report's
+ * "Deferred mount" section — the exact snippet lands here, fed by
+ * GET /api/assignments/:id/timeline/:studentId).
  */
 
 const STAFF_ONLY = "Teachers and assistants only for this class.";
@@ -73,6 +76,13 @@ export default function MarkingRoom() {
   const inboxQuery = useQuery({
     queryKey: ["assignment", aid, "inbox"],
     queryFn: () => api(`/api/assignments/${aid}/inbox`),
+    enabled: !!me,
+  });
+  // Task 20's teacher feed — the History panel below (deferred mount,
+  // landed here per that task's report).
+  const timelineQuery = useQuery({
+    queryKey: ["assignment", aid, "timeline", studentId],
+    queryFn: () => api(`/api/assignments/${aid}/timeline/${studentId}`),
     enabled: !!me,
   });
 
@@ -189,8 +199,258 @@ export default function MarkingRoom() {
             {copyError}
           </div>
         ) : null}
-        <SubmissionViewer workspaceXml={submission.workspaceXml} python={submission.python} />
+        <div className="marking-room__workspace">
+          <SubmissionViewer workspaceXml={submission.workspaceXml} python={submission.python} />
+          <MarkPanel
+            key={studentId}
+            assignment={assignment}
+            submission={submission}
+            /* The server returns `mark` as a SIBLING of submission/history,
+               not a field inside `submission` — read it where it lives. */
+            mark={submissionQuery.data?.mark ?? null}
+            history={submissionQuery.data?.history ?? []}
+            isTeacher={classData.myRole === "teacher"}
+            aid={aid}
+            studentId={studentId}
+          />
+        </div>
+        <div className="card marking-room__history">
+          <h3>History</h3>
+          <HistoryTimeline
+            entries={buildTimelineEntries({
+              versions: timelineQuery.data?.versions ?? [],
+              submissions: timelineQuery.data?.submissions ?? [],
+              savedByLabel: submission.studentName,
+            })}
+            onRestore={null}
+          />
+        </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * The marking panel (Task 18, spec §7.3) — mark input, comment, private
+ * note, Save draft / Return for changes / Release. `key={studentId}` on
+ * the call site remounts this fresh per student (simpler and safer than
+ * syncing local state via an effect every time Previous/Next changes the
+ * mark underneath it).
+ *
+ * A points-less assignment (`assignment.points == null`) replaces the
+ * numeric field with a complete/not-complete toggle — points always stay
+ * null there BY CONSTRUCTION (the server enforces this too; the toggle is
+ * this panel's own honest reflection of that rule, not a separate source
+ * of truth). Save draft is disabled in that case until the box is
+ * checked: there is no "not complete" mark to save, only the absence of
+ * one, so a draft can only be produced once the marker means it.
+ *
+ * The Return-for-changes reason and the release-facing comment are the
+ * SAME field — one comment, whichever action the marker takes with it.
+ *
+ * `mark` arrives as its own prop because that is its own place in the
+ * server's response ({ submission, history, mark }) — reading it off
+ * `submission` prefilled nothing against the real API, which meant a Save
+ * draft could overwrite an existing comment and private note with empties.
+ */
+function MarkPanel({ assignment, submission, mark: initialMark, history, isTeacher, aid, studentId }) {
+  const outOf = assignment.points;
+  const [mark, setMark] = useState(initialMark ?? null);
+  const [points, setPoints] = useState(initialMark?.points != null ? String(initialMark.points) : "");
+  const [complete, setComplete] = useState(!!initialMark);
+  const [comment, setComment] = useState(initialMark?.comment ?? "");
+  const [privateNote, setPrivateNote] = useState(initialMark?.privateNote ?? "");
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState(null);
+  const [saveNote, setSaveNote] = useState(null);
+  const [returning, setReturning] = useState(false);
+  const [returnError, setReturnError] = useState(null);
+  const [returnNote, setReturnNote] = useState(null);
+  const [releasing, setReleasing] = useState(false);
+  const [releaseError, setReleaseError] = useState(null);
+  const [releaseNote, setReleaseNote] = useState(null);
+
+  // D§11.3's stale-draft guard, shown proactively — the exact same rule
+  // the release route enforces (a draft written against a superseded
+  // attempt), computed here from data the panel already holds.
+  const staleAttempt =
+    mark?.basedOnSubmissionId && mark.basedOnSubmissionId !== submission.id
+      ? (history.find((h) => h.id === mark.basedOnSubmissionId)?.attempt ?? null)
+      : null;
+
+  const canSaveDraft = outOf != null || complete;
+
+  async function handleSaveDraft() {
+    setSaveError(null);
+    setSaveNote(null);
+    setSaving(true);
+    try {
+      const body = {
+        points: outOf == null ? null : points === "" ? null : Number(points),
+        comment,
+        privateNote,
+      };
+      const data = await api(`/api/assignments/${aid}/marks/${studentId}`, { method: "PUT", body });
+      setMark(data.mark);
+      setSaveNote("Draft saved.");
+    } catch (err) {
+      setSaveError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleReturn() {
+    setReturnError(null);
+    setReturnNote(null);
+    if (comment.trim().length === 0) {
+      setReturnError("A comment explaining the return is required.");
+      return;
+    }
+    setReturning(true);
+    try {
+      const data = await api(`/api/assignments/${aid}/marks/${studentId}/return`, {
+        method: "POST",
+        body: { comment },
+      });
+      setMark(data.mark);
+      setReturnNote("Sent back for changes.");
+    } catch (err) {
+      setReturnError(err.message);
+    } finally {
+      setReturning(false);
+    }
+  }
+
+  async function handleRelease() {
+    setReleaseError(null);
+    setReleaseNote(null);
+    setReleasing(true);
+    try {
+      const data = await api(`/api/assignments/${aid}/marks/release`, {
+        method: "POST",
+        body: { studentIds: [studentId] },
+      });
+      if (data.refused?.length) {
+        setReleaseError(data.refused[0].error);
+      } else {
+        // Releasing ends any return episode (server ruling R5) — mirror
+        // that here so the panel never shows "released · returned".
+        setMark((m) => (m ? { ...m, status: "released", returned: false } : m));
+        setReleaseNote("Released.");
+      }
+    } catch (err) {
+      setReleaseError(err.message);
+    } finally {
+      setReleasing(false);
+    }
+  }
+
+  return (
+    <div className="card marking-panel">
+      <h3>Mark</h3>
+      {outOf != null ? (
+        <label className="marking-panel__field">
+          Points (out of {outOf})
+          <input
+            className="input"
+            type="number"
+            min="0"
+            max={outOf}
+            value={points}
+            onChange={(e) => setPoints(e.target.value)}
+          />
+        </label>
+      ) : (
+        <label className="marking-panel__field marking-panel__checkbox">
+          <input type="checkbox" checked={complete} onChange={(e) => setComplete(e.target.checked)} />
+          Mark complete
+        </label>
+      )}
+      <label className="marking-panel__field">
+        Comment
+        <textarea
+          className="input"
+          value={comment}
+          onChange={(e) => setComment(e.target.value)}
+          rows={4}
+          placeholder="Feedback for the student — also the reason if you return this for changes."
+        />
+      </label>
+      <label className="marking-panel__field">
+        Private — teachers and TAs only
+        <textarea
+          className="input"
+          value={privateNote}
+          onChange={(e) => setPrivateNote(e.target.value)}
+          rows={3}
+        />
+      </label>
+
+      {staleAttempt != null ? (
+        <p className="alert alert--warning" role="status">
+          Written against attempt {staleAttempt} — a newer attempt exists. Re-save before releasing.
+        </p>
+      ) : null}
+
+      <div className="assignments-actions">
+        <button className="btn" type="button" disabled={!canSaveDraft || saving} onClick={handleSaveDraft}>
+          Save draft
+        </button>
+        <button className="btn btn--danger" type="button" disabled={returning} onClick={handleReturn}>
+          Return for changes
+        </button>
+        {isTeacher ? (
+          <button
+            className="btn btn--primary"
+            type="button"
+            disabled={!mark || mark.status === "released" || releasing}
+            onClick={handleRelease}
+          >
+            Release
+          </button>
+        ) : null}
+      </div>
+
+      {saveError ? (
+        <div className="alert alert--danger" role="alert">
+          {saveError}
+        </div>
+      ) : null}
+      {saveNote ? (
+        <div className="alert alert--success" role="status">
+          {saveNote}
+        </div>
+      ) : null}
+      {returnError ? (
+        <div className="alert alert--danger" role="alert">
+          {returnError}
+        </div>
+      ) : null}
+      {returnNote ? (
+        <div className="alert alert--success" role="status">
+          {returnNote}
+        </div>
+      ) : null}
+      {releaseError ? (
+        <div className="alert alert--danger" role="alert">
+          {releaseError}
+        </div>
+      ) : null}
+      {releaseNote ? (
+        <div className="alert alert--success" role="status">
+          {releaseNote}
+        </div>
+      ) : null}
+
+      {mark ? (
+        <p className="auth-text auth-text--dim">
+          Status: {mark.status}
+          {mark.returned ? " · returned" : ""}
+        </p>
+      ) : (
+        <p className="empty">No mark yet.</p>
+      )}
     </div>
   );
 }

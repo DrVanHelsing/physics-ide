@@ -263,3 +263,71 @@ describe("InboxPage — remind", () => {
     expect(api).toHaveBeenCalledWith("/api/assignments/a1/remind", { method: "POST", body: {} });
   });
 });
+
+describe("InboxPage — Release all (Task 18)", () => {
+  test("TA does not see the Release all control at all", () => {
+    roleHolder.myRole = "ta";
+    const container = render();
+    expect(byText(container, "Release all")).toBeNull();
+  });
+
+  test("clicking Release all confirms with the exact consequence sentence, then POSTs { all: true }", async () => {
+    api.mockResolvedValueOnce({ released: ["s1", "s2"], refused: [] });
+    const container = render();
+    click(byText(container, "Release all"));
+    await flush();
+
+    expect(window.confirm).toHaveBeenCalledWith(
+      "Release all marks for this assignment? Students will be notified by email.",
+    );
+    expect(api).toHaveBeenCalledWith("/api/assignments/a1/marks/release", {
+      method: "POST",
+      body: { all: true },
+    });
+  });
+
+  test("declining the confirm does not fire the mutation", async () => {
+    window.confirm.mockReturnValue(false);
+    const container = render();
+    click(byText(container, "Release all"));
+    await flush();
+
+    expect(window.confirm).toHaveBeenCalled();
+    expect(mutateSpy).not.toHaveBeenCalled();
+  });
+
+  test("a successful release-all shows the released count", async () => {
+    api.mockResolvedValueOnce({ released: ["s1", "s2"], refused: [] });
+    const container = render();
+    click(byText(container, "Release all"));
+    await flush();
+
+    const alert = container.querySelector(".alert.alert--success");
+    expect(alert).not.toBeNull();
+    expect(alert.textContent).toBe("Released 2 marks.");
+  });
+
+  test("a partial release (some rows refused as stale) is called out in the same note", async () => {
+    api.mockResolvedValueOnce({
+      released: ["s1"],
+      refused: [{ studentId: "s2", error: "This draft was written against a previous attempt — re-save it before releasing." }],
+    });
+    const container = render();
+    click(byText(container, "Release all"));
+    await flush();
+
+    const alert = container.querySelector(".alert.alert--success");
+    expect(alert.textContent).toBe("Released 1 mark. 1 skipped — written against a previous attempt.");
+  });
+
+  test("a server error surfaces as an alert--danger", async () => {
+    api.mockRejectedValueOnce(new Error("Teachers only for this class."));
+    const container = render();
+    click(byText(container, "Release all"));
+    await flush();
+
+    const alert = container.querySelector(".alert.alert--danger");
+    expect(alert).not.toBeNull();
+    expect(alert.textContent).toBe("Teachers only for this class.");
+  });
+});

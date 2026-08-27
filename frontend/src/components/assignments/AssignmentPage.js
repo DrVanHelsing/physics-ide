@@ -104,8 +104,15 @@ function AssignmentBody({ classData, me }) {
   const badge = phaseBadge(assignment.phase);
   const gated = gateSentence(assignment.phase);
   const buttonLabel = assignment.myWork ? "Continue" : "Start work";
+  const myMark = assignment.myMark ?? null;
+  // Fiat D§11.2: a returned, unreleased mark reopens submission even while
+  // Closed — the same server-side rule Task 14's submit route enforces
+  // (returned && status !== released). Mirrored here so the button is
+  // never hidden from a case the server would actually accept.
+  const reopenedByReturn = !!myMark?.returned && !myMark?.released;
   const canSubmit =
-    !!assignment.myWork && (assignment.phase === "open" || assignment.phase === "late_window");
+    !!assignment.myWork &&
+    (assignment.phase === "open" || assignment.phase === "late_window" || (assignment.phase === "closed" && reopenedByReturn));
   const submitLate = assignment.phase === "late_window";
 
   return (
@@ -122,6 +129,24 @@ function AssignmentBody({ classData, me }) {
       ) : null}
 
       <InstructionsView doc={assignment.instructions} />
+
+      {myMark?.released ? (
+        <div className="card">
+          <h3>Feedback</h3>
+          <p>
+            {assignment.points != null
+              ? `Score: ${myMark.points ?? "—"}/${assignment.points}`
+              : "Marked complete."}
+          </p>
+          {myMark.comment ? <p>{myMark.comment}</p> : null}
+        </div>
+      ) : null}
+      {myMark?.returned ? (
+        <div className="alert alert--warning" role="status">
+          <p>{myMark.comment}</p>
+          <p>You can resubmit.</p>
+        </div>
+      ) : null}
 
       {error ? (
         <div className="alert alert--danger" role="alert">

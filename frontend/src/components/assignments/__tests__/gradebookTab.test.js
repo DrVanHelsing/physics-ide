@@ -113,6 +113,37 @@ describe("GradebookTab — the grid", () => {
     expect(cells[2].querySelector(".badge")).toBeNull();
   });
 
+  test("Task 18 carry-forward: on a points-less assignment a mark's points stay null BY CONSTRUCTION — a released null-points mark still shows the checkmark (not the missing dash), and a draft null-points mark shows the checkmark plus the draft badge", () => {
+    const cellByKey = new Map([
+      // Released, points genuinely null (the real Task 18 shape — a
+      // points-less PUT always stores null, never a stand-in number).
+      ["s1:a2", { studentId: "s1", assignmentId: "a2", points: null, released: true, late: false, missing: false }],
+      // Same, but still a draft.
+      ["s2:a2", { studentId: "s2", assignmentId: "a2", points: null, released: false, late: false, missing: false }],
+    ]);
+    useQuery.mockReturnValue({
+      data: {
+        students: STUDENTS,
+        assignments: ASSIGNMENTS,
+        cells: [...cellByKey.values()],
+      },
+      error: null,
+      isLoading: false,
+    });
+    const container = renderTab();
+    const rows = [...container.querySelectorAll(".admin-table tbody tr")];
+
+    const amyAlpha = [...rows[0].querySelectorAll("td")][2];
+    expect(amyAlpha.textContent.trim()).toBe("✓");
+    expect(amyAlpha.querySelector(".badge")).toBeNull();
+
+    const zachAlpha = [...rows[1].querySelectorAll("td")][2];
+    expect(zachAlpha.textContent).toContain("✓");
+    const draftBadge = zachAlpha.querySelector(".badge.badge--warning");
+    expect(draftBadge).not.toBeNull();
+    expect(draftBadge.textContent).toBe("draft");
+  });
+
   test("no students yet -> the empty state, no table", () => {
     useQuery.mockReturnValue({
       data: { students: [], assignments: [], cells: [] },
