@@ -31,10 +31,18 @@ async function makeUser(email: string, opts: Record<string, unknown> = {}) {
   return u;
 }
 
+/* Each signin gets its own source IP: the auth route's per-IP rate limit is
+ * sized for humans, and this file's describes (merged from several Stage C
+ * lanes) collectively sign in more accounts than one IP's window allows.
+ * auth.test.ts's dedicated rate-limit suites control their own addresses,
+ * so this changes nothing about what they verify. */
+let signinIpCounter = 0;
 async function signin(email: string): Promise<string> {
+  signinIpCounter += 1;
   const res = await app.inject({
     method: "POST",
     url: "/api/auth/signin",
+    remoteAddress: `10.99.${Math.floor(signinIpCounter / 250)}.${(signinIpCounter % 250) + 1}`,
     payload: { email, password: "a-long-password" },
   });
   return res.cookies.find((c) => c.name === "pide_session")!.value;
