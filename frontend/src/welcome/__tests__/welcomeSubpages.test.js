@@ -252,19 +252,66 @@ describe("TeachersPage — /teachers", () => {
   });
 });
 
+/* ── Shared closing footer (consistency-audit fix) ─────────────────────────
+   About, Contact and Teachers previously ended the instant their prose did
+   — no closing rhythm at all, unlike /welcome's own deliberate .welcome-foot.
+   Starkest on /contact: three short paragraphs left a bare, undesigned void
+   below them (caught by a full-page capture, not by reading the CSS). All
+   three now close on a thin rule plus the same two gate-free account links
+   the header's own Sign in already uses — plain Links, not go(), since
+   these routes carry no session-stamping function and a bare Link to "/"
+   would trip WelcomeGate and bounce straight back to /welcome. */
+describe("Subpage shell — the shared closing footer (About, Contact, Teachers)", () => {
+  test("every subpage closes on the same footer: gate-free links to sign-up and sign-in", () => {
+    for (const Page of [AboutPage, ContactPage, TeachersPage]) {
+      const container = render(<Page />);
+      const foot = container.querySelector(".welcome-subpage__foot");
+      expect(foot).toBeTruthy();
+      const signUp = foot.querySelector('a[href="/auth/signup"]');
+      const signIn = foot.querySelector('a[href="/auth/signin"]');
+      expect(signUp).toBeTruthy();
+      expect(signUp.textContent).toBe("Create an account");
+      expect(signIn).toBeTruthy();
+      expect(signIn.textContent).toBe("Sign in");
+      mounted.unmount();
+      mounted = null;
+    }
+  });
+});
+
 /* ── Launch-truth scope guard (Plan 6 §9) ──────────────────────────────────
-   The three public pages now describe the classroom assignments build in
-   the present tense, on the premise that the site publishes only once Plan
-   6 is complete. That premise has a hard edge: Plan 6 §9 ("Deliberately NOT
-   in Plan 6") names features that stay out of scope even at launch — the
-   notification bell, rubric marking, and peer sharing among them. This
-   guard is mechanized, not a one-time read, so a future present-tense edit
-   to any of the three pages cannot silently smuggle an excluded feature
-   back in. */
-describe("Launch-truth scope guard — Plan 6 §9 exclusions appear on none of the three public pages", () => {
-  test("no page names the notification bell, rubric marking or peer sharing", () => {
-    const EXCLUDED = [/rubric/i, /notification bell/i, /\bbell\b/i, /peer sharing/i];
-    const pages = [<AboutPage />, <TeachersPage />, <WelcomePage />];
+   All four public pages now describe the classroom assignments build in the
+   present tense, on the premise that the site publishes only once Plan 6 is
+   complete. That premise has a hard edge: Plan 6 §9 ("Deliberately NOT in
+   Plan 6") names features that stay out of scope even at launch — the
+   notification bell, rubric marking, peer sharing, real email delivery and
+   admin data requests among them. This guard is mechanized, not a one-time
+   read, so a future present-tense edit to any of the four pages cannot
+   silently smuggle an excluded feature back in.
+
+   Consistency-audit hardening: two exclusions from the same §9 list — real
+   email delivery and admin data requests — had no ban here at all, and
+   ContactPage was missing from the page set entirely (the other three were
+   checked, it never was). Both closed below. The two new patterns are
+   phrase-level on purpose, not single words: the shipped copy legitimately
+   says "email invite" (About, Teachers — a real join method) and "Emails"
+   (Teachers' admin-console tab, the pretend-inbox log) already, and neither
+   of those is the excluded claim. What's actually excluded is a claim that
+   the platform *delivers* real email, or that admin can issue a *data
+   request* (export/erase) — so the bans target those phrases, not the word
+   "email" or "data" alone. */
+describe("Launch-truth scope guard — Plan 6 §9 exclusions appear on none of the four public pages", () => {
+  test("no page names the notification bell, rubric marking, peer sharing, real email delivery or admin data requests", () => {
+    const EXCLUDED = [
+      /rubric/i,
+      /notification bell/i,
+      /\bbell\b/i,
+      /peer sharing/i,
+      /real email/i,
+      /email delivery/i,
+      /data request/i,
+    ];
+    const pages = [<AboutPage />, <ContactPage />, <TeachersPage />, <WelcomePage />];
     for (const ui of pages) {
       const container = render(ui);
       const text = container.textContent;
