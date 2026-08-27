@@ -12,7 +12,7 @@ export const MAX_VERSIONS_PER_PROJECT = 20;
 
 const PROJECT_ID_REGEX = /^p-[A-Za-z0-9-]{3,60}$/;
 
-const OVERSIZE_ERROR = "This project is too large to sync. Export it as a file instead.";
+export const OVERSIZE_ERROR = "This project is too large to sync. Export it as a file instead.";
 const CAP_ERROR = "You've reached the 100-project limit — delete something first.";
 
 /** Just enough shape-checking to store it; the client owns full validation. */
@@ -47,7 +47,10 @@ export function stableStringify(value: unknown): string {
   return JSON.stringify(value);
 }
 
-async function pruneVersions(db: Db, ownerId: string, projectId: string): Promise<void> {
+/** Exported for the group project PUT (plan Stage D): a group's shared
+ *  project is an ordinary project row and stays under the same history
+ *  bound as every other one, rather than growing a copy per group save. */
+export async function pruneVersions(db: Db, ownerId: string, projectId: string): Promise<void> {
   await db.execute(sql`
     DELETE FROM project_versions
     WHERE owner_id = ${ownerId} AND project_id = ${projectId}

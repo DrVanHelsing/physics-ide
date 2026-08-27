@@ -129,6 +129,41 @@ export const GuideInputSchema = z.object({
   body: InstructionsDocSchema,
 });
 
+/** Forming a group (spec §5.5 "students group themselves from the class
+ *  list"). The name is optional — the route auto-names "Group N" when the
+ *  student just presses the button, which is the common case. */
+export const CreateGroupInputSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(1, "Give the group a name.")
+    .max(60, "That group name is too long.")
+    .optional(),
+});
+
+/** The one sentence a malformed group save can produce — the same wording
+ *  the personal engine's own project PUT uses for a manifest it can't read. */
+const INVALID_PROJECT = "That doesn't look like a valid project.";
+
+/** The baton-holder's save (plan Stage D). The manifest's full shape is the
+ *  client's own contract — the personal sync engine's PUT owns that check —
+ *  so this validates exactly what the group route itself reads: a real
+ *  object carrying the epoch-ms `updatedAt` that becomes the row's
+ *  clientUpdatedAt. Everything else passes through untouched. */
+export const GroupProjectSaveInputSchema = z.object({
+  manifest: z
+    .object(
+      {
+        updatedAt: z
+          .number({ required_error: INVALID_PROJECT, invalid_type_error: INVALID_PROJECT })
+          .int(INVALID_PROJECT)
+          .positive(INVALID_PROJECT),
+      },
+      { required_error: INVALID_PROJECT, invalid_type_error: INVALID_PROJECT },
+    )
+    .passthrough(),
+});
+
 /** Spec §5.1's life, computed from timestamps (D§6): stored states are
  * draft / published / marks_released; everything between derives. */
 export function computeAssignmentPhase(

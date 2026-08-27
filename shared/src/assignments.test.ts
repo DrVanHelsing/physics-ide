@@ -7,6 +7,8 @@ import {
   computeAssignmentPhase,
   MarksReleaseInputSchema,
   MarkReturnInputSchema,
+  CreateGroupInputSchema,
+  GroupProjectSaveInputSchema,
   MAX_INSTRUCTIONS_IMAGE_BYTES,
 } from "./assignments.js";
 
@@ -90,6 +92,41 @@ describe("MarkReturnInputSchema", () => {
     const long = MarkReturnInputSchema.safeParse({ comment: "x".repeat(5001) });
     expect(long.success).toBe(false);
     expect(long.error!.issues[0].message).toBe("That comment is too long.");
+  });
+});
+
+describe("CreateGroupInputSchema", () => {
+  test("the name is optional — an empty body is a legal 'just name it for me'", () => {
+    expect(CreateGroupInputSchema.parse({}).name).toBeUndefined();
+    expect(CreateGroupInputSchema.parse({ name: "  The Cannons  " }).name).toBe("The Cannons");
+  });
+
+  test("a blank or over-long name is refused with a real sentence", () => {
+    const blank = CreateGroupInputSchema.safeParse({ name: "   " });
+    expect(blank.success).toBe(false);
+    expect(blank.error!.issues[0].message).toBe("Give the group a name.");
+
+    const long = CreateGroupInputSchema.safeParse({ name: "x".repeat(61) });
+    expect(long.success).toBe(false);
+    expect(long.error!.issues[0].message).toBe("That group name is too long.");
+  });
+});
+
+describe("GroupProjectSaveInputSchema", () => {
+  test("a manifest with an epoch-ms updatedAt passes, extra keys survive", () => {
+    const parsed = GroupProjectSaveInputSchema.parse({
+      manifest: { schemaVersion: 2, updatedAt: 1700, title: "Shared" },
+    });
+    expect(parsed.manifest.updatedAt).toBe(1700);
+    expect((parsed.manifest as Record<string, unknown>).title).toBe("Shared");
+  });
+
+  test("a missing, non-object, or timestamp-less manifest all say the same honest sentence", () => {
+    for (const body of [{}, { manifest: "nope" }, { manifest: {} }, { manifest: { updatedAt: -1 } }]) {
+      const parsed = GroupProjectSaveInputSchema.safeParse(body);
+      expect(parsed.success).toBe(false);
+      expect(parsed.error!.issues[0].message).toBe("That doesn't look like a valid project.");
+    }
   });
 });
 
