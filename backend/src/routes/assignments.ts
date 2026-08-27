@@ -406,6 +406,85 @@ async function marksForStudents(db: Pick<Db, "select">, assignmentId: string, st
     .where(and(eq(marks.assignmentId, assignmentId), inArray(marks.studentId, studentIds)));
 }
 
+/** THE single answer to "does this roster member currently have a
+ *  submission" for one assignment — group-aware (spec §5.5: a group's
+ *  submission credits every member). `inboxEntriesFor` below (GET /inbox,
+ *  POST /remind) and the daily tick (tick.ts) both read through this
+ *  instead of re-deriving it; task 24's review found three independent
+ *  copies of this exact rule (this one, tick.ts's, and the semantically-
+ *  narrower currentSubmissionFor above) had already grown from one design.
+ *
+ *  `byStudent`/`byGroup` carry the actual submission row — inboxEntriesFor
+ *  needs late/attempt/when, not just yes-or-no. `hasSubmission` is the
+ *  yes-or-no itself, for callers that only need to know who is missing
+ *  one. Exactly one of `byStudent`/`byGroup` is ever populated, matching
+ *  the assignment's own submissionMode. */
+export type RosterSubmissionStatus = {
+  groupByUser: Map<string, string>;
+  byStudent: Map<string, typeof submissions.$inferSelect>;
+  byGroup: Map<string, typeof submissions.$inferSelect>;
+  hasSubmission: Set<string>;
+};
+
+export async function rosterSubmissionStatus(
+  db: Pick<Db, "select">,
+  a: AssignmentRow,
+  rosterIds: string[],
+): Promise<RosterSubmissionStatus> {
+  if (a.submissionMode === "individual") {
+    const subRows = rosterIds.length
+      ? await db
+          .select()
+          .from(submissions)
+          .where(
+            and(
+              eq(submissions.assignmentId, a.id),
+              eq(submissions.isCurrent, true),
+              inArray(submissions.submitterId, rosterIds),
+            ),
+          )
+      : [];
+    const byStudent = new Map(
+      subRows
+        .filter((s): s is typeof s & { submitterId: string } => !!s.submitterId)
+        .map((s) => [s.submitterId, s]),
+    );
+    return { groupByUser: new Map(), byStudent, byGroup: new Map(), hasSubmission: new Set(byStudent.keys()) };
+  }
+
+  const memberRows = await db
+    .select({ groupId: groupMembers.groupId, userId: groupMembers.userId })
+    .from(groupMembers)
+    .innerJoin(groups, eq(groups.id, groupMembers.groupId))
+    .where(eq(groups.assignmentId, a.id));
+  const groupByUser = new Map(memberRows.map((m) => [m.userId, m.groupId]));
+
+  const groupIds = [...new Set(memberRows.map((m) => m.groupId))];
+  const subRows = groupIds.length
+    ? await db
+        .select()
+        .from(submissions)
+        .where(
+          and(
+            eq(submissions.assignmentId, a.id),
+            eq(submissions.isCurrent, true),
+            inArray(submissions.groupId, groupIds),
+          ),
+        )
+    : [];
+  const byGroup = new Map(
+    subRows.filter((s): s is typeof s & { groupId: string } => !!s.groupId).map((s) => [s.groupId, s]),
+  );
+
+  const hasSubmission = new Set(
+    rosterIds.filter((id) => {
+      const groupId = groupByUser.get(id);
+      return groupId != null && byGroup.has(groupId);
+    }),
+  );
+  return { groupByUser, byStudent: new Map(), byGroup, hasSubmission };
+}
+
 /** The group's ONE mark, reassembled from its members' rows (spec §7.3:
  *  "shows all the members, sets one mark for the group, and allows a
  *  per-member adjustment"). Each row stores the member's FINAL total, so
@@ -1320,6 +1399,9 @@ export function assignmentRoutes(app: FastifyInstance): void {
     const studentIds = roster.map((r) => r.user.id);
     const markRows = await marksForStudents(db, a.id, studentIds);
     const markByStudent = new Map(markRows.map((m) => [m.studentId, m]));
+    // Task 24 fix round 1: the one shared "has this student submitted"
+    // derivation — also consumed by the daily tick (tick.ts).
+    const status = await rosterSubmissionStatus(db, a, studentIds);
 
     const groupEntries: InboxEntry[] = [];
     const groupedStudentIds = new Set<string>();
@@ -1346,20 +1428,10 @@ export function assignmentRoutes(app: FastifyInstance): void {
         groupedStudentIds.add(row.userId);
       }
 
-      const groupSubs = await db
-        .select()
-        .from(submissions)
-        .where(and(eq(submissions.assignmentId, a.id), eq(submissions.isCurrent, true)));
-      const subByGroup = new Map(
-        groupSubs
-          .filter((s): s is typeof s & { groupId: string } => !!s.groupId)
-          .map((s) => [s.groupId, s]),
-      );
-
       const rosterIds = new Set(studentIds);
       for (const g of groupRows) {
         const members = membersByGroup.get(g.id) ?? [];
-        const sub = subByGroup.get(g.id);
+        const sub = status.byGroup.get(g.id);
         groupEntries.push({
           kind: "group",
           studentId: null,
@@ -1382,29 +1454,10 @@ export function assignmentRoutes(app: FastifyInstance): void {
       }
     }
 
-    const subRows =
-      a.submissionMode === "individual" && studentIds.length
-        ? await db
-            .select()
-            .from(submissions)
-            .where(
-              and(
-                eq(submissions.assignmentId, a.id),
-                eq(submissions.isCurrent, true),
-                inArray(submissions.submitterId, studentIds),
-              ),
-            )
-        : [];
-    // The filter narrows the type for the Map key: an individual submission
-    // always carries submitterId (a group's carries groupId instead).
-    const subByStudent = new Map(
-      subRows.filter((s): s is typeof s & { submitterId: string } => !!s.submitterId).map((s) => [s.submitterId, s]),
-    );
-
     const studentEntries = roster
       .filter(({ user }) => !groupedStudentIds.has(user.id))
       .map(({ user }): InboxEntry => {
-        const sub = subByStudent.get(user.id);
+        const sub = status.byStudent.get(user.id);
         const mark = markByStudent.get(user.id);
         return {
           kind: "student",

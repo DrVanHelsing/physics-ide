@@ -281,3 +281,86 @@ describe("POST /api/tick — a group-submission member is skipped", () => {
     expect(recipients).toEqual([b1.id, b2.id].sort());
   });
 });
+
+describe("POST /api/tick — a manually closed assignment stays quiet", () => {
+  test("closedAt set (status still 'published', still due tomorrow) -> no email, no dedupe row", async () => {
+    const classId = await makeClass("Tick Closed Class");
+    const student = await makeUser("tick-closed-student@example.com");
+    await testDb.insert(classMembers).values({ classId, userId: student.id, role: "student", status: "active" });
+    const assignmentId = await createPublished(classId, {
+      title: "Tick Closed Assignment",
+      submissionMode: "individual",
+      dueAt: Date.now() + 24 * HOUR,
+    });
+    const closeRes = await app.inject({
+      method: "POST",
+      url: `/api/assignments/${assignmentId}/close`,
+      cookies: { pide_session: teacherCookie },
+    });
+    expect(closeRes.statusCode).toBe(200);
+    // Closing never touches `status` (spec: a published assignment closes,
+    // it never un-publishes) — this is exactly the row shape the fix has to
+    // exclude by `closedAt`, not by `status`.
+    expect(closeRes.json().assignment.phase).toBe("closed");
+
+    const res = await tick(config.tickSecret);
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ sent: 0 });
+
+    const sent = await allDueTomorrowEmails();
+    expect(emailsWithSubjectContaining(sent, "Tick Closed Assignment")).toHaveLength(0);
+    const logged = await dueReminderEvents();
+    expect(logged.some((e) => (e.payload as { assignmentId?: string }).assignmentId === assignmentId)).toBe(false);
+  });
+});
+
+describe("POST /api/tick — overlapping ticks send at most once", () => {
+  test("two concurrent ticks across many newly-missing (assignment, student) pairs produce exactly one email each", async () => {
+    const classId = await makeClass("Tick Concurrency Class");
+    const students = await Promise.all(
+      Array.from({ length: 5 }, (_, i) => makeUser(`tick-concurrent-student-${i}@example.com`)),
+    );
+    await testDb
+      .insert(classMembers)
+      .values(students.map((s) => ({ classId, userId: s.id, role: "student", status: "active" })));
+    // Several assignments, several students, nobody submitted: many
+    // (assignment, student) pairs to decide on in one tick, widening the
+    // window a second, overlapping tick actually has to land in — this is
+    // what makes the race observable rather than theoretical.
+    const assignmentIds = await Promise.all(
+      Array.from({ length: 4 }, (_, i) =>
+        createPublished(classId, {
+          title: `Tick Concurrency Assignment ${i}`,
+          submissionMode: "individual",
+          dueAt: Date.now() + 24 * HOUR,
+        }),
+      ),
+    );
+
+    // Fired together, not sequentially — this is what Cloud Scheduler's
+    // at-least-once/retry semantics (or a slow dev-interval call overlapping
+    // the next) actually looks like: two ticks racing to decide "not yet
+    // reminded" before either has written its dedupe rows.
+    const [res1, res2] = await Promise.all([tick(config.tickSecret), tick(config.tickSecret)]);
+    expect(res1.statusCode).toBe(200);
+    expect(res2.statusCode).toBe(200);
+    const expectedPairs = assignmentIds.length * students.length;
+    // Whichever call wins the advisory lock first sends every pair; the
+    // other blocks, then re-reads and finds every dedupe row already
+    // there. Exactly one send per pair between the two calls, however the
+    // race falls — never `2 * expectedPairs`.
+    expect(res1.json().sent + res2.json().sent).toBe(expectedPairs);
+
+    const sent = await allDueTomorrowEmails();
+    const mine = sent.filter((e) => e.subject.startsWith("Due tomorrow — Tick Concurrency Assignment"));
+    expect(mine).toHaveLength(expectedPairs);
+    const pairKey = (e: (typeof mine)[number]) => `${e.subject}:${e.toUserId}`;
+    expect(new Set(mine.map(pairKey)).size).toBe(expectedPairs);
+
+    const logged = await dueReminderEvents();
+    const forThese = logged.filter((e) =>
+      assignmentIds.includes((e.payload as { assignmentId?: string }).assignmentId ?? ""),
+    );
+    expect(forThese).toHaveLength(expectedPairs);
+  });
+});
