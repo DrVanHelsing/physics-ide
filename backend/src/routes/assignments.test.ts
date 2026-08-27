@@ -1561,3 +1561,253 @@ describe("GET /api/assignments/upcoming", () => {
     });
   });
 });
+
+/* ── Task 16: inbox ── */
+describe("GET /api/assignments/:id/inbox / POST /api/assignments/:id/remind", () => {
+  let inboxClassId: string;
+  let taCookie: string;
+  let submittedId: string;
+  let lateId: string;
+  let missingId: string;
+  let inboxStudentCookie: string;
+
+  async function createPublished(payload: Record<string, unknown>) {
+    const draftRes = await app.inject({
+      method: "POST",
+      url: `/api/classes/${inboxClassId}/assignments`,
+      cookies: { pide_session: teacherCookie },
+      payload,
+    });
+    const id = draftRes.json().assignment.id;
+    await app.inject({
+      method: "POST",
+      url: `/api/assignments/${id}/publish`,
+      cookies: { pide_session: teacherCookie },
+    });
+    return id;
+  }
+
+  async function seedSubmission(
+    id: string,
+    studentId: string,
+    opts: { late?: boolean; attempt?: number } = {},
+  ) {
+    await testDb.insert(submissions).values({
+      assignmentId: id,
+      submitterId: studentId,
+      submittedBy: studentId,
+      creditedIds: [studentId],
+      manifest: { schemaVersion: 2 },
+      fingerprint: `fp-${studentId}-${opts.attempt ?? 1}`,
+      late: opts.late ?? false,
+      isCurrent: true,
+      attempt: opts.attempt ?? 1,
+    });
+  }
+
+  beforeAll(async () => {
+    const classRes = await app.inject({
+      method: "POST",
+      url: "/api/classes",
+      cookies: { pide_session: teacherCookie },
+      payload: { name: "Inbox Test Class" },
+    });
+    inboxClassId = classRes.json().class.id;
+
+    const ta = await makeUser("inboxta@example.com");
+    taCookie = await signin("inboxta@example.com");
+    await testDb
+      .insert(classMembers)
+      .values({ classId: inboxClassId, userId: ta.id, role: "ta", status: "active" });
+
+    const submittedUser = await makeUser("inbox-submitted@example.com");
+    const lateUser = await makeUser("inbox-late@example.com");
+    const missingUser = await makeUser("inbox-missing@example.com");
+    submittedId = submittedUser.id;
+    lateId = lateUser.id;
+    missingId = missingUser.id;
+    inboxStudentCookie = await signin("inbox-submitted@example.com");
+    await testDb.insert(classMembers).values([
+      { classId: inboxClassId, userId: submittedId, role: "student", status: "active" },
+      { classId: inboxClassId, userId: lateId, role: "student", status: "active" },
+      { classId: inboxClassId, userId: missingId, role: "student", status: "active" },
+    ]);
+  });
+
+  describe("GET /api/assignments/:id/inbox", () => {
+    let viewAssignmentId: string;
+
+    beforeAll(async () => {
+      viewAssignmentId = await createPublished({ title: "Inbox View Assignment" });
+      await seedSubmission(viewAssignmentId, submittedId, { late: false, attempt: 1 });
+      await seedSubmission(viewAssignmentId, lateId, { late: true, attempt: 2 });
+      await testDb.insert(marks).values([
+        {
+          assignmentId: viewAssignmentId,
+          studentId: submittedId,
+          points: 8,
+          status: "released",
+          markedBy: submittedId,
+          releasedAt: new Date(),
+        },
+        {
+          assignmentId: viewAssignmentId,
+          studentId: lateId,
+          points: null,
+          status: "draft",
+          markedBy: lateId,
+        },
+      ]);
+    });
+
+    test("teacher sees all three rows — submitted, late, missing — with correct late/attempt/markStatus and the assignment phase", async () => {
+      const res = await app.inject({
+        method: "GET",
+        url: `/api/assignments/${viewAssignmentId}/inbox`,
+        cookies: { pide_session: teacherCookie },
+      });
+      expect(res.statusCode).toBe(200);
+      const body = res.json();
+      expect(body.phase).toBe("open");
+      expect(body.rows).toHaveLength(3);
+
+      const byId = Object.fromEntries(body.rows.map((r: { studentId: string }) => [r.studentId, r]));
+      expect(byId[submittedId]).toMatchObject({
+        state: "submitted",
+        late: false,
+        attempt: 1,
+        markStatus: "released",
+      });
+      expect(typeof byId[submittedId].submittedAt).toBe("number");
+      expect(byId[lateId]).toMatchObject({
+        state: "submitted",
+        late: true,
+        attempt: 2,
+        markStatus: "draft",
+      });
+      expect(byId[missingId]).toMatchObject({
+        state: "missing",
+        late: false,
+        submittedAt: null,
+        attempt: null,
+        markStatus: "none",
+      });
+
+      // Exactly the cross-lane contract fields — no incidental leakage (e.g. email).
+      expect(Object.keys(byId[missingId]).sort()).toEqual(
+        ["studentId", "name", "state", "late", "submittedAt", "attempt", "markStatus"].sort(),
+      );
+    });
+
+    test("a TA may also view the inbox", async () => {
+      const res = await app.inject({
+        method: "GET",
+        url: `/api/assignments/${viewAssignmentId}/inbox`,
+        cookies: { pide_session: taCookie },
+      });
+      expect(res.statusCode).toBe(200);
+      expect(res.json().rows).toHaveLength(3);
+    });
+
+    test("a student is refused — staff only", async () => {
+      const res = await app.inject({
+        method: "GET",
+        url: `/api/assignments/${viewAssignmentId}/inbox`,
+        cookies: { pide_session: inboxStudentCookie },
+      });
+      expect(res.statusCode).toBe(403);
+      expect(res.json().error).toBe("Teachers and assistants only.");
+    });
+
+    test("a non-member is refused", async () => {
+      const res = await app.inject({
+        method: "GET",
+        url: `/api/assignments/${viewAssignmentId}/inbox`,
+        cookies: { pide_session: strangerCookie },
+      });
+      expect(res.statusCode).toBe(403);
+      expect(res.json().error).toBe("Teachers and assistants only.");
+    });
+
+    test("no such assignment -> 404", async () => {
+      const res = await app.inject({
+        method: "GET",
+        url: "/api/assignments/00000000-0000-0000-0000-000000000000/inbox",
+        cookies: { pide_session: teacherCookie },
+      });
+      expect(res.statusCode).toBe(404);
+    });
+  });
+
+  describe("POST /api/assignments/:id/remind", () => {
+    let remindAssignmentId: string;
+
+    beforeAll(async () => {
+      remindAssignmentId = await createPublished({ title: "Remind Test Assignment" });
+      // Only the submitted student has turned it in — both the late student
+      // (from the OTHER assignment above; this one is fresh) and the missing
+      // student are "missing" for THIS assignment.
+      await seedSubmission(remindAssignmentId, submittedId, { late: false, attempt: 1 });
+    });
+
+    test("teacher: emails every missing student once, logs assignment.reminded, and replies with the count", async () => {
+      const res = await app.inject({
+        method: "POST",
+        url: `/api/assignments/${remindAssignmentId}/remind`,
+        cookies: { pide_session: teacherCookie },
+      });
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({ reminded: 2 });
+
+      const sent = await testDb.select().from(emails).where(eq(emails.template, "due-reminder"));
+      const mine = sent.filter((e) => e.subject.includes("Remind Test Assignment"));
+      expect(mine).toHaveLength(2);
+      const recipients = mine.map((e) => e.toUserId).sort();
+      expect(recipients).toEqual([lateId, missingId].sort());
+      expect(mine.every((e) => e.status === "dev")).toBe(true);
+
+      const logged = await eventsOfType("assignment.reminded");
+      const myEvent = logged.find((e) => (e.payload as { assignmentId?: string }).assignmentId === remindAssignmentId);
+      expect(myEvent).toBeDefined();
+      expect((myEvent!.payload as { remindedCount?: number }).remindedCount).toBe(2);
+      expect(myEvent!.actorId).not.toBeNull();
+    });
+
+    test("a TA may not remind — teacher only", async () => {
+      const res = await app.inject({
+        method: "POST",
+        url: `/api/assignments/${remindAssignmentId}/remind`,
+        cookies: { pide_session: taCookie },
+      });
+      expect(res.statusCode).toBe(403);
+      expect(res.json().error).toBe("Teachers only for this class.");
+    });
+
+    test("a non-member is refused", async () => {
+      const res = await app.inject({
+        method: "POST",
+        url: `/api/assignments/${remindAssignmentId}/remind`,
+        cookies: { pide_session: strangerCookie },
+      });
+      expect(res.statusCode).toBe(403);
+    });
+
+    test("nothing missing -> reminded: 0, no emails sent", async () => {
+      const fullId = await createPublished({ title: "Everyone Already Submitted" });
+      await seedSubmission(fullId, submittedId, { attempt: 1 });
+      await seedSubmission(fullId, lateId, { attempt: 1 });
+      await seedSubmission(fullId, missingId, { attempt: 1 });
+
+      const res = await app.inject({
+        method: "POST",
+        url: `/api/assignments/${fullId}/remind`,
+        cookies: { pide_session: teacherCookie },
+      });
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({ reminded: 0 });
+
+      const sent = await testDb.select().from(emails).where(eq(emails.template, "due-reminder"));
+      expect(sent.some((e) => e.subject.includes("Everyone Already Submitted"))).toBe(false);
+    });
+  });
+});

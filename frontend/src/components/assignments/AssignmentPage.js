@@ -159,11 +159,9 @@ function AssignmentBody({ classData, me }) {
             <Link className="btn" to={`/classes/${id}/assignments/${aid}/edit`}>
               Edit
             </Link>
-            {/* Points at Task 16's inbox route, but that route doesn't exist
-                yet — disabled with an honest title rather than a dead link. */}
-            <button className="btn" type="button" disabled title="Arrives with marking">
+            <Link className="btn" to={`/classes/${id}/assignments/${aid}/inbox`}>
               Submissions
-            </button>
+            </Link>
           </>
         ) : null}
       </div>
