@@ -147,13 +147,20 @@ export function WorkspaceRulesEnforcer({ mode, onModeChange, onRules, lockedMode
  * documents above), and this turns it into the EXISTING `isReadOnlyView`
  * flag. One mechanism, no new editor states.
  *
- * `held` is tri-state: null means the baton has not been read yet. That must
- * not lock the workspace, or every open of group work would flash the
- * read-only editors — and their swap remounts Blockly — before the first
- * poll lands. Only a confirmed "not yours" locks.
+ * `held` is tri-state, and anything that is not a CONFIRMED `true` locks.
+ * null — the baton has not been read yet: the first poll is still in
+ * flight, or no poll has ever succeeded (offline, or 403 after being
+ * removed from the group). An unknown baton is not a held one, and treating
+ * it as one is not a small mistake: no save listener is registered unless
+ * the baton is confirmed held, so every edit made under an unknown baton
+ * stays local — and once the local copy is newer than the head,
+ * pullGroupProject's newer-local guard means the group's work can never
+ * arrive again. Silent, permanent divergence, in exchange for not flashing
+ * read-only editors for one round trip. The chip says "Checking who's
+ * editing…" while that lasts.
  */
 export function groupReadOnly(baton) {
-  return !!baton?.groupId && baton.held === false;
+  return !!baton?.groupId && baton.held !== true;
 }
 
 export default function IDELayout() {
