@@ -21,6 +21,13 @@ vi.mock("../../auth/useAuth", () => ({ useMe: vi.fn() }));
 // every pre-existing test in this file keeps seeing today's behaviour.
 vi.mock("../../contexts/AssignmentContext", () => ({ useAssignmentContext: vi.fn() }));
 
+// Task 20: Toolbar now calls useNavigate() directly too (the fileMenu's
+// History item) — same fix, same reason as the two mocks above: no Router
+// is mounted in this bare-harness suite. Same idiom assignmentPage.test.js
+// / guides.test.js use for components that call useNavigate().
+const { navigateSpy } = vi.hoisted(() => ({ navigateSpy: vi.fn() }));
+vi.mock("react-router-dom", () => ({ useNavigate: () => navigateSpy }));
+
 let mounted = null;
 beforeEach(() => {
   useMe.mockReturnValue({ data: null, isLoading: false });
@@ -29,6 +36,7 @@ beforeEach(() => {
 afterEach(() => {
   mounted?.unmount();
   mounted = null;
+  navigateSpy.mockClear();
 });
 
 /** Every handler the Toolbar can call, so "was it wired?" is one assertion. */
@@ -300,5 +308,44 @@ describe("Toolbar — workspace rules (Task 12)", () => {
     const menu = container.querySelector(".tb-dropdown-menu");
     expect(menu.querySelectorAll(".tb-dropdown-item")).toHaveLength(9);
     expect(menu.querySelector(".tb-dropdown-divider")).not.toBeNull();
+  });
+});
+
+describe("Toolbar — History & restore (Task 20)", () => {
+  test("hidden for a guest even with an active project", () => {
+    useMe.mockReturnValue({ data: null, isLoading: false });
+    const { container } = render({ activeProjectId: "p1" });
+    click(container.querySelector(".tb-btn--dropdown"));
+    expect(byText(container, "History & restore", "button")).toBeNull();
+  });
+
+  test("hidden for a signed-in user with no active project", () => {
+    useMe.mockReturnValue({ data: { role: "user", isTeacher: false }, isLoading: false });
+    const { container } = render();
+    click(container.querySelector(".tb-btn--dropdown"));
+    expect(byText(container, "History & restore", "button")).toBeNull();
+  });
+
+  test("present and wired for a signed-in user with an active project — navigates to /history/:projectId", () => {
+    useMe.mockReturnValue({ data: { role: "user", isTeacher: false }, isLoading: false });
+    const { container } = render({ activeProjectId: "p-42" });
+    click(container.querySelector(".tb-btn--dropdown"));
+    const item = byText(container, "History & restore", "button");
+    expect(item).not.toBeNull();
+    click(item);
+    expect(navigateSpy).toHaveBeenCalledWith("/history/p-42");
+  });
+
+  test("NOT gated by rules.exportAndCopy — a locked assignment (exports off) still shows History", () => {
+    useMe.mockReturnValue({ data: { role: "user", isTeacher: false }, isLoading: false });
+    useAssignmentContext.mockReturnValue({
+      rules: {
+        editors: "blocks", debug: false, importFiles: false,
+        exportAndCopy: false, advancedBlocks: false, templates: false,
+      },
+    });
+    const { container } = render({ activeProjectId: "p-locked" });
+    click(container.querySelector(".tb-btn--dropdown"));
+    expect(byText(container, "History & restore", "button")).not.toBeNull();
   });
 });

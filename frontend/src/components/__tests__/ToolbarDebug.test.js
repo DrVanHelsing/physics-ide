@@ -17,6 +17,9 @@ import { useMe } from "../../auth/useAuth";
    reasons, as Toolbar.test.js and ToolbarResponsive.test.js. */
 vi.mock("../auth/HeaderAccount", () => ({ default: () => null }));
 vi.mock("../../auth/useAuth", () => ({ useMe: vi.fn() }));
+// Task 20: Toolbar now calls useNavigate() directly too (the fileMenu's
+// History item) — same reason, same fix as the two mocks above.
+vi.mock("react-router-dom", () => ({ useNavigate: () => vi.fn() }));
 
 let mounted = null;
 beforeEach(() => {

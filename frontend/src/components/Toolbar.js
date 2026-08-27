@@ -1,4 +1,5 @@
 import React, { useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   DownloadIcon,
   UploadIcon,
@@ -18,6 +19,7 @@ import {
   SaveIcon,
   MenuIcon,
   MoreHorizontalIcon,
+  HistoryIcon,
 } from "./Icons";
 import { MOD_LABEL } from "../utils/hotkeys";
 import DropdownMenu from "./common/DropdownMenu";
@@ -63,6 +65,10 @@ function Toolbar({
   projectTitle,
   onRenameProject,
   onSave,
+  /* Task 20: the active project's id, so fileMenu's History item knows
+     where to navigate — the only Toolbar prop History needs, since the
+     route itself (HistoryPage.js) resolves everything else. */
+  activeProjectId,
   /* Debug is a MODE of this shell, not a separate screen. `debugMode` stays
      because visibleControls() keys the `trace`/`debug` view-zone entries off
      it; the debug CONTROLS themselves moved to SimControls. */
@@ -79,6 +85,7 @@ function Toolbar({
      `showX &&` conditionals here. This component only supplies the axes
      and renders whatever comes back. */
   const { data: me } = useMe();
+  const navigate = useNavigate();
   const role = me ? me.role : "guest";
   const isTeacher = me?.isTeacher ?? false;
   const runState = booting ? "booting" : running ? "running" : "idle";
@@ -219,6 +226,25 @@ function Toolbar({
               <DownloadIcon size={14} />
               <span>Export Project Bundle (.physide.json)</span>
             </button>
+          ) : null}
+          {/* Task 20: History & restore — signed-in users only (me from
+             useMe), gated on there being a project to show history for.
+             Deliberately NOT gated by exportsAllowed: restoring your own
+             past work back into your own project is not an export, it's
+             the same "manage my own save history" action Save already is,
+             so a locked assignment's exportAndCopy:false must not hide it. */}
+          {me && activeProjectId ? (
+            <>
+              {(importsAllowed || exportsAllowed) ? <div className="tb-dropdown-divider" /> : null}
+              <button
+                type="button"
+                className="tb-dropdown-item"
+                onClick={() => navigate(`/history/${activeProjectId}`)}
+              >
+                <HistoryIcon size={14} />
+                <span>History &amp; restore</span>
+              </button>
+            </>
           ) : null}
         </DropdownMenu>
       </>

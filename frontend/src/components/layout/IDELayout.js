@@ -566,6 +566,7 @@ export default function IDELayout() {
         projectTitle={proj.activeManifest?.title || ""}
         onRenameProject={proj.renameProject}
         onSave={handleSaveProject}
+        activeProjectId={proj.activeProjectId}
         onRun={sim.handleRun}
         onStop={sim.handleStop}
         onExportPy={exp.handleExportPy}
