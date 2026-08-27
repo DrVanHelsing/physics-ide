@@ -2197,3 +2197,185 @@ describe("GET /api/assignments/:id/timeline/:studentId", () => {
     expect(res.statusCode).toBe(404);
   });
 });
+
+
+/* ── Task 17: the marking room's read ── */
+// GET /api/assignments/:id/submissions/:studentId — the exam script itself
+// (spec §7.2): a staff-only read of one student's current submission
+// snapshot plus their full attempt history. 404 (not an empty body) when
+// the student has no submission at all — same "don't pretend it exists"
+// posture NO_SUCH_ASSIGNMENT uses elsewhere in this file.
+describe("GET /api/assignments/:id/submissions/:studentId", () => {
+  let studentId: string;
+  let taCookie: string;
+
+  beforeAll(async () => {
+    const [studentRow] = await testDb.select().from(users).where(eq(users.email, "akid@example.com"));
+    studentId = studentRow.id;
+
+    const ta = await makeUser("marking-ta@example.com");
+    await testDb.insert(classMembers).values({ classId, userId: ta.id, role: "ta", status: "active" });
+    taCookie = await signin("marking-ta@example.com");
+  });
+
+  async function makePublishedAssignment(title: string) {
+    const draftRes = await app.inject({
+      method: "POST",
+      url: `/api/classes/${classId}/assignments`,
+      cookies: { pide_session: teacherCookie },
+      payload: { title },
+    });
+    const id = draftRes.json().assignment.id;
+    await app.inject({
+      method: "POST",
+      url: `/api/assignments/${id}/publish`,
+      cookies: { pide_session: teacherCookie },
+    });
+    return id as string;
+  }
+
+  async function submitAs(assignmentId: string, projectId: string, manifest: object) {
+    await testDb.insert(projects).values({
+      id: projectId,
+      ownerId: studentId,
+      title: "Student Copy",
+      goal: "physics",
+      projectType: "physics",
+      manifest,
+      clientUpdatedAt: Date.now(),
+    });
+    await app.inject({
+      method: "POST",
+      url: `/api/assignments/${assignmentId}/start`,
+      cookies: { pide_session: studentCookie },
+      payload: { projectId },
+    });
+    return app.inject({
+      method: "POST",
+      url: `/api/assignments/${assignmentId}/submit`,
+      cookies: { pide_session: studentCookie },
+    });
+  }
+
+  test("404 when the assignment doesn't exist", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/assignments/00000000-0000-0000-0000-000000000000/submissions/${studentId}`,
+      cookies: { pide_session: teacherCookie },
+    });
+    expect(res.statusCode).toBe(404);
+  });
+
+  test("404 when the student has no submission for this assignment", async () => {
+    const id = await makePublishedAssignment("No Submission For Marking");
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/assignments/${id}/submissions/${studentId}`,
+      cookies: { pide_session: teacherCookie },
+    });
+    expect(res.statusCode).toBe(404);
+  });
+
+  test("a student — even the submitter reading their own work — is refused: this read is staff only", async () => {
+    const id = await makePublishedAssignment("Staff Only Gate");
+    await submitAs(id, "p-staff-gate", {
+      schemaVersion: 2,
+      workspace: { xml: "<xml/>" },
+      source: { python: "" },
+    });
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/assignments/${id}/submissions/${studentId}`,
+      cookies: { pide_session: studentCookie },
+    });
+    expect(res.statusCode).toBe(403);
+  });
+
+  test("a non-member is refused", async () => {
+    const id = await makePublishedAssignment("Stranger Gate");
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/assignments/${id}/submissions/${studentId}`,
+      cookies: { pide_session: strangerCookie },
+    });
+    expect(res.statusCode).toBe(403);
+  });
+
+  test("a teacher reads the current snapshot: studentName, attempt, late, fingerprint, workspaceXml, python", async () => {
+    const id = await makePublishedAssignment("Marking Room Snapshot");
+    const manifest = {
+      schemaVersion: 2,
+      workspace: { xml: "<xml><block type='sim_start_block'/></xml>" },
+      source: { python: "print('hi')" },
+    };
+    const submitRes = await submitAs(id, "p-marking-snapshot", manifest);
+    expect(submitRes.statusCode).toBe(201);
+
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/assignments/${id}/submissions/${studentId}`,
+      cookies: { pide_session: teacherCookie },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.submission.studentId).toBe(studentId);
+    expect(body.submission.studentName).toBe("akid");
+    expect(body.submission.attempt).toBe(1);
+    expect(body.submission.late).toBe(false);
+    expect(body.submission.fingerprint).toBe(submitRes.json().submission.fingerprint);
+    expect(body.submission.workspaceXml).toBe(manifest.workspace.xml);
+    expect(body.submission.python).toBe(manifest.source.python);
+    expect(body.history).toHaveLength(1);
+    expect(body.history[0]).toMatchObject({ attempt: 1, fingerprint: body.submission.fingerprint });
+  });
+
+  test("a TA — not only the teacher — may read the snapshot", async () => {
+    const id = await makePublishedAssignment("TA Reads Too");
+    await submitAs(id, "p-marking-ta", {
+      schemaVersion: 2,
+      workspace: { xml: "<xml>ta</xml>" },
+      source: { python: "ta" },
+    });
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/assignments/${id}/submissions/${studentId}`,
+      cookies: { pide_session: taCookie },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().submission.workspaceXml).toBe("<xml>ta</xml>");
+  });
+
+  test("a second attempt: the current snapshot is the LATEST attempt; history holds both, newest first", async () => {
+    const id = await makePublishedAssignment("Marking Room Multi Attempt");
+    const projectId = "p-marking-multi";
+    const submit1 = await submitAs(id, projectId, {
+      schemaVersion: 2,
+      workspace: { xml: "<xml>v1</xml>" },
+      source: { python: "v1" },
+    });
+    expect(submit1.statusCode).toBe(201);
+
+    // Same linked project, a fresh server-head manifest — mirrors a student
+    // editing and re-submitting (submit.ts reads the CURRENT project head).
+    await testDb
+      .update(projects)
+      .set({ manifest: { schemaVersion: 2, workspace: { xml: "<xml>v2</xml>" }, source: { python: "v2" } } })
+      .where(eq(projects.id, projectId));
+    const submit2 = await app.inject({
+      method: "POST",
+      url: `/api/assignments/${id}/submit`,
+      cookies: { pide_session: studentCookie },
+    });
+    expect(submit2.statusCode).toBe(201);
+
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/assignments/${id}/submissions/${studentId}`,
+      cookies: { pide_session: teacherCookie },
+    });
+    const body = res.json();
+    expect(body.submission.attempt).toBe(2);
+    expect(body.submission.workspaceXml).toBe("<xml>v2</xml>");
+    expect(body.history.map((h: { attempt: number }) => h.attempt)).toEqual([2, 1]);
+  });
+});
