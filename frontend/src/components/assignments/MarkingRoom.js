@@ -60,11 +60,13 @@ export default function MarkingRoom() {
     queryKey: ["assignment", aid],
     queryFn: () => api(`/api/assignments/${aid}`),
     enabled: !!me,
+    retry: false,
   });
   const submissionQuery = useQuery({
     queryKey: ["assignment", aid, "submission", studentId],
     queryFn: () => api(`/api/assignments/${aid}/submissions/${studentId}`),
     enabled: !!me,
+    retry: false,
   });
   // Task 16's own query, key-for-key — a cache hit if the marker arrived
   // from the inbox, a fresh fetch (once that route exists) otherwise.
