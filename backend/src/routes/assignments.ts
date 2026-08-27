@@ -16,6 +16,7 @@ import {
   classes,
   classMembers,
   marks,
+  users,
 } from "../db/schema.js";
 import { requireConfirmed } from "../auth/guards.js";
 import {
@@ -891,6 +892,112 @@ export function assignmentRoutes(app: FastifyInstance): void {
       )
       .orderBy(desc(submissions.attempt));
     return { submission: rows[0] ? toSubmissionSummary(rows[0]) : null };
+  });
+
+  /* ── Task 19: gradebook ── */
+  // The prep grid: every active student × every assignment in this class,
+  // one read. Staff only — same gate idiom as GET /members (PeopleTab):
+  // a student never reaches this route at all, so there's no need to
+  // filter anything out of the payload for them (design D§11.5). A TA
+  // sees a DRAFT mark's points too, flagged via `released: false` rather
+  // than hidden — the grid is a preparation tool, and drafts are exactly
+  // what it's for previewing.
+  app.get("/api/classes/:id/gradebook", async (req, reply) => {
+    const { id: classId } = req.params as { id: string };
+    const me = await getMembership(app.db, classId, req.user!.id);
+    if (!me || me.status !== "active" || me.role === "student") {
+      return reply.code(403).send({ error: "Teachers and assistants only." });
+    }
+
+    // Alphabetical by name — a roster reads naturally that way, and it
+    // gives the client (grid + CSV export) a stable, predictable order
+    // that has nothing to do with signup sequence.
+    const studentRows = await app.db
+      .select({ id: users.id, name: users.name })
+      .from(classMembers)
+      .innerJoin(users, eq(classMembers.userId, users.id))
+      .where(
+        and(
+          eq(classMembers.classId, classId),
+          eq(classMembers.status, "active"),
+          eq(classMembers.role, "student"),
+        ),
+      )
+      .orderBy(users.name);
+
+    // Creation order — the sequence a teacher built the class in, and the
+    // same order AssignmentsTab lists them (no explicit sort there either,
+    // so this matches the DB's natural insertion order).
+    const assignmentRows = await app.db
+      .select()
+      .from(assignments)
+      .where(eq(assignments.classId, classId))
+      .orderBy(assignments.createdAt);
+
+    const studentIds = studentRows.map((s) => s.id);
+    const assignmentIds = assignmentRows.map((a) => a.id);
+
+    const submissionRows =
+      studentIds.length && assignmentIds.length
+        ? await app.db
+            .select()
+            .from(submissions)
+            .where(
+              and(
+                inArray(submissions.assignmentId, assignmentIds),
+                inArray(submissions.submitterId, studentIds),
+                eq(submissions.isCurrent, true),
+              ),
+            )
+        : [];
+    const markRows =
+      studentIds.length && assignmentIds.length
+        ? await app.db
+            .select()
+            .from(marks)
+            .where(
+              and(inArray(marks.assignmentId, assignmentIds), inArray(marks.studentId, studentIds)),
+            )
+        : [];
+
+    const cellKey = (studentId: string, assignmentId: string) => `${studentId}:${assignmentId}`;
+    const submissionByCell = new Map(
+      submissionRows.map((s) => [cellKey(s.submitterId as string, s.assignmentId), s]),
+    );
+    const markByCell = new Map(markRows.map((m) => [cellKey(m.studentId, m.assignmentId), m]));
+
+    const cells: Array<{
+      studentId: string;
+      assignmentId: string;
+      points: number | null;
+      released: boolean;
+      late: boolean;
+      missing: boolean;
+    }> = [];
+    for (const s of studentRows) {
+      for (const a of assignmentRows) {
+        const key = cellKey(s.id, a.id);
+        const submission = submissionByCell.get(key);
+        const mark = markByCell.get(key);
+        cells.push({
+          studentId: s.id,
+          assignmentId: a.id,
+          points: mark ? mark.points : null,
+          released: mark ? mark.status === "released" : false,
+          late: submission ? submission.late : false,
+          // Nothing turned in AND nothing marked — genuinely nothing to show.
+          // A mark alone (credit entered without a matching submission) is
+          // deliberately NOT "missing": something was graded either way.
+          missing: !submission && !mark,
+        });
+      }
+    }
+
+    return {
+      students: studentRows.map((s) => ({ id: s.id, name: s.name })),
+      assignments: assignmentRows.map((a) => ({ id: a.id, title: a.title, points: a.points })),
+      cells,
+    };
   });
 }
 
