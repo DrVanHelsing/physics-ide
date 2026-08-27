@@ -51,12 +51,16 @@ describe("ClassChrome link tabs — aria-current, not the tablist pattern", () =
   test("the active tab's Link carries aria-current=page and no other link does", () => {
     const container = render("people");
     const links = [...container.querySelectorAll(".tab")];
-    // Teacher role sees all four: Assignments, Guides, People, Settings.
-    // Deliberate (Task 9): Guides joins the tab set between Assignments and
-    // People for every role — a guide page is "the same format" as an
-    // assignment's instructions, published standalone, so it lives beside
-    // Assignments rather than behind a staff-only gate.
-    expect(links.length).toBe(4);
+    // Teacher role sees all five: Assignments, Guides, Gradebook, People,
+    // Settings. Deliberate (Task 9): Guides joins the tab set between
+    // Assignments and People for every role — a guide page is "the same
+    // format" as an assignment's instructions, published standalone, so it
+    // lives beside Assignments rather than behind a staff-only gate.
+    // Deliberate (Task 19): Gradebook joins right after Guides but stays
+    // staff-only (show: isStaff) — unlike Guides, it's a teacher/TA
+    // preparation tool with nothing for a student to see, so it follows
+    // People/Settings' gating instead of Guides' show: true one.
+    expect(links.length).toBe(5);
 
     const current = links.filter((l) => l.getAttribute("aria-current") === "page");
     expect(current.length).toBe(1);
@@ -86,8 +90,24 @@ describe("ClassChrome link tabs — aria-current, not the tablist pattern", () =
   test("a student (non-staff) sees Assignments and Guides only — no People/Settings link", () => {
     const container = render("assignments", "student");
     const links = [...container.querySelectorAll(".tab")];
-    // Guides is shown to every role (Task 9) — People/Settings stay staff-only.
+    // Guides is shown to every role (Task 9) — Gradebook/People/Settings
+    // stay staff-only (Task 19 adds Gradebook to that staff-only group).
     expect(links.map((l) => l.textContent)).toEqual(["Assignments", "Guides"]);
     expect(links[0].getAttribute("aria-current")).toBe("page");
+  });
+
+  test("Gradebook tab: visible to a teacher, links to /classes/:id/gradebook, and carries aria-current when active", () => {
+    const container = render("gradebook");
+    const links = [...container.querySelectorAll(".tab")];
+    const gradebook = links.find((l) => l.textContent === "Gradebook");
+    expect(gradebook).not.toBeUndefined();
+    expect(gradebook.getAttribute("href")).toBe("/classes/class-1/gradebook");
+    expect(gradebook.getAttribute("aria-current")).toBe("page");
+  });
+
+  test("a TA also sees Gradebook (staff, not just teacher)", () => {
+    const container = render("assignments", "ta");
+    const links = [...container.querySelectorAll(".tab")];
+    expect(links.map((l) => l.textContent)).toContain("Gradebook");
   });
 });
