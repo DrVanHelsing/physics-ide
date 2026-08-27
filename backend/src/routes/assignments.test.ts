@@ -6,7 +6,7 @@ import { BUILT_IN_RULE_SETS } from "@physics-ide/shared";
 import { buildApp } from "../app.js";
 import { testDb, testPool, truncateAuthTables } from "../db/testClient.js";
 import { setSetting } from "../db/settings.js";
-import { users, classMembers, assignments, events, projects, submissions, assignmentWork, marks, emails } from "../db/schema.js";
+import { users, classMembers, assignments, events, projects, projectVersions, submissions, assignmentWork, marks, emails } from "../db/schema.js";
 import { stableStringify } from "./projects.js";
 
 const app = buildApp({ db: testDb });
@@ -1559,5 +1559,184 @@ describe("GET /api/assignments/upcoming", () => {
       expect(row.title).toBe("Released Recently");
       expect(typeof row.releasedAt).toBe("number");
     });
+  });
+});
+
+/* ── Task 20: GET /api/assignments/:id/timeline/:studentId ── */
+// The History screen's teacher feed — the product's first cross-user read.
+// Own describe block, own isolated class/assignment/project, same pattern
+// the "submit" describe above uses (shadowed cookies rather than reaching
+// for the shared top-level fixtures, so nothing here leaks into them).
+describe("GET /api/assignments/:id/timeline/:studentId", () => {
+  let timelineClassId: string;
+  let timelineAssignmentId: string;
+  let timelineStudentId: string;
+  let timelineStudentCookie: string;
+  let otherStudentCookie: string;
+  let taCookie: string;
+  let timelineProjectId: string;
+  let teacherId: string;
+
+  beforeAll(async () => {
+    const [teacherRow] = await testDb.select().from(users).where(eq(users.email, "ateach@example.com"));
+    teacherId = teacherRow.id;
+
+    const student = await makeUser("timelinekid@example.com");
+    timelineStudentId = student.id;
+    timelineStudentCookie = await signin("timelinekid@example.com");
+    const other = await makeUser("timelineother@example.com");
+    otherStudentCookie = await signin("timelineother@example.com");
+    const ta = await makeUser("timelineta@example.com");
+    taCookie = await signin("timelineta@example.com");
+
+    const classRes = await app.inject({
+      method: "POST",
+      url: "/api/classes",
+      cookies: { pide_session: teacherCookie },
+      payload: { name: "Timeline Test Class" },
+    });
+    timelineClassId = classRes.json().class.id;
+    await testDb.insert(classMembers).values([
+      { classId: timelineClassId, userId: timelineStudentId, role: "student", status: "active" },
+      { classId: timelineClassId, userId: other.id, role: "student", status: "active" },
+      { classId: timelineClassId, userId: ta.id, role: "ta", status: "active" },
+    ]);
+
+    const draftRes = await app.inject({
+      method: "POST",
+      url: `/api/classes/${timelineClassId}/assignments`,
+      cookies: { pide_session: teacherCookie },
+      payload: { title: "Timeline Test Assignment" },
+    });
+    timelineAssignmentId = draftRes.json().assignment.id;
+    await app.inject({
+      method: "POST",
+      url: `/api/assignments/${timelineAssignmentId}/publish`,
+      cookies: { pide_session: teacherCookie },
+    });
+
+    timelineProjectId = "p-timeline-student";
+    await testDb.insert(projects).values({
+      id: timelineProjectId,
+      ownerId: timelineStudentId,
+      title: "Timeline Project",
+      goal: "physics",
+      projectType: "physics",
+      manifest: { schemaVersion: 2, marker: "head" },
+      clientUpdatedAt: Date.now(),
+    });
+    const startRes = await app.inject({
+      method: "POST",
+      url: `/api/assignments/${timelineAssignmentId}/start`,
+      cookies: { pide_session: timelineStudentCookie },
+      payload: { projectId: timelineProjectId },
+    });
+    expect(startRes.statusCode).toBe(201);
+
+    // Two checkpoints in the linked project's history (same table the
+    // owner-scoped /api/projects/:id/versions route already reads).
+    await testDb.insert(projectVersions).values([
+      {
+        ownerId: timelineStudentId,
+        projectId: timelineProjectId,
+        manifest: { marker: "v1" },
+        clientUpdatedAt: Date.now() - 2000,
+        savedBy: timelineStudentId,
+        reason: "overwrite",
+      },
+      {
+        ownerId: timelineStudentId,
+        projectId: timelineProjectId,
+        manifest: { marker: "v2" },
+        clientUpdatedAt: Date.now() - 1000,
+        savedBy: timelineStudentId,
+        reason: "conflict-loser",
+      },
+    ]);
+    // One submission marker.
+    await testDb.insert(submissions).values({
+      assignmentId: timelineAssignmentId,
+      submitterId: timelineStudentId,
+      submittedBy: timelineStudentId,
+      creditedIds: [timelineStudentId],
+      manifest: { marker: "head" },
+      fingerprint: "timeline-fp",
+      late: false,
+      isCurrent: true,
+      attempt: 1,
+    });
+  });
+
+  test("teacher reads the student's timeline through the assignment_work link — checkpoints in plain reasons, a submission marker, event logged", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/assignments/${timelineAssignmentId}/timeline/${timelineStudentId}`,
+      cookies: { pide_session: teacherCookie },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+
+    expect(body.versions).toHaveLength(2);
+    expect(body.versions.map((v: { reason: string }) => v.reason).sort()).toEqual([
+      "conflict-loser",
+      "overwrite",
+    ]);
+    for (const v of body.versions) {
+      expect(v).toHaveProperty("versionId");
+      expect(v).toHaveProperty("clientUpdatedAt");
+      expect(typeof v.savedAt).toBe("string");
+    }
+
+    expect(body.submissions).toHaveLength(1);
+    expect(body.submissions[0]).toMatchObject({ attempt: 1, late: false });
+    expect(body.submissions[0]).toHaveProperty("id");
+    expect(typeof body.submissions[0].createdAt).toBe("string");
+
+    const evts = await eventsOfType("assignment.timeline_viewed");
+    expect(
+      evts.some(
+        (e) =>
+          e.actorId === teacherId &&
+          (e.payload as Record<string, unknown>).assignmentId === timelineAssignmentId &&
+          (e.payload as Record<string, unknown>).studentId === timelineStudentId,
+      ),
+    ).toBe(true);
+  });
+
+  test("a TA (not just the teacher) can read it too — staff, not teacher-only", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/assignments/${timelineAssignmentId}/timeline/${timelineStudentId}`,
+      cookies: { pide_session: taCookie },
+    });
+    expect(res.statusCode).toBe(200);
+  });
+
+  test("a student cannot read another student's timeline -> 403", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/assignments/${timelineAssignmentId}/timeline/${timelineStudentId}`,
+      cookies: { pide_session: otherStudentCookie },
+    });
+    expect(res.statusCode).toBe(403);
+    expect(res.json().error).toBe("Teachers and TAs only for this class.");
+  });
+
+  test("a non-member of the class is refused too", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/assignments/${timelineAssignmentId}/timeline/${timelineStudentId}`,
+      cookies: { pide_session: strangerCookie },
+    });
+    expect(res.statusCode).toBe(403);
+  });
+
+  test("a student who hasn't started the assignment -> 404 (no work row to resolve)", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/assignments/${timelineAssignmentId}/timeline/${(await makeUser("timelinenostart@example.com")).id}`,
+      cookies: { pide_session: teacherCookie },
+    });
+    expect(res.statusCode).toBe(404);
   });
 });
