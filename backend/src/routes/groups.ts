@@ -51,6 +51,7 @@ const ALREADY_SUBMITTED = "This group has already submitted.";
 const BATON_HELD = "Another member holds the baton.";
 const NO_BATON = "Take the baton before saving.";
 const NOT_STARTED = "This group has not started work yet.";
+const STUDENTS_ONLY = "Groups are for students.";
 
 function isStaffRole(role: string): boolean {
   return role === "teacher" || role === "ta";
@@ -83,16 +84,28 @@ export async function myGroupFor(
   return rows[0]?.group ?? null;
 }
 
-/** One group with its members named, in join order — the shape the group
- *  panel and the student assignment read both render. `projectId` is null
- *  until the founding member starts work. */
-export async function groupShape(db: Db, group: GroupRow) {
-  const members = await db
-    .select({ userId: groupMembers.userId, name: users.name })
+/** The group's members in join order, with the two things every caller of
+ *  this needs: who they are and where to email them. Exported because Task
+ *  23's group submit, receipts and group mark all live in assignments.ts —
+ *  the credit list a submission freezes is exactly this, read once. */
+export async function groupMembersOf(
+  db: Pick<Db, "select">,
+  groupId: string,
+): Promise<Array<{ userId: string; name: string; email: string }>> {
+  return db
+    .select({ userId: groupMembers.userId, name: users.name, email: users.email })
     .from(groupMembers)
     .innerJoin(users, eq(groupMembers.userId, users.id))
-    .where(eq(groupMembers.groupId, group.id))
+    .where(eq(groupMembers.groupId, groupId))
     .orderBy(groupMembers.createdAt);
+}
+
+/** One group with its members named, in join order — the shape the group
+ *  panel and the student assignment read both render. `projectId` is null
+ *  until the founding member starts work. Email is internal to the helper
+ *  above and never reaches this student-facing shape. */
+export async function groupShape(db: Db, group: GroupRow) {
+  const members = (await groupMembersOf(db, group.id)).map(({ userId, name }) => ({ userId, name }));
   return { id: group.id, name: group.name, projectId: group.projectId, members };
 }
 
@@ -175,6 +188,19 @@ async function requireGroup(db: Db, gid: string, userId: string): Promise<GroupC
   return { assignment, group };
 }
 
+/** Ruling R7: forming and joining a group is student-only. A staff member
+ *  sitting in a group would be written into its submission's `creditedIds`
+ *  and would collect a mark row of their own when the group's mark is
+ *  released — the same harm isMarkableStudent guards against on the mark's
+ *  TARGET (assignments.ts). Staff still SEE every group (the roster read
+ *  below is unchanged); they simply cannot be in one. */
+async function requireStudentOfClass(db: Db, classId: string, userId: string): Promise<void> {
+  const m = await getMembership(db, classId, userId);
+  if (!m || m.status !== "active" || m.role !== "student") {
+    throw new ClassAuthError(403, STUDENTS_ONLY);
+  }
+}
+
 /** The membership gate on everything the group OWNS — its project and its
  *  baton. Class membership is not enough: the shared project lives under
  *  the founding member's account and only the group reaches it. */
@@ -194,7 +220,8 @@ export function groupRoutes(app: FastifyInstance): void {
   app.post("/api/assignments/:id/groups", async (req, reply) => {
     const { id } = req.params as { id: string };
     try {
-      await requireGroupAssignment(app.db, id, req.user!.id);
+      const assignment = await requireGroupAssignment(app.db, id, req.user!.id);
+      await requireStudentOfClass(app.db, assignment.classId, req.user!.id);
     } catch (err) {
       if (await sendClassAuthError(reply, err)) return;
       throw err;
@@ -282,6 +309,7 @@ export function groupRoutes(app: FastifyInstance): void {
     let ctx: GroupContext;
     try {
       ctx = await requireGroup(app.db, gid, req.user!.id);
+      await requireStudentOfClass(app.db, ctx.assignment.classId, req.user!.id);
     } catch (err) {
       if (await sendClassAuthError(reply, err)) return;
       throw err;

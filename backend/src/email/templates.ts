@@ -86,11 +86,16 @@ export function submissionReceipt(p: {
   submittedAt: string;
   attempt: number;
   fingerprint: string;
+  /** Group work (spec §5.5): every member's name, since any member may have
+   *  pressed Submit and the others are entitled to know what was handed in
+   *  for them, and with whom. Null/absent for individual work. */
+  credited?: string[] | null;
 }) {
   // Same CRLF-strip as classInvite — title/className are teacher- or
   // student-supplied free text, never trusted to sit unescaped in a subject.
   const title = p.title.replace(/[\r\n]+/g, " ");
   const className = p.className.replace(/[\r\n]+/g, " ");
+  const creditedLine = p.credited?.length ? `\nCredited: ${p.credited.join(", ")}` : "";
   return {
     subject: `Submission received — ${title}`,
     text: `Hi,
@@ -99,7 +104,7 @@ Your submission for "${title}" (${className}) was received.
 
 Submitted: ${p.submittedAt}
 Attempt:   ${p.attempt}
-Fingerprint: ${p.fingerprint}
+Fingerprint: ${p.fingerprint}${creditedLine}
 
 Keep this fingerprint — it's the record of exactly what was submitted, and the answer if there's ever a dispute about what was turned in.`,
   };

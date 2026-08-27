@@ -6,6 +6,7 @@ import {
   UpdateAssignmentInputSchema,
   SaveRuleSetInputSchema,
   MarkDraftInputSchema,
+  GroupMarkDraftInputSchema,
   MarksReleaseInputSchema,
   MarkReturnInputSchema,
   computeAssignmentPhase,
@@ -19,6 +20,7 @@ import {
   projects,
   classes,
   classMembers,
+  groupMembers,
   groups,
   marks,
   users,
@@ -32,7 +34,7 @@ import {
 import { logEvent } from "../db/events.js";
 import type { Db } from "../db/types.js";
 import { stableStringify } from "./projects.js";
-import { groupShape, myGroupFor } from "./groups.js";
+import { groupMembersOf, groupShape, myGroupFor } from "./groups.js";
 import { submissionReceipt, dueReminder, marksReleased, workReturned } from "../email/templates.js";
 
 type AssignmentRow = typeof assignments.$inferSelect;
@@ -51,6 +53,12 @@ const STAFF_ONLY_FOR_CLASS = "Teachers and TAs only for this class.";
 const NO_SUCH_STUDENT_WORK = "This student has not started this assignment.";
 const NO_SUCH_STUDENT_IN_CLASS = "No such student in this class.";
 const JOIN_A_GROUP_FIRST = "Join a group before starting this assignment.";
+/* ── Task 23: group submit and the group mark (spec §5.5 / §7.3) ── */
+const NO_SUCH_GROUP = "No such group.";
+const NO_SUCH_GROUP_SUBMISSION = "No submission from this group.";
+const NO_SUCH_GROUP_WORK = "This group has not started this assignment.";
+const ADJUSTMENT_OUT_OF_RANGE = "That adjustment puts a member outside the assignment's own total.";
+const ADJUSTMENT_NOT_A_MEMBER = "That adjustment names someone outside the group.";
 // Same exact sentence as AssignmentPage.js's own gateSentence(phase) for the
 // Start/Continue button — the two surfaces must agree (review finding).
 const MARKS_RELEASED_CLOSED = "This assignment is closed — marks have been released.";
@@ -216,6 +224,27 @@ async function returnedUnreleasedMarkExists(db: Db, assignmentId: string, studen
   return rows.length > 0;
 }
 
+/** The same fiat for group work: a returned, unreleased mark on ANY member
+ *  reopens the GROUP's submission — a return is written to every member at
+ *  once (the group return route), and the work being sent back is the
+ *  group's, not one person's. */
+async function groupHasReturnedUnreleasedMark(db: Db, assignmentId: string, groupId: string): Promise<boolean> {
+  const rows = await db
+    .select({ id: marks.id })
+    .from(marks)
+    .innerJoin(groupMembers, eq(groupMembers.userId, marks.studentId))
+    .where(
+      and(
+        eq(marks.assignmentId, assignmentId),
+        eq(groupMembers.groupId, groupId),
+        eq(marks.returned, true),
+        eq(marks.status, "draft"),
+      ),
+    )
+    .limit(1);
+  return rows.length > 0;
+}
+
 /** The honest sentences a refused submit can show. `marks_released` gets
  *  its own (matching AssignmentPage.js's gateSentence for the Start
  *  button — the two surfaces must agree, review finding). Only the
@@ -278,6 +307,79 @@ async function isMarkableStudent(db: Db, classId: string, studentId: string): Pr
   return !!m && m.status === "active" && m.role === "student";
 }
 
+/** The group named in the URL, but only if it belongs to THIS assignment.
+ *  A group id from a different assignment is "No such group." rather than a
+ *  route that quietly marks or reads the wrong people's work. */
+async function groupOfAssignment(db: Db, assignmentId: string, groupId: string) {
+  const rows = await db
+    .select()
+    .from(groups)
+    .where(and(eq(groups.id, groupId), eq(groups.assignmentId, assignmentId)));
+  return rows[0] ?? null;
+}
+
+/** A group's CURRENT submission (spec §5.5 — one submission for the whole
+ *  group, keyed by groupId with submitterId null). Same belt-and-braces
+ *  ORDER BY my-submission uses: isCurrent is the invariant, attempt DESC is
+ *  the deterministic fallback. */
+async function currentGroupSubmission(db: Db, assignmentId: string, groupId: string) {
+  const rows = await db
+    .select()
+    .from(submissions)
+    .where(
+      and(
+        eq(submissions.assignmentId, assignmentId),
+        eq(submissions.groupId, groupId),
+        eq(submissions.isCurrent, true),
+      ),
+    )
+    .orderBy(desc(submissions.attempt));
+  return rows[0] ?? null;
+}
+
+/** The caller's own current submission — their row for individual work, their
+ *  GROUP's row for pair/group work. Spec §5.5: "the assignment shows as
+ *  submitted for all of them", so a member who never pressed Submit reads
+ *  exactly what the member who did reads. */
+async function currentSubmissionFor(
+  db: Db,
+  a: AssignmentRow,
+  userId: string,
+  group: { id: string } | null,
+) {
+  if (a.submissionMode !== "individual") {
+    return group ? await currentGroupSubmission(db, a.id, group.id) : null;
+  }
+  const rows = await db
+    .select()
+    .from(submissions)
+    .where(
+      and(
+        eq(submissions.assignmentId, a.id),
+        eq(submissions.submitterId, userId),
+        eq(submissions.isCurrent, true),
+      ),
+    )
+    .orderBy(desc(submissions.attempt));
+  return rows[0] ?? null;
+}
+
+/** The student-facing submission shape, with the credit list named (§5.5's
+ *  "the snapshot credits every member by name"). creditedIds order is join
+ *  order and is preserved — the receipt and this page agree. */
+async function toMySubmission(db: Db, row: typeof submissions.$inferSelect | null) {
+  if (!row) return null;
+  const ids = Array.isArray(row.creditedIds) ? (row.creditedIds as string[]) : [];
+  const named = ids.length
+    ? await db.select({ id: users.id, name: users.name }).from(users).where(inArray(users.id, ids))
+    : [];
+  const nameById = new Map(named.map((u) => [u.id, u.name]));
+  return {
+    ...toSubmissionSummary(row),
+    credited: ids.map((id) => ({ userId: id, name: nameById.get(id) ?? "" })),
+  };
+}
+
 /** The full staff shape — privateNote included, since every caller of this
  *  helper is already behind a staff-only gate (PUT/return/the marking
  *  room's submission read). Never handed to a student-facing route. */
@@ -291,6 +393,57 @@ function toMarkStaffShape(row: typeof marks.$inferSelect) {
     returned: row.returned,
     basedOnSubmissionId: row.basedOnSubmissionId,
     releasedAt: toEpoch(row.releasedAt),
+  };
+}
+
+/** Every mark row belonging to a set of students on one assignment — the
+ *  read behind a group's single mark (one row per member, spec §5.5). */
+async function marksForStudents(db: Pick<Db, "select">, assignmentId: string, studentIds: string[]) {
+  if (studentIds.length === 0) return [];
+  return db
+    .select()
+    .from(marks)
+    .where(and(eq(marks.assignmentId, assignmentId), inArray(marks.studentId, studentIds)));
+}
+
+/** The group's ONE mark, reassembled from its members' rows (spec §7.3:
+ *  "shows all the members, sets one mark for the group, and allows a
+ *  per-member adjustment"). Each row stores the member's FINAL total, so
+ *  the group's own figure is `points - adjustment` — that subtraction is
+ *  the whole reason `adjustment` is a stored column and not a transient
+ *  input: a marker returning tomorrow must see both halves as they left
+ *  them. Staff-only shape (privateNote included), same as toMarkStaffShape.
+ *
+ *  status/returned read from ALL the rows together because a group's rows
+ *  move together (one PUT writes them all). A mixed set is only reachable
+ *  through the per-student routes, and then the weaker claim is the honest
+ *  one — never "released" while a member's row is still a draft. */
+function toGroupMarkShape(
+  groupId: string,
+  members: Array<{ userId: string; name: string }>,
+  markRows: (typeof marks.$inferSelect)[],
+) {
+  if (markRows.length === 0) return null;
+  const byStudent = new Map(markRows.map((r) => [r.studentId, r]));
+  const base = members.map((m) => byStudent.get(m.userId)).find((r) => !!r) ?? markRows[0];
+  return {
+    groupId,
+    points: base.points == null ? null : base.points - base.adjustment,
+    comment: base.comment,
+    privateNote: base.privateNote,
+    status: markRows.every((r) => r.status === "released") ? "released" : "draft",
+    returned: markRows.every((r) => r.returned),
+    basedOnSubmissionId: base.basedOnSubmissionId,
+    releasedAt: toEpoch(base.releasedAt),
+    members: members.map((m) => {
+      const row = byStudent.get(m.userId);
+      return {
+        studentId: m.userId,
+        name: m.name,
+        adjustment: row?.adjustment ?? 0,
+        points: row?.points ?? null,
+      };
+    }),
   };
 }
 
@@ -408,6 +561,13 @@ export function assignmentRoutes(app: FastifyInstance): void {
     // staff-only business and must never surface here; toMyMark enforces
     // that by construction (privateNote is never even read into the shape).
     const myMark = toMyMark(await loadMark(app.db, id, req.user!.id));
+    // Task 23: what has actually been handed in — the caller's own row, or
+    // their GROUP's (spec §5.5's "submitted for all of them", which has to
+    // be true for the member who never pressed the button).
+    const mySubmission = await toMySubmission(
+      app.db,
+      await currentSubmissionFor(app.db, a, req.user!.id, group),
+    );
     const extras: Record<string, unknown> = {
       instructions: a.instructions,
       rules: a.rules,
@@ -415,6 +575,7 @@ export function assignmentRoutes(app: FastifyInstance): void {
       myGroup: group ? await groupShape(app.db, group) : null,
       starterSeed,
       myMark,
+      mySubmission,
     };
     return { assignment: toAssignmentSummary(a, extras) };
   });
@@ -830,9 +991,6 @@ export function assignmentRoutes(app: FastifyInstance): void {
       });
 
       const candidateIds = candidates.map((a) => a.id);
-      // Individual submissions only (submitterId = caller) — group
-      // submissions carry groupId instead and resolving "did my group submit"
-      // is Stage D's job, not this one's.
       const submittedRows = candidateIds.length
         ? await app.db
             .select({ assignmentId: submissions.assignmentId })
@@ -845,7 +1003,25 @@ export function assignmentRoutes(app: FastifyInstance): void {
               ),
             )
         : [];
-      const submittedSet = new Set(submittedRows.map((s) => s.assignmentId));
+      // Task 23: a group's submission counts for every member (spec §5.5's
+      // "the assignment shows as submitted for all of them") — without this
+      // the strip nags the member who did not press the button.
+      const groupSubmittedRows = candidateIds.length
+        ? await app.db
+            .select({ assignmentId: submissions.assignmentId })
+            .from(submissions)
+            .innerJoin(groupMembers, eq(groupMembers.groupId, submissions.groupId))
+            .where(
+              and(
+                inArray(submissions.assignmentId, candidateIds),
+                eq(groupMembers.userId, userId),
+                eq(submissions.isCurrent, true),
+              ),
+            )
+        : [];
+      const submittedSet = new Set(
+        [...submittedRows, ...groupSubmittedRows].map((s) => s.assignmentId),
+      );
 
       dueSoon = candidates
         .map((a) => ({
@@ -889,14 +1065,18 @@ export function assignmentRoutes(app: FastifyInstance): void {
     return { dueSoon, recentFeedback };
   });
 
-  /* ── Task 14: submit ── */
-  // The frozen snapshot: submit reads the caller's LINKED project's current
+  /* ── Task 14: submit (Task 23: the group branch) ── */
+  // The frozen snapshot: submit reads the LINKED project's current
   // server-head manifest (never a client-uploaded copy — the client pushes
   // first, per the design, so the server head already IS what the student
   // sees by the time this runs), fingerprints it, and files it as the new
-  // current attempt in one transaction. Individual submission mode only —
-  // group crediting is Stage D (design §9); creditedIds is `[callerId]` with
-  // that noted below rather than silently half-implemented.
+  // current attempt in one transaction.
+  //
+  // Pair/group work (spec §5.5) takes the same path with three differences,
+  // all of them about WHOSE work this is: the linked row is the GROUP's, the
+  // submission carries groupId instead of submitterId, and `creditedIds` is
+  // every member — "any member can press Submit; the snapshot credits every
+  // member by name, every member gets the receipt email".
 
   app.post("/api/assignments/:id/submit", async (req, reply) => {
     const { id } = req.params as { id: string };
@@ -907,16 +1087,29 @@ export function assignmentRoutes(app: FastifyInstance): void {
       return reply.code(403).send({ error: NOT_A_MEMBER });
     }
 
-    const work = await myWorkRowFor(app.db, id, req.user!.id);
+    // Same resolution /start does: a pair/group assignment's work row is
+    // keyed by the group, so an ungrouped member has not started and cannot
+    // start — the honest next step is the one /start names, not "submit".
+    const group = a.submissionMode === "individual" ? null : await myGroupFor(app.db, id, req.user!.id);
+    if (a.submissionMode !== "individual" && !group) {
+      return reply.code(400).send({ error: JOIN_A_GROUP_FIRST });
+    }
+
+    const work = group
+      ? await groupWorkFor(app.db, id, group.id)
+      : await myWorkRowFor(app.db, id, req.user!.id);
     if (!work) return reply.code(400).send({ error: NOT_STARTED });
 
     const now = new Date();
     const phase = computeAssignmentPhase(a, now);
     let allowed = phase === "open" || phase === "late_window";
     if (!allowed && phase === "closed") {
-      // Fiat D§11.2 — a returned, unreleased mark reopens work for this
-      // student regardless of Closed, until marks release.
-      allowed = await returnedUnreleasedMarkExists(app.db, id, req.user!.id);
+      // Fiat D§11.2 — a returned, unreleased mark reopens work regardless of
+      // Closed, until marks release. For a group that is any member's row:
+      // the work sent back is the group's.
+      allowed = group
+        ? await groupHasReturnedUnreleasedMark(app.db, id, group.id)
+        : await returnedUnreleasedMarkExists(app.db, id, req.user!.id);
     }
     if (!allowed) {
       return reply.code(400).send({ error: submitRefusalMessage(a, phase, now) });
@@ -941,7 +1134,12 @@ export function assignmentRoutes(app: FastifyInstance): void {
       const workRows = await tx
         .select()
         .from(assignmentWork)
-        .where(and(eq(assignmentWork.assignmentId, id), eq(assignmentWork.userId, req.user!.id)))
+        .where(
+          and(
+            eq(assignmentWork.assignmentId, id),
+            group ? eq(assignmentWork.groupId, group.id) : eq(assignmentWork.userId, req.user!.id),
+          ),
+        )
         .for("update");
       const lockedWork = workRows[0];
       if (!lockedWork) return { kind: "not-started" as const };
@@ -961,10 +1159,21 @@ export function assignmentRoutes(app: FastifyInstance): void {
       const manifest = project.manifest;
       const fingerprint = crypto.createHash("sha256").update(stableStringify(manifest)).digest("hex");
 
+      // The credit list, read under the same lock that serialises the
+      // submit: membership is frozen the moment a submission exists
+      // (groups.ts refuses join and leave after one), so what this reads is
+      // what the receipt can go on claiming forever.
+      const members = group ? await groupMembersOf(tx, group.id) : [];
+
       const priorRows = await tx
         .select()
         .from(submissions)
-        .where(and(eq(submissions.assignmentId, id), eq(submissions.submitterId, req.user!.id)));
+        .where(
+          and(
+            eq(submissions.assignmentId, id),
+            group ? eq(submissions.groupId, group.id) : eq(submissions.submitterId, req.user!.id),
+          ),
+        );
       const maxAttempt = priorRows.reduce((max, r) => Math.max(max, r.attempt), 0);
       const currentRow = priorRows.find((r) => r.isCurrent);
       if (currentRow) {
@@ -974,11 +1183,11 @@ export function assignmentRoutes(app: FastifyInstance): void {
         .insert(submissions)
         .values({
           assignmentId: id,
-          submitterId: req.user!.id,
+          // Exactly one of these is set, the same split assignment_work uses.
+          submitterId: group ? null : req.user!.id,
+          groupId: group ? group.id : null,
           submittedBy: req.user!.id,
-          // Individual work only for now — every group member gets credited
-          // once Stage D's group support lands (design §9).
-          creditedIds: [req.user!.id],
+          creditedIds: group ? members.map((mm) => mm.userId) : [req.user!.id],
           manifest,
           fingerprint,
           late,
@@ -991,8 +1200,9 @@ export function assignmentRoutes(app: FastifyInstance): void {
         submissionId: row.id,
         attempt: row.attempt,
         late,
+        groupId: group ? group.id : null,
       });
-      return { kind: "submitted" as const, row };
+      return { kind: "submitted" as const, row, members };
     });
 
     // Neither branch is reachable in practice today (the pre-tx checks
@@ -1008,16 +1218,24 @@ export function assignmentRoutes(app: FastifyInstance): void {
       submittedAt: now.toISOString(),
       attempt: created.row.attempt,
       fingerprint: created.row.fingerprint,
+      // Group work: the receipt names who it was credited to, so a member who
+      // did not press the button knows what was handed in on their behalf.
+      credited: group ? created.members.map((mm) => mm.name) : null,
     });
-    // Individual submission: the submitter is the sole credited recipient —
-    // one email per credited user, same as every other credited-recipient
-    // template; groups (every member) arrive with Stage D.
-    await app.mailer.send({
-      to: req.user!.email,
-      toUserId: req.user!.id,
-      template: "submission-receipt",
-      ...mail,
-    });
+    // One email per credited user — the submitter alone for individual work,
+    // every member for a group (spec §5.5). Fans out AFTER the transaction
+    // commits, the same discipline remind and marks release both use.
+    const recipients = group
+      ? created.members.map((mm) => ({ id: mm.userId, email: mm.email }))
+      : [{ id: req.user!.id, email: req.user!.email }];
+    for (const r of recipients) {
+      await app.mailer.send({
+        to: r.email,
+        toUserId: r.id,
+        template: "submission-receipt",
+        ...mail,
+      });
+    }
 
     return reply.code(201).send({ submission: toSubmissionSummary(created.row) });
   });
@@ -1036,19 +1254,12 @@ export function assignmentRoutes(app: FastifyInstance): void {
     // Belt-and-braces ORDER BY (review finding): the isCurrent invariant is
     // now enforced by the submit route's FOR UPDATE mutex, but this read
     // stays deterministic even if that were ever violated — attempt DESC
-    // picks the latest, never an arbitrary row-order pick.
-    const rows = await app.db
-      .select()
-      .from(submissions)
-      .where(
-        and(
-          eq(submissions.assignmentId, id),
-          eq(submissions.submitterId, req.user!.id),
-          eq(submissions.isCurrent, true),
-        ),
-      )
-      .orderBy(desc(submissions.attempt));
-    return { submission: rows[0] ? toSubmissionSummary(rows[0]) : null };
+    // picks the latest, never an arbitrary row-order pick. Task 23: group
+    // work resolves through the caller's group, the same way the detail
+    // read does — one resolver, so the two can never disagree.
+    const group = a.submissionMode === "individual" ? null : await myGroupFor(app.db, id, req.user!.id);
+    const row = await currentSubmissionFor(app.db, a, req.user!.id, group);
+    return { submission: row ? toSubmissionSummary(row) : null };
   });
 
   /* ── Task 16: inbox ── */
@@ -1061,9 +1272,16 @@ export function assignmentRoutes(app: FastifyInstance): void {
   const STAFF_ONLY = "Teachers and assistants only.";
 
   type InboxEntry = {
-    studentId: string;
+    /** Task 23: a group assignment's row IS the group (spec §5.5 — one
+     *  submission, one mark, all the members). Individual work is unchanged
+     *  and always "student". */
+    kind: "student" | "group";
+    studentId: string | null;
+    groupId: string | null;
     name: string;
-    email: string;
+    members: Array<{ userId: string; name: string }>;
+    /** Internal only — who a reminder actually reaches. Never serialized. */
+    recipients: Array<{ id: string; name: string; email: string }>;
     state: "submitted" | "missing";
     late: boolean;
     submittedAt: number | null;
@@ -1071,10 +1289,22 @@ export function assignmentRoutes(app: FastifyInstance): void {
     markStatus: "none" | "draft" | "released";
   };
 
+  /** One group's mark status from its members' rows: released only once
+   *  every member's is (a half-released group is still being worked on). */
+  function markStatusOf(rows: (typeof marks.$inferSelect)[]): InboxEntry["markStatus"] {
+    if (rows.length === 0) return "none";
+    return rows.every((r) => r.status === "released") ? "released" : "draft";
+  }
+
   /** Fiat D§11.1: "missing" is an active roster student with no CURRENT
    *  submission — one join, roster (active students) ← submissions(current)
    *  ← marks, shared by both the read (GET /inbox) and the write
-   *  (POST /remind, which only needs the "missing" half of it). */
+   *  (POST /remind, which only needs the "missing" half of it).
+   *
+   *  Task 23 — pair/group work: the unit is the GROUP, so the roster is
+   *  rolled up into one row per group with its members named. A rostered
+   *  student who never joined a group still gets a row of their own: they
+   *  have nothing to hand in and are exactly who the reminder is for. */
   async function inboxEntriesFor(db: Db, a: AssignmentRow): Promise<InboxEntry[]> {
     const roster = await db
       .select({ user: users })
@@ -1088,71 +1318,121 @@ export function assignmentRoutes(app: FastifyInstance): void {
         ),
       );
     const studentIds = roster.map((r) => r.user.id);
+    const markRows = await marksForStudents(db, a.id, studentIds);
+    const markByStudent = new Map(markRows.map((m) => [m.studentId, m]));
 
-    const subRows = studentIds.length
-      ? await db
-          .select()
-          .from(submissions)
-          .where(
-            and(
-              eq(submissions.assignmentId, a.id),
-              eq(submissions.isCurrent, true),
-              inArray(submissions.submitterId, studentIds),
-            ),
-          )
-      : [];
-    // Individual submissions only — group submissions carry groupId instead
-    // (submitterId null) and resolving "did my group submit" is Stage D's
-    // job, not this one's (same exclusion /upcoming's dueSoon filter makes).
-    // The filter also narrows the type for the Map key below.
+    const groupEntries: InboxEntry[] = [];
+    const groupedStudentIds = new Set<string>();
+
+    if (a.submissionMode !== "individual") {
+      const groupRows = await db
+        .select()
+        .from(groups)
+        .where(eq(groups.assignmentId, a.id))
+        .orderBy(groups.createdAt);
+      const memberRows = groupRows.length
+        ? await db
+            .select({ groupId: groupMembers.groupId, userId: groupMembers.userId, name: users.name, email: users.email })
+            .from(groupMembers)
+            .innerJoin(users, eq(groupMembers.userId, users.id))
+            .where(inArray(groupMembers.groupId, groupRows.map((g) => g.id)))
+            .orderBy(groupMembers.createdAt)
+        : [];
+      const membersByGroup = new Map<string, typeof memberRows>();
+      for (const row of memberRows) {
+        const list = membersByGroup.get(row.groupId) ?? [];
+        list.push(row);
+        membersByGroup.set(row.groupId, list);
+        groupedStudentIds.add(row.userId);
+      }
+
+      const groupSubs = await db
+        .select()
+        .from(submissions)
+        .where(and(eq(submissions.assignmentId, a.id), eq(submissions.isCurrent, true)));
+      const subByGroup = new Map(
+        groupSubs
+          .filter((s): s is typeof s & { groupId: string } => !!s.groupId)
+          .map((s) => [s.groupId, s]),
+      );
+
+      const rosterIds = new Set(studentIds);
+      for (const g of groupRows) {
+        const members = membersByGroup.get(g.id) ?? [];
+        const sub = subByGroup.get(g.id);
+        groupEntries.push({
+          kind: "group",
+          studentId: null,
+          groupId: g.id,
+          name: g.name,
+          members: members.map((mm) => ({ userId: mm.userId, name: mm.name })),
+          // A member who has since left the class is still named on the row
+          // (they are in the credit list) but is never emailed by it.
+          recipients: members
+            .filter((mm) => rosterIds.has(mm.userId))
+            .map((mm) => ({ id: mm.userId, name: mm.name, email: mm.email })),
+          state: sub ? "submitted" : "missing",
+          late: sub ? sub.late : false,
+          submittedAt: sub ? sub.createdAt.getTime() : null,
+          attempt: sub ? sub.attempt : null,
+          markStatus: markStatusOf(
+            members.map((mm) => markByStudent.get(mm.userId)).filter((r) => !!r),
+          ),
+        });
+      }
+    }
+
+    const subRows =
+      a.submissionMode === "individual" && studentIds.length
+        ? await db
+            .select()
+            .from(submissions)
+            .where(
+              and(
+                eq(submissions.assignmentId, a.id),
+                eq(submissions.isCurrent, true),
+                inArray(submissions.submitterId, studentIds),
+              ),
+            )
+        : [];
+    // The filter narrows the type for the Map key: an individual submission
+    // always carries submitterId (a group's carries groupId instead).
     const subByStudent = new Map(
       subRows.filter((s): s is typeof s & { submitterId: string } => !!s.submitterId).map((s) => [s.submitterId, s]),
     );
 
-    const markRows = studentIds.length
-      ? await db
-          .select()
-          .from(marks)
-          .where(and(eq(marks.assignmentId, a.id), inArray(marks.studentId, studentIds)))
-      : [];
-    const markByStudent = new Map(markRows.map((m) => [m.studentId, m]));
-
-    return roster
+    const studentEntries = roster
+      .filter(({ user }) => !groupedStudentIds.has(user.id))
       .map(({ user }): InboxEntry => {
         const sub = subByStudent.get(user.id);
         const mark = markByStudent.get(user.id);
-        const markStatus: InboxEntry["markStatus"] = !mark ? "none" : mark.status === "released" ? "released" : "draft";
-        return sub
-          ? {
-              studentId: user.id,
-              name: user.name,
-              email: user.email,
-              state: "submitted",
-              late: sub.late,
-              submittedAt: sub.createdAt.getTime(),
-              attempt: sub.attempt,
-              markStatus,
-            }
-          : {
-              studentId: user.id,
-              name: user.name,
-              email: user.email,
-              state: "missing",
-              late: false,
-              submittedAt: null,
-              attempt: null,
-              markStatus,
-            };
-      })
-      .sort((x, y) => x.name.localeCompare(y.name));
+        return {
+          kind: "student",
+          studentId: user.id,
+          groupId: null,
+          name: user.name,
+          members: [],
+          recipients: [{ id: user.id, name: user.name, email: user.email }],
+          state: sub ? "submitted" : "missing",
+          late: sub ? sub.late : false,
+          submittedAt: sub ? sub.createdAt.getTime() : null,
+          attempt: sub ? sub.attempt : null,
+          markStatus: markStatusOf(mark ? [mark] : []),
+        };
+      });
+
+    return [...groupEntries, ...studentEntries].sort((x, y) => x.name.localeCompare(y.name));
   }
 
   /** The public row shape (cross-lane contract, Task 17 consumes it) —
-   *  `email` above is internal-only, never serialized. */
+   *  `recipients` above is internal-only, never serialized. */
   function toInboxRow(e: InboxEntry) {
     return {
+      kind: e.kind,
       studentId: e.studentId,
+      groupId: e.groupId,
       name: e.name,
+      members: e.members,
       state: e.state,
       late: e.late,
       submittedAt: e.submittedAt,
@@ -1188,7 +1468,15 @@ export function assignmentRoutes(app: FastifyInstance): void {
     }
 
     const entries = await inboxEntriesFor(app.db, a);
-    const missing = entries.filter((e) => e.state === "missing");
+    // People, not rows: one missing GROUP row owes a reminder to each of its
+    // members (spec §5.5), so the count the teacher is shown — and the one
+    // the confirm dialog promised — is how many emails actually go out.
+    const missing = new Map<string, { id: string; name: string; email: string }>();
+    for (const e of entries) {
+      if (e.state !== "missing") continue;
+      for (const r of e.recipients) missing.set(r.id, r);
+    }
+    const recipients = [...missing.values()];
 
     // The audit record is the durable fact; it lands in its own small
     // transaction the same weight as this file's other single-write routes
@@ -1197,25 +1485,25 @@ export function assignmentRoutes(app: FastifyInstance): void {
     await app.db.transaction(async (tx) => {
       await logEvent(tx, "assignment.reminded", req.user!.id, {
         assignmentId: id,
-        remindedCount: missing.length,
+        remindedCount: recipients.length,
       });
     });
 
-    if (missing.length > 0) {
+    if (recipients.length > 0) {
       const classRows = await app.db.select({ name: classes.name }).from(classes).where(eq(classes.id, a.classId));
       const className = classRows[0]?.name ?? "";
-      for (const s of missing) {
+      for (const s of recipients) {
         const mail = dueReminder({
           name: s.name,
           title: a.title,
           className,
           dueAt: a.dueAt ? a.dueAt.toISOString() : null,
         });
-        await app.mailer.send({ to: s.email, toUserId: s.studentId, template: "due-reminder", ...mail });
+        await app.mailer.send({ to: s.email, toUserId: s.id, template: "due-reminder", ...mail });
       }
     }
 
-    return { reminded: missing.length };
+    return { reminded: recipients.length };
   });
 
   /* ── Task 19: gradebook ── */
@@ -1378,6 +1666,67 @@ export function assignmentRoutes(app: FastifyInstance): void {
     };
   });
 
+  // Task 23: the same feed for a GROUP's shared project. The route above is
+  // userId-keyed and a group's work row is keyed by the group, so it would
+  // 404 for every group row the marking room mounts. A separate path rather
+  // than a smarter :studentId: the marking room genuinely holds a group id
+  // there, and a param that means two different kinds of thing depending on
+  // what happens to match is the sort of ambiguity that reads fine until it
+  // resolves the wrong way.
+  //
+  // Spec §5.5's honesty layer: "the timeline still records which member made
+  // every checkpoint", so each version carries the name of the member who
+  // saved it (project_versions.savedBy) — the per-checkpoint attribution
+  // HistoryTimeline already renders and buildTimelineEntries left to Stage D.
+  app.get("/api/assignments/:id/timeline/group/:gid", async (req, reply) => {
+    const { id, gid } = req.params as { id: string; gid: string };
+    const a = await loadAssignment(app.db, id);
+    if (!a) return reply.code(404).send({ error: NO_SUCH_ASSIGNMENT });
+    const m = await getMembership(app.db, a.classId, req.user!.id);
+    if (!m || m.status !== "active" || !isStaffRole(m.role)) {
+      return reply.code(403).send({ error: STAFF_ONLY_FOR_CLASS });
+    }
+    const group = await groupOfAssignment(app.db, id, gid);
+    if (!group) return reply.code(404).send({ error: NO_SUCH_GROUP });
+    const work = await groupWorkFor(app.db, id, gid);
+    if (!work) return reply.code(404).send({ error: NO_SUCH_GROUP_WORK });
+
+    const versionRows = await app.db
+      .select()
+      .from(projectVersions)
+      .where(and(eq(projectVersions.ownerId, work.ownerId), eq(projectVersions.projectId, work.projectId)))
+      .orderBy(desc(projectVersions.id));
+    const saverIds = [...new Set(versionRows.map((v) => v.savedBy))];
+    const saverRows = saverIds.length
+      ? await app.db.select({ id: users.id, name: users.name }).from(users).where(inArray(users.id, saverIds))
+      : [];
+    const saverName = new Map(saverRows.map((s) => [s.id, s.name]));
+
+    const submissionRows = await app.db
+      .select()
+      .from(submissions)
+      .where(and(eq(submissions.assignmentId, id), eq(submissions.groupId, gid)))
+      .orderBy(desc(submissions.createdAt));
+
+    await logEvent(app.db, "assignment.timeline_viewed", req.user!.id, { assignmentId: id, groupId: gid });
+
+    return {
+      versions: versionRows.map((v) => ({
+        versionId: v.id,
+        clientUpdatedAt: v.clientUpdatedAt,
+        reason: v.reason,
+        savedAt: v.createdAt.toISOString(),
+        savedByName: saverName.get(v.savedBy) ?? null,
+      })),
+      submissions: submissionRows.map((s) => ({
+        id: s.id,
+        attempt: s.attempt,
+        late: s.late,
+        createdAt: s.createdAt.toISOString(),
+      })),
+    };
+  });
+
   /* ── Task 17: submission read ── */
   // The marking room's read (spec §7.2): the exam script itself — a staff
   // member's view of one student's CURRENT submission snapshot plus their
@@ -1424,6 +1773,46 @@ export function assignmentRoutes(app: FastifyInstance): void {
       },
       history: rows.map((r) => toSubmissionSummary(r.submission)),
       mark: markRow ? toMarkStaffShape(markRow) : null,
+    };
+  });
+
+  // Task 23: the same read for a GROUP's submission (spec §7.3 — "the panel
+  // shows all the members, sets one mark for the group"). One snapshot, one
+  // attempt history, one mark reassembled from the members' rows.
+  app.get("/api/assignments/:id/submissions/group/:gid", async (req, reply) => {
+    const { id, gid } = req.params as { id: string; gid: string };
+    const a = await loadAssignment(app.db, id);
+    if (!a) return reply.code(404).send({ error: NO_SUCH_ASSIGNMENT });
+    const m = await getMembership(app.db, a.classId, req.user!.id);
+    if (!m || m.status !== "active" || !isStaffRole(m.role)) {
+      return reply.code(403).send({ error: STAFF_ONLY });
+    }
+    const group = await groupOfAssignment(app.db, id, gid);
+    if (!group) return reply.code(404).send({ error: NO_SUCH_GROUP });
+
+    const rows = await app.db
+      .select()
+      .from(submissions)
+      .where(and(eq(submissions.assignmentId, id), eq(submissions.groupId, gid)))
+      .orderBy(desc(submissions.attempt));
+    if (rows.length === 0) return reply.code(404).send({ error: NO_SUCH_GROUP_SUBMISSION });
+
+    const current = rows.find((r) => r.isCurrent) ?? rows[0];
+    const seed = starterSeedFrom(current.manifest);
+    const members = (await groupMembersOf(app.db, gid)).map(({ userId, name }) => ({ userId, name }));
+    const markRows = await marksForStudents(app.db, id, members.map((mm) => mm.userId));
+
+    return {
+      submission: {
+        groupId: gid,
+        groupName: group.name,
+        members,
+        ...toSubmissionSummary(current),
+        workspaceXml: seed?.workspaceXml ?? "",
+        python: seed?.python ?? "",
+      },
+      history: rows.map(toSubmissionSummary),
+      groupMark: toGroupMarkShape(gid, members, markRows),
     };
   });
 
@@ -1493,6 +1882,11 @@ export function assignmentRoutes(app: FastifyInstance): void {
           assignmentId: id,
           studentId,
           points,
+          // A mark written for one student is that student's whole mark —
+          // there is no group figure for it to sit apart from, so any
+          // adjustment left over from an earlier group mark is cleared
+          // rather than left to make `points - adjustment` lie.
+          adjustment: 0,
           comment: d.comment,
           privateNote: d.privateNote,
           returned: false,
@@ -1503,6 +1897,7 @@ export function assignmentRoutes(app: FastifyInstance): void {
           target: [marks.assignmentId, marks.studentId],
           set: {
             points,
+            adjustment: 0,
             comment: d.comment,
             privateNote: d.privateNote,
             returned: false,
@@ -1516,6 +1911,194 @@ export function assignmentRoutes(app: FastifyInstance): void {
       return row;
     });
     return { mark: toMarkStaffShape(saved) };
+  });
+
+  /* ── Task 23: the group mark (spec §5.5 / §7.3) ── */
+  // "One mark for the group by default, with the teacher free to adjust an
+  // individual member's mark up or down." Stored as one ordinary mark row
+  // PER MEMBER — the same rows the gradebook, the student's own myMark, the
+  // inbox and release already read — carrying that member's FINAL total plus
+  // the `adjustment` it sits away from the group's own figure. Nothing about
+  // release, staleness or the student's read needs a group-shaped special
+  // case as a result: by the time marks move, they are just marks.
+
+  type GroupMember = { userId: string; name: string; email: string };
+  type MarkableGroup =
+    | { ok: true; a: AssignmentRow; members: GroupMember[]; markable: GroupMember[] }
+    | { ok: false; code: number; error: string };
+
+  /** Both group-mark routes start here: an assignment, a staff caller, a
+   *  group that belongs to that assignment, and the members who may actually
+   *  be marked. A member who has since left the class is still NAMED on the
+   *  panel (they are on the group's credit list) but gets no mark row — the
+   *  same target rule isMarkableStudent enforces one student at a time.
+   *  Hands the refusal BACK rather than sending it, so the routes keep this
+   *  file's one-reply-per-path shape. */
+  async function markableGroup(userId: string, id: string, gid: string): Promise<MarkableGroup> {
+    const a = await loadAssignment(app.db, id);
+    if (!a) return { ok: false, code: 404, error: NO_SUCH_ASSIGNMENT };
+    const m = await getMembership(app.db, a.classId, userId);
+    if (!m || m.status !== "active" || !isStaffRole(m.role)) {
+      return { ok: false, code: 403, error: STAFF_ONLY };
+    }
+    if (!(await groupOfAssignment(app.db, id, gid))) {
+      return { ok: false, code: 404, error: NO_SUCH_GROUP };
+    }
+    const members = await groupMembersOf(app.db, gid);
+    const markable: GroupMember[] = [];
+    for (const mm of members) {
+      if (await isMarkableStudent(app.db, a.classId, mm.userId)) markable.push(mm);
+    }
+    if (markable.length === 0) return { ok: false, code: 404, error: NO_SUCH_STUDENT_IN_CLASS };
+    return { ok: true, a, members, markable };
+  }
+
+  app.put("/api/assignments/:id/marks/group/:gid", async (req, reply) => {
+    const { id, gid } = req.params as { id: string; gid: string };
+    const ctx = await markableGroup(req.user!.id, id, gid);
+    if (!ctx.ok) return reply.code(ctx.code).send({ error: ctx.error });
+    const { a, members, markable } = ctx;
+
+    const parsed = GroupMarkDraftInputSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: parsed.error.issues[0]?.message ?? "Invalid input." });
+    }
+    const d = parsed.data;
+    if (a.points != null && d.points != null && d.points > a.points) {
+      return reply.code(400).send({ error: "That is more than the assignment is out of." });
+    }
+    // Same invariant the individual PUT holds: a points-less assignment is
+    // complete/not-complete, so the stored points stay null — and with no
+    // total, there is nothing for an adjustment to be a fraction OF either.
+    const points = a.points == null ? null : d.points;
+
+    const memberIds = new Set(members.map((mm) => mm.userId));
+    for (const adj of d.adjustments) {
+      if (!memberIds.has(adj.studentId)) {
+        return reply.code(400).send({ error: ADJUSTMENT_NOT_A_MEMBER });
+      }
+    }
+    const adjustmentBy = new Map(d.adjustments.map((x) => [x.studentId, x.adjustment]));
+    // No stored figure, no adjustment: a points-less assignment has no total
+    // to sit away from, and neither does a mark whose points the marker just
+    // cleared. Either way the stored pair stays coherent — `points -
+    // adjustment` is always the group's own figure, never a fiction.
+    const adjustmentFor = (userId: string) => (points == null ? 0 : adjustmentBy.get(userId) ?? 0);
+    if (points != null) {
+      for (const mm of markable) {
+        const total = points + adjustmentFor(mm.userId);
+        if (total < 0 || (a.points != null && total > a.points)) {
+          return reply.code(400).send({ error: ADJUSTMENT_OUT_OF_RANGE });
+        }
+      }
+    }
+
+    // The GROUP's submission is the anchor (the individual PUT's own rule,
+    // read through the group): every member's row is based on the one thing
+    // that was actually marked, so release's staleness check refuses the
+    // whole group together when a newer attempt lands.
+    const basedOnSubmissionId = (await currentGroupSubmission(app.db, id, gid))?.id ?? null;
+
+    const saved = await app.db.transaction(async (tx) => {
+      for (const mm of markable) {
+        const adjustment = adjustmentFor(mm.userId);
+        const memberPoints = points == null ? null : points + adjustment;
+        await tx
+          .insert(marks)
+          .values({
+            assignmentId: id,
+            studentId: mm.userId,
+            points: memberPoints,
+            adjustment,
+            comment: d.comment,
+            privateNote: d.privateNote,
+            returned: false,
+            markedBy: req.user!.id,
+            basedOnSubmissionId,
+          })
+          .onConflictDoUpdate({
+            target: [marks.assignmentId, marks.studentId],
+            set: {
+              points: memberPoints,
+              adjustment,
+              comment: d.comment,
+              privateNote: d.privateNote,
+              // Ruling R5, unchanged for groups: a fresh draft ends a return.
+              returned: false,
+              markedBy: req.user!.id,
+              basedOnSubmissionId,
+              updatedAt: new Date(),
+            },
+          });
+      }
+      await logEvent(tx, "assignment.group_mark_drafted", req.user!.id, {
+        assignmentId: id,
+        groupId: gid,
+        memberCount: markable.length,
+      });
+      return marksForStudents(tx, id, markable.map((mm) => mm.userId));
+    });
+
+    return { groupMark: toGroupMarkShape(gid, members, saved) };
+  });
+
+  app.post("/api/assignments/:id/marks/group/:gid/return", async (req, reply) => {
+    const { id, gid } = req.params as { id: string; gid: string };
+    const ctx = await markableGroup(req.user!.id, id, gid);
+    if (!ctx.ok) return reply.code(ctx.code).send({ error: ctx.error });
+    const { a, members, markable } = ctx;
+
+    const parsed = MarkReturnInputSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: parsed.error.issues[0]?.message ?? "Invalid input." });
+    }
+    const comment = parsed.data.comment;
+
+    // Ruling R5 per member, all at once: the work being sent back is the
+    // group's, so every member's row un-releases together — and the submit
+    // route's D§11.2 branch then reopens the GROUP's submission.
+    const saved = await app.db.transaction(async (tx) => {
+      for (const mm of markable) {
+        await tx
+          .insert(marks)
+          .values({
+            assignmentId: id,
+            studentId: mm.userId,
+            comment,
+            returned: true,
+            status: "draft",
+            releasedAt: null,
+            markedBy: req.user!.id,
+          })
+          .onConflictDoUpdate({
+            target: [marks.assignmentId, marks.studentId],
+            set: {
+              comment,
+              returned: true,
+              status: "draft",
+              releasedAt: null,
+              markedBy: req.user!.id,
+              updatedAt: new Date(),
+            },
+          });
+      }
+      await logEvent(tx, "assignment.group_mark_returned", req.user!.id, {
+        assignmentId: id,
+        groupId: gid,
+        memberCount: markable.length,
+      });
+      return marksForStudents(tx, id, markable.map((mm) => mm.userId));
+    });
+
+    // One email each, after the tx commits — the same fan-out discipline the
+    // group receipt and marks release both use.
+    const classRows = await app.db.select({ name: classes.name }).from(classes).where(eq(classes.id, a.classId));
+    const mail = workReturned({ title: a.title, className: classRows[0]?.name ?? "", comment });
+    for (const mm of markable) {
+      await app.mailer.send({ to: mm.email, toUserId: mm.userId, template: "work-returned", ...mail });
+    }
+
+    return { groupMark: toGroupMarkShape(gid, members, saved) };
   });
 
   app.post("/api/assignments/:id/marks/release", async (req, reply) => {
@@ -1557,8 +2140,26 @@ export function assignmentRoutes(app: FastifyInstance): void {
             ),
           )
       : [];
+    // Task 23: for group work a member's current submission is their GROUP's
+    // — without this every group mark would read as stale (no submitterId row
+    // to match) and no group would ever be releasable.
+    const currentGroupSubs = targetStudentIds.length
+      ? await app.db
+          .select({ studentId: groupMembers.userId, id: submissions.id })
+          .from(submissions)
+          .innerJoin(groupMembers, eq(groupMembers.groupId, submissions.groupId))
+          .where(
+            and(
+              eq(submissions.assignmentId, id),
+              eq(submissions.isCurrent, true),
+              inArray(groupMembers.userId, targetStudentIds),
+            ),
+          )
+      : [];
     const currentByStudent = new Map(
-      currentSubs.filter((s): s is { studentId: string; id: string } => !!s.studentId).map((s) => [s.studentId, s.id]),
+      [...currentSubs, ...currentGroupSubs]
+        .filter((s): s is { studentId: string; id: string } => !!s.studentId)
+        .map((s) => [s.studentId, s.id]),
     );
 
     const releasable: typeof marks.$inferSelect[] = [];

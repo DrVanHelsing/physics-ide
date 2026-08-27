@@ -442,6 +442,54 @@ describe("AssignmentPage — group work gates Start work on having a group", () 
   });
 });
 
+/* Task 23, spec §5.5: "the assignment shows as submitted for all of them".
+   The member who never pressed Submit must read the same thing the one who
+   did reads — the server resolves mySubmission through the group. */
+describe("AssignmentPage — submitted for all of them (Task 23)", () => {
+  const GROUP_SUBMISSION = {
+    id: "s-1",
+    attempt: 2,
+    late: false,
+    fingerprint: "abcd1234ef567890",
+    submittedAt: 1700000000000,
+    credited: [
+      { userId: "u9", name: "Thabo" },
+      { userId: "u1", name: "Naledi" },
+    ],
+  };
+
+  test("a group with a submission on file: the state, the credited members, the attempt and the fingerprint", () => {
+    mockQueries({
+      assignment: pairAssignment({ myGroup: GROUPS.groups[0], mySubmission: GROUP_SUBMISSION }),
+      groups: GROUPS,
+    });
+    const container = render();
+
+    const card = container.querySelector(".group-submitted");
+    expect(card).not.toBeNull();
+    expect(card.textContent).toContain("Submitted for all of them");
+    expect(card.textContent).toContain("Thabo, Naledi");
+    expect(card.textContent).toContain("attempt 2");
+    expect(card.querySelector("code").textContent).toBe("abcd1234");
+  });
+
+  test("nothing handed in yet: no such claim is made", () => {
+    mockQueries({
+      assignment: pairAssignment({ myGroup: GROUPS.groups[0], mySubmission: null }),
+      groups: GROUPS,
+    });
+    expect(render().querySelector(".group-submitted")).toBeNull();
+  });
+
+  test("individual work is untouched — this is the group's own state, not everyone's", () => {
+    mockQueries({
+      assignment: assignmentData({ submissionMode: "individual", mySubmission: GROUP_SUBMISSION }),
+      groups: GROUPS,
+    });
+    expect(render().querySelector(".group-submitted")).toBeNull();
+  });
+});
+
 describe("AssignmentPage — staff controls", () => {
   test("teacher view adds an Edit link and a Submissions link to the inbox", () => {
     roleHolder.myRole = "teacher";

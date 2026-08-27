@@ -7,7 +7,9 @@ import { setSetting } from "../db/settings.js";
 import {
   users,
   classMembers,
+  emails,
   events,
+  marks,
   projects,
   projectVersions,
   submissions,
@@ -61,13 +63,18 @@ async function eventsOfType(type: string) {
   return testDb.select().from(events).where(eq(events.type, type));
 }
 
-/** A published assignment in the shared class, in the given submission mode. */
-async function makeAssignment(submissionMode: "individual" | "pair" | "group", title: string) {
+/** A published assignment in the shared class, in the given submission mode.
+ *  `extra` carries whatever else a fixture needs (points, dueAt). */
+async function makeAssignment(
+  submissionMode: "individual" | "pair" | "group",
+  title: string,
+  extra: Record<string, unknown> = {},
+) {
   const draft = await app.inject({
     method: "POST",
     url: `/api/classes/${classId}/assignments`,
     cookies: { pide_session: teacherCookie },
-    payload: { title, submissionMode },
+    payload: { title, submissionMode, ...extra },
   });
   const id = draft.json().assignment.id;
   await app.inject({
@@ -971,5 +978,593 @@ describe("the group project — GET/PUT /api/groups/:gid/project", () => {
     });
     expect(res.statusCode).toBe(200);
     expect(res.json().outcome).toBe("saved");
+  });
+});
+
+/* ─────────────────────────── Task 23 ───────────────────────────
+ * Group submit and the group mark (spec §5.5 / §7.3). These live beside
+ * the group fixture above rather than in assignments.test.ts because every
+ * one of them needs a formed, started group — the same reason Task 21's
+ * own start-branch tests live here.
+ */
+
+/** The four-field seed shape the marking room reads back (starterSeedFrom). */
+function groupManifest(projectId: string, marker: string, updatedAt: number) {
+  return {
+    schemaVersion: 2,
+    id: projectId,
+    title: "Group Work",
+    goal: "physics",
+    projectType: "physics",
+    preferredEditor: "blocks",
+    workspace: { xml: `<xml>${marker}</xml>` },
+    source: { python: `print('${marker}')` },
+    createdAt: 1,
+    updatedAt,
+  };
+}
+
+function submitFor(member: Member, assignmentId: string) {
+  return app.inject({
+    method: "POST",
+    url: `/api/assignments/${assignmentId}/submit`,
+    cookies: { pide_session: member.cookie },
+  });
+}
+
+function readAssignment(member: Member, assignmentId: string) {
+  return app.inject({
+    method: "GET",
+    url: `/api/assignments/${assignmentId}`,
+    cookies: { pide_session: member.cookie },
+  });
+}
+
+function emailsTo(userId: string, template: string) {
+  return testDb
+    .select()
+    .from(emails)
+    .where(and(eq(emails.toUserId, userId), eq(emails.template, template)));
+}
+
+function marksOf(assignmentId: string) {
+  return testDb.select().from(marks).where(eq(marks.assignmentId, assignmentId));
+}
+
+describe("Task 23: groups are student-only (ruling R7)", () => {
+  let pairId: string;
+  let taCookie: string;
+
+  beforeAll(async () => {
+    pairId = await makeAssignment("pair", "Students Only");
+    const ta = await makeUser("gta@example.com");
+    await testDb.insert(classMembers).values({ classId, userId: ta.id, role: "ta", status: "active" });
+    taCookie = await signin("gta@example.com");
+  });
+
+  test("a teacher cannot form a group — a staff member in one would poison the credit list", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/assignments/${pairId}/groups`,
+      cookies: { pide_session: teacherCookie },
+      payload: {},
+    });
+    expect(res.statusCode).toBe(403);
+    expect(res.json().error).toBe("Groups are for students.");
+    expect(await testDb.select().from(groups).where(eq(groups.assignmentId, pairId))).toHaveLength(0);
+  });
+
+  test("a TA cannot join an existing group either", async () => {
+    const gid = (await createGroup(alpha, pairId)).json().group.id;
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/groups/${gid}/join`,
+      cookies: { pide_session: taCookie },
+    });
+    expect(res.statusCode).toBe(403);
+    expect(res.json().error).toBe("Groups are for students.");
+    expect(await testDb.select().from(groupMembers).where(eq(groupMembers.groupId, gid))).toHaveLength(1);
+  });
+});
+
+describe("Task 23: group submit — POST /api/assignments/:id/submit", () => {
+  let submitId: string;
+  let groupId: string;
+  const projectId = "p-task23-submit";
+  const head = groupManifest(projectId, "group-head", 3_000);
+
+  beforeAll(async () => {
+    submitId = await makeAssignment("pair", "Group Submit");
+    groupId = (await createGroup(alpha, submitId)).json().group.id;
+    await joinGroup(bravo, groupId);
+    await pushProject(alpha.id, projectId, head);
+    await startWork(alpha, submitId, projectId);
+  });
+
+  test("a class member with no group is told to join one before there is anything to submit", async () => {
+    const res = await submitFor(charlie, submitId);
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toBe("Join a group before starting this assignment.");
+  });
+
+  test("a group that has not started work yet has nothing to hand in", async () => {
+    const freshId = await makeAssignment("pair", "Group Submit Before Start");
+    await createGroup(alpha, freshId);
+    const res = await submitFor(alpha, freshId);
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toBe("Start this assignment before submitting.");
+  });
+
+  test("ANY member submits: the GROUP head is snapshotted, every member is credited, one receipt each", async () => {
+    // bravo, not the founder — spec §5.5's "any member can press Submit".
+    const res = await submitFor(bravo, submitId);
+    expect(res.statusCode).toBe(201);
+    const body = res.json().submission;
+    expect(body.attempt).toBe(1);
+    expect(body.late).toBe(false);
+
+    const [row] = await testDb.select().from(submissions).where(eq(submissions.id, body.id));
+    expect(row.groupId).toBe(groupId);
+    expect(row.submitterId).toBeNull();
+    expect(row.submittedBy).toBe(bravo.id);
+    expect(row.creditedIds).toEqual([alpha.id, bravo.id]);
+    expect(row.manifest).toEqual(head);
+    expect(row.isCurrent).toBe(true);
+
+    for (const member of [alpha, bravo]) {
+      const receipts = await emailsTo(member.id, "submission-receipt");
+      const mine = receipts.filter((e) => e.subject.includes("Group Submit"));
+      expect(mine).toHaveLength(1);
+      expect(mine[0].bodyText).toContain("galpha");
+      expect(mine[0].bodyText).toContain("gbravo");
+    }
+
+    const evts = await eventsOfType("assignment.submitted");
+    expect(evts.some((e) => (e.payload as Record<string, unknown>).groupId === groupId)).toBe(true);
+  });
+
+  test("\"submitted for all of them\": the member who did NOT press it reads the same submission", async () => {
+    const res = await readAssignment(alpha, submitId);
+    expect(res.statusCode).toBe(200);
+    const mine = res.json().assignment.mySubmission;
+    expect(mine.attempt).toBe(1);
+    expect(mine.credited.map((c: { name: string }) => c.name)).toEqual(["galpha", "gbravo"]);
+  });
+
+  test("a resubmit supersedes the GROUP's own previous attempt, whoever presses it", async () => {
+    const res = await submitFor(alpha, submitId);
+    expect(res.statusCode).toBe(201);
+    expect(res.json().submission.attempt).toBe(2);
+
+    const rows = await testDb
+      .select()
+      .from(submissions)
+      .where(and(eq(submissions.assignmentId, submitId), eq(submissions.groupId, groupId)));
+    expect(rows).toHaveLength(2);
+    expect(rows.filter((r) => r.isCurrent)).toHaveLength(1);
+    expect(rows.find((r) => r.isCurrent)!.attempt).toBe(2);
+  });
+
+  test("the Due soon strip counts the group's submission for a member who never pressed Submit", async () => {
+    const dueId = await makeAssignment("pair", "Group Due Soon", { dueAt: Date.now() + 86_400_000 });
+    const gid = (await createGroup(alpha, dueId)).json().group.id;
+    await joinGroup(bravo, gid);
+    const pid = "p-task23-duesoon";
+    await pushProject(alpha.id, pid, groupManifest(pid, "due-soon", 4_000));
+    await startWork(alpha, dueId, pid);
+    expect((await submitFor(bravo, dueId)).statusCode).toBe(201);
+
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/assignments/upcoming",
+      cookies: { pide_session: alpha.cookie },
+    });
+    const row = res.json().dueSoon.find((d: { assignmentId: string }) => d.assignmentId === dueId);
+    expect(row).toBeDefined();
+    expect(row.submitted).toBe(true);
+  });
+});
+
+describe("Task 23: the inbox and reminders for group work", () => {
+  let inboxId: string;
+  let submittedGroupId: string;
+  let waitingGroupId: string;
+  const delta = {} as Member;
+
+  beforeAll(async () => {
+    const d = await makeUser("gdelta@example.com");
+    delta.id = d.id;
+    delta.cookie = await signin("gdelta@example.com");
+    await testDb.insert(classMembers).values({ classId, userId: delta.id, role: "student", status: "active" });
+
+    inboxId = await makeAssignment("group", "Group Inbox");
+    submittedGroupId = (await createGroup(alpha, inboxId, "The Pair")).json().group.id;
+    await joinGroup(bravo, submittedGroupId);
+    waitingGroupId = (await createGroup(charlie, inboxId, "The Solo")).json().group.id;
+    const pid = "p-task23-inbox";
+    await pushProject(alpha.id, pid, groupManifest(pid, "inbox", 5_000));
+    await startWork(alpha, inboxId, pid);
+    await submitFor(alpha, inboxId);
+    // delta joins no group at all — still on the roster, still owed a row.
+  });
+
+  test("one row per group with its members named; a student in no group is their own row", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/assignments/${inboxId}/inbox`,
+      cookies: { pide_session: teacherCookie },
+    });
+    expect(res.statusCode).toBe(200);
+    const rows = res.json().rows;
+    expect(rows).toHaveLength(3);
+
+    const pair = rows.find((r: { name: string }) => r.name === "The Pair");
+    expect(pair.kind).toBe("group");
+    expect(pair.groupId).toBe(submittedGroupId);
+    expect(pair.studentId).toBeNull();
+    expect(pair.members.map((m: { name: string }) => m.name)).toEqual(["galpha", "gbravo"]);
+    expect(pair.state).toBe("submitted");
+    expect(pair.attempt).toBe(1);
+    expect(pair.markStatus).toBe("none");
+
+    const solo = rows.find((r: { name: string }) => r.name === "The Solo");
+    expect(solo.kind).toBe("group");
+    expect(solo.groupId).toBe(waitingGroupId);
+    expect(solo.state).toBe("missing");
+    expect(solo.submittedAt).toBeNull();
+
+    const ungrouped = rows.find((r: { name: string }) => r.name === "gdelta");
+    expect(ungrouped.kind).toBe("student");
+    expect(ungrouped.studentId).toBe(delta.id);
+    expect(ungrouped.groupId).toBeNull();
+    expect(ungrouped.state).toBe("missing");
+  });
+
+  test("remind reaches every member of a group that has not handed in, and every ungrouped student", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/assignments/${inboxId}/remind`,
+      cookies: { pide_session: teacherCookie },
+      payload: {},
+    });
+    expect(res.statusCode).toBe(200);
+    // charlie (a group of one that hasn't submitted) and delta (no group).
+    expect(res.json().reminded).toBe(2);
+
+    for (const member of [charlie, delta]) {
+      const sent = (await emailsTo(member.id, "due-reminder")).filter((e) =>
+        e.subject.includes("Group Inbox"),
+      );
+      expect(sent).toHaveLength(1);
+    }
+    for (const member of [alpha, bravo]) {
+      const sent = (await emailsTo(member.id, "due-reminder")).filter((e) =>
+        e.subject.includes("Group Inbox"),
+      );
+      expect(sent).toHaveLength(0);
+    }
+  });
+});
+
+describe("Task 23: the group mark", () => {
+  let seq = 0;
+
+  /** A published group assignment with alpha+bravo grouped, work started and
+   *  one submission on file — the state the marking room actually opens on. */
+  async function groupFixture(title: string, extra: Record<string, unknown> = { points: 10 }) {
+    seq += 1;
+    const aid = await makeAssignment("group", title, extra);
+    const gid = (await createGroup(alpha, aid, `Marked Group ${seq}`)).json().group.id;
+    await joinGroup(bravo, gid);
+    const pid = `p-task23-mark-${seq}`;
+    await pushProject(alpha.id, pid, groupManifest(pid, `mark-${seq}`, 1_000));
+    await startWork(alpha, aid, pid);
+    const sub = await submitFor(alpha, aid);
+    return { aid, gid, pid, submissionId: sub.json().submission.id as string };
+  }
+
+  function putGroupMark(aid: string, gid: string, cookie: string, body: Record<string, unknown>) {
+    return app.inject({
+      method: "PUT",
+      url: `/api/assignments/${aid}/marks/group/${gid}`,
+      cookies: { pide_session: cookie },
+      payload: body,
+    });
+  }
+
+  function releaseMarks(aid: string, studentIds: string[]) {
+    return app.inject({
+      method: "POST",
+      url: `/api/assignments/${aid}/marks/release`,
+      cookies: { pide_session: teacherCookie },
+      payload: { studentIds },
+    });
+  }
+
+  test("the marking room reads the group's submission: members named, the snapshot, the attempt history", async () => {
+    const { aid, gid } = await groupFixture("Group Marking Read");
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/assignments/${aid}/submissions/group/${gid}`,
+      cookies: { pide_session: teacherCookie },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.submission.groupId).toBe(gid);
+    expect(body.submission.groupName).toBe("Marked Group 1");
+    expect(body.submission.members.map((m: { name: string }) => m.name)).toEqual(["galpha", "gbravo"]);
+    expect(body.submission.workspaceXml).toContain("mark-1");
+    expect(body.submission.python).toContain("mark-1");
+    expect(body.history).toHaveLength(1);
+    expect(body.groupMark).toBeNull();
+  });
+
+  test("a group with nothing handed in 404s rather than pretending", async () => {
+    const emptyId = await makeAssignment("group", "Group Never Submitted");
+    const gid = (await createGroup(alpha, emptyId)).json().group.id;
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/assignments/${emptyId}/submissions/group/${gid}`,
+      cookies: { pide_session: teacherCookie },
+    });
+    expect(res.statusCode).toBe(404);
+    expect(res.json().error).toBe("No submission from this group.");
+  });
+
+  test("the timeline resolves the GROUP's shared project and names the member who saved each checkpoint", async () => {
+    const { aid, gid, pid } = await groupFixture("Group Timeline");
+    await takeBaton(bravo, gid);
+    await app.inject({
+      method: "PUT",
+      url: `/api/groups/${gid}/project`,
+      cookies: { pide_session: bravo.cookie },
+      payload: { manifest: groupManifest(pid, "second-pass", 2_000) },
+    });
+
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/assignments/${aid}/timeline/group/${gid}`,
+      cookies: { pide_session: teacherCookie },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.versions).toHaveLength(1);
+    expect(body.versions[0].reason).toBe("overwrite");
+    expect(body.versions[0].savedByName).toBe("gbravo");
+    expect(body.submissions).toHaveLength(1);
+
+    const evts = await eventsOfType("assignment.timeline_viewed");
+    expect(evts.some((e) => (e.payload as Record<string, unknown>).groupId === gid)).toBe(true);
+  });
+
+  test("a group that never started has no timeline to read", async () => {
+    const freshId = await makeAssignment("group", "Group Timeline Unstarted");
+    const gid = (await createGroup(alpha, freshId)).json().group.id;
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/assignments/${freshId}/timeline/group/${gid}`,
+      cookies: { pide_session: teacherCookie },
+    });
+    expect(res.statusCode).toBe(404);
+    expect(res.json().error).toBe("This group has not started this assignment.");
+  });
+
+  test("one mark for the group writes one draft row per member, based on the group's own submission", async () => {
+    const { aid, gid, submissionId } = await groupFixture("One Mark For The Group");
+    const res = await putGroupMark(aid, gid, teacherCookie, {
+      points: 8,
+      comment: "Good teamwork.",
+      privateNote: "bravo did the graphs",
+      adjustments: [],
+    });
+    expect(res.statusCode).toBe(200);
+    const gm = res.json().groupMark;
+    expect(gm.points).toBe(8);
+    expect(gm.status).toBe("draft");
+    expect(gm.basedOnSubmissionId).toBe(submissionId);
+    expect(gm.members).toEqual([
+      { studentId: alpha.id, name: "galpha", adjustment: 0, points: 8 },
+      { studentId: bravo.id, name: "gbravo", adjustment: 0, points: 8 },
+    ]);
+
+    const rows = await marksOf(aid);
+    expect(rows).toHaveLength(2);
+    for (const row of rows) {
+      expect(row.points).toBe(8);
+      expect(row.comment).toBe("Good teamwork.");
+      expect(row.privateNote).toBe("bravo did the graphs");
+      expect(row.status).toBe("draft");
+      expect(row.returned).toBe(false);
+      expect(row.basedOnSubmissionId).toBe(submissionId);
+    }
+
+    const evts = await eventsOfType("assignment.group_mark_drafted");
+    expect(evts.some((e) => (e.payload as Record<string, unknown>).groupId === gid)).toBe(true);
+  });
+
+  test("a per-member adjustment lands on that member alone, and the read gives the group's own points back", async () => {
+    const { aid, gid } = await groupFixture("Adjusted Group Mark");
+    const res = await putGroupMark(aid, gid, teacherCookie, {
+      points: 8,
+      comment: "One carried the load.",
+      privateNote: "",
+      adjustments: [{ studentId: bravo.id, adjustment: -2 }],
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().groupMark.points).toBe(8);
+    expect(res.json().groupMark.members).toEqual([
+      { studentId: alpha.id, name: "galpha", adjustment: 0, points: 8 },
+      { studentId: bravo.id, name: "gbravo", adjustment: -2, points: 6 },
+    ]);
+
+    // Re-read through the marking room: the base and the adjustment survive
+    // the round trip, or the panel could not prefill honestly.
+    const read = await app.inject({
+      method: "GET",
+      url: `/api/assignments/${aid}/submissions/group/${gid}`,
+      cookies: { pide_session: teacherCookie },
+    });
+    expect(read.json().groupMark.points).toBe(8);
+    expect(read.json().groupMark.members[1]).toEqual({
+      studentId: bravo.id,
+      name: "gbravo",
+      adjustment: -2,
+      points: 6,
+    });
+  });
+
+  test("an adjustment that would push a member below zero or past the total is refused", async () => {
+    const { aid, gid } = await groupFixture("Adjustment Out Of Range");
+    const res = await putGroupMark(aid, gid, teacherCookie, {
+      points: 8,
+      comment: "",
+      privateNote: "",
+      adjustments: [{ studentId: bravo.id, adjustment: 5 }],
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toBe("That adjustment puts a member outside the assignment's own total.");
+    expect(await marksOf(aid)).toHaveLength(0);
+  });
+
+  test("release fans out: every member's row is released and emailed their OWN total", async () => {
+    const { aid, gid } = await groupFixture("Group Release");
+    await putGroupMark(aid, gid, teacherCookie, {
+      points: 8,
+      comment: "Solid write-up.",
+      privateNote: "",
+      adjustments: [{ studentId: bravo.id, adjustment: 1 }],
+    });
+
+    const res = await releaseMarks(aid, [alpha.id, bravo.id]);
+    expect(res.statusCode).toBe(200);
+    expect(res.json().released.sort()).toEqual([alpha.id, bravo.id].sort());
+    expect(res.json().refused).toEqual([]);
+
+    const rows = await marksOf(aid);
+    expect(rows.every((r) => r.status === "released" && r.releasedAt != null && !r.returned)).toBe(true);
+
+    const alphaMail = (await emailsTo(alpha.id, "marks-released")).filter((e) =>
+      e.subject.includes("Group Release"),
+    );
+    const bravoMail = (await emailsTo(bravo.id, "marks-released")).filter((e) =>
+      e.subject.includes("Group Release"),
+    );
+    expect(alphaMail[0].bodyText).toContain("8/10");
+    expect(bravoMail[0].bodyText).toContain("9/10");
+    expect(alphaMail[0].bodyText).toContain("Solid write-up.");
+  });
+
+  test("a group draft written against a superseded attempt is refused for every member", async () => {
+    const { aid, gid } = await groupFixture("Stale Group Draft");
+    await putGroupMark(aid, gid, teacherCookie, { points: 7, comment: "", privateNote: "", adjustments: [] });
+    expect((await submitFor(bravo, aid)).statusCode).toBe(201); // attempt 2 supersedes the draft
+
+    const res = await releaseMarks(aid, [alpha.id, bravo.id]);
+    expect(res.statusCode).toBe(200);
+    expect(res.json().released).toEqual([]);
+    expect(res.json().refused.map((r: { error: string }) => r.error)).toEqual([
+      "This draft was written against a previous attempt — re-save it before releasing.",
+      "This draft was written against a previous attempt — re-save it before releasing.",
+    ]);
+    expect((await marksOf(aid)).every((r) => r.status === "draft")).toBe(true);
+  });
+
+  test("a member's earlier individual mark row is replaced by the group's mark, return cleared", async () => {
+    const { aid, gid } = await groupFixture("Pre-existing Mark Row");
+    const returned = await app.inject({
+      method: "POST",
+      url: `/api/assignments/${aid}/marks/${bravo.id}/return`,
+      cookies: { pide_session: teacherCookie },
+      payload: { comment: "Redo the graph." },
+    });
+    expect(returned.statusCode).toBe(200);
+
+    await putGroupMark(aid, gid, teacherCookie, { points: 6, comment: "Group mark.", privateNote: "", adjustments: [] });
+
+    const rows = await marksOf(aid);
+    expect(rows).toHaveLength(2);
+    const bravoRow = rows.find((r) => r.studentId === bravo.id)!;
+    expect(bravoRow.points).toBe(6);
+    expect(bravoRow.comment).toBe("Group mark.");
+    expect(bravoRow.returned).toBe(false);
+  });
+
+  test("a points-less group assignment keeps points null and carries no adjustment", async () => {
+    const { aid, gid } = await groupFixture("Points-less Group", { points: null });
+    const res = await putGroupMark(aid, gid, teacherCookie, {
+      points: 9,
+      comment: "Complete.",
+      privateNote: "",
+      adjustments: [{ studentId: bravo.id, adjustment: 2 }],
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().groupMark.points).toBeNull();
+    expect(res.json().groupMark.members.every((m: { points: number | null }) => m.points === null)).toBe(true);
+    expect((await marksOf(aid)).every((r) => r.points === null && r.adjustment === 0)).toBe(true);
+  });
+
+  test("return for changes sends the WHOLE group back, emails each member, and reopens submit while closed", async () => {
+    const { aid, gid } = await groupFixture("Group Returned");
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/assignments/${aid}/marks/group/${gid}/return`,
+      cookies: { pide_session: teacherCookie },
+      payload: { comment: "Show your working." },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().groupMark.returned).toBe(true);
+    expect(res.json().groupMark.status).toBe("draft");
+
+    const rows = await marksOf(aid);
+    expect(rows).toHaveLength(2);
+    expect(rows.every((r) => r.returned && r.status === "draft" && r.releasedAt == null)).toBe(true);
+    for (const member of [alpha, bravo]) {
+      const sent = (await emailsTo(member.id, "work-returned")).filter((e) => e.subject.includes("Group Returned"));
+      expect(sent).toHaveLength(1);
+      expect(sent[0].bodyText).toContain("Show your working.");
+    }
+
+    await app.inject({
+      method: "POST",
+      url: `/api/assignments/${aid}/close`,
+      cookies: { pide_session: teacherCookie },
+    });
+    // D§11.2: the return is the authority — the group may resubmit even shut.
+    const resubmit = await submitFor(bravo, aid);
+    expect(resubmit.statusCode).toBe(201);
+    expect(resubmit.json().submission.attempt).toBe(2);
+  });
+
+  test("a student can neither read the group's submission nor write its mark", async () => {
+    const { aid, gid } = await groupFixture("Group Mark Staff Only");
+    const read = await app.inject({
+      method: "GET",
+      url: `/api/assignments/${aid}/submissions/group/${gid}`,
+      cookies: { pide_session: alpha.cookie },
+    });
+    expect(read.statusCode).toBe(403);
+    expect(read.json().error).toBe("Teachers and assistants only.");
+
+    const write = await putGroupMark(aid, gid, alpha.cookie, {
+      points: 10,
+      comment: "",
+      privateNote: "",
+      adjustments: [],
+    });
+    expect(write.statusCode).toBe(403);
+    expect(await marksOf(aid)).toHaveLength(0);
+  });
+
+  test("a group belonging to another assignment is not markable through this one", async () => {
+    const { aid } = await groupFixture("Group Cross Assignment A");
+    const other = await groupFixture("Group Cross Assignment B");
+    const res = await putGroupMark(aid, other.gid, teacherCookie, {
+      points: 5,
+      comment: "",
+      privateNote: "",
+      adjustments: [],
+    });
+    expect(res.statusCode).toBe(404);
+    expect(res.json().error).toBe("No such group.");
   });
 });

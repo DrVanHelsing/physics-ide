@@ -35,7 +35,8 @@
  * exactly what the student sees before the server ever snapshots it — then
  * POST the submit. `assertPushSucceeded` (startWork.js's own guard) turns a
  * silent push failure into an honest refusal instead of a misleading 404
- * from the submit route. The footer only ever renders while `myWork` +
+ * from the submit route. Group work (Task 23) skips that push entirely —
+ * see handleSubmit. The footer only ever renders while `myWork` +
  * phase (both off the SAME `["assignment", id]` query as the doc above)
  * say a submission would be accepted — never promising a button the server
  * will refuse a moment later, same posture as AssignmentPage's Start gate.
@@ -102,15 +103,26 @@ export default function BriefPane() {
   const assignment = q.data?.assignment ?? null;
   const myWorkProjectId = assignment?.myWork?.projectId ?? null;
   const phase = assignment?.phase ?? null;
+  const isGroupWork = !!assignment?.myGroup;
   const canSubmit = !!myWorkProjectId && (phase === "open" || phase === "late_window");
 
   const handleSubmit = useCallback(async () => {
     if (!myWorkProjectId || !me || !assignmentId) return;
     setSubmitState({ status: "pending" });
     try {
-      const engine = await getGlobalSyncEngine();
-      await engine.pushProject(myWorkProjectId, me.id); // push FIRST — the snapshot must be what the student sees
-      assertPushSucceeded(engine);
+      // Group work (Task 23): myWork.projectId names the FOUNDING member's
+      // project, which this member's own engine does not own — pushing it
+      // would plant a copy of someone else's work under their account, and a
+      // member without the baton could not push it to the group either. The
+      // group's head is already current: while the baton is held, every local
+      // save goes straight through the group route as it happens (groupSync's
+      // listener), which is the same "last saved copy" the personal push
+      // sends. So there is nothing left to push here.
+      if (!isGroupWork) {
+        const engine = await getGlobalSyncEngine();
+        await engine.pushProject(myWorkProjectId, me.id); // push FIRST — the snapshot must be what the student sees
+        assertPushSucceeded(engine);
+      }
       const res = await api(`/api/assignments/${assignmentId}/submit`, { method: "POST" });
       setSubmitState({
         status: "success",
@@ -120,7 +132,7 @@ export default function BriefPane() {
     } catch (err) {
       setSubmitState({ status: "error", message: err.message });
     }
-  }, [assignmentId, myWorkProjectId, me]);
+  }, [assignmentId, myWorkProjectId, me, isGroupWork]);
 
   const toggleCollapsed = useCallback(() => {
     setCollapsed((prev) => {

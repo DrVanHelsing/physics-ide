@@ -1,0 +1,1 @@
+ALTER TABLE "marks" ADD COLUMN "adjustment" bigint DEFAULT 0 NOT NULL;

@@ -47,10 +47,16 @@ function gatedPage(title, body) {
 }
 
 export default function MarkingRoom() {
-  const { id, aid, studentId } = useParams();
+  const { id, aid, studentId, gid } = useParams();
   const navigate = useNavigate();
   const [copyError, setCopyError] = useState(null);
   const [copying, setCopying] = useState(false);
+  // Task 23: the same room on a GROUP row. The URL carries a group id
+  // (/marking/group/:gid) instead of a student id, and both cross-user reads
+  // swing to the group's own endpoints — a group's work row and submission
+  // are keyed by the group, so the student-keyed routes would 404.
+  const isGroup = !!gid;
+  const target = isGroup ? `group/${gid}` : studentId;
 
   const { data: me, isLoading: meLoading } = useMe();
   const classQuery = useQuery({
@@ -66,8 +72,8 @@ export default function MarkingRoom() {
     retry: false,
   });
   const submissionQuery = useQuery({
-    queryKey: ["assignment", aid, "submission", studentId],
-    queryFn: () => api(`/api/assignments/${aid}/submissions/${studentId}`),
+    queryKey: ["assignment", aid, "submission", target],
+    queryFn: () => api(`/api/assignments/${aid}/submissions/${target}`),
     enabled: !!me,
     retry: false,
   });
@@ -81,8 +87,8 @@ export default function MarkingRoom() {
   // Task 20's teacher feed — the History panel below (deferred mount,
   // landed here per that task's report).
   const timelineQuery = useQuery({
-    queryKey: ["assignment", aid, "timeline", studentId],
-    queryFn: () => api(`/api/assignments/${aid}/timeline/${studentId}`),
+    queryKey: ["assignment", aid, "timeline", target],
+    queryFn: () => api(`/api/assignments/${aid}/timeline/${target}`),
     enabled: !!me,
   });
 
@@ -130,16 +136,23 @@ export default function MarkingRoom() {
   const submission = submissionQuery.data?.submission;
   if (!assignment || !submission) return null;
 
-  // Task 16's inbox rows — { studentId, ... } — in submission order. Not
-  // required for the room to render: a missing/still-loading inbox just
-  // means Previous/Next stay disabled rather than blocking the page.
-  const order = (inboxQuery.data?.rows ?? []).map((r) => r.studentId);
-  const idx = order.indexOf(studentId);
-  const prevId = idx > 0 ? order[idx - 1] : null;
-  const nextId = idx >= 0 && idx < order.length - 1 ? order[idx + 1] : null;
+  // Task 16's inbox rows in submission order. Not required for the room to
+  // render: a missing/still-loading inbox just means Previous/Next stay
+  // disabled rather than blocking the page. Task 23: the list can now mix
+  // student rows and group rows, so each step carries which KIND it is —
+  // the two land on different URLs.
+  const order = (inboxQuery.data?.rows ?? []).map((r) =>
+    r.kind === "group" ? { group: true, id: r.groupId } : { group: false, id: r.studentId },
+  );
+  const idx = order.findIndex((o) => o.id === (isGroup ? gid : studentId));
+  const prev = idx > 0 ? order[idx - 1] : null;
+  const next = idx >= 0 && idx < order.length - 1 ? order[idx + 1] : null;
+  // Whose work this is, said once: a group has no one student to name.
+  const markedName = isGroup ? submission.groupName : submission.studentName;
 
-  function goTo(otherStudentId) {
-    navigate(`/classes/${id}/assignments/${aid}/marking/${otherStudentId}`);
+  function goTo(step) {
+    const suffix = step.group ? `group/${step.id}` : step.id;
+    navigate(`/classes/${id}/assignments/${aid}/marking/${suffix}`);
   }
 
   async function openTestCopy() {
@@ -150,7 +163,7 @@ export default function MarkingRoom() {
         goal: assignment.projectType,
         workspaceXml: submission.workspaceXml,
         python: submission.python,
-        title: `Test copy — ${submission.studentName} — ${assignment.title}`,
+        title: `Test copy — ${markedName} — ${assignment.title}`,
       });
       const saved = await saveProject(manifest);
       try {
@@ -171,7 +184,12 @@ export default function MarkingRoom() {
         home={`/classes/${id}/assignments/${aid}`}
         title={
           <span className="marking-room__header">
-            {submission.studentName}
+            {markedName}
+            {isGroup ? (
+              <span className="marking-room__members">
+                {(submission.members ?? []).map((m) => m.name).join(", ")}
+              </span>
+            ) : null}
             <span className="badge">Attempt {submission.attempt}</span>
             {submission.late ? <span className="badge badge--warning">late</span> : null}
             <code className="marking-room__fingerprint">{submission.fingerprint}</code>
@@ -179,10 +197,10 @@ export default function MarkingRoom() {
         }
         nav={
           <div className="marking-room__nav">
-            <button className="btn" type="button" disabled={!prevId} onClick={() => goTo(prevId)}>
+            <button className="btn" type="button" disabled={!prev} onClick={() => goTo(prev)}>
               Previous
             </button>
-            <button className="btn" type="button" disabled={!nextId} onClick={() => goTo(nextId)}>
+            <button className="btn" type="button" disabled={!next} onClick={() => goTo(next)}>
               Next
             </button>
           </div>
@@ -202,16 +220,36 @@ export default function MarkingRoom() {
         <div className="marking-room__workspace">
           <SubmissionViewer workspaceXml={submission.workspaceXml} python={submission.python} />
           <MarkPanel
-            key={studentId}
+            key={target}
             assignment={assignment}
             submission={submission}
-            /* The server returns `mark` as a SIBLING of submission/history,
-               not a field inside `submission` — read it where it lives. */
-            mark={submissionQuery.data?.mark ?? null}
+            /* The server returns the mark as a SIBLING of submission/history,
+               not a field inside `submission` — read it where it lives. A
+               group's is `groupMark`: one mark, reassembled from its
+               members' rows. */
+            mark={(isGroup ? submissionQuery.data?.groupMark : submissionQuery.data?.mark) ?? null}
             history={submissionQuery.data?.history ?? []}
             isTeacher={classData.myRole === "teacher"}
             aid={aid}
             studentId={studentId}
+            group={
+              isGroup
+                ? {
+                    groupId: gid,
+                    // Prefer the mark's own member list (it carries each
+                    // adjustment); fall back to the submission's roster
+                    // before anything has been marked at all.
+                    members:
+                      submissionQuery.data?.groupMark?.members ??
+                      (submission.members ?? []).map((m) => ({
+                        studentId: m.userId,
+                        name: m.name,
+                        adjustment: 0,
+                        points: null,
+                      })),
+                  }
+                : null
+            }
           />
         </div>
         <div className="card marking-room__history">
@@ -220,7 +258,9 @@ export default function MarkingRoom() {
             entries={buildTimelineEntries({
               versions: timelineQuery.data?.versions ?? [],
               submissions: timelineQuery.data?.submissions ?? [],
-              savedByLabel: submission.studentName,
+              // A group's checkpoints have different authors, and the group
+              // timeline names each one (spec §5.5) — so no constant label.
+              savedByLabel: isGroup ? null : submission.studentName,
             })}
             onRestore={null}
           />
@@ -252,14 +292,26 @@ export default function MarkingRoom() {
  * server's response ({ submission, history, mark }) — reading it off
  * `submission` prefilled nothing against the real API, which meant a Save
  * draft could overwrite an existing comment and private note with empties.
+ *
+ * Task 23 — `group`, when given ({ groupId, members }), makes this the
+ * GROUP's panel (spec §7.3): the same one mark, one comment and one private
+ * note, plus a small ± field per member. `points` is then the group's own
+ * figure and each member's total is `points + adjustment`, shown live so the
+ * consequence of an adjustment is visible before it is saved. Every write
+ * swings to the group routes; nothing else about the panel changes, because
+ * a group mark IS an ordinary mark written for several people at once.
  */
-function MarkPanel({ assignment, submission, mark: initialMark, history, isTeacher, aid, studentId }) {
+function MarkPanel({ assignment, submission, mark: initialMark, history, isTeacher, aid, studentId, group }) {
   const outOf = assignment.points;
+  const members = group?.members ?? [];
   const [mark, setMark] = useState(initialMark ?? null);
   const [points, setPoints] = useState(initialMark?.points != null ? String(initialMark.points) : "");
   const [complete, setComplete] = useState(!!initialMark);
   const [comment, setComment] = useState(initialMark?.comment ?? "");
   const [privateNote, setPrivateNote] = useState(initialMark?.privateNote ?? "");
+  const [adjustments, setAdjustments] = useState(() =>
+    Object.fromEntries(members.map((m) => [m.studentId, String(m.adjustment ?? 0)])),
+  );
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
   const [saveNote, setSaveNote] = useState(null);
@@ -279,6 +331,12 @@ function MarkPanel({ assignment, submission, mark: initialMark, history, isTeach
       : null;
 
   const canSaveDraft = outOf != null || complete;
+  const groupPoints = points === "" ? null : Number(points);
+  const adjustmentOf = (memberId) => Number(adjustments[memberId] || 0);
+  /** A member's own total — null while the group has no figure yet, so the
+   *  panel never shows a number the marker has not actually chosen. */
+  const totalFor = (memberId) =>
+    outOf == null || groupPoints == null ? null : groupPoints + adjustmentOf(memberId);
 
   async function handleSaveDraft() {
     setSaveError(null);
@@ -286,12 +344,23 @@ function MarkPanel({ assignment, submission, mark: initialMark, history, isTeach
     setSaving(true);
     try {
       const body = {
-        points: outOf == null ? null : points === "" ? null : Number(points),
+        points: outOf == null ? null : groupPoints,
         comment,
         privateNote,
       };
-      const data = await api(`/api/assignments/${aid}/marks/${studentId}`, { method: "PUT", body });
-      setMark(data.mark);
+      if (group) {
+        const data = await api(`/api/assignments/${aid}/marks/group/${group.groupId}`, {
+          method: "PUT",
+          body: {
+            ...body,
+            adjustments: members.map((m) => ({ studentId: m.studentId, adjustment: adjustmentOf(m.studentId) })),
+          },
+        });
+        setMark(data.groupMark);
+      } else {
+        const data = await api(`/api/assignments/${aid}/marks/${studentId}`, { method: "PUT", body });
+        setMark(data.mark);
+      }
       setSaveNote("Draft saved.");
     } catch (err) {
       setSaveError(err.message);
@@ -309,11 +378,11 @@ function MarkPanel({ assignment, submission, mark: initialMark, history, isTeach
     }
     setReturning(true);
     try {
-      const data = await api(`/api/assignments/${aid}/marks/${studentId}/return`, {
-        method: "POST",
-        body: { comment },
-      });
-      setMark(data.mark);
+      const url = group
+        ? `/api/assignments/${aid}/marks/group/${group.groupId}/return`
+        : `/api/assignments/${aid}/marks/${studentId}/return`;
+      const data = await api(url, { method: "POST", body: { comment } });
+      setMark(group ? data.groupMark : data.mark);
       setReturnNote("Sent back for changes.");
     } catch (err) {
       setReturnError(err.message);
@@ -327,9 +396,11 @@ function MarkPanel({ assignment, submission, mark: initialMark, history, isTeach
     setReleaseNote(null);
     setReleasing(true);
     try {
+      // One mark for the group means one release for the group: every
+      // member's row, in the one call the server already fans out from.
       const data = await api(`/api/assignments/${aid}/marks/release`, {
         method: "POST",
-        body: { studentIds: [studentId] },
+        body: { studentIds: group ? members.map((m) => m.studentId) : [studentId] },
       });
       if (data.refused?.length) {
         setReleaseError(data.refused[0].error);
@@ -348,7 +419,7 @@ function MarkPanel({ assignment, submission, mark: initialMark, history, isTeach
 
   return (
     <div className="card marking-panel">
-      <h3>Mark</h3>
+      <h3>{group ? "Mark for the group" : "Mark"}</h3>
       {outOf != null ? (
         <label className="marking-panel__field">
           Points (out of {outOf})
@@ -367,6 +438,37 @@ function MarkPanel({ assignment, submission, mark: initialMark, history, isTeach
           Mark complete
         </label>
       )}
+      {/* Spec §5.5: one mark for the group, "with the teacher free to adjust
+          an individual member's mark up or down where contribution clearly
+          warrants it". A points-less assignment has no total to adjust
+          against, so the fields are simply not offered there — the same rule
+          the server holds. */}
+      {group && outOf != null ? (
+        <div className="marking-panel__members">
+          <p className="marking-panel__members-label">Per-member adjustment</p>
+          {members.map((m) => {
+            const total = totalFor(m.studentId);
+            return (
+              <label className="marking-panel__member" key={m.studentId}>
+                <span className="marking-panel__member-name">{m.name}</span>
+                <input
+                  className="input"
+                  type="number"
+                  step="1"
+                  value={adjustments[m.studentId] ?? "0"}
+                  onChange={(e) =>
+                    setAdjustments((prev) => ({ ...prev, [m.studentId]: e.target.value }))
+                  }
+                />
+                <span className="marking-panel__member-total">
+                  {total == null ? "—" : `${total}/${outOf}`}
+                </span>
+              </label>
+            );
+          })}
+        </div>
+      ) : null}
+
       <label className="marking-panel__field">
         Comment
         <textarea

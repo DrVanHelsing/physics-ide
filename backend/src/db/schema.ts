@@ -266,6 +266,12 @@ export const marks = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     points: bigint("points", { mode: "number" }),
+    /** Group work only (spec §5.5, Task 23): how far this member's own mark
+     *  sits from the group's. `points` is always the member's FINAL total —
+     *  the group's own figure is `points - adjustment`, which is what lets
+     *  the marking panel prefill both halves honestly on a second visit.
+     *  Always 0 for individual work. */
+    adjustment: bigint("adjustment", { mode: "number" }).notNull().default(0),
     comment: text("comment").notNull().default(""),
     privateNote: text("private_note").notNull().default(""),
     status: text("status").notNull().default("draft"),

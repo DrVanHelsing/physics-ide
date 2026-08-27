@@ -70,10 +70,11 @@ export default function AssignmentPage() {
  * is the server's own sentence and is shown verbatim — this panel never
  * writes its own version of why something was refused.
  *
- * Staff see the roster but get no controls: a group's membership is what
- * Task 23 credits a submission to, and a teacher sitting in a student group
- * would poison that. (The server-side guard for it lands with Task 23; this
- * is the surface half.)
+ * Staff see the roster but get no controls: a group's membership is what a
+ * submission is credited to and what a released group mark writes a row for,
+ * so a teacher sitting in a student group would poison both. The server
+ * refuses it outright too (ruling R7, groups.ts) — this is the surface half
+ * of the same rule, not the whole of it.
  */
 function GroupPanel({ assignment, isStaff }) {
   const qc = useQueryClient();
@@ -248,6 +249,8 @@ function AssignmentBody({ classData, me }) {
   // promising something the API will 400 on a moment later.
   const isGroupWork = assignment.submissionMode === "pair" || assignment.submissionMode === "group";
   const needsGroup = isGroupWork && !assignment.myGroup;
+  // Task 23: the group's own hand-in, which every member reads.
+  const groupSubmission = isGroupWork ? assignment.mySubmission ?? null : null;
   const gated = gateSentence(assignment.phase) ?? (needsGroup ? JOIN_A_GROUP_FIRST : null);
   const buttonLabel = assignment.myWork ? "Continue" : "Start work";
   const myMark = assignment.myMark ?? null;
@@ -277,6 +280,24 @@ function AssignmentBody({ classData, me }) {
       <InstructionsView doc={assignment.instructions} />
 
       {isGroupWork ? <GroupPanel assignment={assignment} isStaff={isStaff} /> : null}
+
+      {/* Task 23, spec §5.5: "the assignment shows as submitted for all of
+          them". The server resolves mySubmission through the group, so the
+          member who never pressed the button reads exactly what the one who
+          did reads — and the sentence is only ever shown when a group
+          submission genuinely exists, naming who it was credited to. */}
+      {isGroupWork && groupSubmission ? (
+        <div className="card group-submitted">
+          <h3>Submitted for all of them</h3>
+          <p>
+            {groupSubmission.credited.map((c) => c.name).join(", ")} — attempt {groupSubmission.attempt}
+            {groupSubmission.late ? <span className="badge badge--warning">late</span> : null}
+          </p>
+          <p className="auth-text auth-text--dim">
+            Fingerprint <code>{groupSubmission.fingerprint.slice(0, 8)}</code>
+          </p>
+        </div>
+      ) : null}
 
       {myMark?.released ? (
         <div className="card">
