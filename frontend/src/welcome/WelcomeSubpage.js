@@ -1,4 +1,5 @@
 import React from "react";
+import { Link } from "react-router-dom";
 import WelcomeHeader from "./WelcomeHeader";
 
 /**
@@ -13,6 +14,14 @@ import WelcomeHeader from "./WelcomeHeader";
  * WelcomeHeader's own default (public-pages finish: the nav item routes to
  * the dedicated page everywhere) — kept explicit so this shell states its
  * own intent rather than depending on a default that could drift.
+ *
+ * The closing <footer> (consistency-audit fix) gives all three pages the
+ * same "the page has an end" rhythm /welcome's own footer already has,
+ * instead of stopping cold the instant the prose does — starkest on
+ * /contact, whose three short paragraphs used to leave a bare, undesigned
+ * void below them. Plain Links only, same reasoning as WelcomeHeader's own
+ * Sign in above: these routes carry no go(), so a bare Link to "/" would
+ * trip WelcomeGate and bounce straight back to /welcome.
  */
 export default function WelcomeSubpage({ title, children }) {
   return (
@@ -22,6 +31,12 @@ export default function WelcomeSubpage({ title, children }) {
         <h1>{title}</h1>
         {children}
       </main>
+      <footer className="welcome-subpage__foot">
+        <div className="welcome-foot__links">
+          <Link className="btn btn--ghost" to="/auth/signup">Create an account</Link>
+          <Link className="btn btn--ghost" to="/auth/signin">Sign in</Link>
+        </div>
+      </footer>
     </div>
   );
 }

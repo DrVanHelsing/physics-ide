@@ -565,12 +565,33 @@ p.welcome-helpref {
 /* ── About / Contact (WelcomeSubpage.js) ──────────────────
    The header + a single 72ch prose column on --bg-base — no hero, no
    reveal-on-scroll, no category strips; these two pages are reference
-   pages, not chapters. */
-.welcome-subpage { min-height: 100vh; background: var(--bg-base); color: var(--text); }
+   pages, not chapters.
+   Sticky-footer flex column (consistency-audit fix): html/body/#root force
+   height: 100% (tokens.css:300), so a short page (Contact, three short
+   paragraphs) was always going to have some background showing below its
+   own content on a viewport taller than that content — no page-local rule
+   changes that floor, and this file has no business touching a sitewide
+   reset. What WAS this page's own bug is what sat in that space: nothing.
+   The closing footer (below) used to render directly under the prose with
+   the leftover viewport void stranded under IT — the void plus an
+   orphaned-looking rule floating above it, worse than the void alone. Flex
+   column + `flex: 1 0 auto` on the body pushes the footer to the bottom
+   of the min-height: 100vh box instead, so the void moves to where any
+   short page's trailing space reads as normal (behind a footer that is
+   visibly anchored to the bottom of the screen), the same place /welcome's
+   own footer would sit if that page were ever short enough to show it. */
+.welcome-subpage {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-base);
+  color: var(--text);
+}
 .welcome-subpage__body {
+  flex: 1 0 auto;
   max-width: 72ch;
   margin: 0 auto;
-  padding: var(--space-7) var(--space-5) var(--space-9);
+  padding: var(--space-7) var(--space-5) var(--space-7);
 }
 .welcome-subpage__body h1 {
   font-size: var(--fs-3xl);
@@ -602,6 +623,32 @@ p.welcome-helpref {
   margin: 0 0 var(--space-4);
 }
 .welcome-teachers-cta p { margin: 0; }
+
+/* ── Subpage footer (WelcomeSubpage.js) ────────────────────
+   Consistency-audit fix: About, Contact and Teachers previously ended the
+   instant their prose did — no closing rhythm at all, unlike /welcome's own
+   deliberate .welcome-foot. This gives all three the same "the page has an
+   end" beat, at the same 72ch measure as the prose column above it, reusing
+   .welcome-foot__links' own layout and copy verbatim (Create an account /
+   Sign in — the exact strings WelcomePage.js's footer already ships, not
+   new copy). No primary "Open the IDE" door here: these three routes sit
+   outside the gate entirely (this file's own header comment) and carry no
+   go(), so a bare Link to "/" would trip WelcomeGate and bounce straight
+   back to /welcome — the loop WelcomePage.js's header comment warns
+   against. Plain Links to the two gate-free auth routes only, the same
+   shape the header's own Sign in link already uses on these pages.
+   `flex: 0 0 auto` pairs with .welcome-subpage's own column-flex, above:
+   this footer keeps its natural height and sits at the bottom of the
+   min-height: 100vh box, after .welcome-subpage__body's `flex: 1 0 auto`
+   absorbs whatever space a short page's prose does not need. */
+.welcome-subpage__foot {
+  flex: 0 0 auto;
+  max-width: 72ch;
+  margin: 0 auto;
+  padding: var(--space-5) var(--space-5) var(--space-9);
+  border-top: 1px solid var(--border);
+  text-align: center;
+}
 
 /* ── Scroll reveal ────────────────────────────────────────
    240ms, single clean translate+fade (redesign brief: "tuned to a single
