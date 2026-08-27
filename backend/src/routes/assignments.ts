@@ -10,6 +10,7 @@ import {
 import {
   assignments,
   assignmentWork,
+  projectVersions,
   submissions,
   ruleSets,
   projects,
@@ -40,6 +41,8 @@ const NO_SUCH_PROJECT = "No such project.";
 const NOT_STARTED = "Start this assignment before submitting.";
 const DUE_DATE_PASSED = "The due date has passed.";
 const ASSIGNMENT_CLOSED = "This assignment is closed.";
+const STAFF_ONLY_FOR_CLASS = "Teachers and TAs only for this class.";
+const NO_SUCH_STUDENT_WORK = "This student has not started this assignment.";
 // Same exact sentence as AssignmentPage.js's own gateSentence(phase) for the
 // Start/Continue button — the two surfaces must agree (review finding).
 const MARKS_RELEASED_CLOSED = "This assignment is closed — marks have been released.";
@@ -1164,6 +1167,60 @@ export function assignmentRoutes(app: FastifyInstance): void {
       students: studentRows.map((s) => ({ id: s.id, name: s.name })),
       assignments: assignmentRows.map((a) => ({ id: a.id, title: a.title, points: a.points })),
       cells,
+    };
+  });
+
+  /* ── Task 20: timeline ── */
+  // The History screen's teacher feed (design D§6 naming: the screen is
+  // "History", an entry is a "checkpoint"). This is the product's FIRST
+  // cross-user read — a teacher or TA reading a specific student's own
+  // project history through the assignment_work link — so, per D§6, it is
+  // logged like an account action rather than treated as an ordinary GET.
+  //
+  // Guarded by active teacher-or-TA membership in the ASSIGNMENT'S class
+  // (not requireClassTeacher, which is teacher-only and would wrongly 403
+  // a TA). Returns the same four-field version shape
+  // /api/projects/:id/versions already ships (versionId, clientUpdatedAt,
+  // reason, savedAt) plus a `submissions` marker list — the frontend
+  // HistoryTimeline component interleaves the two by time.
+  app.get("/api/assignments/:id/timeline/:studentId", async (req, reply) => {
+    const { id, studentId } = req.params as { id: string; studentId: string };
+    const a = await loadAssignment(app.db, id);
+    if (!a) return reply.code(404).send({ error: NO_SUCH_ASSIGNMENT });
+    const m = await getMembership(app.db, a.classId, req.user!.id);
+    if (!m || m.status !== "active" || !isStaffRole(m.role)) {
+      return reply.code(403).send({ error: STAFF_ONLY_FOR_CLASS });
+    }
+
+    const work = await myWorkRowFor(app.db, id, studentId);
+    if (!work) return reply.code(404).send({ error: NO_SUCH_STUDENT_WORK });
+
+    const versionRows = await app.db
+      .select()
+      .from(projectVersions)
+      .where(and(eq(projectVersions.ownerId, work.ownerId), eq(projectVersions.projectId, work.projectId)))
+      .orderBy(desc(projectVersions.id));
+    const submissionRows = await app.db
+      .select()
+      .from(submissions)
+      .where(and(eq(submissions.assignmentId, id), eq(submissions.submitterId, studentId)))
+      .orderBy(desc(submissions.createdAt));
+
+    await logEvent(app.db, "assignment.timeline_viewed", req.user!.id, { assignmentId: id, studentId });
+
+    return {
+      versions: versionRows.map((v) => ({
+        versionId: v.id,
+        clientUpdatedAt: v.clientUpdatedAt,
+        reason: v.reason,
+        savedAt: v.createdAt.toISOString(),
+      })),
+      submissions: submissionRows.map((s) => ({
+        id: s.id,
+        attempt: s.attempt,
+        late: s.late,
+        createdAt: s.createdAt.toISOString(),
+      })),
     };
   });
 }

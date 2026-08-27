@@ -199,3 +199,51 @@
 .inbox-filters { margin: var(--space-4) 0 var(--space-3); }
 
 .inbox-actions { margin-bottom: var(--space-4); }
+/* ── History (Task 20) ──────────────────────────────────────────
+   HistoryTimeline.js's checkpoint list — one renderer for the student's
+   own /history/:projectId page and (once mounted, Task 18) the teacher's
+   marking-room Timeline panel. Same .assignment-list/.assignment-row
+   rhythm, its own names since a checkpoint carries a Restore button and
+   an optional attribution/late badge an assignment row never does. */
+.history-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.history-checkpoint {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.history-checkpoint__icon {
+  display: flex;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.history-checkpoint__body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.history-checkpoint__label {
+  font-size: var(--fs-md);
+  color: var(--text-bright);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.history-checkpoint__by { color: var(--text-muted); font-weight: normal; }
+
+.history-checkpoint__time { font-size: var(--fs-sm); color: var(--text-muted); }

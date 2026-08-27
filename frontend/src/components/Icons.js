@@ -354,3 +354,10 @@ export const PrivacyIcon = ({ size } = {}) => (
   <svg {...sz(size)}><path d="M12 2.8 19 5.7v5.6c0 4.3-2.9 7.7-7 9.6-4.1-1.9-7-5.3-7-9.6V5.7l7-2.9Z"/><path d="M8.9 11.9l2.2 2.2 4-4.1"/></svg>
 );
 
+/* Task 20 (History): a clock, not RefreshIcon's rotate-arrows — this reads
+   as "past states in time", not "reload/retry", the distinction the
+   toolbar's fileMenu and the History screen's own checkpoint rows both need. */
+export const HistoryIcon = ({ size } = {}) => (
+  <svg {...sz(size)}><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 16 14"/></svg>
+);
+

@@ -36,6 +36,7 @@ import InboxPage              from "./components/assignments/InboxPage";
 import GuidesTab              from "./components/assignments/GuidesTab";
 import GuidePage              from "./components/assignments/GuidePage";
 import GradebookTab           from "./components/assignments/GradebookTab";
+import HistoryPage            from "./components/assignments/HistoryPage";
 import PeopleTab              from "./components/classes/PeopleTab";
 import SettingsTab            from "./components/classes/SettingsTab";
 import JoinClassPage          from "./components/classes/JoinClassPage";
@@ -67,6 +68,9 @@ function App() {
                         <Route path="/auth/forgot" element={<ForgotPage />} />
                         <Route path="/auth/reset" element={<ResetPage />} />
                         <Route path="/profile" element={<ProfilePage />} />
+                        {/* Task 20: the History screen (D§6) — a signed-in user's own
+                            project checkpoints, restore wired to the sync engine. */}
+                        <Route path="/history/:projectId" element={<HistoryPage />} />
                         <Route path="/admin" element={<AdminConsole />} />
                         <Route path="/classes" element={<ClassesHome />} />
                         <Route path="/classes/:id" element={<AssignmentsTab />} />
