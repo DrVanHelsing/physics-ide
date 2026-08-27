@@ -104,18 +104,26 @@ function GradebookBody({ classData }) {
 }
 
 /** Shared by the grid cell and the CSV cell so the two surfaces can never
- *  disagree about what a cell means. `missing` or an ungraded cell (no mark
- *  row at all — points null) both read as "—"; everything else is either
- *  a number (points-having assignment) or "✓" (points-less — see D§11.5's
- *  header convention, `(/${a.points ?? "✓"})`, which this mirrors for the
- *  body). `draft` is exactly "a mark exists but its status isn't released"
- *  — never inferred from anything else. */
+ *  disagree about what a cell means. `missing` reads as "—". On a
+ *  points-less assignment (Task 18, D§11.5 carry-forward), a mark's points
+ *  stay null BY CONSTRUCTION — the mark's EXISTENCE is what "complete"
+ *  means there, so a real cell is checked BEFORE the points-null case, not
+ *  after (a released or draft points-less mark is "✓", never "—", even
+ *  though its points value is the same null a genuinely-ungraded cell has).
+ *  On a points-having assignment, a cell with no points yet (marked but not
+ *  scored) still reads "—". `draft` is exactly "a mark exists but its
+ *  status isn't released" — never inferred from anything else. */
 function cellInfo(cell, assignment) {
-  if (!cell || cell.missing || cell.points == null) {
+  if (!cell || cell.missing) {
     return { text: "—", late: false, draft: false };
   }
-  const text = assignment.points == null ? "✓" : String(cell.points);
-  return { text, late: !!cell.late, draft: !cell.released };
+  if (assignment.points == null) {
+    return { text: "✓", late: !!cell.late, draft: !cell.released };
+  }
+  if (cell.points == null) {
+    return { text: "—", late: !!cell.late, draft: !cell.released };
+  }
+  return { text: String(cell.points), late: !!cell.late, draft: !cell.released };
 }
 
 /** Doubles inner quotes and wraps every field — a student's name can itself

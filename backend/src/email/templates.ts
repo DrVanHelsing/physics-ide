@@ -128,3 +128,52 @@ Your teacher noticed you haven't submitted "${title}" (${className}) yet.${dueLi
 Log in to Physics IDE and submit when you're ready.`,
   };
 }
+
+/* ── Task 18: marks ── */
+/** Released feedback (spec §7.3) — the score (or a plain complete line for
+ *  a points-less assignment) and the teacher's comment. privateNote never
+ *  reaches this template — the route only ever passes it the public
+ *  points/comment pair. */
+export function marksReleased(p: {
+  title: string;
+  className: string;
+  points: number | null;
+  outOf: number | null;
+  comment: string;
+}) {
+  const title = p.title.replace(/[\r\n]+/g, " ");
+  const className = p.className.replace(/[\r\n]+/g, " ");
+  const scoreLine =
+    p.outOf != null
+      ? p.points != null
+        ? `Score: ${p.points}/${p.outOf}`
+        : "Reviewed — no score recorded."
+      : "Marked complete.";
+  const commentBlock = p.comment ? `\n\n${p.comment}` : "";
+  return {
+    subject: `Feedback released — ${title}`,
+    text: `Hi,
+
+Your marks for "${title}" (${className}) have been released.
+
+${scoreLine}${commentBlock}`,
+  };
+}
+
+/** Return for changes (design D§11.2) — the comment IS the reason, so it
+ *  always renders in full. The honest "you can resubmit" line matches
+ *  AssignmentPage.js's own returned-state alert copy. */
+export function workReturned(p: { title: string; className: string; comment: string }) {
+  const title = p.title.replace(/[\r\n]+/g, " ");
+  const className = p.className.replace(/[\r\n]+/g, " ");
+  return {
+    subject: `Changes requested — ${title}`,
+    text: `Hi,
+
+Your teacher has sent "${title}" (${className}) back for changes.
+
+${p.comment}
+
+You can resubmit when you're ready.`,
+  };
+}
