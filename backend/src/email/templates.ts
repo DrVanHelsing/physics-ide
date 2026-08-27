@@ -104,3 +104,27 @@ Fingerprint: ${p.fingerprint}
 Keep this fingerprint — it's the record of exactly what was submitted, and the answer if there's ever a dispute about what was turned in.`,
   };
 }
+
+/* ── Task 16: inbox ── */
+/** The teacher's one-click nudge — POST /remind sends this to every student
+ *  the inbox flags "missing", one email each. Same CRLF-strip as
+ *  classInvite/submissionReceipt (title/className are teacher-supplied
+ *  free text). */
+export function dueReminder(p: {
+  name: string;
+  title: string;
+  className: string;
+  dueAt: string | null;
+}) {
+  const title = p.title.replace(/[\r\n]+/g, " ");
+  const className = p.className.replace(/[\r\n]+/g, " ");
+  const dueLine = p.dueAt ? ` It was due ${p.dueAt}.` : "";
+  return {
+    subject: `Reminder — ${title} is still waiting on you`,
+    text: `Hi ${p.name},
+
+Your teacher noticed you haven't submitted "${title}" (${className}) yet.${dueLine}
+
+Log in to Physics IDE and submit when you're ready.`,
+  };
+}
