@@ -212,9 +212,9 @@ reads or feels wrong).
 
 | # | Item | Severity | What happened (what you did, what you saw, what you expected) |
 |---|---|---|---|
-| F1 | | | |
-| F2 | | | |
-| F3 | | | |
+| F1 | All portal screens (class tabs, profile, admin) | rough | Content pinned upper-left at full-screen: `.page-body` max-width 1000px with no centering (platform.css:169-173) — full-screen is a requirement; wants centered shell + wider cap for table screens. (User, 2026-08-28) |
+| F2 | Portal navigation | rough | No back affordance on drill-down pages; the logo goes home, not back. Browser back works but an in-header back link is wanted. (User, 2026-08-28) |
+| F3 | IDE — block editor | wrong | Windows scroll gestures ZOOM the canvas instead of scrolling (`zoom.wheel: true`, no `move.wheel` — BlocklyWorkspace.js:402). Wanted: wheel scrolls, Ctrl+wheel/pinch or the buttons zoom. (User, 2026-08-28) |
 
 _Add rows as needed. Hand the filled file back (or just say "browser pass done —
 read the checklist") and the findings become the next fix list._
