@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { buildApp } from "../app.js";
 import { testDb, testPool, truncateAuthTables } from "../db/testClient.js";
 import { setSetting } from "../db/settings.js";
-import { users, classes, classMembers, events } from "../db/schema.js";
+import { users, classes, classMembers, events, shares } from "../db/schema.js";
 import { CLASS_CODE_REGEX } from "@physics-ide/shared";
 
 const app = buildApp({ db: testDb });
@@ -272,5 +272,94 @@ describe("PATCH edge case and join-code visibility by role+status", () => {
     expect(res.statusCode).toBe(200);
     expect(res.json().class.myRole).toBe("teacher");
     expect(res.json().class.joinCode).toBeUndefined();
+  });
+});
+
+describe("PATCH peerSharing:false lapses pending shares (D§8)", () => {
+  test("pending shares lapse with one project.share_lapsed event each; an accepted row stands", async () => {
+    const [teacherUser] = await testDb.select().from(users).where(eq(users.email, "teach@example.com"));
+    const [kidUser] = await testDb.select().from(users).where(eq(users.email, "kid@example.com"));
+
+    const created = await app.inject({
+      method: "POST",
+      url: "/api/classes",
+      cookies: { pide_session: teacherCookie },
+      payload: { name: "Lapse Class" },
+    });
+    const lapseClassId = created.json().class.id;
+    await app.inject({
+      method: "PATCH",
+      url: `/api/classes/${lapseClassId}`,
+      cookies: { pide_session: teacherCookie },
+      payload: { peerSharing: true },
+    });
+
+    const manifest = {
+      schemaVersion: 2,
+      id: "p-lapse",
+      title: "Lapse Fixture",
+      goal: "physics",
+      projectType: "custom",
+      createdAt: 1000,
+      updatedAt: 2000,
+    };
+    const [pending] = await testDb
+      .insert(shares)
+      .values({
+        classId: lapseClassId,
+        sharerId: teacherUser.id,
+        recipientId: kidUser.id,
+        sourceOwnerId: teacherUser.id,
+        sourceProjectId: "p-lapse-pending",
+        frozenManifest: manifest,
+        sourceClientUpdatedAt: 2000,
+        status: "pending",
+      })
+      .returning();
+    const [accepted] = await testDb
+      .insert(shares)
+      .values({
+        classId: lapseClassId,
+        sharerId: teacherUser.id,
+        recipientId: kidUser.id,
+        sourceOwnerId: teacherUser.id,
+        sourceProjectId: "p-lapse-accepted",
+        frozenManifest: manifest,
+        sourceClientUpdatedAt: 2000,
+        status: "accepted",
+        copyProjectId: "p-lapse-accepted-copy",
+        resolvedAt: new Date(),
+      })
+      .returning();
+
+    const res = await app.inject({
+      method: "PATCH",
+      url: `/api/classes/${lapseClassId}`,
+      cookies: { pide_session: teacherCookie },
+      payload: { peerSharing: false },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().class.peerSharing).toBe(false);
+
+    const [pendingAfter] = await testDb.select().from(shares).where(eq(shares.id, pending.id));
+    expect(pendingAfter.status).toBe("lapsed");
+    expect(pendingAfter.resolvedAt).not.toBeNull();
+
+    const [acceptedAfter] = await testDb.select().from(shares).where(eq(shares.id, accepted.id));
+    expect(acceptedAfter.status).toBe("accepted");
+    expect(acceptedAfter.resolvedAt?.getTime()).toBe(accepted.resolvedAt?.getTime());
+
+    const lapsedEvents = await testDb.select().from(events).where(eq(events.type, "project.share_lapsed"));
+    const matching = lapsedEvents.filter((e) => (e.payload as { shareId: string }).shareId === pending.id);
+    expect(matching).toHaveLength(1);
+    expect(matching[0].payload).toEqual({
+      shareId: pending.id,
+      classId: lapseClassId,
+      sharerId: teacherUser.id,
+      recipientId: kidUser.id,
+    });
+    expect(lapsedEvents.some((e) => (e.payload as { shareId: string }).shareId === accepted.id)).toBe(
+      false,
+    );
   });
 });
