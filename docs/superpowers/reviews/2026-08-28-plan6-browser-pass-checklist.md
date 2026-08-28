@@ -2,13 +2,14 @@
 
 > The one pass automation cannot replace. **Both themes, every item.**
 > Automated context: shared/backend/frontend suites green, IDE e2e 164/164,
-> and the new portal golden flow (`node frontend/scripts/portal-e2e.mjs`,
-> **39/41 — 38/41 when the intermittent one bites**) covering teacher
-> authoring → student submit → marking → release → gradebook → feedback. The
-> red checks are the three defects recorded at the end of this file, not
-> harness noise. This checklist is the human judgment on top: does it *read*
-> right, does it *feel* right — and it starts with the one flow no automated
-> test covers end to end.
+> and the portal golden flow (`node frontend/scripts/portal-e2e.mjs`,
+> **41/41**) covering teacher authoring → student submit → marking → release →
+> gradebook → feedback. It read 39/41 (38/41 when the intermittent one bit) at
+> hand-over; the three defects behind those reds were closed in the final fix
+> wave and are kept at the end of this file as a record of what the flow
+> found. This checklist is the human judgment on top: does it *read* right,
+> does it *feel* right — and it starts with the one flow no automated test
+> covers end to end.
 
 ## 0. Groups and the baton — TWO BROWSERS, do this one first
 
@@ -99,10 +100,14 @@ test in the repo.
     rules chip and the baton chip, all of which render nothing outside
     assignment work — confirm a plain guest project is byte-identical.
 
-## Known findings, recorded at hand-over (not fixed by Task 26)
+## What the golden flow found at hand-over — all three now FIXED
 
-The golden flow reproduced three defects. They are the product's, not the
-script's, and Task 26 did not touch product code:
+Recorded as found, then annotated with the fix. The findings stay because a
+harness earns its keep by what it catches, and because the next reader needs
+to know these three were real rather than harness noise. **All three were
+closed in the final fix wave (2026-08-28); the flow has run 41/41 across three
+consecutive runs since.** The by-hand re-checks below are still worth doing —
+they are the human half of the same evidence.
 
 1. **Start work is refused intermittently with "Could not reach the server —
    check your connection and try again."** Two callers push the same
@@ -115,9 +120,13 @@ script's, and Task 26 did not touch product code:
    `error`, and `assertPushSucceeded` refuses with a connectivity sentence
    that is not what happened. Pressing Start work again succeeds. **This is
    the intermittent one — roughly half of runs** (2 of 4 at hand-over), and
-   it is the whole difference between a 38/41 and a 39/41 result. Press Start
-   work a few times by hand; if it never refuses, you have been lucky, not
-   fixed.
+   it was the whole difference between a 38/41 and a 39/41 result.
+   **FIXED** (`backend/src/routes/projects.ts`): the insert now runs in its
+   own savepoint, and a 23505 re-reads the winner's head and falls through to
+   the ordinary update path, where `clientUpdatedAt` decides between the two
+   pushes like any other pair. Covered by a concurrency test in
+   `projects.test.ts`. Because this one was intermittent, a single green run
+   proves little either way — press Start work a few times by hand.
 2. **Start work lands on the start menu, not in the work — every run.**
    `startWork.js`
    stamps `LAST_PROJECT_KEY` and calls `navigate("/")` — a client-side
@@ -125,7 +134,11 @@ script's, and Task 26 did not touch product code:
    once-per-app-load bootstrap. In a single-page session the student arrives
    at the IDE with no project open and their assignment sitting under
    "Continue". A full reload opens it. `MarkingRoom`'s "Open a test copy"
-   is the same shape and presumably the same bug — worth checking by hand.
+   was the same shape and the same bug.
+   **FIXED** (`frontend/src/utils/projectOpenRequest.js`): both call sites now
+   announce the id they settled on and `ProjectContext` subscribes and
+   switches to it. The `LAST_PROJECT_KEY` stamp stays — it is still the right
+   answer for a reload.
 3. **Three rule-less classes — the sweep's two fail every run** — markup
    carrying a class no stylesheet
    defines: `.brief-pane__footer` (`BriefPane.js`, the Submit footer),
@@ -135,3 +148,6 @@ script's, and Task 26 did not touch product code:
    The first two are caught by the golden flow's sweep; the third is on
    `/history/:projectId`, which the flow does not visit — check it by eye at
    item 19.
+   **FIXED**: `.brief-pane__footer` and `.rich-text-editor` have token-only
+   rules in `styles/assignments.css`, and `HistoryTimeline.js` now spells the
+   primitive `btn--sm`.

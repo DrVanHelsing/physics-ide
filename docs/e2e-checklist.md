@@ -534,26 +534,31 @@ readable result (including the per-screen sweeps) in
 student account each time, so it is safe to re-run against a dev database that
 is never reset.
 
-**A clean run is 39/41 — two checks are RED at hand-over**, on genuine product
-defects the flow found rather than on the harness. Recorded here so a later run
-is read correctly and not "fixed" by weakening the checks:
+**A clean run is 41/41.** That is the baseline; anything less is a regression
+to read by its named failures, never a count to be talked down.
 
-- **Check 20, every run.** Start work lands on the start menu instead of in the
-  work — `LAST_PROJECT_KEY` is only read at app boot, but `navigate("/")` is a
-  client-side transition.
-- **Check 40, every run.** `.brief-pane__footer` and `.rich-text-editor` carry
-  no CSS rule.
+It was not always. The flow found three genuine product defects at hand-over —
+recorded here because what a harness catches is worth keeping, and because a
+later run must not "fix" any of them by weakening the check:
 
-A **third** defect sits behind check 19 and is **intermittent — it failed
-roughly half the runs** (2 of 4 at hand-over): Start work is refused with
-"Could not reach the server" when two callers push the same brand-new project
-concurrently and `PUT /api/projects/:id` takes its non-race-safe create branch.
-So **38/41 is an equally expected result**, and a run that reports 39/41 has
-not fixed anything — it simply won the race. Until all three are fixed, treat
-38 or 39 of 41 as the baseline and read the named failures, not the count.
+- **Check 20** failed every run: Start work landed on the start menu instead of
+  in the work — `LAST_PROJECT_KEY` is only read at app boot, but `navigate("/")`
+  is a client-side transition. Fixed by `utils/projectOpenRequest.js`, the
+  announcement half of that hand-off.
+- **Check 40** failed every run: `.brief-pane__footer` and `.rich-text-editor`
+  carried no CSS rule. Both now have one (`styles/assignments.css`).
+- **Check 19** failed **intermittently — roughly half the runs** (2 of 4 at
+  hand-over): Start work was refused with "Could not reach the server" when two
+  callers pushed the same brand-new project concurrently and
+  `PUT /api/projects/:id` took its non-race-safe create branch. The route now
+  catches the unique violation, re-reads the winner's head and falls through to
+  the ordinary update path. Because it was the intermittent one, treat a
+  **single** green run as weak evidence: re-run it a few times.
 
-Details, plus a third rule-less class the flow does not reach (`.btn--small` in
-`HistoryTimeline.js`), are in
+All three were closed in the final fix wave (2026-08-28) and the run has been
+41/41 across three consecutive runs since. Details of what was found, including
+a third rule-less class the flow does not reach (`.btn--small` in
+`HistoryTimeline.js`, also fixed), are in
 `docs/superpowers/reviews/2026-08-28-plan6-browser-pass-checklist.md`.
 
 **Still uncovered after that lands**, and the reason spec §18's
