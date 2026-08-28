@@ -107,11 +107,12 @@ Teacher controls: regenerate the code at any time (the old one stops working), o
 
 A teacher's home screen is a wall of class cards. Creating a class asks only for a name (e.g., "Grade 11 Physical Sciences — 2027") and an optional subject/year label.
 
-Inside a class, the teacher sees four tabs:
+Inside a class, the teacher sees five tabs:
 
 | Tab | What lives there |
 |---|---|
 | **Assignments** | Every assignment, current and past, with submission counts at a glance. |
+| **Guides** | Standalone guide pages published to the class (see "Other classroom facts" below) — the same rich pages as assignment instructions, tied to no submission. |
 | **People** | The roster: students (with invited/joined status), co-teachers, teaching assistants, the join code/link/QR panel, invite tools, remove/re-invite buttons. |
 | **Gradebook** | The class grid — students down the side, assignments across the top, marks in the cells. Export as a spreadsheet file with one click. |
 | **Settings** | Class name, joining rules (open/approval/paused), sharing rules (see section 8.3), archive class. |
