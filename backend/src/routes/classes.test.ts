@@ -363,3 +363,104 @@ describe("PATCH peerSharing:false lapses pending shares (D§8)", () => {
     );
   });
 });
+
+describe("POST /api/classes/:id/archive lapses pending shares", () => {
+  test("pending shares lapse on archive with one project.share_lapsed event each; an accepted row stands; accepting the lapsed share now 409s", async () => {
+    const [teacherUser] = await testDb.select().from(users).where(eq(users.email, "teach@example.com"));
+    const [kidUser] = await testDb.select().from(users).where(eq(users.email, "kid@example.com"));
+
+    const created = await app.inject({
+      method: "POST",
+      url: "/api/classes",
+      cookies: { pide_session: teacherCookie },
+      payload: { name: "Archive Lapse Class" },
+    });
+    const archiveClassId = created.json().class.id;
+    await app.inject({
+      method: "PATCH",
+      url: `/api/classes/${archiveClassId}`,
+      cookies: { pide_session: teacherCookie },
+      payload: { peerSharing: true },
+    });
+    await testDb
+      .insert(classMembers)
+      .values({ classId: archiveClassId, userId: kidUser.id, role: "student", status: "active" });
+
+    const manifest = {
+      schemaVersion: 2,
+      id: "p-arc-lapse",
+      title: "Archive Lapse Fixture",
+      goal: "physics",
+      projectType: "custom",
+      createdAt: 1000,
+      updatedAt: 2000,
+    };
+    const [pending] = await testDb
+      .insert(shares)
+      .values({
+        classId: archiveClassId,
+        sharerId: teacherUser.id,
+        recipientId: kidUser.id,
+        sourceOwnerId: teacherUser.id,
+        sourceProjectId: "p-arc-lapse-pending",
+        frozenManifest: manifest,
+        sourceClientUpdatedAt: 2000,
+        status: "pending",
+      })
+      .returning();
+    const [accepted] = await testDb
+      .insert(shares)
+      .values({
+        classId: archiveClassId,
+        sharerId: teacherUser.id,
+        recipientId: kidUser.id,
+        sourceOwnerId: teacherUser.id,
+        sourceProjectId: "p-arc-lapse-accepted",
+        frozenManifest: manifest,
+        sourceClientUpdatedAt: 2000,
+        status: "accepted",
+        copyProjectId: "p-arc-lapse-accepted-copy",
+        resolvedAt: new Date(),
+      })
+      .returning();
+
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/classes/${archiveClassId}/archive`,
+      cookies: { pide_session: teacherCookie },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().archived).toBe(true);
+
+    const [pendingAfter] = await testDb.select().from(shares).where(eq(shares.id, pending.id));
+    expect(pendingAfter.status).toBe("lapsed");
+    expect(pendingAfter.resolvedAt).not.toBeNull();
+
+    const [acceptedAfter] = await testDb.select().from(shares).where(eq(shares.id, accepted.id));
+    expect(acceptedAfter.status).toBe("accepted");
+    expect(acceptedAfter.resolvedAt?.getTime()).toBe(accepted.resolvedAt?.getTime());
+
+    const lapsedEvents = await testDb.select().from(events).where(eq(events.type, "project.share_lapsed"));
+    const matching = lapsedEvents.filter((e) => (e.payload as { shareId: string }).shareId === pending.id);
+    expect(matching).toHaveLength(1);
+    expect(matching[0].payload).toEqual({
+      shareId: pending.id,
+      classId: archiveClassId,
+      sharerId: teacherUser.id,
+      recipientId: kidUser.id,
+    });
+    expect(lapsedEvents.some((e) => (e.payload as { shareId: string }).shareId === accepted.id)).toBe(
+      false,
+    );
+
+    // The seam shut end to end: accepting the now-lapsed share 409s.
+    const acceptRes = await app.inject({
+      method: "POST",
+      url: `/api/shares/${pending.id}/accept`,
+      cookies: { pide_session: studentCookie },
+      payload: { projectId: "p-arc-lapse-copy" },
+    });
+    expect(acceptRes.statusCode).toBe(409);
+    expect(acceptRes.json().error).toBe("That share has already been dealt with.");
+  });
+});

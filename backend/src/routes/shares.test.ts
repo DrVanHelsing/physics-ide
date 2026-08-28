@@ -393,6 +393,63 @@ describe("POST /api/shares — the hand-off", () => {
     expect(rows).toHaveLength(1);
   });
 
+  /* D§1's dup-check is deliberately class-blind: it keys on
+   * (sourceOwnerId, sourceProjectId, recipientId, status=pending), not on
+   * classId. A second class both alpha and bravo belong to still finds the
+   * first class's pending row and refuses — pinned here so that behavior
+   * reads as intended, not as an oversight. */
+  test("the dup-check is class-blind: a pending share to the same recipient for the same project via a DIFFERENT class also 409s", async () => {
+    await pushProject(alpha.id, "p-share-dup-cross-class", {
+      schemaVersion: 2,
+      id: "p-share-dup-cross-class",
+      title: "Cross-Class Pendulum",
+      goal: "physics",
+      projectType: "custom",
+      createdAt: 1000,
+      updatedAt: 7000,
+    });
+    const first = await postShare(alpha.cookie, { projectId: "p-share-dup-cross-class" });
+    expect(first.statusCode).toBe(201);
+
+    const otherClassRes = await app.inject({
+      method: "POST",
+      url: "/api/classes",
+      cookies: { pide_session: teacherCookie },
+      payload: { name: "Other Sharing Class" },
+    });
+    const otherClassId = otherClassRes.json().class.id;
+    await app.inject({
+      method: "PATCH",
+      url: `/api/classes/${otherClassId}`,
+      cookies: { pide_session: teacherCookie },
+      payload: { peerSharing: true },
+    });
+    await testDb.insert(classMembers).values([
+      { classId: otherClassId, userId: alpha.id, role: "student", status: "active" },
+      { classId: otherClassId, userId: bravo.id, role: "student", status: "active" },
+    ]);
+    try {
+      const second = await app.inject({
+        method: "POST",
+        url: "/api/shares",
+        cookies: { pide_session: alpha.cookie },
+        payload: { classId: otherClassId, recipientId: bravo.id, projectId: "p-share-dup-cross-class" },
+      });
+      expect(second.statusCode).toBe(409);
+      expect(second.json().error).toBe(
+        "Already shared with them — it's waiting on their class page.",
+      );
+      // Still just the one pending row from the first class.
+      const rows = await testDb
+        .select()
+        .from(shares)
+        .where(eq(shares.sourceProjectId, "p-share-dup-cross-class"));
+      expect(rows).toHaveLength(1);
+    } finally {
+      await testDb.delete(classMembers).where(eq(classMembers.classId, otherClassId));
+    }
+  });
+
   test("a malformed body -> 400 without touching the table", async () => {
     const before = await testDb.select().from(shares);
     const res = await postShare(alpha.cookie, { projectId: "not-a-project-id" });
