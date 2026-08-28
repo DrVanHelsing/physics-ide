@@ -398,6 +398,14 @@ function BlocklyWorkspace({
         trashcan: false,
         scrollbars: true,
         sounds: false,
+        /* F3 (2026-08-28) — say `move` out loud. Blockly 11's options.ts only
+           honours move.wheel when scrollbars is an OBJECT; with a boolean it
+           forces move.wheel=false, and workspace_svg.ts's
+           `(ctrlKey || !canWheelMove)` predicate then made EVERY wheel event
+           zoom, leaving the scroll branch dead. Stated explicitly: plain wheel
+           pans, Ctrl/Cmd+wheel zooms, drag still pans. `pinch` stays unstated —
+           options.ts already defaults it to (zoom.wheel || zoom.controls). */
+        move: { scrollbars: true, drag: true, wheel: true },
         grid: { spacing: 25, length: 3, colour: gridColourFor(isDarkRef.current), snap: true },
         zoom: {
           controls: false,
@@ -705,6 +713,9 @@ function ReadOnlyBlockly({ xml, isDark }) {
       readOnly: true,
       theme,
       scrollbars: true,
+      // Same F3 fix as the editable workspace above — a marker reading a
+      // submission scrolls it with the wheel, and zooms with Ctrl+wheel.
+      move: { scrollbars: true, drag: true, wheel: true },
       renderer: "zelos",
       sounds: false,
       grid: { spacing: 25, length: 3, colour: gridColourFor(isDark), snap: false },
