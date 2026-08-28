@@ -25,9 +25,13 @@
  * stylesheet-harvest idea the Task 13 sweep used by hand.
  *
  * Usage:
- *   npm run db:up && npm run seed     # Postgres + the seeded admin
- *   npm run dev                       # backend :4000 + frontend :3000
+ *   npm run db:up && npm run db:migrate && npm run seed   # Postgres, schema, seeded admin
+ *   npm run dev                                           # backend :4000 + frontend :3000
  *   node frontend/scripts/portal-e2e.mjs
+ *
+ * The migrate step is not optional: a dev database one migration behind
+ * answers GET /api/assignments/:id with a 500 (`column "adjustment" does not
+ * exist`) and the run dies at the first assignment page.
  *
  * Output: PASS/FAIL per check, screenshots in frontend/e2e/portal-*.png,
  * results in frontend/e2e/portal-results.json, exit 0 on a full pass.
