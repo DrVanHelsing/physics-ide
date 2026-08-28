@@ -12,8 +12,15 @@ import PortalHeader from "../layout/PortalHeader";
  * `back` is the shared up-control every class screen carries (F2, 2026-08-28:
  * the tab row was the ONLY navigation here, and on a sub-page of a tab the
  * *current* tab was the thing that went up — nothing said so). The default
- * names the class wall; a sub-page overrides it with its own real parent
- * (AssignmentPage → the class, InboxPage → the assignment).
+ * states the plain truth — a class screen's parent is the class wall — and a
+ * sub-page overrides it with its own real parent (AssignmentPage → the class,
+ * InboxPage → the assignment).
+ *
+ * On the tabs themselves the default resolves to nothing rendered: it names
+ * the same place `home` does, and PortalHeader stands a redundant back link
+ * down rather than offering /classes twice in one bar. The declaration stays
+ * because it is true, and because it is what makes the overrides read as
+ * overrides.
  */
 export default function ClassChrome({
   tab,

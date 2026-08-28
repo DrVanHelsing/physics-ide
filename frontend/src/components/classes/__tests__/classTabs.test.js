@@ -35,7 +35,7 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-function render(tab, myRole = "teacher") {
+function render(tab, myRole = "teacher", props = {}) {
   useMe.mockReturnValue({ data: { id: "u1", role: "member" }, isLoading: false });
   useQuery.mockReturnValue({
     data: {
@@ -43,7 +43,11 @@ function render(tab, myRole = "teacher") {
     },
     error: null,
   });
-  mounted = mountComponent(<ClassChrome tab={tab}>{() => <div>panel</div>}</ClassChrome>);
+  mounted = mountComponent(
+    <ClassChrome tab={tab} {...props}>
+      {() => <div>panel</div>}
+    </ClassChrome>,
+  );
   return mounted.container;
 }
 
@@ -109,5 +113,36 @@ describe("ClassChrome link tabs — aria-current, not the tablist pattern", () =
     const container = render("assignments", "ta");
     const links = [...container.querySelectorAll(".tab")];
     expect(links.map((l) => l.textContent)).toContain("Gradebook");
+  });
+});
+
+/**
+ * The back affordance, asserted against the REAL ClassChrome (F2 + the fix
+ * round of 2026-08-28). Three of the nine screens that carry a back link
+ * (AssignmentPage, InboxPage, GradebookTab) are tested through a ClassChrome
+ * stub that drops the prop entirely, so without this file nothing automated
+ * pinned the wiring at all — and nothing pinned the suppression rule that
+ * keeps the header from offering /classes twice.
+ */
+describe("ClassChrome — the back affordance it hands the header", () => {
+  test("the default back stands down: it names the same place the wordmark does", () => {
+    const container = render("people");
+    // The wordmark carries /classes, and it is the only link that does.
+    expect(container.querySelector(".auth-brand").getAttribute("href")).toBe("/classes");
+    expect(container.querySelector(".back-link")).toBeNull();
+    const toClasses = [...container.querySelectorAll('a[href="/classes"]')];
+    expect(toClasses).toHaveLength(1);
+  });
+
+  test("a sub-page's own back target reaches the header as a real .back-link", () => {
+    const container = render("assignments", "teacher", {
+      back: { to: "/classes/class-1", label: "Back to assignments" },
+    });
+    const back = container.querySelector(".back-link");
+    expect(back).not.toBeNull();
+    expect(back.getAttribute("href")).toBe("/classes/class-1");
+    expect(back.textContent.replace(/\s+/g, " ").trim()).toBe("Back to assignments");
+    // Still exactly one — the wordmark is not a second copy of it.
+    expect(container.querySelectorAll(".back-link")).toHaveLength(1);
   });
 });
