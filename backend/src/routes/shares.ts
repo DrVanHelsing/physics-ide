@@ -1,16 +1,19 @@
 import type { FastifyInstance } from "fastify";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
+import { z } from "zod";
 import { CreateShareInputSchema, WorkspaceRulesSchema } from "@physics-ide/shared";
 import {
   assignments,
   assignmentWork,
   classes,
+  classMembers,
   groups,
   projects,
   shares,
+  users,
 } from "../db/schema.js";
 import { requireConfirmed } from "../auth/guards.js";
-import { ClassAuthError, getMembership, sendClassAuthError } from "../classes/guards.js";
+import { ClassAuthError, getMembership, isStaffRole, sendClassAuthError } from "../classes/guards.js";
 import { logEvent } from "../db/events.js";
 import type { Db } from "../db/types.js";
 
@@ -162,5 +165,95 @@ export function shareRoutes(app: FastifyInstance): void {
         status: created.status,
       },
     });
+  });
+
+  app.get("/api/shares/incoming", async (req, reply) => {
+    const classId = z.string().uuid().safeParse((req.query as { classId?: string }).classId);
+    if (!classId.success) return reply.code(400).send({ error: "Invalid input." });
+    const m = await getMembership(app.db, classId.data, req.user!.id);
+    if (!m || m.status !== "active") return reply.code(403).send({ error: NOT_A_MEMBER });
+    const rows = await app.db
+      .select({ share: shares, sharerName: users.name })
+      .from(shares)
+      .leftJoin(users, eq(users.id, shares.sharerId))
+      .where(
+        and(
+          eq(shares.classId, classId.data),
+          eq(shares.recipientId, req.user!.id),
+          eq(shares.status, "pending"),
+        ),
+      )
+      .orderBy(desc(shares.createdAt));
+    return {
+      shares: rows.map(({ share, sharerName }) => ({
+        id: share.id,
+        classId: share.classId,
+        title: (share.frozenManifest as { title?: string }).title ?? "Untitled project",
+        // §11 erasure: the name resolves at read time, or to the same word
+        // the spec uses for erased submissions.
+        sharerName: sharerName ?? REMOVED_STUDENT,
+        createdAt: share.createdAt.getTime(),
+      })),
+    };
+  });
+
+  app.get("/api/shares/roster/:classId", async (req, reply) => {
+    const { classId } = req.params as { classId: string };
+    const classRows = await app.db.select().from(classes).where(eq(classes.id, classId));
+    const c = classRows[0];
+    if (!c) return reply.code(404).send({ error: NO_SUCH_CLASS });
+    const m = await getMembership(app.db, classId, req.user!.id);
+    if (!m || m.status !== "active") return reply.code(403).send({ error: NOT_A_MEMBER });
+    // The picker obeys the same switch as the share itself — no roster
+    // browsing through a feature the teacher has off (D§5 fails closed).
+    if (!c.peerSharing) return reply.code(403).send({ error: SHARING_OFF });
+    const rows = await app.db
+      .select({ userId: classMembers.userId, name: users.name, role: classMembers.role })
+      .from(classMembers)
+      .innerJoin(users, eq(classMembers.userId, users.id))
+      .where(and(eq(classMembers.classId, classId), eq(classMembers.status, "active")))
+      .orderBy(users.name);
+    return { members: rows.filter((r) => r.userId !== req.user!.id) };
+  });
+
+  app.post("/api/shares/:id/revoke", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const outcome = await app.db.transaction(async (tx) => {
+      const rows = await tx.select().from(shares).where(eq(shares.id, id)).for("update");
+      const share = rows[0];
+      if (!share) return { kind: "missing" as const };
+      const m = await getMembership(tx, share.classId, req.user!.id);
+      const active = !!m && m.status === "active";
+      // CONTROLLER RULING (deviation from the task-8 brief's drafted line):
+      // widen maySee to any active class STAFF, not just the teacher role.
+      // A TA is class staff, not a stranger, so a TA's revoke attempt must
+      // be able to reach REVOKE_FORBIDDEN's honest sentence rather than the
+      // draft-404 posture that exists to hide a share's existence from
+      // people with no standing on it at all.
+      const maySee =
+        active &&
+        (share.sharerId === req.user!.id ||
+          share.recipientId === req.user!.id ||
+          isStaffRole(m!.role));
+      if (!maySee) return { kind: "missing" as const }; // existence is not their business
+      const mayRevoke = active && (share.sharerId === req.user!.id || m!.role === "teacher");
+      if (!mayRevoke) return { kind: "forbidden" as const };
+      if (share.status !== "pending") return { kind: "resolved" as const };
+      await tx
+        .update(shares)
+        .set({ status: "revoked", resolvedAt: new Date() })
+        .where(eq(shares.id, id));
+      await logEvent(tx, "project.share_revoked", req.user!.id, {
+        shareId: id,
+        classId: share.classId,
+        sharerId: share.sharerId,
+        recipientId: share.recipientId,
+      });
+      return { kind: "revoked" as const };
+    });
+    if (outcome.kind === "missing") return reply.code(404).send({ error: NO_SUCH_SHARE });
+    if (outcome.kind === "forbidden") return reply.code(403).send({ error: REVOKE_FORBIDDEN });
+    if (outcome.kind === "resolved") return reply.code(409).send({ error: SHARE_RESOLVED });
+    return { ok: true };
   });
 }

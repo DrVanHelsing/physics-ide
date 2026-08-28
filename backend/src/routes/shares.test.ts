@@ -19,12 +19,17 @@ import {
 const app = buildApp({ db: testDb });
 
 let teacherCookie: string;
+let teacherId: string;
 let outsiderCookie: string;
 let classId: string;
 
 type Member = { id: string; cookie: string };
 const alpha = {} as Member;
 const bravo = {} as Member;
+/** Class staff, one rung down from teacher — never a member of `classId`
+ *  until a revoke test scopes them in and cleans them back out, so the
+ *  roster tests' "bravo+teacher, never anyone else" shape stays true. */
+const ta = {} as Member;
 
 /** The sharer's pushed head — frozen into the share row verbatim (D§2). */
 const SRC_ID = "p-share-src";
@@ -124,17 +129,21 @@ beforeAll(async () => {
   await truncateAuthTables();
   await setSetting(testDb, "account_cap", 200);
 
-  await makeUser("shteach@example.com", { isTeacher: true });
+  const t = await makeUser("shteach@example.com", { isTeacher: true });
   const a = await makeUser("shalpha@example.com");
   const b = await makeUser("shbravo@example.com");
   await makeUser("shoutsider@example.com");
+  const ta_ = await makeUser("shta@example.com");
 
   teacherCookie = await signin("shteach@example.com");
+  teacherId = t.id;
   alpha.id = a.id;
   alpha.cookie = await signin("shalpha@example.com");
   bravo.id = b.id;
   bravo.cookie = await signin("shbravo@example.com");
   outsiderCookie = await signin("shoutsider@example.com");
+  ta.id = ta_.id;
+  ta.cookie = await signin("shta@example.com");
 
   const classRes = await app.inject({
     method: "POST",
@@ -470,5 +479,185 @@ describe("POST /api/shares — the assignment-rules loop, both ways", () => {
         await testDb.select().from(shares).where(eq(shares.sourceProjectId, "p-rules-junk")),
       ).toHaveLength(0);
     });
+  });
+});
+
+/** A fresh project + pending share, alpha -> bravo, on its own project id so
+ *  each test's assertions never depend on rows other tests left behind. */
+async function freshPendingShare(suffix: string): Promise<string> {
+  const projectId = `p-inc-${suffix}`;
+  await pushProject(alpha.id, projectId, {
+    schemaVersion: 2,
+    id: projectId,
+    title: `Fixture ${suffix}`,
+    goal: "physics",
+    projectType: "custom",
+    createdAt: 1000,
+    updatedAt: 4000,
+  });
+  const res = await postShare(alpha.cookie, { projectId });
+  expect(res.statusCode).toBe(201);
+  return res.json().share.id as string;
+}
+
+describe("GET /api/shares/incoming", () => {
+  test("lists the pending share addressed to the caller: sharerName + frozen title, newest first", async () => {
+    const shareId = await freshPendingShare("list");
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/shares/incoming?classId=${classId}`,
+      cookies: { pide_session: bravo.cookie },
+    });
+    expect(res.statusCode).toBe(200);
+    const entry = (res.json().shares as Array<{ id: string }>).find((s) => s.id === shareId);
+    expect(entry).toEqual({
+      id: shareId,
+      classId,
+      title: "Fixture list",
+      sharerName: "shalpha",
+      createdAt: expect.any(Number),
+    });
+  });
+
+  test("a revoked, lapsed, or accepted share does not show up", async () => {
+    const revokedId = await freshPendingShare("revoked");
+    const lapsedId = await freshPendingShare("lapsed");
+    const acceptedId = await freshPendingShare("accepted");
+
+    const revokeRes = await app.inject({
+      method: "POST",
+      url: `/api/shares/${revokedId}/revoke`,
+      cookies: { pide_session: alpha.cookie },
+    });
+    expect(revokeRes.statusCode).toBe(200);
+    // accept doesn't exist yet (Task 9) — a direct table write stands in for it.
+    await testDb
+      .update(shares)
+      .set({ status: "lapsed", resolvedAt: new Date() })
+      .where(eq(shares.id, lapsedId));
+    await testDb
+      .update(shares)
+      .set({ status: "accepted", resolvedAt: new Date() })
+      .where(eq(shares.id, acceptedId));
+
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/shares/incoming?classId=${classId}`,
+      cookies: { pide_session: bravo.cookie },
+    });
+    const ids = (res.json().shares as Array<{ id: string }>).map((s) => s.id);
+    expect(ids).not.toContain(revokedId);
+    expect(ids).not.toContain(lapsedId);
+    expect(ids).not.toContain(acceptedId);
+  });
+});
+
+describe("GET /api/shares/roster/:classId", () => {
+  test("active members minus the caller, name-ordered, names only — never alpha, never an email key", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/shares/roster/${classId}`,
+      cookies: { pide_session: alpha.cookie },
+    });
+    expect(res.statusCode).toBe(200);
+    const members = res.json().members as Array<Record<string, unknown>>;
+    expect(members).toEqual([
+      { userId: bravo.id, name: "shbravo", role: "student" },
+      { userId: teacherId, name: "shteach", role: "teacher" },
+    ]);
+    expect(Object.keys(members[0])).toEqual(["userId", "name", "role"]);
+    expect(members.some((m) => m.userId === alpha.id)).toBe(false);
+  });
+
+  test("the switch off -> 403 SHARING_OFF, not a roster browse through a disabled feature", async () => {
+    await setPeerSharing(false);
+    try {
+      const res = await app.inject({
+        method: "GET",
+        url: `/api/shares/roster/${classId}`,
+        cookies: { pide_session: alpha.cookie },
+      });
+      expect(res.statusCode).toBe(403);
+      expect(res.json().error).toBe("Peer sharing is off for this class.");
+    } finally {
+      await setPeerSharing(true);
+    }
+  });
+});
+
+describe("POST /api/shares/:id/revoke", () => {
+  test("the sharer revokes a pending share: flips to revoked, resolvedAt set, logged", async () => {
+    const shareId = await freshPendingShare("revoke-happy");
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/shares/${shareId}/revoke`,
+      cookies: { pide_session: alpha.cookie },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ ok: true });
+
+    const [row] = await testDb.select().from(shares).where(eq(shares.id, shareId));
+    expect(row.status).toBe("revoked");
+    expect(row.resolvedAt).not.toBeNull();
+
+    const logged = await eventsOfType("project.share_revoked");
+    const entry = logged.find((e) => (e.payload as { shareId: string }).shareId === shareId);
+    expect(entry).toBeDefined();
+    expect(entry!.actorId).toBe(alpha.id);
+    expect(entry!.payload).toEqual({
+      shareId,
+      classId,
+      sharerId: alpha.id,
+      recipientId: bravo.id,
+    });
+  });
+
+  test("the recipient cannot revoke -> 403 REVOKE_FORBIDDEN", async () => {
+    const shareId = await freshPendingShare("revoke-recipient");
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/shares/${shareId}/revoke`,
+      cookies: { pide_session: bravo.cookie },
+    });
+    expect(res.statusCode).toBe(403);
+    expect(res.json().error).toBe("Only the sharer or the class teacher can revoke a share.");
+  });
+
+  // CONTROLLER RULING: a TA sees the share exists (staff, not a stranger —
+  // maySee widened to isStaffRole) but is not the sharer or the teacher, so
+  // this lands on 403 REVOKE_FORBIDDEN, never the draft-404 a non-party gets.
+  test("a TA (class staff, not the sharer or teacher) cannot revoke -> 403 REVOKE_FORBIDDEN", async () => {
+    await testDb.insert(classMembers).values({ classId, userId: ta.id, role: "ta", status: "active" });
+    try {
+      const shareId = await freshPendingShare("revoke-ta");
+      const res = await app.inject({
+        method: "POST",
+        url: `/api/shares/${shareId}/revoke`,
+        cookies: { pide_session: ta.cookie },
+      });
+      expect(res.statusCode).toBe(403);
+      expect(res.json().error).toBe("Only the sharer or the class teacher can revoke a share.");
+    } finally {
+      await testDb
+        .delete(classMembers)
+        .where(and(eq(classMembers.classId, classId), eq(classMembers.userId, ta.id)));
+    }
+  });
+
+  test("revoking a share twice -> 409 SHARE_RESOLVED", async () => {
+    const shareId = await freshPendingShare("revoke-twice");
+    const first = await app.inject({
+      method: "POST",
+      url: `/api/shares/${shareId}/revoke`,
+      cookies: { pide_session: alpha.cookie },
+    });
+    expect(first.statusCode).toBe(200);
+    const second = await app.inject({
+      method: "POST",
+      url: `/api/shares/${shareId}/revoke`,
+      cookies: { pide_session: alpha.cookie },
+    });
+    expect(second.statusCode).toBe(409);
+    expect(second.json().error).toBe("That share has already been dealt with.");
   });
 });

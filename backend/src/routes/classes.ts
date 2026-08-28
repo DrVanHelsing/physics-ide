@@ -4,7 +4,7 @@ import {
   CreateClassInputSchema,
   UpdateClassSettingsInputSchema,
 } from "@physics-ide/shared";
-import { classes, classMembers } from "../db/schema.js";
+import { classes, classMembers, shares } from "../db/schema.js";
 import { requireConfirmed } from "../auth/guards.js";
 import { generateClassCode } from "../classes/codes.js";
 import {
@@ -122,6 +122,28 @@ export function classRoutes(app: FastifyInstance): void {
     if (Object.keys(patch).length === 0) return { class: toClassSummary(c, "teacher", true) };
     const updated = await app.db.transaction(async (tx) => {
       const [row] = await tx.update(classes).set(patch).where(eq(classes.id, id)).returning();
+      // D§8: the switch is a live control — new shares stop, PENDING
+      // hand-offs lapse. Accepted copies are the recipient's own projects
+      // and stand; the ledger keeps every row it ever wrote.
+      if (patch.peerSharing === false && c.peerSharing === true) {
+        const pending = await tx
+          .select()
+          .from(shares)
+          .where(and(eq(shares.classId, id), eq(shares.status, "pending")))
+          .for("update");
+        for (const s of pending) {
+          await tx
+            .update(shares)
+            .set({ status: "lapsed", resolvedAt: new Date() })
+            .where(eq(shares.id, s.id));
+          await logEvent(tx, "project.share_lapsed", req.user!.id, {
+            shareId: s.id,
+            classId: id,
+            sharerId: s.sharerId,
+            recipientId: s.recipientId,
+          });
+        }
+      }
       await logEvent(tx, "class.updated", req.user!.id, { classId: id, patch });
       return row;
     });
