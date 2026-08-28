@@ -161,8 +161,6 @@ Effective for the `feature/classroom-platform` branch onward:
 
 **What this amendment does not lift.** Design §9's exclusions stand: the notification bell and per-user notification preferences, admin data requests, rubric marking, **real email delivery** (mail goes to the pretend inbox — the admin console's Emails tab), the GCP port, BlobStore, and websockets / live co-editing. The exclusion-list bullets above that were lifted on 18 August 2026 stay lifted; every other v1 exclusion stands unchanged.
 
-## Amendment — Peer sharing (28 August 2026)
-
 **Peer sharing amendment (28 August 2026).** Peer sharing and the §8.3 attribution ledger are lifted from the exclusions above, exactly as decided in `docs/superpowers/specs/2026-08-28-classroom-platform-07-sharing-design.md`. Locked rows:
 
 - **A share is a named-peer hand-off of a frozen copy, with permanent credit** (D§1) — one sharer, one recipient, both active members of one class; no gallery, no feed, no message body, no live view.
