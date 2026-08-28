@@ -114,30 +114,131 @@ describe("the front page", () => {
     unmount();
   });
 
-  test("the non-claims list is honoured — no promise the product cannot keep", () => {
-    /* Every entry here bans a PROMISE, not a word. The bare /gradebook/i this
-       list shipped with banned the truthful "…and a gradebook are designed but
-       not shipped" as well as "our gradebook lets you…", which made the one
-       honest denial on the page unwritable — a test that forbids truth-telling
-       is the wrong shape. Verb-anchored, it still catches the claim. */
-    const banned = [
-      /version history/i, /restore a previous/i, /roll ?back/i,
-      /assignment[s]? (are|is) (available|here)/i, /marking is/i,
-      /gradebook (is|lets|gives|includes)/i,
+  /* ── The non-claims list ──────────────────────────────────────────────────
+     Every entry bans a PROMISE, not a word. The bare /gradebook/i this list
+     shipped with banned the truthful "…and a gradebook are designed but not
+     shipped" as much as "our gradebook lets you…", which made the one honest
+     denial on the page unwritable — a test that forbids truth-telling is the
+     wrong shape.
+
+     Honesty pass (2026-08-28). Two structural changes, both in service of the
+     same rule running in both directions:
+
+     1. **The bans run over COPY, not SRC.** Plan 6 shipped assignments,
+        submissions, marking, feedback, the gradebook, History and group work,
+        and WelcomePage.js's own comments now say so — and name, in plain
+        words, the four things Plan 6 §9 still excludes. Grepping raw source
+        would make the file's honest record of its own exclusions trip the very
+        bans that record them. So the bans run over the source with its
+        comments removed: the copy, which is what a visitor reads. The
+        stripping is asserted separately below, so it cannot silently decay
+        into a no-op that switches off every ban at once.
+
+     2. **Four entries were released**, because each banned a promise the
+        product now keeps, and a test may not forbid a truth:
+          /assignment[s]? (are|is) (available|here)/ — Stage A/B ship them
+          /marking is/                               — Stage C ships the room
+          /gradebook (is|lets|gives|includes)/       — Stage C ships it + CSV
+          /restore a previous/                       — Task 20 ships History
+                                                       restore (HistoryPage.js)
+        Nothing weaker took their place: §5's copy is pinned verbatim by "the
+        classrooms section speaks in the present tense" below, and
+        welcomeSubpages.test.js's launch-truth scope guard sweeps this page's
+        RENDERED text for every §9 exclusion alongside /about, /contact and
+        /teachers. This list is the source-level half of that pair.
+
+     "version history" and "roll back" stay banned, but for a different reason
+     than they were: design §6 fixes the vocabulary — the screen is **History**
+     and an entry is a **checkpoint** — so those two are a naming ban now, not
+     a capability one, and they are filed as such. ─────────────────────────── */
+  const COPY = SRC.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/^[ \t]*\/\/.*$/gm, " ");
+
+  const NON_CLAIMS = {
+    "the notification bell": [
+      /notification bell/i,
+      /\bbell\b/i,
+      /in-?app notifications?/i,
+    ],
+    "real email delivery": [
+      /we('| ha)?ve sent/i,
+      /check your inbox/i,
+      /real email/i,
+      /email delivery/i,
+    ],
+    "peer sharing": [
+      /peer sharing/i,
+      /share (your |their )?(work|projects?) with/i,
+      /based on work shared by/i,
+    ],
+    "admin data requests": [
+      /data requests?/i,
+      /export everything about/i,
+      /erased? completely/i,
+    ],
+    "capabilities the product simply does not have": [
       /exam mode/i, /lockdown/i, /collision/i, /cloud/i,
-      /we('| ha)?ve sent/i, /check your inbox/i,
       /every run captures/i, /unlimited/i, /schools? (use|trust)/i,
       /press run to see your analysis/i,
-    ];
-    for (const re of banned) expect(SRC).not.toMatch(re);
+    ],
+    "the History naming fiat (design §6 — the screen is History, an entry is a checkpoint)": [
+      /version history/i, /roll ?back/i,
+    ],
+  };
+
+  test("the non-claims list is honoured — no promise the product cannot keep", () => {
+    for (const [why, patterns] of Object.entries(NON_CLAIMS)) {
+      for (const re of patterns) {
+        expect(`${why}: ${COPY.match(re)?.[0] ?? "clean"}`).toBe(`${why}: clean`);
+      }
+    }
+  });
+
+  test("the comment strip removes commentary and keeps the copy — the bans above are not a no-op", () => {
+    expect(COPY.length).toBeLessThan(SRC.length);
+    // A comment the page carries, gone from COPY…
+    expect(SRC).toContain("THE NUMBERS LEDGER");
+    expect(COPY).not.toContain("THE NUMBERS LEDGER");
+    // …while every rendered string survives the strip.
+    expect(COPY).toContain("Built for classrooms.");
+    expect(COPY).toContain("Use the IDE — no account needed");
+  });
+
+  test("the non-claims list still names every Plan 6 §9 exclusion, and each pattern bites", () => {
+    /* The mechanism, not today's strings. Deleting a group from NON_CLAIMS is
+       the cheap way to make this file green while the page starts overclaiming,
+       so the four exclusions are asserted by name — and each is fed a sentence
+       that makes the claim, to prove the regex is not decoration. */
+    const sentences = {
+      "the notification bell": "A notification bell collects everything for you.",
+      "real email delivery": "We've sent you a link — check your inbox.",
+      "peer sharing": "Peer sharing lets a student pass work to a classmate.",
+      "admin data requests": "An admin can raise a data request for any person.",
+    };
+    for (const [key, sentence] of Object.entries(sentences)) {
+      expect(Object.keys(NON_CLAIMS)).toContain(key);
+      expect(NON_CLAIMS[key].length).toBeGreaterThan(0);
+      expect(NON_CLAIMS[key].some((re) => re.test(sentence))).toBe(true);
+    }
   });
 
   /* Launch-truth directive, controller-confirmed (2026-08-26): the site
      publishes to the public only once the classroom assignments build
      (Plan 6) is complete, so the "designed but not shipped" honesty panel
      this lock held no longer describes the launch system — it is deleted
-     along with the panel itself. See "the classrooms section..." below for
-     the present-tense replacement. */
+     along with the panel itself. The present-tense replacement is locked
+     below.
+
+     Honesty pass (2026-08-28): Plan 6 IS complete, so this lock stopped
+     being a promissory note and became a record. Each clause it pins was
+     re-derived from the tree that day — open teacher signup (auth.ts),
+     class creation from a name plus an optional label (classes.ts),
+     instructions/starter/rules on the assignments table, Start work's
+     private clone (assignment_work), submissions' frozen snapshots,
+     MarkingRoom.js and GradebookTab.js — and the derivation is written out
+     clause by clause in WelcomePage.js's own §5 comment so a future reader
+     can check it without re-reading the backend. The panel must stay gone:
+     re-introducing a "not yet built" card for a shipped feature is the same
+     failure as claiming an unshipped one, in the opposite direction. */
   test("the classrooms section speaks in the present tense, and the honesty panel is gone", () => {
     const { container, unmount } = mount();
     const section = container.querySelector('section[aria-labelledby="s-class"]');

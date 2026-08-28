@@ -13,8 +13,21 @@
  *
  * The rule this file is still written under (Plan 5, spec §18) is
  * unchanged: **if a claim cannot be pointed at a file, it does not ship.**
- * The one thing the product does not do yet is stated plainly in §5 below
- * rather than omitted.
+ * Plan 6's honesty pass (2026-08-28) made that rule run both ways. The
+ * "Not yet built" panel §5 used to carry is gone — the launch-truth pass
+ * retired it on 2026-08-26 — so this file may no longer call a shipped
+ * feature absent either: assignments, submissions, marking, feedback, the
+ * gradebook, History and group work all ship, and §5 says so in the
+ * present tense. Every one of those claims was re-read against the tree on
+ * 2026-08-28 and traced to a file. The absences that remain (the
+ * notification bell, real email delivery, peer sharing, admin data
+ * requests — Plan 6 §9) are kept out of the copy by two mechanisms rather
+ * than by memory: welcomePage.test.js's non-claims list greps this SOURCE
+ * (comments included), and welcomeSubpages.test.js's launch-truth scope
+ * guard sweeps this page's RENDERED text alongside /about, /contact and
+ * /teachers. The dated record of what shipped when lives where a changelog
+ * belongs — docs/classroom-platform.md §18 and docs/product-contract.md's
+ * 28 August 2026 amendment — not in marketing copy on the front page.
  *
  * ── THE NUMBERS LEDGER ───────────────────────────────────────────────────
  * Every numeral on the page (now the closing ribbon, RIBBON below), and
@@ -35,8 +48,20 @@
  *                          histogram, box (Charts drawer) and scatter_fit
  *                          (Analyzing Relationships).
  *   14 doc sections      components/HelpPage.js — 14 section objects
- *   0 servers            GlowScript is vendored, Monaco and Blockly are
- *                          bundled, the data-science blocks run as JS.
+ *   0 servers doing      The ribbon's label carries the scope, and the scope
+ *   your physics           is the whole claim: GlowScript is vendored, Monaco
+ *                          and Blockly are bundled, and the data-science
+ *                          blocks run as JS, so every simulation and every
+ *                          analysis executes in the visitor's own browser.
+ *                          It is NOT a claim that the product has no backend.
+ *                          Since Plan 1 the classroom half runs a Fastify +
+ *                          PostgreSQL service for accounts, classes,
+ *                          assignments, submissions and marks
+ *                          (product-contract.md's 18 August 2026 amendment);
+ *                          what it never runs is anybody's physics. Checked
+ *                          again in the 2026-08-28 honesty pass, because "0
+ *                          servers" read without its label would now be the
+ *                          page's one false numeral.
  *   3 keycaps shown      utils/hotkeys.js matchHotkey — Ctrl/Cmd+Enter and bare
  *                          F5 both return "runToggle": Run and Stop are ONE
  *                          button in the viewport header and the keyboard
@@ -573,12 +598,26 @@ export default function WelcomePage() {
         </p>
       </section>
 
-      {/* §5 — "For classrooms": launch-truth copy pass (2026-08-26,
-          controller-confirmed). The site publishes only once the classroom
-          assignments build (Plan 6) is complete, so this section describes
-          the finished system in the present tense rather than today's tree
-          — standard pre-launch product copy, true at publication. See
-          TeachersPage.js's own header comment for the scope citation
+      {/* §5 — "For classrooms". The launch-truth copy pass (2026-08-26,
+          controller-confirmed) wrote this section in the present tense
+          ahead of the build, on the premise that the site publishes only
+          once the classroom assignments build (Plan 6) is complete.
+          Plan 6 is complete, and the honesty pass (2026-08-28) re-read
+          every clause below against the shipped tree instead of against
+          that premise. All three hold, sentence by sentence:
+            · open teacher signup, no approval queue — routes/auth.ts's
+              signup takes the teacher choice from the form itself, and
+              nothing gates it; classes.ts's POST /api/classes wants a name
+              and an optional label.
+            · instructions / pinned starter / workspace rules — the
+              assignments table carries instructions jsonb, a frozen
+              starter manifest copy and rules jsonb; RulesPicker.js offers
+              the three BUILT_IN_RULE_SETS.
+            · private copy, submit, mark, gradebook — Start work clones the
+              starter into an ordinary private project (assignment_work),
+              submissions freeze a snapshot, MarkingRoom.js reads it, and
+              GradebookTab.js grids every released mark.
+          See TeachersPage.js's own header comment for the scope citation
           (Plan 6 §1's stage table) and its §9 exclusion list; this section
           claims nothing past either. */}
       <section className={`welcome-section welcome-cat-${CAT.classrooms} welcome-reveal`} aria-labelledby="s-class">
