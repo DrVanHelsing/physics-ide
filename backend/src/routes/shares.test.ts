@@ -399,3 +399,76 @@ describe("POST /api/shares — the hand-off", () => {
     expect(res.statusCode).toBe(401);
   });
 });
+
+/* The gate's rules loop refuses on BOTH an unparseable rules blob and a
+ * parsed one with exportAndCopy off — one sentence, two branches. Without a
+ * positive case the whole loop could be refusing everything (a schema that
+ * failed to parse open_practice, say) and the export-off row would still be
+ * green, so the pair below pins the loop from both sides. */
+describe("POST /api/shares — the assignment-rules loop, both ways", () => {
+  /** The rules fixture: alpha's project linked to an assignment as her work. */
+  async function withWork(
+    projectId: string,
+    updatedAt: number,
+    rules: unknown,
+    run: () => Promise<void>,
+  ) {
+    await pushProject(alpha.id, projectId, {
+      schemaVersion: 2,
+      id: projectId,
+      title: "Rules Fixture",
+      goal: "physics",
+      projectType: "custom",
+      createdAt: 1000,
+      updatedAt,
+    });
+    const a = await insertAssignment({ individualWork: false, rules });
+    await testDb.insert(assignmentWork).values({
+      assignmentId: a.id,
+      userId: alpha.id,
+      ownerId: alpha.id,
+      projectId,
+    });
+    // The link is the whole point of these two tests — if it silently failed
+    // to land, the loop would never run and a 201 would prove nothing.
+    const linked = await testDb
+      .select()
+      .from(assignmentWork)
+      .where(and(eq(assignmentWork.ownerId, alpha.id), eq(assignmentWork.projectId, projectId)));
+    expect(linked).toHaveLength(1);
+    try {
+      await run();
+    } finally {
+      // assignment_work cascades with its assignment.
+      await testDb.delete(assignments).where(eq(assignments.id, a.id));
+      await testDb.delete(shares).where(eq(shares.sourceProjectId, projectId));
+    }
+  }
+
+  test("rules that allow export -> 201, the loop lets the share through", async () => {
+    await withWork("p-rules-ok", 8000, BUILT_IN_RULE_SETS.open_practice, async () => {
+      const res = await postShare(alpha.cookie, { projectId: "p-rules-ok" });
+      expect(res.statusCode).toBe(201);
+      expect(res.json().share.status).toBe("pending");
+      const rows = await testDb
+        .select()
+        .from(shares)
+        .where(eq(shares.sourceProjectId, "p-rules-ok"));
+      expect(rows).toHaveLength(1);
+      expect(rows[0].sourceClientUpdatedAt).toBe(8000);
+    });
+  });
+
+  test("rules that will not parse -> 403, failing closed on the export sentence", async () => {
+    await withWork("p-rules-junk", 9000, { nonsense: true }, async () => {
+      const res = await postShare(alpha.cookie, { projectId: "p-rules-junk" });
+      expect(res.statusCode).toBe(403);
+      expect(res.json().error).toBe(
+        "This assignment's rules don't allow copies to leave the workspace.",
+      );
+      expect(
+        await testDb.select().from(shares).where(eq(shares.sourceProjectId, "p-rules-junk")),
+      ).toHaveLength(0);
+    });
+  });
+});
