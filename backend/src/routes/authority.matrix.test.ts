@@ -777,7 +777,11 @@ const MATRIX: Array<{ file: string; rows: Row[] }> = [
           ta: NOT_GROUP_MEMBER,
           teacher: NOT_GROUP_MEMBER,
           studentOut: NOT_GROUP_MEMBER,
-          // A member of the group, but nobody is holding the baton.
+          // A member of the group, but nobody is holding the baton — and
+          // nobody can be: the baton/take row above omits `studentIn` (its
+          // one allowed seat), so no test in this file ever takes the lease.
+          // Declaration order is what guarantees that, since the runner emits
+          // tests in MATRIX order and vitest runs a file's tests in order.
           studentIn: NO_BATON,
         },
       },
@@ -1053,6 +1057,17 @@ describe("the authority matrix — coverage", () => {
       (name) => !registered.has(name),
     );
     expect(stale).toEqual([]);
+  });
+
+  test("no row is vacuously empty", () => {
+    // The runner iterates `Object.entries(row.expect)`, so a row emptied to
+    // `{}` emits ZERO tests while still satisfying all three checks above —
+    // a silenced row would pass as covered. Non-empty is the whole bar: a
+    // single seat is legitimate (the two self-scoped projects.ts rows carry
+    // only `anon`, and that omission is load-bearing), so no minimum count.
+    for (const r of MATRIX.flatMap((s) => s.rows)) {
+      expect(Object.keys(r.expect).length, r.name).toBeGreaterThan(0);
+    }
   });
 
   test("the enumeration adds up: 59 mutating routes = 50 rows + 9 skips", async () => {
