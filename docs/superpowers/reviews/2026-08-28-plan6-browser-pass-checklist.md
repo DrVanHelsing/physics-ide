@@ -3,10 +3,12 @@
 > The one pass automation cannot replace. **Both themes, every item.**
 > Automated context: shared/backend/frontend suites green, IDE e2e 164/164,
 > and the new portal golden flow (`node frontend/scripts/portal-e2e.mjs`,
-> 38/41) covering teacher authoring → student submit → marking → release →
-> gradebook → feedback. This checklist is the human judgment on top: does it
-> *read* right, does it *feel* right — and it starts with the one flow no
-> automated test covers end to end.
+> **39/41 — 38/41 when the intermittent one bites**) covering teacher
+> authoring → student submit → marking → release → gradebook → feedback. The
+> red checks are the three defects recorded at the end of this file, not
+> harness noise. This checklist is the human judgment on top: does it *read*
+> right, does it *feel* right — and it starts with the one flow no automated
+> test covers end to end.
 
 ## 0. Groups and the baton — TWO BROWSERS, do this one first
 
@@ -111,15 +113,21 @@ script's, and Task 26 did not touch product code:
    nothing — so both take the create branch and one dies on
    `projects_owner_id_id_pk`, returning 500. The engine reads that as
    `error`, and `assertPushSucceeded` refuses with a connectivity sentence
-   that is not what happened. Pressing Start work again succeeds.
-2. **Start work lands on the start menu, not in the work.** `startWork.js`
+   that is not what happened. Pressing Start work again succeeds. **This is
+   the intermittent one — roughly half of runs** (2 of 4 at hand-over), and
+   it is the whole difference between a 38/41 and a 39/41 result. Press Start
+   work a few times by hand; if it never refuses, you have been lucky, not
+   fixed.
+2. **Start work lands on the start menu, not in the work — every run.**
+   `startWork.js`
    stamps `LAST_PROJECT_KEY` and calls `navigate("/")` — a client-side
    transition — while `ProjectContext` reads that key only in its
    once-per-app-load bootstrap. In a single-page session the student arrives
    at the IDE with no project open and their assignment sitting under
    "Continue". A full reload opens it. `MarkingRoom`'s "Open a test copy"
    is the same shape and presumably the same bug — worth checking by hand.
-3. **Three rule-less classes** — markup carrying a class no stylesheet
+3. **Three rule-less classes — the sweep's two fail every run** — markup
+   carrying a class no stylesheet
    defines: `.brief-pane__footer` (`BriefPane.js`, the Submit footer),
    `.rich-text-editor` (`RichTextEditor.js`, the instructions editor
    wrapper), and `.btn--small` (`HistoryTimeline.js:107` — the retired

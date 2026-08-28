@@ -534,15 +534,26 @@ readable result (including the per-screen sweeps) in
 student account each time, so it is safe to re-run against a dev database that
 is never reset.
 
-**Three checks are RED at hand-over**, on genuine product defects the flow
-found rather than on the harness — recorded here so a later run is read
-correctly and not "fixed" by weakening the checks: Start work is intermittently
-refused by a concurrent double-push of the same new project (`PUT
-/api/projects/:id` is not race-safe when creating); Start work then lands on
-the start menu instead of the work (`LAST_PROJECT_KEY` is only read at app
-boot, but `navigate("/")` is a client-side transition); and `.brief-pane__footer`
-plus `.rich-text-editor` carry no CSS rule. Details and a third rule-less class
-(`.btn--small` in `HistoryTimeline.js`) are in
+**A clean run is 39/41 — two checks are RED at hand-over**, on genuine product
+defects the flow found rather than on the harness. Recorded here so a later run
+is read correctly and not "fixed" by weakening the checks:
+
+- **Check 20, every run.** Start work lands on the start menu instead of in the
+  work — `LAST_PROJECT_KEY` is only read at app boot, but `navigate("/")` is a
+  client-side transition.
+- **Check 40, every run.** `.brief-pane__footer` and `.rich-text-editor` carry
+  no CSS rule.
+
+A **third** defect sits behind check 19 and is **intermittent — it failed
+roughly half the runs** (2 of 4 at hand-over): Start work is refused with
+"Could not reach the server" when two callers push the same brand-new project
+concurrently and `PUT /api/projects/:id` takes its non-race-safe create branch.
+So **38/41 is an equally expected result**, and a run that reports 39/41 has
+not fixed anything — it simply won the race. Until all three are fixed, treat
+38 or 39 of 41 as the baseline and read the named failures, not the count.
+
+Details, plus a third rule-less class the flow does not reach (`.btn--small` in
+`HistoryTimeline.js`), are in
 `docs/superpowers/reviews/2026-08-28-plan6-browser-pass-checklist.md`.
 
 **Still uncovered after that lands**, and the reason spec §18's
