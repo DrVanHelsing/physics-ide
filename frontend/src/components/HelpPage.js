@@ -167,7 +167,7 @@ const SEARCH_INDEX = [
   {
     id: "educators",
     title: "For Educators",
-    content: "educators teachers classroom students physics data science guided learning assessment print PDF trace table lesson plan curriculum deployment Vercel",
+    content: "educators teachers classroom students physics data science guided learning assessment print PDF trace table lesson plan curriculum deployment Vercel classes class code join QR invite assignments instructions starter project workspace rules open practice standard classwork locked assessment guides submissions submit receipt fingerprint late marking marking room test copy teaching assistant draft release return gradebook CSV export pairs groups editing baton accounts sign in teacher account backend Fastify PostgreSQL 200 account cap",
   },
   {
     id: "shortcuts",
@@ -2145,11 +2145,13 @@ angle = clamp(input_angle, -30, 30)`}</Pre>
                 </li>
                 <li>
                   <strong>Instant 3D feedback</strong> — simulations run in under a second with no
-                  installation required. Any device with a modern browser can run Physics IDE.
+                  installation required. Any laptop or desktop with a modern browser runs Physics
+                  IDE; 1024px is the supported width floor.
                 </li>
                 <li>
                   <strong>Export for assessment</strong> — PDF export (blocks and code) provides clean
-                  submission artefacts.
+                  submission artefacts when you are marking off-platform. Inside a class, students
+                  hand work in directly and you mark it here (see below).
                 </li>
               </ul>
 
@@ -2278,18 +2280,71 @@ angle = clamp(input_angle, -30, 30)`}</Pre>
                 </div>
               </div>
 
+              <h3 className="help-h3">Classes, assignments and marking</h3>
+              <p>
+                Physics IDE is also a classroom platform. Signing in is optional — a guest gets
+                the whole IDE with nothing held back — but a signed-in teacher can create a class
+                and set work against it. Anyone may sign up as a teacher; there is no approval
+                queue.
+              </p>
+              <ul className="help-list">
+                <li>
+                  <strong>A class</strong> — created from a name and an optional subject or year
+                  label. Students join by a short code, a link, a QR code on the board, or an
+                  email invite. Joining is open, by approval, or paused.
+                </li>
+                <li>
+                  <strong>Assignments</strong> — instructions written as a real document (headings,
+                  images, formulas, embedded video), an optional pinned starter project, dates and
+                  points, and workspace rules that decide which tools the student has while
+                  working. Three presets ship — open practice, standard classwork, locked
+                  assessment — and a teacher can save their own combination.
+                </li>
+                <li>
+                  <strong>Submissions</strong> — the student works in a private copy and hands it
+                  in. The receipt carries a fingerprint of exactly what was submitted, and work
+                  handed in after the due date is labelled late.
+                </li>
+                <li>
+                  <strong>Marking</strong> — the submission opens as a read-only script; running it
+                  means opening a test copy, which lands in the marker's own projects. Marks and
+                  comments can be drafted by a teaching assistant and are released by the teacher,
+                  or the work is returned for changes and reopens.
+                </li>
+                <li>
+                  <strong>Gradebook</strong> — every released mark for the class in one grid,
+                  exportable to CSV.
+                </li>
+                <li>
+                  <strong>Pairs and groups</strong> — one shared project per group, an editing
+                  baton so only one member writes at a time, and a submission that credits every
+                  member.
+                </li>
+              </ul>
+              <Note type="info">
+                Physics and data analysis never move to a server, with or without an account.
+                Only the classroom records do.
+              </Note>
+
               <h3 className="help-h3">Deploying to students</h3>
               <p>
-                Physics IDE is a static React single-page application with no backend, no
-                accounts, and no data uploaded to any server. The production build can be deployed
-                to any static hosting service — Vercel, Cloudflare Pages, Netlify, GitHub Pages,
-                or a school web server. Students access it via URL in any modern browser with no
-                accounts or downloads required.
+                The IDE itself is a static React single-page application: it runs entirely in the
+                browser, and a guest needs no account and uploads nothing. Built that way, it can
+                be deployed to any static hosting service — Vercel, Cloudflare Pages, Netlify,
+                GitHub Pages, or a school web server — and students reach it by URL with nothing
+                to install and no account to create.
+              </p>
+              <p>
+                The classroom half needs one more piece alongside that static build: accounts,
+                classes, assignments, submissions and marks live in a Fastify and PostgreSQL
+                service. It is one small server for one school, hard-capped at 200 accounts, and
+                it never runs anybody's physics.
               </p>
               <Pre>{`# Run locally:\nnpm install\nnpm start\n\n# Build for production:\nnpm run build\n\n# Deploy to Vercel:\nvercel --prod`}</Pre>
               <p>
-                See <Code>DEPLOY.md</Code> in the project root for full Vercel and Cloudflare
-                Pages instructions including SPA rewrite configuration and CI smoke tests.
+                See <Code>DEPLOY.md</Code> in the project root for the static build's full Vercel
+                and Cloudflare Pages instructions, including SPA rewrite configuration and CI
+                smoke tests.
               </p>
             </section>
 

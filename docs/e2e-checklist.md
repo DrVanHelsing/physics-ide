@@ -488,17 +488,44 @@ See `frontend/docs/ux-audit.md` for full findings.
 
 ---
 
-## Not yet covered — the portal (recorded 2026-08-25, Plan 5 wrap-up)
+## Not yet covered — the portal (recorded 2026-08-25, Plan 5 wrap-up; widened 2026-08-28, Plan 6)
 
-Five surfaces have **zero e2e coverage**: `/welcome`, the auth screens
-(`/auth/*`, `/profile`), `/classes` (wall, class tabs), `/join` (+ invite
-landing), and `/admin`. They are component-tested (`npm run test -w frontend`)
-and five conformance suites (`platformTokens`, `welcomeTokens`,
-`primitivesTokens`, `portalControls`, `iconsIdiom`) hold the design-system
-rules, but no browser automation drives the golden flows (sign-up → confirm →
-create class → join by code → sync). Spec §18's forward-reference item 6 is
-the tracking record; add the stack briefing's §5 design regressions alongside
-the golden flows when this is picked up.
+Five surfaces were recorded here at Plan 5's wrap with **zero e2e coverage**:
+`/welcome`, the auth screens (`/auth/*`, `/profile`), `/classes` (wall, class
+tabs), `/join` (+ invite landing), and `/admin`.
+
+**Plan 6 widened the gap before it began closing it.** Everything the
+assignments build shipped arrived with no browser coverage either: the
+assignment editor and guide pages, the student assignment page, the in-IDE
+brief pane and workspace-rules chip, the submissions inbox and the marking
+room, the gradebook and its CSV export, the History screen, and group
+formation with the editing baton. Recording that honestly is the point of this
+section — the list of what is covered must not quietly stop growing while the
+product does.
+
+What holds today without a browser: `npm run test -w frontend` covers all of
+the above at the component level, and the conformance suites (`platformTokens`,
+`welcomeTokens`, `primitivesTokens`, `assignmentsTokens`, `tokenRamp`,
+`portalControls`, `iconsIdiom`) hold the design-system rules.
+
+**First repayment — landing with Plan 6's final task (Task 26).**
+`frontend/scripts/portal-e2e.mjs` drives one browser run of the golden flow:
+teacher signs in → creates a class → authors and publishes an assignment →
+student signs up, confirms via the pretend inbox, joins by code, opens the
+assignment, starts work (brief pane and rules chip present), edits and submits
+with a fingerprint → teacher's inbox shows 1 of 1, the marking room renders the
+snapshot, a mark is saved and released → the gradebook shows it → the student
+sees the feedback. Run it with `node frontend/scripts/portal-e2e.mjs` against a
+dev server on `:3000`.
+
+**Still uncovered after that lands**, and the reason spec §18's
+forward-reference item 6 stays open: `/admin`, the invite landing, `/profile`,
+two-browser group work with the editing baton, the gradebook CSV opened in a
+real spreadsheet, the History restore round-trip, and the stack briefing's §5
+design regressions. Those are handed to a human browser pass — the Plan 6
+checklist joins `2026-08-22-plan4-browser-pass-checklist.md` and
+`2026-08-25-plan5-browser-pass-checklist.md` under
+`docs/superpowers/reviews/` — until a script takes them over.
 
 ---
 

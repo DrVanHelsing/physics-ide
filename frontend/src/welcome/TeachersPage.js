@@ -9,16 +9,33 @@ import WelcomeSubpage from "./WelcomeSubpage";
  * Launch-truth copy pass (2026-08-26, controller-confirmed): the site
  * publishes to the public only once the classroom assignments build — Plan
  * 6, docs/superpowers/specs/2026-08-25-classroom-platform-06-assignments-
- * design.md — is complete on main, so this page describes the finished
- * system in the present tense rather than today's tree. That is standard
- * pre-launch product copy, not dishonesty: every claim below traces to
- * Plan 6 §1's stage table (teacher authoring, student
- * submissions, the marking room, the gradebook, pairs/groups, guide pages)
- * and will be true the day this page goes live. Nothing here reaches past
- * that table — §9 of the same document lists what launch deliberately
+ * design.md — is complete on main, so this page was written in the present
+ * tense ahead of the tree, against Plan 6 §1's stage table (teacher
+ * authoring, student submissions, the marking room, the gradebook,
+ * pairs/groups, guide pages).
+ *
+ * Honesty pass (2026-08-28): Plan 6 is complete, so every sentence here was
+ * re-read against the SHIPPED code rather than against that table. Two
+ * claims had drifted past what ships and are corrected:
+ *
+ *   1. "four tabs: Assignments, Guides, People and Settings" — Plan 6 added
+ *      a fifth, Gradebook (ClassChrome.js's `tabs`, staff-visible). Now
+ *      five, with the note that a student sees the first two.
+ *   2. "Marking opens a submission read-only in the full IDE — a script you
+ *      can watch run" — it does not, and that is the point of the design:
+ *      MarkingRoom.js renders the snapshot through SubmissionViewer.js (the
+ *      IDE's ReadOnlyBlockly + a read-only Monaco, on a tab each) and the
+ *      ONLY way to run a submission is "Open a test copy", which writes a
+ *      fresh project into the teacher's own space and opens the full IDE on
+ *      that. The old sentence promised a runnable read-only script, which
+ *      would be a live document — exactly the thing spec §7.2 forbids.
+ *
+ * Everything else verified as it stands. Nothing here reaches past the
+ * stage table — §9 of the same document lists what launch deliberately
  * excludes (the notification bell, rubric marking, peer sharing, real email
- * delivery, admin data requests), and none of those are claimed here or
- * anywhere else on the public pages.
+ * delivery, admin data requests), none of those are claimed here or
+ * anywhere else on the public pages, and welcomeSubpages.test.js's
+ * launch-truth scope guard sweeps all four pages for them on every run.
  */
 export default function TeachersPage() {
   return (
@@ -27,7 +44,8 @@ export default function TeachersPage() {
         Physics IDE is free for any teacher to try. Sign up, create a class,
         and put your students to work inside the same browser-based physics
         lab guests already use &mdash; no procurement, no approval queue,
-        and no server for you to run.
+        and nothing for you or your students to install. Your school runs
+        one small installation; you just sign in to it.
       </p>
 
       <h2>Start a class in a minute</h2>
@@ -44,9 +62,10 @@ export default function TeachersPage() {
         waiting list until you confirm them.
       </p>
       <p>
-        Inside a class there are four tabs: Assignments, Guides, People and
-        Settings. People holds the roster, the join code and the pending
-        invites; Settings holds the class name and its join policy.
+        Inside a class you have five tabs: Assignments, Guides, Gradebook,
+        People and Settings &mdash; a student sees the first two. People
+        holds the roster, the join code and the pending invites; Settings
+        holds the class name and its join policy.
       </p>
 
       <h2>Assignments with real instructions</h2>
@@ -85,13 +104,23 @@ export default function TeachersPage() {
 
       <h2>The marking room</h2>
       <p>
-        Marking opens a submission read-only in the full IDE &mdash; a
-        script you can watch run, never a live document either of you could
-        accidentally edit. Make a test copy any time you want to explore
-        past reading. A teaching assistant can draft marks and comments
-        against a submission, but nothing reaches a student until you
-        release it; return a submission for changes instead, and that
-        student&rsquo;s work reopens.
+        Every published assignment has an inbox: who has submitted, who is
+        late, who is missing, and a reminder you can send to the students
+        who still owe you work.
+      </p>
+      <p>
+        Marking opens the submission as a read-only script &mdash; the
+        student&rsquo;s blocks and their code, a tab each, in the
+        IDE&rsquo;s own editors, frozen exactly as they were handed in.
+        Neither of you can edit it, by accident or otherwise. To run it,
+        open a test copy: that lands in your own projects and the full IDE
+        opens on it, leaving what the student submitted untouched.
+      </p>
+      <p>
+        A teaching assistant can draft marks and comments against a
+        submission, but nothing reaches a student until you release it;
+        return a submission for changes instead, and that student&rsquo;s
+        work reopens.
       </p>
       <p>
         Every released mark lands in a single gradebook for the class, and

@@ -16,6 +16,18 @@ import WelcomeSubpage from "./WelcomeSubpage";
  * in the present tense. It still claims nothing past Plan 6 §1's stage
  * table; §9's exclusions (the notification bell, rubric marking, peer
  * sharing, real email delivery, admin data requests) are not named here.
+ *
+ * Honesty pass (2026-08-28): Plan 6 is complete, so every claim on this
+ * page was re-read against the shipped code rather than against that stage
+ * table. All of it holds except the privacy paragraph under "No
+ * surveillance layer", which had gone stale in the *understating*
+ * direction — see its own comment below. The rest, spot-checked to source:
+ * five roles — spec §2.1's table is Guest, Student, TA, Teacher, Admin, and
+ * in code that is `CLASS_ROLES` (student/ta/teacher) plus `ACCOUNT_ROLES`
+ * (user/admin) in shared/src/roles.ts, the guest being precisely the person
+ * with no account; three join policies (open / approval / paused); the
+ * 100-project cap (`MAX_PROJECTS_PER_USER`, backend/src/routes/projects.ts);
+ * the 200-account cap (admin.ts's `account_cap` setting, default 200).
  */
 export default function AboutPage() {
   return (
@@ -73,18 +85,38 @@ export default function AboutPage() {
       </p>
 
       <h2>No surveillance layer</h2>
-      {/* Aligned word-for-word with WelcomePage.js §12's own wording (the
-          shipped record) after a fix-round review caught an overclaim here:
-          this page previously said "who made, shared and joined what",
-          which is the not-yet-shipped assignments/sharing ledger's scope
-          (docs/classroom-platform.md §8.1's share ledger), not what actually
-          ships. What ships is exactly signups, joins and join requests. */}
+      {/* Honesty pass (2026-08-28) — the sentence below was rewritten, and
+          this comment with it. Its two predecessors both misdescribed the
+          ledger. The first overclaimed ("who made, shared and joined what"
+          — the scope of §8.3's peer-sharing ledger, which is NOT shipped
+          and is a Plan 6 §9 exclusion). The correction then underclaimed:
+          it said the record was "account signups, class joins and join
+          requests — that is the whole of the monitoring", aligned to
+          WelcomePage.js's then-§12 panel, and that sentence stopped being
+          true the moment Plan 6 landed. `logEvent` (backend/src/db/events.ts)
+          now writes more than forty kinds of row (43 written as string
+          literals, plus the ternary and constant call sites) across
+          auth.ts, classes.ts, invites.ts,
+          members.ts, projects.ts, assignments.ts, groups.ts, guides.ts,
+          admin.ts and tick.ts — assignment created/published/closed, work
+          started, submitted, marks drafted/released/returned, groups formed
+          and the baton taken, and (design §6) every teacher read of a
+          student's timeline. A privacy paragraph that undercounts what is
+          recorded is as dishonest as one that overclaims a feature, so the
+          copy now names the shape of the record instead of a stale list.
+          Still deliberately absent, per §8.2 and unchanged: any similarity
+          scan, any paste or typing telemetry, any webcam or screen capture
+          — and the peer-sharing ledger, which cannot be claimed until
+          sharing ships. */}
       <p>
-        The platform keeps an append-only record of account signups, class
-        joins and join requests &mdash; that is the whole of the monitoring,
-        and it exists so a join can be audited, not so a student can be
-        watched. It does not scan for copied work, does not watch how you
-        type, and has no webcam or screen monitoring of any kind.
+        The platform keeps one append-only record of the actions accounts
+        take: signing up, joining a class or asking to, publishing an
+        assignment, handing work in, releasing a mark, forming a group
+        &mdash; and, so that the trail cuts both ways, every time a teacher
+        opens a student&rsquo;s timeline. It exists so an action can be
+        checked afterwards, never so a person can be watched while they
+        work. It does not scan for copied work, does not watch how you type,
+        and has no webcam or screen monitoring of any kind.
       </p>
 
       <h2>Accessibility</h2>
@@ -109,12 +141,27 @@ export default function AboutPage() {
         enterprise tier; the design stays small because the constraint is
         real.
       </p>
+      {/* Honesty pass (2026-08-28): this paragraph used to end "there is no
+          bill whose failure could switch anything off", which was true of
+          the browser-only v1 and stopped being true when the classroom
+          platform gained a backend (product-contract.md's 18 August 2026
+          amendment). The local-first promise it was really making still
+          holds exactly — and holds in the part that matters — so the
+          paragraph now says which part, instead of claiming the whole
+          product has no server bill. Two things are deliberately NOT
+          claimed here: that the classroom layer is free to run, and spec
+          §12's "the cloud parts sleep when nobody is using them", which
+          describes the GCP step and is not shipped (design §9). */}
       <p>
         A hosted tool lasts only as long as someone keeps paying for its
-        servers. This one has no such dependency: the physics runs on the
-        user's own machine, projects save there first, the account cap is
-        enforced by the software itself, and there is no bill whose failure
-        could switch anything off.
+        servers. The part of this one that does the work has no such
+        dependency: the physics and the analysis run on your own machine and
+        projects save there first, so an installation that went dark
+        tomorrow would leave the IDE, and every project on your computer,
+        working exactly as it does today. What a lapsed bill would reach is
+        the classroom layer around it &mdash; classes, assignments and marks
+        &mdash; and that layer is deliberately small: one installation for
+        one school, capped by the software itself at 200 accounts.
       </p>
     </WelcomeSubpage>
   );

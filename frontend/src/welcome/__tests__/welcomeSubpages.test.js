@@ -60,20 +60,39 @@ describe("AboutPage — /about", () => {
     expect(text).toContain("hard-capped at 200 accounts");
   });
 
-  /* Moved after a fix-round review: the surveillance sentence originally
-     claimed the record covers "who made, shared and joined what", which is
-     the not-yet-shipped assignments/sharing ledger's scope, not what ships.
-     This lock now holds the corrected sentence to WelcomePage.js §12's own
-     wording word-for-word, and separately bans the overclaim so it cannot
-     silently come back. */
-  test("the surveillance sentence claims exactly what ships, matching §12", () => {
+  /* This lock has now been wrong in both directions, which is why it is
+     written the way it is.
+
+     First it held an OVERCLAIM: the record covered "who made, shared and
+     joined what" — the scope of §8.3's peer-sharing ledger, which is not
+     shipped and is a Plan 6 §9 exclusion. A fix round replaced that with
+     "account signups, class joins and join requests — that is the whole of
+     the monitoring", pinned word-for-word to WelcomePage.js's then-§12 panel.
+
+     Honesty pass (2026-08-28): that replacement became an UNDERCLAIM the
+     moment Plan 6 landed. `logEvent` writes more than forty kinds of row
+     today — assignments created and published, work started and submitted,
+     marks drafted, released and returned, groups formed, the baton taken,
+     and every teacher read of a student's timeline. A privacy paragraph that
+     undercounts what is recorded is exactly as dishonest as one that
+     overclaims a feature, and on a privacy paragraph it is the worse of the
+     two failures. The copy now names the record's shape, so it cannot rot
+     again each time a route gains an event; the lock pins the shape, both
+     old wordings are banned, and the "not a surveillance layer" promise —
+     the part that actually constrains the build — is pinned hardest. */
+  test("the surveillance sentence claims exactly what the ledger records — neither more nor less", () => {
     const container = render(<AboutPage />);
     const text = container.textContent.replace(/\s+/g, " ");
+    expect(text).toContain("one append-only record of the actions accounts take");
+    // &rsquo; in the markup — a typographic apostrophe in the rendered text.
+    expect(text).toContain("every time a teacher opens a student’s timeline");
     expect(text).toContain(
-      "an append-only record of account signups, class joins and join requests",
+      "so an action can be checked afterwards, never so a person can be watched while they work",
     );
-    expect(text).toContain("that is the whole of the monitoring");
+    // The overclaim (peer sharing, still unshipped) stays banned…
     expect(text).not.toMatch(/who made,?\s*shared and joined/i);
+    // …and so does the underclaim that replaced it.
+    expect(text).not.toMatch(/that is the whole of the monitoring/i);
   });
 
   /* Launch-truth directive, controller-confirmed (2026-08-26): the site
@@ -114,8 +133,19 @@ describe("AboutPage — /about", () => {
     // Guest import and limits
     expect(text).toContain("Signing up after working as a guest");
     expect(text).toContain("100 projects per account");
-    // Local-first dependency
-    expect(text).toContain("no bill whose failure could switch anything off");
+    /* Local-first dependency. Honesty pass (2026-08-28): the sentence this
+       pinned — "there is no bill whose failure could switch anything off" —
+       was true of the browser-only v1 and false once the classroom platform
+       gained a backend. The promise underneath it is unchanged and still
+       kept, so the lock now holds the scoped version: the IDE and the
+       projects on your own machine survive the server going away, and the
+       claim stops there. The unscoped absolute is banned so it cannot creep
+       back with a copy edit. */
+    expect(text).toContain(
+      "would leave the IDE, and every project on your computer, working exactly as it does today",
+    );
+    expect(text).toContain("one installation for one school");
+    expect(text).not.toMatch(/no bill whose failure/i);
   });
 });
 
@@ -184,7 +214,14 @@ describe("TeachersPage — /teachers", () => {
     expect(signIn.getAttribute("href")).toBe("/auth/signin");
   });
 
-  test("covers what's live today: open signup, class creation, all four join methods, the four class tabs, and the admin console", () => {
+  /* Honesty pass (2026-08-28): "the four class tabs" was true when this lock
+     was written and false by the time Plan 6 landed — ClassChrome.js's `tabs`
+     gained a staff-visible Gradebook, making five for a teacher and two for a
+     student. The count is asserted here in the copy's own words rather than
+     left to a reader's memory of the class shell. The admin console's four
+     tabs are unchanged (AdminConsole.js's TABS: People, Classes, Emails,
+     Health). */
+  test("covers what's live today: open signup, class creation, all four join methods, the five class tabs, and the admin console", () => {
     const container = render(<TeachersPage />);
     const text = container.textContent.replace(/\s+/g, " ");
     expect(text).toContain("Anyone may sign up as a teacher");
@@ -193,7 +230,8 @@ describe("TeachersPage — /teachers", () => {
     expect(text).toContain("a copyable link");
     expect(text).toContain("QR code");
     expect(text).toContain("email invite");
-    expect(text).toContain("Assignments, Guides, People and Settings");
+    expect(text).toContain("Assignments, Guides, Gradebook, People and Settings");
+    expect(text).toContain("a student sees the first two");
     expect(text).toContain("admin console covers four tabs");
   });
 
@@ -215,10 +253,22 @@ describe("TeachersPage — /teachers", () => {
      one banning present-tense claims about submissions/marking/the
      gradebook/group work — no longer describe the launch system. Deleted
      together; the present-tense replacement is locked below. */
+  /* Honesty pass (2026-08-28): the marking sentence this lock pinned —
+     "Marking opens a submission read-only in the full IDE — a script you can
+     watch run" — promised something the build deliberately does not do.
+     MarkingRoom.js renders the snapshot through SubmissionViewer.js (the
+     IDE's ReadOnlyBlockly plus a read-only Monaco, on a tab each), and the
+     ONLY way to run a submission is "Open a test copy", which writes a fresh
+     project into the marker's own space. A runnable read-only script would be
+     a live document, which spec §7.2 forbids outright. The corrected sentence
+     is pinned here, and the old promise is banned so it cannot drift back. */
   test("the completed system — submissions, marking, gradebook, pairs/groups — is described in the present tense", () => {
     const container = render(<TeachersPage />);
     const text = container.textContent.replace(/\s+/g, " ");
-    expect(text).toContain("Marking opens a submission read-only in the full IDE");
+    expect(text).toContain("Marking opens the submission as a read-only script");
+    expect(text).toContain("To run it, open a test copy");
+    expect(text).not.toMatch(/read-only in the full IDE/i);
+    expect(text).not.toMatch(/script you can watch run/i);
     expect(text).toContain("a receipt carrying a fingerprint of exactly what was submitted");
     expect(text).toContain("carries a late label automatically");
     expect(text).toContain("Every released mark lands in a single gradebook for the class");
