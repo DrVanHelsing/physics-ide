@@ -1,10 +1,11 @@
 import { describe, test, expect, beforeAll, afterAll } from "vitest";
 import argon2 from "argon2";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { BUILT_IN_RULE_SETS } from "@physics-ide/shared";
 import { buildApp } from "../app.js";
 import { testDb, testPool, truncateAuthTables } from "../db/testClient.js";
 import { setSetting } from "../db/settings.js";
+import { MAX_PROJECTS_PER_USER, stableStringify } from "./projects.js";
 import {
   users,
   classMembers,
@@ -659,5 +660,229 @@ describe("POST /api/shares/:id/revoke", () => {
     });
     expect(second.statusCode).toBe(409);
     expect(second.json().error).toBe("That share has already been dealt with.");
+  });
+});
+
+/** A fresh alpha->bravo pending share on its own project id, for the accept
+ *  tests — self-contained (no reliance on any other describe block's
+ *  leftover rows) so each case's fixture hygiene doesn't leak into the next.
+ *  `updatedAt` defaults to 5000, matching the SRC_MANIFEST convention this
+ *  file already uses, so the happy-path clientUpdatedAt assertion reads as
+ *  a normal fixture value rather than a magic number. */
+async function freshAcceptShare(suffix: string, updatedAt = 5000) {
+  const projectId = `p-acc-${suffix}`;
+  const manifest = {
+    schemaVersion: 2,
+    id: projectId,
+    title: `Accept Fixture ${suffix}`,
+    goal: "physics",
+    projectType: "custom",
+    createdAt: 1000,
+    updatedAt,
+  };
+  await pushProject(alpha.id, projectId, manifest);
+  const res = await postShare(alpha.cookie, { projectId });
+  expect(res.statusCode).toBe(201);
+  return { shareId: res.json().share.id as string, projectId, manifest };
+}
+
+async function acceptShare(cookie: string, shareId: string, projectId: string) {
+  return app.inject({
+    method: "POST",
+    url: `/api/shares/${shareId}/accept`,
+    cookies: { pide_session: cookie },
+    payload: { projectId },
+  });
+}
+
+describe("POST /api/shares/:id/accept", () => {
+  test("bravo accepts: the copy is minted with the frozen manifest, attributed, ledgered", async () => {
+    const { shareId, projectId, manifest } = await freshAcceptShare("happy");
+    const res = await acceptShare(bravo.cookie, shareId, "p-copy-1");
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    const expectedManifest = { ...manifest, id: "p-copy-1" };
+    expect(body.manifest).toEqual(expectedManifest);
+    expect(body.attribution).toEqual({ sharerId: alpha.id, shareId, sharerName: "shalpha" });
+
+    const rows = await testDb
+      .select()
+      .from(projects)
+      .where(and(eq(projects.ownerId, bravo.id), eq(projects.id, "p-copy-1")));
+    expect(rows).toHaveLength(1);
+    expect(rows[0].manifest).toEqual(expectedManifest);
+    expect(rows[0].clientUpdatedAt).toBe(5000);
+    expect(rows[0].attribution).toEqual({ sharerId: alpha.id, shareId });
+    // The load-bearing property: the row's stored manifest and the reply's
+    // manifest are canonically identical — this is what makes the client's
+    // later push land in projects.ts's identical-re-push no-op branch.
+    expect(stableStringify(rows[0].manifest)).toBe(stableStringify(body.manifest));
+
+    const [shareRow] = await testDb.select().from(shares).where(eq(shares.id, shareId));
+    expect(shareRow.status).toBe("accepted");
+    expect(shareRow.copyProjectId).toBe("p-copy-1");
+    expect(shareRow.resolvedAt).not.toBeNull();
+
+    const logged = await eventsOfType("project.share_accepted");
+    const entry = logged.find((e) => (e.payload as { shareId: string }).shareId === shareId);
+    expect(entry).toBeDefined();
+    expect(entry!.actorId).toBe(bravo.id);
+    expect(entry!.payload).toEqual({
+      shareId,
+      classId,
+      sharerId: alpha.id,
+      sourceOwnerId: alpha.id,
+      sourceProjectId: projectId,
+      sourceClientUpdatedAt: 5000,
+      copyProjectId: "p-copy-1",
+    });
+  });
+
+  test("the copy survives the source's death: tombstoning the source doesn't touch the frozen manifest", async () => {
+    const { shareId, projectId, manifest } = await freshAcceptShare("tomb");
+    await testDb
+      .update(projects)
+      .set({ deletedAt: new Date() })
+      .where(and(eq(projects.ownerId, alpha.id), eq(projects.id, projectId)));
+
+    const res = await acceptShare(bravo.cookie, shareId, "p-copy-tomb");
+    expect(res.statusCode).toBe(200);
+    expect(res.json().manifest).toEqual({ ...manifest, id: "p-copy-tomb" });
+  });
+
+  test("the cap: bravo at 100 live projects -> 403 with the share's own sentence, share stays pending", async () => {
+    const { shareId } = await freshAcceptShare("cap");
+    const fillIds = Array.from({ length: MAX_PROJECTS_PER_USER }, (_, i) => `p-cap-fill-${i}`);
+    await testDb.insert(projects).values(
+      fillIds.map((id) => ({
+        id,
+        ownerId: bravo.id,
+        title: "Filler",
+        goal: "physics",
+        projectType: "custom",
+        manifest: {
+          schemaVersion: 2,
+          id,
+          title: "Filler",
+          goal: "physics",
+          projectType: "custom",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+        clientUpdatedAt: 1000,
+      })),
+    );
+    try {
+      const res = await acceptShare(bravo.cookie, shareId, "p-copy-cap");
+      expect(res.statusCode).toBe(403);
+      expect(res.json().error).toBe(
+        "You're at the 100-project limit — the copy needs a free slot. Delete something first, then add it.",
+      );
+      const [shareRow] = await testDb.select().from(shares).where(eq(shares.id, shareId));
+      expect(shareRow.status).toBe("pending");
+      expect(shareRow.copyProjectId).toBeNull();
+      const copyRows = await testDb
+        .select()
+        .from(projects)
+        .where(and(eq(projects.ownerId, bravo.id), eq(projects.id, "p-copy-cap")));
+      expect(copyRows).toHaveLength(0);
+    } finally {
+      await testDb
+        .delete(projects)
+        .where(and(eq(projects.ownerId, bravo.id), inArray(projects.id, fillIds)));
+    }
+  });
+
+  test("double accept -> 409 SHARE_RESOLVED", async () => {
+    const { shareId } = await freshAcceptShare("double");
+    const first = await acceptShare(bravo.cookie, shareId, "p-copy-double");
+    expect(first.statusCode).toBe(200);
+    const second = await acceptShare(bravo.cookie, shareId, "p-copy-double-2");
+    expect(second.statusCode).toBe(409);
+    expect(second.json().error).toBe("That share has already been dealt with.");
+  });
+
+  test("accepting a revoked share -> 409 SHARE_RESOLVED", async () => {
+    const { shareId } = await freshAcceptShare("revoked");
+    const revoke = await app.inject({
+      method: "POST",
+      url: `/api/shares/${shareId}/revoke`,
+      cookies: { pide_session: alpha.cookie },
+    });
+    expect(revoke.statusCode).toBe(200);
+    const res = await acceptShare(bravo.cookie, shareId, "p-copy-revoked");
+    expect(res.statusCode).toBe(409);
+    expect(res.json().error).toBe("That share has already been dealt with.");
+  });
+
+  test("a stranger accepting -> 404 NO_SUCH_SHARE", async () => {
+    const { shareId } = await freshAcceptShare("stranger");
+    const res = await acceptShare(outsiderCookie, shareId, "p-copy-stranger");
+    expect(res.statusCode).toBe(404);
+    expect(res.json().error).toBe("No such share.");
+  });
+
+  test("the sharer accepting their own share -> 404 NO_SUCH_SHARE", async () => {
+    const { shareId } = await freshAcceptShare("sharer-self");
+    const res = await acceptShare(alpha.cookie, shareId, "p-copy-sharer-self");
+    expect(res.statusCode).toBe(404);
+    expect(res.json().error).toBe("No such share.");
+  });
+
+  test("a recipient whose membership went waiting -> 403 NOT_A_MEMBER, share stays pending", async () => {
+    const { shareId } = await freshAcceptShare("waiting");
+    await testDb
+      .update(classMembers)
+      .set({ status: "waiting" })
+      .where(and(eq(classMembers.classId, classId), eq(classMembers.userId, bravo.id)));
+    try {
+      const res = await acceptShare(bravo.cookie, shareId, "p-copy-waiting");
+      expect(res.statusCode).toBe(403);
+      expect(res.json().error).toBe("Not a member of this class.");
+      const [shareRow] = await testDb.select().from(shares).where(eq(shares.id, shareId));
+      expect(shareRow.status).toBe("pending");
+    } finally {
+      await testDb
+        .update(classMembers)
+        .set({ status: "active" })
+        .where(and(eq(classMembers.classId, classId), eq(classMembers.userId, bravo.id)));
+    }
+  });
+
+  test("reusing the source's own id as the copy id is legal — it collides only if the recipient owns it", async () => {
+    const { shareId, projectId } = await freshAcceptShare("reuse-id");
+    const res = await acceptShare(bravo.cookie, shareId, projectId);
+    expect(res.statusCode).toBe(200);
+    const bravoRows = await testDb
+      .select()
+      .from(projects)
+      .where(and(eq(projects.ownerId, bravo.id), eq(projects.id, projectId)));
+    expect(bravoRows).toHaveLength(1);
+    // Alpha's own project under that same id is untouched — the composite
+    // (ownerId, id) primary key means the two rows never collide.
+    const alphaRows = await testDb
+      .select()
+      .from(projects)
+      .where(and(eq(projects.ownerId, alpha.id), eq(projects.id, projectId)));
+    expect(alphaRows).toHaveLength(1);
+  });
+
+  test("COPY_ID_TAKEN: accepting with an id the recipient already owns -> 409, share stays pending", async () => {
+    await pushProject(bravo.id, "p-copy-9", {
+      schemaVersion: 2,
+      id: "p-copy-9",
+      title: "Bravo Already Has This",
+      goal: "physics",
+      projectType: "custom",
+      createdAt: 1000,
+      updatedAt: 1000,
+    });
+    const { shareId } = await freshAcceptShare("taken");
+    const res = await acceptShare(bravo.cookie, shareId, "p-copy-9");
+    expect(res.statusCode).toBe(409);
+    expect(res.json().error).toBe("That project id is already in use — try again.");
+    const [shareRow] = await testDb.select().from(shares).where(eq(shares.id, shareId));
+    expect(shareRow.status).toBe("pending");
+    expect(shareRow.copyProjectId).toBeNull();
   });
 });

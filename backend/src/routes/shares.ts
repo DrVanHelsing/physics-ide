@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod";
-import { CreateShareInputSchema, WorkspaceRulesSchema } from "@physics-ide/shared";
+import { CreateShareInputSchema, AcceptShareInputSchema, WorkspaceRulesSchema } from "@physics-ide/shared";
 import {
   assignments,
   assignmentWork,
@@ -16,6 +16,8 @@ import { requireConfirmed } from "../auth/guards.js";
 import { ClassAuthError, getMembership, isStaffRole, sendClassAuthError } from "../classes/guards.js";
 import { logEvent } from "../db/events.js";
 import type { Db } from "../db/types.js";
+import { isAtCap, ManifestSchema } from "./projects.js";
+import { pgErrorCode } from "../lib/util.js";
 
 /* Every refusal is a named sentence, asserted verbatim by shares.test.ts
  * and the authority matrix — the assignments.ts idiom. */
@@ -165,6 +167,88 @@ export function shareRoutes(app: FastifyInstance): void {
         status: created.status,
       },
     });
+  });
+
+  app.post("/api/shares/:id/accept", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const parsed = AcceptShareInputSchema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      return reply.code(400).send({ error: parsed.error.issues[0]?.message ?? "Invalid input." });
+    }
+    const result = await app.db.transaction(async (tx) => {
+      const rows = await tx.select().from(shares).where(eq(shares.id, id)).for("update");
+      const share = rows[0];
+      // A share that is not yours to accept does not exist for you.
+      if (!share || share.recipientId !== req.user!.id) return { kind: "missing" as const };
+      const m = await getMembership(tx, share.classId, req.user!.id);
+      if (!m || m.status !== "active") return { kind: "not-member" as const };
+      if (share.status !== "pending") return { kind: "resolved" as const };
+      // D§14.8 — their cap, their slot, their OWN sentence. isAtCap locks
+      // the recipient's user row, serializing against their own pushes.
+      if (await isAtCap(tx, req.user!.id)) return { kind: "cap" as const };
+      // D§2: an ordinary project under a FRESH id — never the source's.
+      // The manifest the row stores is EXACTLY the manifest the reply
+      // carries; the client saves it verbatim (preserveTimestamp) and its
+      // later push lands in projects.ts's identical-re-push no-op branch.
+      const checked = ManifestSchema.safeParse({
+        ...(share.frozenManifest as Record<string, unknown>),
+        id: parsed.data.projectId,
+      });
+      if (!checked.success) return { kind: "invalid" as const };
+      try {
+        await tx.transaction(async (sp) => {
+          await sp.insert(projects).values({
+            id: checked.data.id,
+            ownerId: req.user!.id,
+            title: checked.data.title,
+            goal: checked.data.goal,
+            projectType: checked.data.projectType,
+            manifest: checked.data,
+            clientUpdatedAt: checked.data.updatedAt,
+            // D§3: ids only — the name is resolved at read time, so §11
+            // erasure has one place to act.
+            attribution: { sharerId: share.sharerId, shareId: share.id },
+          });
+        });
+      } catch (err) {
+        if (pgErrorCode(err) === "23505") return { kind: "taken" as const };
+        throw err;
+      }
+      await tx
+        .update(shares)
+        .set({ status: "accepted", resolvedAt: new Date(), copyProjectId: checked.data.id })
+        .where(eq(shares.id, share.id));
+      await logEvent(tx, "project.share_accepted", req.user!.id, {
+        shareId: share.id,
+        classId: share.classId,
+        sharerId: share.sharerId,
+        sourceOwnerId: share.sourceOwnerId,
+        sourceProjectId: share.sourceProjectId,
+        sourceClientUpdatedAt: share.sourceClientUpdatedAt,
+        copyProjectId: checked.data.id,
+      });
+      return { kind: "accepted" as const, share, manifest: checked.data };
+    });
+
+    if (result.kind === "missing") return reply.code(404).send({ error: NO_SUCH_SHARE });
+    if (result.kind === "not-member") return reply.code(403).send({ error: NOT_A_MEMBER });
+    if (result.kind === "resolved") return reply.code(409).send({ error: SHARE_RESOLVED });
+    if (result.kind === "cap") return reply.code(403).send({ error: SHARE_CAP });
+    if (result.kind === "invalid") return reply.code(400).send({ error: "That doesn't look like a valid project." });
+    if (result.kind === "taken") return reply.code(409).send({ error: COPY_ID_TAKEN });
+
+    const sharerRows = await app.db
+      .select({ name: users.name })
+      .from(users)
+      .where(eq(users.id, result.share.sharerId));
+    return {
+      manifest: result.manifest,
+      attribution: {
+        sharerId: result.share.sharerId,
+        shareId: result.share.id,
+        sharerName: sharerRows[0]?.name ?? REMOVED_STUDENT,
+      },
+    };
   });
 
   app.get("/api/shares/incoming", async (req, reply) => {
