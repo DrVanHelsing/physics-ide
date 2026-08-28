@@ -37,7 +37,7 @@ const GROUP_PROJECT = "A group's shared project belongs to the whole group — i
 const INDIVIDUAL_WORK = "This assignment is individual work — it can't be shared.";
 const EXPORT_OFF = "This assignment's rules don't allow copies to leave the workspace.";
 const ALREADY_PENDING = "Already shared with them — it's waiting on their class page.";
-/* The five below belong to the routes that extend this file (accept,
+/* The six below belong to the routes that extend this file (accept,
  * revoke) — declared with the rest so the sentence block reads as one
  * authority rather than arriving piecemeal. */
 const NO_SUCH_SHARE = "No such share.";
@@ -48,6 +48,11 @@ const REVOKE_FORBIDDEN = "Only the sharer or the class teacher can revoke a shar
 const SHARE_CAP =
   "You're at the 100-project limit — the copy needs a free slot. Delete something first, then add it.";
 const COPY_ID_TAKEN = "That project id is already in use — try again.";
+/** The accept route's frozen-manifest re-validation: the source manifest
+ *  passed ManifestSchema once at share time, but it's re-parsed here with
+ *  the recipient's fresh copy id substituted in — this is the branch that
+ *  catches it if that substitution somehow produces something invalid. */
+const INVALID_MANIFEST = "That doesn't look like a valid project.";
 /** §11's own word for an erased person, everywhere a sharer's name resolves. */
 export const REMOVED_STUDENT = "Removed student";
 
@@ -136,25 +141,45 @@ export function shareRoutes(app: FastifyInstance): void {
       .limit(1);
     if (dup.length > 0) return reply.code(409).send({ error: ALREADY_PENDING });
 
-    const created = await app.db.transaction(async (tx) => {
-      const [row] = await tx
-        .insert(shares)
-        .values({
-          classId: parsed.data.classId,
-          sharerId: req.user!.id,
-          recipientId: parsed.data.recipientId,
-          sourceOwnerId: req.user!.id,
-          sourceProjectId: parsed.data.projectId,
-          frozenManifest: sourceHead.manifest,
-          sourceClientUpdatedAt: sourceHead.clientUpdatedAt,
-        })
-        .returning();
+    type CreateOutcome =
+      | { kind: "duplicate" }
+      | { kind: "created"; share: typeof shares.$inferSelect };
+
+    const outcome: CreateOutcome = await app.db.transaction(async (tx) => {
+      let row: typeof shares.$inferSelect | undefined;
+      try {
+        // RACE BACKSTOP: shares_pending_dedup_idx (schema.ts) is the real
+        // guard behind the friendly read-then-409 dup check above — two
+        // concurrent identical POSTs can both pass that read, and this is
+        // what makes the second insert fail instead of minting a second
+        // pending row. Nested savepoint (the accept route's COPY_ID_TAKEN
+        // idiom) so the unique-violation catch doesn't abort the whole tx.
+        await tx.transaction(async (sp) => {
+          const [r] = await sp
+            .insert(shares)
+            .values({
+              classId: parsed.data.classId,
+              sharerId: req.user!.id,
+              recipientId: parsed.data.recipientId,
+              sourceOwnerId: req.user!.id,
+              sourceProjectId: parsed.data.projectId,
+              frozenManifest: sourceHead.manifest,
+              sourceClientUpdatedAt: sourceHead.clientUpdatedAt,
+            })
+            .returning();
+          row = r;
+        });
+      } catch (err) {
+        if (pgErrorCode(err) === "23505") return { kind: "duplicate" as const };
+        throw err;
+      }
+      const created = row!;
       // D§3: the ledger row, same transaction — a share cannot happen
       // without its event. D§9: the label will name the immediate sharer;
       // the LEDGER records the chain, so the source's own attribution (if
       // this is a re-share of an accepted copy) rides the payload.
       await logEvent(tx, "project.shared", req.user!.id, {
-        shareId: row.id,
+        shareId: created.id,
         classId: parsed.data.classId,
         recipientId: parsed.data.recipientId,
         sourceOwnerId: req.user!.id,
@@ -162,8 +187,12 @@ export function shareRoutes(app: FastifyInstance): void {
         sourceClientUpdatedAt: sourceHead.clientUpdatedAt,
         sourceAttribution: sourceHead.attribution ?? null,
       });
-      return row;
+      return { kind: "created" as const, share: created };
     });
+
+    // The race loser gets the same sentence the read-path duplicate gets.
+    if (outcome.kind === "duplicate") return reply.code(409).send({ error: ALREADY_PENDING });
+    const created = outcome.share;
     return reply.code(201).send({
       share: {
         id: created.id,
@@ -175,7 +204,10 @@ export function shareRoutes(app: FastifyInstance): void {
   });
 
   app.post("/api/shares/:id/accept", async (req, reply) => {
-    const { id } = req.params as { id: string };
+    // A malformed id cannot exist — same posture as missing, never a 500.
+    const idParsed = z.string().uuid().safeParse((req.params as { id: string }).id);
+    if (!idParsed.success) return reply.code(404).send({ error: NO_SUCH_SHARE });
+    const id = idParsed.data;
     const parsed = AcceptShareInputSchema.safeParse(req.body ?? {});
     if (!parsed.success) {
       return reply.code(400).send({ error: parsed.error.issues[0]?.message ?? "Invalid input." });
@@ -240,7 +272,7 @@ export function shareRoutes(app: FastifyInstance): void {
     if (result.kind === "not-member") return reply.code(403).send({ error: NOT_A_MEMBER });
     if (result.kind === "resolved") return reply.code(409).send({ error: SHARE_RESOLVED });
     if (result.kind === "cap") return reply.code(403).send({ error: SHARE_CAP });
-    if (result.kind === "invalid") return reply.code(400).send({ error: "That doesn't look like a valid project." });
+    if (result.kind === "invalid") return reply.code(400).send({ error: INVALID_MANIFEST });
     if (result.kind === "taken") return reply.code(409).send({ error: COPY_ID_TAKEN });
 
     const sharerRows = await app.db
@@ -322,7 +354,10 @@ export function shareRoutes(app: FastifyInstance): void {
   });
 
   app.get("/api/shares/roster/:classId", async (req, reply) => {
-    const { classId } = req.params as { classId: string };
+    // A malformed id cannot exist — same posture as missing, never a 500.
+    const classIdParsed = z.string().uuid().safeParse((req.params as { classId: string }).classId);
+    if (!classIdParsed.success) return reply.code(404).send({ error: NO_SUCH_CLASS });
+    const classId = classIdParsed.data;
     const classRows = await app.db.select().from(classes).where(eq(classes.id, classId));
     const c = classRows[0];
     if (!c) return reply.code(404).send({ error: NO_SUCH_CLASS });
@@ -341,7 +376,10 @@ export function shareRoutes(app: FastifyInstance): void {
   });
 
   app.post("/api/shares/:id/revoke", async (req, reply) => {
-    const { id } = req.params as { id: string };
+    // A malformed id cannot exist — same posture as missing, never a 500.
+    const idParsed = z.string().uuid().safeParse((req.params as { id: string }).id);
+    if (!idParsed.success) return reply.code(404).send({ error: NO_SUCH_SHARE });
+    const id = idParsed.data;
     const outcome = await app.db.transaction(async (tx) => {
       const rows = await tx.select().from(shares).where(eq(shares.id, id)).for("update");
       const share = rows[0];

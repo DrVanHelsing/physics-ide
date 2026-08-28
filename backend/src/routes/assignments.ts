@@ -1590,7 +1590,7 @@ export function assignmentRoutes(app: FastifyInstance): void {
   app.get("/api/classes/:id/gradebook", async (req, reply) => {
     const { id: classId } = req.params as { id: string };
     const me = await getMembership(app.db, classId, req.user!.id);
-    if (!me || me.status !== "active" || me.role === "student") {
+    if (!me || me.status !== "active" || !isStaffRole(me.role)) {
       return reply.code(403).send({ error: "Teachers and assistants only." });
     }
 

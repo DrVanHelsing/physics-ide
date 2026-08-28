@@ -6,6 +6,7 @@ import { buildApp } from "../app.js";
 import { testDb, testPool, truncateAuthTables } from "../db/testClient.js";
 import { setSetting } from "../db/settings.js";
 import { MAX_PROJECTS_PER_USER, stableStringify } from "./projects.js";
+import { pgErrorCode } from "../lib/util.js";
 import {
   users,
   classMembers,
@@ -181,6 +182,14 @@ afterAll(async () => {
  * BEFORE the assignment rules, so a leaked groups row would shadow every later
  * refusal and the happy path itself. */
 describe("POST /api/shares — the D§5 gate", () => {
+  // A4d: the gate's untested first branch — a well-formed but unknown
+  // class id never even reaches the membership check.
+  test("an unknown but well-formed class id -> 404 No such class.", async () => {
+    const res = await postShare(alpha.cookie, { classId: "00000000-0000-0000-0000-000000000000" });
+    expect(res.statusCode).toBe(404);
+    expect(res.json().error).toBe("No such class.");
+  });
+
   test("the class switch is off -> 403", async () => {
     await setPeerSharing(false);
     try {
@@ -467,6 +476,86 @@ describe("POST /api/shares — the hand-off", () => {
   });
 });
 
+/* A1: the friendly read-then-409 dup check above is TOCTOU under concurrent
+ * identical POSTs — shares_pending_dedup_idx (schema.ts) is the real
+ * backstop. These two tests go straight at the table, bypassing the route,
+ * to prove the partial unique index exists and fires, and that its WHERE
+ * clause is scoped to pending only (a resolved row never blocks a fresh
+ * share of the same triple). */
+describe("shares — the pending-share unique backstop (A1)", () => {
+  function directShareRow(projectId: string) {
+    return {
+      classId,
+      sharerId: alpha.id,
+      recipientId: bravo.id,
+      sourceOwnerId: alpha.id,
+      sourceProjectId: projectId,
+      frozenManifest: {
+        schemaVersion: 2,
+        id: projectId,
+        title: "Backstop Fixture",
+        goal: "physics",
+        projectType: "custom",
+        createdAt: 1000,
+        updatedAt: 1000,
+      },
+      sourceClientUpdatedAt: 1000,
+    };
+  }
+
+  test("a second direct pending insert for the same (sourceOwnerId, sourceProjectId, recipientId) triple hits the unique violation", async () => {
+    const projectId = "p-backstop-race";
+    await testDb.insert(shares).values(directShareRow(projectId));
+    try {
+      let caught: unknown = null;
+      try {
+        await testDb.insert(shares).values(directShareRow(projectId));
+      } catch (err) {
+        caught = err;
+      }
+      expect(caught).not.toBeNull();
+      expect(pgErrorCode(caught)).toBe("23505");
+      // The race loser never landed: still exactly one row for this triple.
+      const rows = await testDb.select().from(shares).where(eq(shares.sourceProjectId, projectId));
+      expect(rows).toHaveLength(1);
+    } finally {
+      await testDb.delete(shares).where(eq(shares.sourceProjectId, projectId));
+    }
+  });
+
+  test("a REVOKED row and a fresh pending row for the same triple coexist — the WHERE clause scopes to pending only", async () => {
+    const projectId = "p-backstop-coexist";
+    await pushProject(alpha.id, projectId, {
+      schemaVersion: 2,
+      id: projectId,
+      title: "Coexist Fixture",
+      goal: "physics",
+      projectType: "custom",
+      createdAt: 1000,
+      updatedAt: 6000,
+    });
+    const first = await postShare(alpha.cookie, { projectId });
+    expect(first.statusCode).toBe(201);
+    const firstId = first.json().share.id as string;
+
+    const revoke = await app.inject({
+      method: "POST",
+      url: `/api/shares/${firstId}/revoke`,
+      cookies: { pide_session: alpha.cookie },
+    });
+    expect(revoke.statusCode).toBe(200);
+
+    // Resolved (revoked), so a fresh share of the same triple through the
+    // route succeeds — the partial index never sees the revoked row.
+    const second = await postShare(alpha.cookie, { projectId });
+    expect(second.statusCode).toBe(201);
+
+    const rows = await testDb.select().from(shares).where(eq(shares.sourceProjectId, projectId));
+    expect(rows).toHaveLength(2);
+    expect(rows.map((r) => r.status).sort()).toEqual(["pending", "revoked"]);
+  });
+});
+
 /* The gate's rules loop refuses on BOTH an unparseable rules blob and a
  * parsed one with exportAndCopy off — one sentence, two branches. Without a
  * positive case the whole loop could be refusing everything (a schema that
@@ -608,6 +697,52 @@ describe("GET /api/shares/incoming", () => {
     expect(ids).not.toContain(lapsedId);
     expect(ids).not.toContain(acceptedId);
   });
+
+  // A4b: two pending shares, distinct createdAt set directly (defaultNow()
+  // gives no ordering guarantee tight enough to assert on) — pins index
+  // order, the "Untitled project" fallback for a titleless frozen manifest,
+  // and that createdAt crosses the wire as epoch MILLISECONDS.
+  test("two pending shares: newest first, a titleless manifest falls back to 'Untitled project', createdAt is epoch ms", async () => {
+    const olderId = await freshPendingShare("order-older");
+    const newerId = await freshPendingShare("order-newer");
+    const now = Date.now();
+    await testDb
+      .update(shares)
+      .set({ createdAt: new Date(now - 60_000) })
+      .where(eq(shares.id, olderId));
+    await testDb.update(shares).set({ createdAt: new Date(now) }).where(eq(shares.id, newerId));
+    // Strip the title from the OLDER row's frozen manifest directly.
+    await testDb
+      .update(shares)
+      .set({
+        frozenManifest: {
+          schemaVersion: 2,
+          id: "p-inc-order-older",
+          goal: "physics",
+          projectType: "custom",
+          createdAt: 1000,
+          updatedAt: 4000,
+        },
+      })
+      .where(eq(shares.id, olderId));
+
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/shares/incoming?classId=${classId}`,
+      cookies: { pide_session: bravo.cookie },
+    });
+    expect(res.statusCode).toBe(200);
+    const list = res.json().shares as Array<{ id: string; title: string; createdAt: number }>;
+    const olderIdx = list.findIndex((s) => s.id === olderId);
+    const newerIdx = list.findIndex((s) => s.id === newerId);
+    expect(olderIdx).toBeGreaterThan(-1);
+    expect(newerIdx).toBeGreaterThan(-1);
+    // Newest first: the later-created row comes BEFORE the earlier one.
+    expect(newerIdx).toBeLessThan(olderIdx);
+    expect(list[olderIdx].title).toBe("Untitled project");
+    expect(list[newerIdx].createdAt).toBeGreaterThan(1_600_000_000_000);
+    expect(list[olderIdx].createdAt).toBeGreaterThan(1_600_000_000_000);
+  });
 });
 
 describe("GET /api/shares/roster/:classId", () => {
@@ -640,6 +775,42 @@ describe("GET /api/shares/roster/:classId", () => {
     } finally {
       await setPeerSharing(true);
     }
+  });
+});
+
+/* A2: a malformed :id/:classId can never exist — same posture as missing,
+ * never a 500. GET /api/shares/incoming already zod-parses its ?classId
+ * query param (verified above, left as-is). */
+describe("uuid param parsing on the share routes (A2)", () => {
+  test("POST /api/shares/:id/accept with a malformed id -> 404 No such share.", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/shares/not-a-uuid/accept",
+      cookies: { pide_session: bravo.cookie },
+      payload: { projectId: "p-copy-malformed" },
+    });
+    expect(res.statusCode).toBe(404);
+    expect(res.json().error).toBe("No such share.");
+  });
+
+  test("POST /api/shares/:id/revoke with a malformed id -> 404 No such share.", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/shares/not-a-uuid/revoke",
+      cookies: { pide_session: alpha.cookie },
+    });
+    expect(res.statusCode).toBe(404);
+    expect(res.json().error).toBe("No such share.");
+  });
+
+  test("GET /api/shares/roster/:classId with a malformed id -> 404 No such class.", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/shares/roster/not-a-uuid",
+      cookies: { pide_session: alpha.cookie },
+    });
+    expect(res.statusCode).toBe(404);
+    expect(res.json().error).toBe("No such class.");
   });
 });
 
@@ -699,6 +870,33 @@ describe("POST /api/shares/:id/revoke", () => {
       await testDb
         .delete(classMembers)
         .where(and(eq(classMembers.classId, classId), eq(classMembers.userId, ta.id)));
+    }
+  });
+
+  // A4a: a plain student who is neither sharer, recipient, nor staff has no
+  // standing on the share at all — the draft 404, same posture a stranger
+  // outside the class entirely would get (contrast with the TA above, whose
+  // staff hat earns them the honest 403).
+  test("an active non-party plain student (not sharer, not recipient, not staff) -> 404 NO_SUCH_SHARE", async () => {
+    const stranger = await makeUser("shstranger@example.com");
+    const strangerCookie = await signin("shstranger@example.com");
+    await testDb
+      .insert(classMembers)
+      .values({ classId, userId: stranger.id, role: "student", status: "active" });
+    try {
+      const shareId = await freshPendingShare("revoke-stranger-student");
+      const res = await app.inject({
+        method: "POST",
+        url: `/api/shares/${shareId}/revoke`,
+        cookies: { pide_session: strangerCookie },
+      });
+      expect(res.statusCode).toBe(404);
+      expect(res.json().error).toBe("No such share.");
+    } finally {
+      await testDb
+        .delete(classMembers)
+        .where(and(eq(classMembers.classId, classId), eq(classMembers.userId, stranger.id)));
+      await testDb.delete(users).where(eq(users.id, stranger.id));
     }
   });
 
@@ -781,10 +979,13 @@ describe("POST /api/shares/:id/accept", () => {
     expect(shareRow.resolvedAt).not.toBeNull();
 
     const logged = await eventsOfType("project.share_accepted");
-    const entry = logged.find((e) => (e.payload as { shareId: string }).shareId === shareId);
-    expect(entry).toBeDefined();
-    expect(entry!.actorId).toBe(bravo.id);
-    expect(entry!.payload).toEqual({
+    // A4c: exactly one — not just "at least one" — project.share_accepted
+    // event for this share.
+    const matching = logged.filter((e) => (e.payload as { shareId: string }).shareId === shareId);
+    expect(matching).toHaveLength(1);
+    const entry = matching[0];
+    expect(entry.actorId).toBe(bravo.id);
+    expect(entry.payload).toEqual({
       shareId,
       classId,
       sharerId: alpha.id,
@@ -938,6 +1139,20 @@ describe("POST /api/shares/:id/accept", () => {
     const res = await acceptShare(bravo.cookie, shareId, "p-copy-9");
     expect(res.statusCode).toBe(409);
     expect(res.json().error).toBe("That project id is already in use — try again.");
+    const [shareRow] = await testDb.select().from(shares).where(eq(shares.id, shareId));
+    expect(shareRow.status).toBe("pending");
+    expect(shareRow.copyProjectId).toBeNull();
+  });
+
+  // A4e: the previously unreachable branch — a frozen manifest that no
+  // longer parses (corrupted directly, since the route itself only ever
+  // freezes an already-valid manifest at share time).
+  test("INVALID_MANIFEST: a corrupted frozenManifest -> 400, the branch nothing else reaches", async () => {
+    const { shareId } = await freshAcceptShare("invalid-manifest");
+    await testDb.update(shares).set({ frozenManifest: { garbage: true } }).where(eq(shares.id, shareId));
+    const res = await acceptShare(bravo.cookie, shareId, "p-copy-invalid-manifest");
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toBe("That doesn't look like a valid project.");
     const [shareRow] = await testDb.select().from(shares).where(eq(shares.id, shareId));
     expect(shareRow.status).toBe("pending");
     expect(shareRow.copyProjectId).toBeNull();
