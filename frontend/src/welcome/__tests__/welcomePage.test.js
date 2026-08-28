@@ -165,11 +165,6 @@ describe("the front page", () => {
       /real email/i,
       /email delivery/i,
     ],
-    "peer sharing": [
-      /peer sharing/i,
-      /share (your |their )?(work|projects?) with/i,
-      /based on work shared by/i,
-    ],
     "admin data requests": [
       /data requests?/i,
       /export everything about/i,
@@ -203,15 +198,16 @@ describe("the front page", () => {
     expect(COPY).toContain("Use the IDE — no account needed");
   });
 
-  test("the non-claims list still names every Plan 6 §9 exclusion, and each pattern bites", () => {
+  test("the non-claims list still names every STILL-EXCLUDED feature, and each pattern bites", () => {
     /* The mechanism, not today's strings. Deleting a group from NON_CLAIMS is
        the cheap way to make this file green while the page starts overclaiming,
-       so the four exclusions are asserted by name — and each is fed a sentence
-       that makes the claim, to prove the regex is not decoration. */
+       so the three exclusions are asserted by name — and each is fed a sentence
+       that makes the claim, to prove the regex is not decoration. Plan 7 §12's
+       exclusion list (bell, real email delivery, admin data requests) is what
+       remains; peer sharing shipped in Stage C and left this list. */
     const sentences = {
       "the notification bell": "A notification bell collects everything for you.",
       "real email delivery": "We've sent you a link — check your inbox.",
-      "peer sharing": "Peer sharing lets a student pass work to a classmate.",
       "admin data requests": "An admin can raise a data request for any person.",
     };
     for (const [key, sentence] of Object.entries(sentences)) {

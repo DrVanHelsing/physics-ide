@@ -1,6 +1,6 @@
 # Physics IDE
 
-Physics IDE is a browser-based, zero-install environment for physics simulation and foundational data science. It combines a visual block editor, a Monaco code editor, a live 3D WebGL viewport, and a data analysis panel — all in a single React application with no backend, no accounts, and no installation required.
+Physics IDE is a browser-based, zero-install environment for physics simulation and foundational data science. It combines a visual block editor, a Monaco code editor, a live 3D WebGL viewport, and a data analysis panel — all in a single React application with no installation required — and, since the classroom platform (Aug 2026), an optional accounts backend for classes, assignments and sync; the guest IDE still needs none of it.
 
 ---
 

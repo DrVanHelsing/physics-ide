@@ -31,13 +31,13 @@ Every `file.ext:N` or `:N-M` citation in this plan was verified against the tree
 
 Stages land in order; a stage opens only when the previous one's gate (its last task's full-suite run) is green. Tasks inside a stage are sequential. Implementers are strictly serialized per tree (Plan 6's standing lesson).
 
-| Stage | Tasks | Theme |
-|---|---|---|
-| 0 — debt + spine | 1–4 | helper homes + `requireClassStaff`, the contract amendment, sharing contracts, migration 0006 |
-| A — the switches | 5–6 | `classes.peer_sharing` end to end; the individual-work flag made real |
-| B — the share (server) | 7–10 | the D§5 gate + POST; incoming/roster/revoke/lapse; accept + the cap; attribution read + erasure + chains |
-| C — the client | 11–13 | Share… in the File menu; Shared with you + the accept flow; the label surfaces |
-| D — wrap | 14–16 | the authority matrix; honesty copy + spec clarification; golden-flow e2e + checklist |
+| Stage                   | Tasks  | Theme                                                                                                     |
+| ----------------------- | ------ | --------------------------------------------------------------------------------------------------------- |
+| 0 — debt + spine       | 1–4   | helper homes +`requireClassStaff`, the contract amendment, sharing contracts, migration 0006            |
+| A — the switches       | 5–6   | `classes.peer_sharing` end to end; the individual-work flag made real                                   |
+| B — the share (server) | 7–10  | the D§5 gate + POST; incoming/roster/revoke/lapse; accept + the cap; attribution read + erasure + chains |
+| C — the client         | 11–13 | Share… in the File menu; Shared with you + the accept flow; the label surfaces                           |
+| D — wrap               | 14–16 | the authority matrix; honesty copy + spec clarification; golden-flow e2e + checklist                      |
 
 ## Deferred — deliberately NOT here, do not flag as missing
 
@@ -54,6 +54,7 @@ Everything in design §12, verbatim in intent:
 - **Any change to sync mechanics or `SCHEMA_VERSION`**; **raising `MAX_PROJECTS_PER_USER`** — the cap refusal with its own sentence is the design's honest answer to share-heavy classes (D§4).
 
 ---
+
 ## Stage 0 — debt + spine
 
 ### Task 1: Helper homes — `pgErrorCode`, `toEpoch`, `visibleToStudent`, `isStaffRole`, `requireClassStaff`
@@ -61,12 +62,14 @@ Everything in design §12, verbatim in intent:
 The memo §6a obligation, done FIRST so Plan 7's routes are written against shared helpers instead of adding copies 5, 4 and 3. Pure refactor: behaviour changes only where recorded below (one sentence unification).
 
 **Files:**
+
 - Create: `backend/src/lib/util.ts`
 - Modify: `backend/src/classes/guards.ts` (add `isStaffRole`, `requireClassStaff`)
 - Modify: `backend/src/routes/projects.ts`, `backend/src/routes/auth.ts`, `backend/src/routes/members.ts`, `backend/src/routes/assignments.ts`, `backend/src/routes/guides.ts`, `backend/src/routes/groups.ts` (delete private copies, import the shared ones)
 - Modify: `backend/src/routes/assignments.test.ts` (one expectation string)
 
 **Interfaces:**
+
 - Consumes: `computeAssignmentPhase` (`@physics-ide/shared`), `assignments` (`../db/schema.js`), `getMembership`/`ClassAuthError` (`classes/guards.ts:26-49`).
 - Produces (every later backend task imports these): `pgErrorCode(err)`, `toEpoch(d)`, `visibleToStudent(a)` from `backend/src/lib/util.ts`; `isStaffRole(role)`, `requireClassStaff(db, classId, userId)` from `backend/src/classes/guards.ts`; `guideVisibleToStudent` stays private to `guides.ts` (D§14.10 — two predicates, never merged).
 
@@ -130,14 +133,14 @@ export async function requireClassStaff(
 
 - [ ] **Step 3: Delete every private copy and import the shared ones.** The exact site list, verified at `930edcf`:
 
-| File | Delete | Add import |
-|---|---|---|
-| `projects.ts` | `pgErrorCode` + its comment (`:103-108`) | `import { pgErrorCode } from "../lib/util.js";` (call site `:213` unchanged) |
-| `auth.ts` | `pgErrorCode` (`:333`) | same (call site `:93`) |
-| `members.ts` | `pgErrorCode` (`:202`) | same (call site `:46`) |
-| `assignments.ts` | `pgErrorCode` (`:2397`), `toEpoch` (`:73-75`), `visibleToStudent` (`:101-103`), `isStaffRole` (`:105-107`) | `import { pgErrorCode, toEpoch, visibleToStudent } from "../lib/util.js";` + add `isStaffRole, requireClassStaff, ClassAuthError` to the existing `../classes/guards.js` import |
-| `guides.ts` | `toEpoch` (`:19-21`), `isStaffRole` (`:23-25`) | `import { toEpoch } from "../lib/util.js";` + `isStaffRole` from `../classes/guards.js`; **rename** its own `visibleToStudent` (`:39`) → `guideVisibleToStudent` (call sites `:86`, `:100`) |
-| `groups.ts` | `isStaffRole` (`:56-58`), `visibleToStudent` (`:62-64`) | `isStaffRole` from `../classes/guards.js`, `visibleToStudent` from `../lib/util.js` |
+| File               | Delete                                                                                                                     | Add import                                                                                                                                                                                                         |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `projects.ts`    | `pgErrorCode` + its comment (`:103-108`)                                                                               | `import { pgErrorCode } from "../lib/util.js";` (call site `:213` unchanged)                                                                                                                                   |
+| `auth.ts`        | `pgErrorCode` (`:333`)                                                                                                 | same (call site`:93`)                                                                                                                                                                                            |
+| `members.ts`     | `pgErrorCode` (`:202`)                                                                                                 | same (call site`:46`)                                                                                                                                                                                            |
+| `assignments.ts` | `pgErrorCode` (`:2397`), `toEpoch` (`:73-75`), `visibleToStudent` (`:101-103`), `isStaffRole` (`:105-107`) | `import { pgErrorCode, toEpoch, visibleToStudent } from "../lib/util.js";` + add `isStaffRole, requireClassStaff, ClassAuthError` to the existing `../classes/guards.js` import                              |
+| `guides.ts`      | `toEpoch` (`:19-21`), `isStaffRole` (`:23-25`)                                                                     | `import { toEpoch } from "../lib/util.js";` + `isStaffRole` from `../classes/guards.js`; **rename** its own `visibleToStudent` (`:39`) → `guideVisibleToStudent` (call sites `:86`, `:100`) |
+| `groups.ts`      | `isStaffRole` (`:56-58`), `visibleToStudent` (`:62-64`)                                                            | `isStaffRole` from `../classes/guards.js`, `visibleToStudent` from `../lib/util.js`                                                                                                                        |
 
 - [ ] **Step 4: Collapse the eight inlined staff checks in `assignments.ts`** (sites `:1534, :1718, :1771, :1827, :1872, :1925, :2026, :2332` — each is `if (!m || m.status !== "active" || !isStaffRole(m.role))`). Replace the `getMembership` + `if` pair at each reply-site with:
 
@@ -166,7 +169,6 @@ Then delete the now-unused consts `STAFF_ONLY_FOR_CLASS` (`assignments.ts:59`) a
 **Recorded behaviour change (deliberate, the only one):** the two sites that replied `"Teachers and TAs only for this class."` (`:1718`, `:1771`) now reply `"Teachers and assistants only."` — one guard, one sentence, and the survivor is the wording six of the eight sites plus `members.ts`'s roster route already use. Update the single test that asserts the old string: `assignments.test.ts:2310` → `expect(res.json().error).toBe("Teachers and assistants only.");`.
 
 - [ ] **Step 5: Run to pass** — `npm run test -w backend` green (the existing suites are the net for this refactor), `npm run typecheck -w backend` clean.
-
 - [ ] **Step 6: Commit**
 
 ```bash
@@ -181,14 +183,15 @@ git commit -m "refactor(backend): one home each for pgErrorCode, toEpoch, isStaf
 The change protocol ("Land the change in code only after the contract reflects it") makes this the first sharing-touching task; the public COPY stays banned until Task 15 (memo Q9 — different documents, both rules kept).
 
 **Files:**
+
 - Modify: `docs/product-contract.md`
 
 **Interfaces:**
+
 - Consumes: the design doc's decisions D§1–D§10.
 - Produces: the amendment block later tasks cite; line 162 no longer lists peer sharing as excluded.
 
 - [ ] **Step 1: Edit the not-lifted line.** At `docs/product-contract.md:162`, in "**What this amendment does not lift.**", delete exactly the phrase `peer sharing and the §8.3 attribution ledger, ` — every other exclusion in that sentence stands unchanged. Do NOT touch line 164 ("Copy is bound by this too." / the still-owed README/DEPLOY sentences) — Task 15 clears that debt and updates that sentence then.
-
 - [ ] **Step 2: Append the amendment block** directly after the existing 28 August 2026 assignments amendment's final paragraph (grep `What this amendment does not lift` and insert after that paragraph's section):
 
 ```markdown
@@ -217,11 +220,13 @@ git commit -m "docs(contract): Plan 7 amendment — peer sharing lifted from the
 ### Task 3: Shared contracts — `shared/src/sharing.ts`
 
 **Files:**
+
 - Create: `shared/src/sharing.ts`
 - Create: `shared/src/sharing.test.ts`
 - Modify: `shared/src/index.ts` (add one export line)
 
 **Interfaces:**
+
 - Consumes: nothing but zod.
 - Produces (later tasks import from `@physics-ide/shared`): `SHARE_STATUSES`, `ShareStatus`, `SHARE_PROJECT_ID_REGEX`, `CreateShareInputSchema`, `AcceptShareInputSchema`, `AttributionSchema`.
 
@@ -280,7 +285,6 @@ describe("share contracts", () => {
 ```
 
 - [ ] **Step 2: Run it to fail** — `npm run test -w shared` → FAIL (module not found).
-
 - [ ] **Step 3: Write `shared/src/sharing.ts`:**
 
 ```ts
@@ -324,9 +328,7 @@ export const AttributionSchema = z.object({
 ```
 
 - [ ] **Step 4: Export it.** In `shared/src/index.ts` append `export * from "./sharing.js";` (the file is five `export *` lines; this becomes the sixth).
-
 - [ ] **Step 5: Run to pass** — `npm run test -w shared` green, `npm run typecheck -w shared` clean.
-
 - [ ] **Step 6: Commit**
 
 ```bash
@@ -341,11 +343,13 @@ git commit -m "feat(shared): sharing contracts — statuses, share inputs, the i
 ONE migration carries all three (design §11 Stage 0). The `shares` table is **delivery state, not the ledger** — the ledger stays in `events` (D§3).
 
 **Files:**
+
 - Modify: `backend/src/db/schema.ts` (append `shares` after `guides`, which currently ends the file at `:341-358`; add one column each to `classes` (`:69-80`) and `projects` (`:118-136`))
 - Modify: `backend/src/db/testClient.ts` (`truncateAuthTables` — the hard-coded list at `:12` MUST gain `"shares"`)
 - Generated: `backend/drizzle/0006_<drizzle-names-it>.sql` (run `npm run db:generate -w backend`; drizzle mints the filename — do not hand-name it)
 
 **Interfaces:**
+
 - Consumes: the house idiom — text pseudo-enums documented in comments, `timestamptz`, jsonb; the **no-FK-by-design** precedent (`events.actorId` at `schema.ts:13`, `groups.ownerId`/`projectId` at `:301-302`).
 - Produces: `shares` (exact columns below — the contract every later backend task builds on), `classes.peerSharing`, `projects.attribution`.
 
@@ -417,11 +421,8 @@ export const shares = pgTable(
 (The imports line at `schema.ts:1` already carries everything used here.)
 
 - [ ] **Step 3: Generate and apply** — `npm run db:generate -w backend` (yields `backend/drizzle/0006_<name>.sql` — inspect it: three statements' worth of DDL, `CREATE TABLE "shares"`, two `ALTER TABLE ... ADD COLUMN`), then `npm run db:migrate -w backend` and `npm run db:migrate:test -w backend`.
-
 - [ ] **Step 4: Extend `truncateAuthTables`** — in `backend/src/db/testClient.ts:12`, add `"shares", ` at the head of the TRUNCATE list (before `"guides"`).
-
 - [ ] **Step 5: Run to pass** — `npm run test -w backend` green (existing suites exercise the migrated DB), `npm run typecheck -w backend` clean.
-
 - [ ] **Step 6: Commit**
 
 ```bash
@@ -430,11 +431,13 @@ git commit -m "feat(db): migration 0006 — shares delivery table, classes.peer_
 ```
 
 ---
+
 ## Stage A — the switches
 
 ### Task 5: The class switch — `peer_sharing` end to end
 
 **Files:**
+
 - Modify: `shared/src/classes.ts` (`UpdateClassSettingsInputSchema`, `:30-34`)
 - Modify: `backend/src/routes/classes.ts` (`toClassSummary` `:19-29`, the PATCH patch-builder `:116-119`)
 - Modify: `backend/src/routes/classes.test.ts` (extend)
@@ -442,6 +445,7 @@ git commit -m "feat(db): migration 0006 — shares delivery table, classes.peer_
 - Create: `frontend/src/components/classes/__tests__/settingsTab.test.js`
 
 **Interfaces:**
+
 - Consumes: `classes.peerSharing` (Task 4); the SettingsTab section idiom (`section-title` + `.auth-doors` radios firing `patch.mutate`, `SettingsTab.js:70-87`); `PATCH /api/classes/:id` already validates via the shared schema and logs `class.updated` in-tx (`classes.ts:112-125`).
 - Produces: `peerSharing` on the wire — in `UpdateClassSettingsInputSchema`, in every class summary (`GET /api/classes`, `GET /api/classes/:id`), and in the Settings UI. Task 7's gate and Task 11's dialog both read this exact key name.
 
@@ -574,6 +578,7 @@ git commit -m "feat: the class sharing switch — peer_sharing end to end, off b
 The flag exists (`assignments.individual_work`, validated cross-field) but is inert, and the editor label was softened to "Each student's submission is marked individually" (`AssignmentEditorPage.js:313`) to stay honest while sharing did not exist (memo §3.1 F). This task ships the student-visible stamp (spec §5.1) and threads the flag into the IDE's cached assignment context so Task 11 can hide the Share control synchronously. The server-side override itself lands with the gate (Task 7).
 
 **Files:**
+
 - Modify: `frontend/src/components/assignments/AssignmentPage.js` (the stamp, in the header at `:273-279`)
 - Modify: `frontend/src/components/assignments/AssignmentEditorPage.js` (`:313`, the label)
 - Modify: `frontend/src/utils/storage/assignmentMeta.js` (record gains `individualWork`)
@@ -582,6 +587,7 @@ The flag exists (`assignments.individual_work`, validated cross-field) but is in
 - Modify: `frontend/src/components/assignments/__tests__/assignmentPage.test.js`, `assignmentEditor.test.js`, `frontend/src/utils/assignments/__tests__/startWork.test.js`, `frontend/src/contexts/__tests__/AssignmentContext.test.js` (extend each)
 
 **Interfaces:**
+
 - Consumes: `toAssignmentSummary` already returns `individualWork` (`assignments.ts:89`) — no backend change.
 - Produces: `individualWork: boolean` on the cached assignment-meta record and on `useAssignmentContext()`'s value — the exact key Task 11's Toolbar gate reads as `assignment?.individualWork`.
 
@@ -599,10 +605,11 @@ The flag exists (`assignments.individual_work`, validated cross-field) but is in
         ) : null}
 ```
 
-  - `AssignmentEditorPage.js:313`: replace the label text with `Individual work — students see the stamp, and this work can't be shared with classmates`. **Why this wording is honest at THIS commit:** sharing does not exist anywhere yet, so "can't be shared" is simply true today; after Task 7 it is enforced server-side and stays true. The old label ("marked individually") described a behaviour the flag never had — spec §5.1's meaning is the stamp plus the sharing override.
-  - `assignmentMeta.js`: `setAssignmentMeta` writes `individualWork: meta.individualWork ?? false,` (after `groupId`); extend the header comment's record shape to `{ assignmentId, classId, title, dueAt, rules, groupId, individualWork }` and note: *"`individualWork` (Plan 7) is read OFFLINE by the Toolbar's Share gate — like the rules, enforcement errs toward enforcement when the cache is stale."*
-  - `startWork.js` `cacheContext`: add `individualWork: assignment.individualWork ?? false,`.
-  - `AssignmentContext.js` refresh block: add `individualWork: fresh.assignment.individualWork ?? false,` to `meta`.
+- `AssignmentEditorPage.js:313`: replace the label text with `Individual work — students see the stamp, and this work can't be shared with classmates`. **Why this wording is honest at THIS commit:** sharing does not exist anywhere yet, so "can't be shared" is simply true today; after Task 7 it is enforced server-side and stays true. The old label ("marked individually") described a behaviour the flag never had — spec §5.1's meaning is the stamp plus the sharing override.
+- `assignmentMeta.js`: `setAssignmentMeta` writes `individualWork: meta.individualWork ?? false,` (after `groupId`); extend the header comment's record shape to `{ assignmentId, classId, title, dueAt, rules, groupId, individualWork }` and note: *"`individualWork` (Plan 7) is read OFFLINE by the Toolbar's Share gate — like the rules, enforcement errs toward enforcement when the cache is stale."*
+- `startWork.js` `cacheContext`: add `individualWork: assignment.individualWork ?? false,`.
+- `AssignmentContext.js` refresh block: add `individualWork: fresh.assignment.individualWork ?? false,` to `meta`.
+
 - [ ] **Step 3: Suites green; commit**
 
 ```bash
@@ -611,40 +618,42 @@ git commit -m "feat: the individual-work flag made real — the student stamp, t
 ```
 
 ---
+
 ## Stage B — the share (server)
 
 ### Task 7: The gate and POST /api/shares — frozen from the server head, ledgered in the same transaction
 
 **Files:**
+
 - Create: `backend/src/routes/shares.ts`
 - Create: `backend/src/routes/shares.test.ts`
 - Modify: `backend/src/app.ts` (import + `app.register(shareRoutes);` after `guideRoutes`, `app.ts:52`)
 
 **Interfaces:**
+
 - Consumes: `CreateShareInputSchema`, `WorkspaceRulesSchema` (`@physics-ide/shared`); `getMembership`, `ClassAuthError`, `sendClassAuthError` (`../classes/guards.js`); `requireConfirmed` (`../auth/guards.js`); `logEvent` (`../db/events.js`); tables `classes`, `projects`, `groups`, `assignmentWork`, `assignments`, `shares`, `users`; `pgErrorCode` (Task 1).
 - Produces: the sentence consts below (Tasks 8–11 and 14 assert them verbatim); `requireShareable` (private — the ONE gate function, D§5); `POST /api/shares` → `201 { share: { id, classId, recipientId, status } }`; event `project.shared` with the D§3 payload including `sourceAttribution` (the D§9 chain).
 
 - [ ] **Step 1: Write the failing suite** — `shares.test.ts`, the `groups.test.ts` idiom (`buildApp({ db: testDb })`, `makeUser`/`signin` helpers with the per-IP counter, `eventsOfType`, `beforeAll` truncate). The fixture world: one teacher, two students (alpha the sharer, bravo the recipient), one outsider; a class with `peerSharing` flipped on via PATCH; alpha owns a pushed project `p-share-src` (insert the `projects` row directly with a minimal valid manifest — `{ schemaVersion: 2, id: "p-share-src", title: "Pendulum", goal: "physics", projectType: "custom", createdAt: 1000, updatedAt: 5000 }` — and `clientUpdatedAt: 5000`). The matrix, one test per refusal, sentences asserted verbatim:
 
-| Case | Arrange | Expect |
-|---|---|---|
-| switch off | PATCH `peerSharing:false` first | 403 `"Peer sharing is off for this class."` |
-| sharer not a member | outsider posts | 403 `"Not a member of this class."` |
-| recipient inactive | bravo's membership row set `status:"waiting"` directly | 400 `"They're not an active member of this class."` |
-| self | recipient = alpha | 400 `"You can't share a project with yourself."` |
-| not the sharer's project | projectId owned by bravo | 404 `"No such project."` |
-| tombstoned project | set `deletedAt` on the row | 404 `"No such project."` |
-| group project | insert an `assignments` row (`submissionMode:"group"`, any status) + a `groups` row with `ownerId: alpha.id, projectId: "p-share-src"` | 403 `"A group's shared project belongs to the whole group — it can't be shared out."` |
-| individual work | insert an `assignments` row (`individualWork:true`, `rules` = `BUILT_IN_RULE_SETS.open_practice`) + an `assignment_work` row keyed `(assignmentId, userId: alpha.id, ownerId: alpha.id, projectId: "p-share-src")` | 403 `"This assignment is individual work — it can't be shared."` |
-| export off | same but `individualWork:false`, `rules` = `BUILT_IN_RULE_SETS.locked_assessment` | 403 `"This assignment's rules don't allow copies to leave the workspace."` |
-| archived class | archive via `POST /api/classes/:id/archive` | 400 `"That class is archived."` |
-| duplicate pending | share once, share again | 409 `"Already shared with them — it's waiting on their class page."` |
-| happy path | clean world | 201; a `shares` row `status:"pending"` whose `frozenManifest` equals the head manifest and `sourceClientUpdatedAt` is `5000`; one `project.shared` event whose payload carries `{ shareId, classId, recipientId, sourceOwnerId, sourceProjectId, sourceClientUpdatedAt: 5000, sourceAttribution: null }` |
+| Case                     | Arrange                                                                                                                                                                                                                       | Expect                                                                                                                                                                                                                                                                                                                |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| switch off               | PATCH`peerSharing:false` first                                                                                                                                                                                              | 403`"Peer sharing is off for this class."`                                                                                                                                                                                                                                                                          |
+| sharer not a member      | outsider posts                                                                                                                                                                                                                | 403`"Not a member of this class."`                                                                                                                                                                                                                                                                                  |
+| recipient inactive       | bravo's membership row set`status:"waiting"` directly                                                                                                                                                                       | 400`"They're not an active member of this class."`                                                                                                                                                                                                                                                                  |
+| self                     | recipient = alpha                                                                                                                                                                                                             | 400`"You can't share a project with yourself."`                                                                                                                                                                                                                                                                     |
+| not the sharer's project | projectId owned by bravo                                                                                                                                                                                                      | 404`"No such project."`                                                                                                                                                                                                                                                                                             |
+| tombstoned project       | set`deletedAt` on the row                                                                                                                                                                                                   | 404`"No such project."`                                                                                                                                                                                                                                                                                             |
+| group project            | insert an`assignments` row (`submissionMode:"group"`, any status) + a `groups` row with `ownerId: alpha.id, projectId: "p-share-src"`                                                                                 | 403`"A group's shared project belongs to the whole group — it can't be shared out."`                                                                                                                                                                                                                               |
+| individual work          | insert an`assignments` row (`individualWork:true`, `rules` = `BUILT_IN_RULE_SETS.open_practice`) + an `assignment_work` row keyed `(assignmentId, userId: alpha.id, ownerId: alpha.id, projectId: "p-share-src")` | 403`"This assignment is individual work — it can't be shared."`                                                                                                                                                                                                                                                    |
+| export off               | same but`individualWork:false`, `rules` = `BUILT_IN_RULE_SETS.locked_assessment`                                                                                                                                        | 403`"This assignment's rules don't allow copies to leave the workspace."`                                                                                                                                                                                                                                           |
+| archived class           | archive via`POST /api/classes/:id/archive`                                                                                                                                                                                  | 400`"That class is archived."`                                                                                                                                                                                                                                                                                      |
+| duplicate pending        | share once, share again                                                                                                                                                                                                       | 409`"Already shared with them — it's waiting on their class page."`                                                                                                                                                                                                                                                |
+| happy path               | clean world                                                                                                                                                                                                                   | 201; a`shares` row `status:"pending"` whose `frozenManifest` equals the head manifest and `sourceClientUpdatedAt` is `5000`; one `project.shared` event whose payload carries `{ shareId, classId, recipientId, sourceOwnerId, sourceProjectId, sourceClientUpdatedAt: 5000, sourceAttribution: null }` |
 
 (Direct table inserts for the assignment/group fixtures are deliberate — driving the full teacher flow for each refusal would triple the file for no additional truth. The assignment rows need only the NOT-NULL columns: `classId`, `createdBy`, `title`, `instructions: { type: "doc", content: [] }`, `projectType: "physics"`, `rules`, plus the case's own fields.)
 
 - [ ] **Step 2: Run to fail** — `npm run test -w backend` → FAIL (404s: the route does not exist).
-
 - [ ] **Step 3: Write `backend/src/routes/shares.ts`** — consts, gate, POST:
 
 ```ts
@@ -821,9 +830,7 @@ export function shareRoutes(app: FastifyInstance): void {
 (The consts `AcceptShareInputSchema`, `z`, `desc`, `users`, `isAtCap`, `ManifestSchema`, `pgErrorCode`, `NO_SUCH_SHARE`, `SHARE_RESOLVED`, `REVOKE_FORBIDDEN`, `SHARE_CAP`, `COPY_ID_TAKEN`, `REMOVED_STUDENT` are consumed by Tasks 8–10, which extend THIS file — declaring them now keeps the sentence block complete in one commit; if the linter objects to unused imports before Task 8 lands, keep the imports minimal here and add them in Task 8/9 instead — the consts stay.) `isAtCap` is not yet exported — Task 9 exports it; until then omit it from the import line.
 
 - [ ] **Step 4: Register the plugin** — `backend/src/app.ts`: `import { shareRoutes } from "./routes/shares.js";` (after `tickRoutes`, `:14`) and `app.register(shareRoutes);` after `app.register(guideRoutes);` (`:52`).
-
 - [ ] **Step 5: Run to pass** — the matrix green, typecheck clean.
-
 - [ ] **Step 6: Commit**
 
 ```bash
@@ -836,11 +843,13 @@ git commit -m "feat(backend): the share gate and POST /api/shares - frozen from 
 ### Task 8: Delivery reads and lifecycle — incoming, the names-only roster, revoke, and the switch-off lapse
 
 **Files:**
+
 - Modify: `backend/src/routes/shares.ts` (three routes)
 - Modify: `backend/src/routes/classes.ts` (the PATCH transaction gains the lapse)
 - Modify: `backend/src/routes/shares.test.ts`, `backend/src/routes/classes.test.ts`
 
 **Interfaces:**
+
 - Consumes: Task 7's consts and world; `users` for name resolution.
 - Produces:
   - `GET /api/shares/incoming?classId=` (active member): `{ shares: [{ id, classId, title, sharerName, createdAt }] }` — pending rows addressed to the caller, newest first; `title` from the frozen manifest; `sharerName` resolved live, `REMOVED_STUDENT` when the user row is gone. Task 12's section renders exactly this shape.
@@ -849,7 +858,6 @@ git commit -m "feat(backend): the share gate and POST /api/shares - frozen from 
   - The lapse (D§8): flipping `peerSharing` off lapses that class's pending shares in the same `class.updated` transaction, one `project.share_lapsed` event each; accepted copies stand.
 
 - [ ] **Step 1: Failing tests.** `shares.test.ts`: incoming lists the pending share with `sharerName` = alpha's name and the frozen title; a revoked/lapsed/accepted share disappears from it; roster returns bravo+teacher for alpha (never alpha, never an email key — assert `Object.keys(members[0])` is exactly `["userId", "name", "role"]`); roster refuses 403 `SHARING_OFF` when the switch is off; revoke by alpha works and logs; revoke by bravo (the recipient) and by the TA → 403 `REVOKE_FORBIDDEN`; revoke twice → 409 `SHARE_RESOLVED`. `classes.test.ts`: with one pending and one accepted share seeded, PATCH `peerSharing:false` lapses the pending (status + `resolvedAt` set, one `project.share_lapsed` event naming it) and leaves the accepted row untouched.
-
 - [ ] **Step 2: Implement the three routes** in `shares.ts`:
 
 ```ts
@@ -977,20 +985,22 @@ git commit -m "feat(backend): share delivery - incoming list, the names-only ros
 ### Task 9: Accept — the copy minted with its attribution, the cap refused with its own sentence
 
 **Files:**
+
 - Modify: `backend/src/routes/projects.ts` (export `isAtCap` — add `export` at `:94` plus one comment line: `Exported for the share-accept route (Plan 7): an accepted copy is a created project and pays the same cap, refused with the share's OWN sentence.`)
 - Modify: `backend/src/routes/shares.ts` (the accept route)
 - Modify: `backend/src/routes/shares.test.ts`
 
 **Interfaces:**
+
 - Consumes: `AcceptShareInputSchema` (Task 3); `isAtCap`, `ManifestSchema` (`./projects.js`); `pgErrorCode` (Task 1).
 - Produces: `POST /api/shares/:id/accept` → `{ manifest, attribution: { sharerId, shareId, sharerName } }` where `manifest` is the frozen manifest with `id` rewritten to the body's fresh mint — **byte-identical to what the server stored**, which is what makes the client's later push the identical-re-push no-op (`projects.ts:238-244`). Event `project.share_accepted` with `copyProjectId`. Task 12's `acceptShare` consumes this reply shape verbatim.
 
 - [ ] **Step 1: Failing tests** (`shares.test.ts`):
+
   - Happy path: bravo accepts with `{ projectId: "p-copy-1" }` → 200; a `projects` row `(bravo, "p-copy-1")` exists with `manifest.id === "p-copy-1"`, `clientUpdatedAt === 5000`, and `attribution` `{ sharerId: alpha.id, shareId }`; the share row is `accepted` with `copyProjectId: "p-copy-1"`; one `project.share_accepted` event carries `copyProjectId`; the reply's `attribution.sharerName` is alpha's name.
   - The copy survives the source's death: alpha tombstones `p-share-src` first (direct `deletedAt` update); accept still succeeds from the frozen manifest (D§4).
   - The cap: insert 100 live projects for bravo directly, accept → 403 exactly `"You're at the 100-project limit — the copy needs a free slot. Delete something first, then add it."` and the share stays `pending` (they can delete something and come back).
   - Double accept → 409 `SHARE_RESOLVED`; accepting a revoked share → 409; a stranger (or the sharer) accepting → 404 `NO_SUCH_SHARE`; a recipient whose membership went `waiting` → 403 `NOT_A_MEMBER`; a body reusing the SOURCE's id (`p-share-src`) is legal input but collides only if bravo owns that id — assert the fresh-id path, and assert `COPY_ID_TAKEN` by pre-inserting a bravo project named `p-copy-9` and accepting with that id → 409.
-
 - [ ] **Step 2: Implement** in `shares.ts`:
 
 ```ts
@@ -1089,18 +1099,20 @@ git commit -m "feat(backend): accept mints the copy - attribution written at acc
 ### Task 10: The attribution read — names resolved live, erasure-safe, chains ledgered
 
 **Files:**
+
 - Modify: `backend/src/routes/shares.ts` (one route)
 - Modify: `backend/src/routes/shares.test.ts`
 
 **Interfaces:**
+
 - Consumes: `projects.attribution` rows (Task 9); `inArray`, `isNotNull`, `isNull` from `drizzle-orm` (join the import).
 - Produces: `GET /api/shares/attributions` → `{ attributions: { [projectId]: { sharerId, shareId, sharerName } } }` for every live attributed project the CALLER owns. This is the client's online name-refresh feed (Task 13's `refreshShareAttributions`) — and the second-device path by which a copy accepted elsewhere gains its local label.
 
 - [ ] **Step 1: Failing tests:**
+
   - Bravo's map carries `p-copy-1` with alpha's live name.
   - **Erasure** (§11): delete alpha's `users` row directly (`testDb.delete(users).where(eq(users.id, alpha.id))` — alpha's OWN projects cascade away, the recipient's copy and the `shares` row survive because neither carries a user FK; assert both survivals) → the map now reads `sharerName: "Removed student"`, and a fresh pending share's `incoming` row does too.
   - **The chain** (D§9): bravo (with class sharing on) shares `p-copy-1` onward to charlie → the new `project.shared` event's `sourceAttribution` equals `{ sharerId: alpha.id, shareId: <first share id> }`; charlie accepts → charlie's attribution names BRAVO (`sharerId: bravo.id`) — one person on the label, the whole provenance in the record.
-
 - [ ] **Step 2: Implement:**
 
 ```ts
@@ -1136,7 +1148,6 @@ git commit -m "feat(backend): accept mints the copy - attribution written at acc
 ```
 
 - [ ] **Step 3: Green — Stage B gate:** `npm run test -w backend && npm run typecheck -w backend && npm run typecheck -w shared`.
-
 - [ ] **Step 4: Commit**
 
 ```bash
@@ -1145,6 +1156,7 @@ git commit -m "feat(backend): the attribution read - names resolved live, erased
 ```
 
 ---
+
 ## Stage C — the client
 
 **The one architectural note for this stage (read before Task 11):** an accepted copy is an ORDINARY project the recipient owns. No task here touches `SyncProvider.js`, the sync engine, or manifest shapes — the copy adopts, pushes, reconciles and counts against the cap exactly like any project the recipient made. The only new client state is the `share-meta` sidecar (the `assignmentMeta.js` precedent, `assignmentMeta.js:1-27`): `{ shareId, sharerId, sharerName }` per accepted copy, where `sharerName` is a **cache for offline rendering** — the server never denormalises the name (D§3), and `refreshShareAttributions()` re-resolves it whenever the client is online.
@@ -1152,6 +1164,7 @@ git commit -m "feat(backend): the attribution read - names resolved live, erased
 ### Task 11: Share… in the File menu — the overlay picker, gated beside its export siblings
 
 **Files:**
+
 - Create: `frontend/src/components/sharing/ShareDialog.js`
 - Create: `frontend/src/components/sharing/__tests__/shareDialog.test.js`
 - Modify: `frontend/src/components/Toolbar.js` (the item + the dialog mount)
@@ -1160,6 +1173,7 @@ git commit -m "feat(backend): the attribution read - names resolved live, erased
 - Modify: `frontend/src/styles/assignments.css` (the Plan 7 section — created here, extended in Tasks 12–13)
 
 **Interfaces:**
+
 - Consumes: `Overlay` (`components/common/Overlay.js` — the product's one modal); `DropdownMenu` item idiom (`Toolbar.js:166-248` — each item a TOP-LEVEL child, never grouped in a Fragment, per the comment at `:183-187`); `ShareIcon` (already in `Icons.js:203`); `useAssignmentContext` (already read in Toolbar at `:97`); `exportsAllowed` (`Toolbar.js:103`); `peerSharing` on class summaries (Task 5); `GET /api/shares/roster/:classId` (Task 8); `POST /api/shares` (Task 7).
 - Produces: the `Share…` item (D§6's exact name) and `<ShareDialog projectId onClose />`. Gate consts other tests assert: `HANDOFF_SENTENCE`, `NO_SHARING_CLASSES`, `EMPTY_ROSTER` (exact strings below).
 
@@ -1329,6 +1343,7 @@ git commit -m "feat(frontend): Share… in the File menu - the overlay picker, g
 ### Task 12: Shared with you — the accept flow in start-work order, the sidecar carries the credit
 
 **Files:**
+
 - Create: `frontend/src/utils/storage/shareMeta.js`
 - Create: `frontend/src/utils/sharing/acceptShare.js` + `frontend/src/utils/sharing/__tests__/acceptShare.test.js`
 - Create: `frontend/src/components/sharing/SharedWithYou.js` + `frontend/src/components/sharing/__tests__/sharedWithYou.test.js`
@@ -1337,6 +1352,7 @@ git commit -m "feat(frontend): Share… in the File menu - the overlay picker, g
 - Modify: `frontend/src/styles/assignments.css` (the section's rows)
 
 **Interfaces:**
+
 - Consumes: `GET /api/shares/incoming` (Task 8), `POST /api/shares/:id/accept` (Task 9); `saveProject` (`utils/storage/projectStore.js` — `{ preserveTimestamp: true }`, the "a pull is not an edit" flag `groupSync.js` established); `getGlobalSyncEngine` (`utils/sync/syncEngine`), `assertPushSucceeded` (exported from `startWork.js:185`), `requestProjectOpen` (`utils/projectOpenRequest`), `LAST_PROJECT_KEY` (`constants`), `generateId` (this task's export).
 - Produces: `shareMeta.js` — `getShareAttribution` / `setShareAttribution` / `deleteShareAttribution` / `listShareAttribution` / `_resetShareMetaForTests` over localforage store `share-meta`, record `{ shareId, sharerId, sharerName }`; `acceptShare(share, me)` → the new local project id; `<SharedWithYou classId />` — renders NOTHING when empty (D§6).
 
@@ -1535,6 +1551,7 @@ git commit -m "feat(frontend): Shared with you - accept follows the start-work o
 ### Task 13: The label — "Based on work shared by [name]" in the library and the status bar, offline-correct
 
 **Files:**
+
 - Create: `frontend/src/utils/sharing/attribution.js` + `frontend/src/utils/sharing/__tests__/attribution.test.js`
 - Create: `frontend/src/components/layout/AttributionChip.js`
 - Create: `frontend/src/components/sharing/__tests__/attributionLabel.test.js`
@@ -1543,6 +1560,7 @@ git commit -m "feat(frontend): Shared with you - accept follows the start-work o
 - Modify: `frontend/src/styles/assignments.css` (two rules)
 
 **Interfaces:**
+
 - Consumes: `GET /api/shares/attributions` (Task 10); `shareMeta` (Task 12); `proj.activeProjectId` (already threaded through IDELayout); the `.sync-chip` status-bar idiom (`RulesChip.js:70-74`).
 - Produces: `attributionSentence(name)` — THE label builder, one place, §8.1's exact words; `refreshShareAttributions()` — the online name refresh AND the second-device sidecar backfill; `<AttributionChip projectId />`; the `.start-project-attrib` row line.
 
@@ -1591,7 +1609,8 @@ export async function refreshShareAttributions() {
 ```
 
   Add `export { ProjectRow };` beside the default export (test seam only).
-  - `AttributionChip.js` — the identity surface inside the IDE, beside its chip siblings:
+
+- `AttributionChip.js` — the identity surface inside the IDE, beside its chip siblings:
 
 ```jsx
 import React, { useEffect, useState } from "react";
@@ -1635,7 +1654,6 @@ export default function AttributionChip({ projectId }) {
 ```
 
 - [ ] **Step 4: Stage C gate** — `npm run test -w frontend && npm run build -w frontend`, then the browser: switch sharing on as the teacher; share from the File menu as student A (dialog, roster, consequence line); accept as student B from the class page; B lands in the IDE with the chip reading the label; B's StartMenu row carries it; kill the network (devtools offline) and reload — the label still renders. Guest window: no Share item, no section, no chip.
-
 - [ ] **Step 5: Commit**
 
 ```bash
@@ -1644,6 +1662,7 @@ git commit -m "feat(frontend): the label - Based on work shared by [name] in the
 ```
 
 ---
+
 ## Stage D — wrap
 
 ### Task 14: The authority matrix — every mutating route's refusals against one world
@@ -1651,14 +1670,15 @@ git commit -m "feat(frontend): the label - Based on work shared by [name] in the
 The memo §6b obligation, owed before Plan 8, sized ~50 rows now that Plan 7's routes exist. **A refusal matrix, not a happy-path suite:** refusals do not mutate, so one shared world serves every bucket; the one allowed bucket per route stays asserted in the per-file suites that already own it.
 
 **Files:**
+
 - Create: `backend/src/routes/authority.matrix.test.ts`
 
 **Interfaces:**
+
 - Consumes: every route file's exported/asserted sentence consts; `truncateAuthTables`; the `makeUser`/`signin` helper idiom (`groups.test.ts:32-59`).
 - Produces: the matrix later plans extend by adding rows.
 
 - [ ] **Step 1: The fixture world**, built once in `beforeAll` after `truncateAuthTables()`: one class (peerSharing on) with teacher, TA, two students (one in a group of a published group assignment, with `assignment_work`, a submission and a draft mark), a guide, an invite, a rule set, a project per student, one pending share (alpha→bravo); out-of-class actors — a teacher of a different class, an unconfirmed user, an admin, and the anonymous caller. **Eight actor buckets:** `anon` · `unconfirmed` · `studentIn` · `studentOut` · `ta` · `teacher` (of this class) · `teacherOther` · `admin`.
-
 - [ ] **Step 2: The table + runner.** Row shape and runner (~40 lines), then one row per mutating route:
 
 ```ts
@@ -1706,6 +1726,7 @@ git commit -m "test(backend): the authority matrix - every mutating route's refu
 Truth-in-copy is a contract obligation ("Copy is bound by this too."). The feature is green as of Stage C, so the copy may now say sharing exists — and must stop banning the truth. **The trap (memo §3.1 B): the ban list is itself asserted by a meta-test — groups A and B below move together in ONE commit or the suite is red between them.** The §3.2 stays-banned list (bell, real email, data requests, rubric, lockdown/exam/cloud/etc., History naming, the About underclaim) is DO-NOT-TOUCH.
 
 **Files:**
+
 - Modify: `frontend/src/welcome/__tests__/welcomePage.test.js`, `frontend/src/welcome/WelcomePage.js` (comment only), `frontend/src/welcome/__tests__/welcomeSubpages.test.js`, `frontend/src/welcome/AboutPage.js`
 - Modify: `frontend/src/utils/storage/projectStore.js` (`:12`), `README.md` (`:3`), `DEPLOY.md` (`:113`)
 - Modify: `docs/product-contract.md` (`:164`), `docs/classroom-platform.md` (§14 rows + a dated note)
@@ -1737,11 +1758,13 @@ git commit -m "docs+copy: sharing ships and the copy says so - bans moved with t
 ### Task 16: The golden flow end to end, and the plan's gate
 
 **Files:**
+
 - Modify: `frontend/scripts/portal-e2e.mjs` (extend — the house `check()`/`screenshot()` idiom, `portal-e2e.mjs:92-109`)
 - Modify: `docs/e2e-checklist.md` (the gap list), `docs/classroom-platform.md` §18 forward-reference 6 (the still-uncovered list)
 - Create: `docs/superpowers/reviews/2026-08-28-plan7-browser-pass-checklist.md`
 
 **The flow the script gains (after the existing marking segment; a second student B is signed up the same way the first was):**
+
 1. Teacher: Class → Settings → Sharing rules → On (assert the door flips).
 2. Student A: IDE at `/` → File → `Share…` → the dialog lists the class → pick student B → the consequence line renders verbatim → Share → "Shared with" confirmation. Screenshot `10-share-dialog`.
 3. Student B: class page shows "Shared with you" with A's name and the project title → Add to my projects → lands in the IDE → the status bar chip reads `Based on work shared by <A>`. Screenshot `11-attribution-chip`.

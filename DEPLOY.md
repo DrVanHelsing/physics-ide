@@ -110,7 +110,7 @@ The classroom backend ships local-first. These obligations were accepted during 
 
 ## What does NOT belong here
 
-- No environment variables for secrets — the app has no backend to authenticate to.
+- No environment variables for secrets — the static IDE has no secrets; the classroom backend deploys separately with its own environment (see backend/).
 - No serverless functions. If you find yourself adding one, write down the feature need first; the product contract requires it.
 - No database connections. localForage in the browser is the only persistence.
 

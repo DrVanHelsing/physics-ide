@@ -20,7 +20,7 @@
  * gradebook, History and group work all ship, and §5 says so in the
  * present tense. Every one of those claims was re-read against the tree on
  * 2026-08-28 and traced to a file. The absences that remain (the
- * notification bell, real email delivery, peer sharing, admin data
+ * notification bell, real email delivery, admin data
  * requests — Plan 6 §9) are kept out of the copy by two mechanisms rather
  * than by memory: welcomePage.test.js's non-claims list greps this SOURCE
  * (comments included), and welcomeSubpages.test.js's launch-truth scope
