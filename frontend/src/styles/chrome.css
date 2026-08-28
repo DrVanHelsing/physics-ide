@@ -179,6 +179,17 @@
 .tb-btn--nav { color: var(--text-dim); }
 .tb-btn--nav:hover { color: var(--text-bright); }
 
+/* The run/stop toggle clears the WCAG 2.5.5 24px floor.
+   Padding alone left it 23px tall — one pixel under, on the control a student
+   presses most. --control-h is the product's own button height, so this is the
+   floor the rest of the UI already stands on rather than a new number; the
+   36px viewport pane header it sits in absorbs it without reflowing. Both
+   states carry it so the button does not resize the moment a run starts. */
+.tb-btn--run,
+.tb-btn--stop {
+  min-height: var(--control-h);
+}
+
 /* Run — the IDE core's one filled primary action. */
 .tb-btn--run {
   padding: var(--space-1) var(--space-3);
@@ -411,9 +422,13 @@
   background: var(--bg-hover);
   color: var(--text-bright);
 }
+/* --text-dim, not --text-muted: 10px on the cluster's --bg-surface plate is
+   small text, and --text-muted measured 2.83:1 dark / 2.41:1 light. The dim
+   ramp reads 5.65:1 dark / 5.58:1 light — still quieter than the +/- buttons
+   it sits under, now legible at a glance. */
 .workspace-zoom__pct {
   font-size: 10px;
-  color: var(--text-muted);
+  color: var(--text-dim);
   font-family: var(--mono);
   padding-top: 2px;
 }
