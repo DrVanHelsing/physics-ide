@@ -7,6 +7,7 @@ import { useMe } from "../../../auth/useAuth";
 import { createManifest } from "../../../utils/manifest/factory";
 import { saveProject } from "../../../utils/storage/projectStore";
 import { api } from "../../../utils/api/client";
+import { requestProjectOpen } from "../../../utils/projectOpenRequest";
 import { LAST_PROJECT_KEY } from "../../../constants";
 
 /**
@@ -25,6 +26,7 @@ vi.mock("../../../utils/api/client", () => ({ api: vi.fn() }));
 vi.mock("@tanstack/react-query", () => ({ useQuery: vi.fn() }));
 vi.mock("../../../utils/manifest/factory", () => ({ createManifest: vi.fn() }));
 vi.mock("../../../utils/storage/projectStore", () => ({ saveProject: vi.fn() }));
+vi.mock("../../../utils/projectOpenRequest", () => ({ requestProjectOpen: vi.fn() }));
 
 vi.mock("../../BlocklyWorkspace", () => ({
   ReadOnlyBlockly: ({ xml }) => <div data-testid="readonly-blockly">{xml}</div>,
@@ -217,6 +219,10 @@ describe("MarkingRoom — Open a test copy", () => {
     });
     expect(saveProject).toHaveBeenCalledWith(FAKE_MANIFEST);
     expect(localStorage.getItem(LAST_PROJECT_KEY)).toBe("p-saved-1");
+    // Final fix wave D2: the stamp alone only answers a RELOAD of "/", and
+    // this navigation is client-side. The copy is announced as well, so the
+    // IDE opens it instead of showing the start menu.
+    expect(requestProjectOpen).toHaveBeenCalledWith("p-saved-1");
     expect(navigateSpy).toHaveBeenCalledWith("/");
   });
 

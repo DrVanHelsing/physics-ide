@@ -183,7 +183,10 @@ function track(session, manifest) {
  *     literal "group push, then submit") — the listener only fires on a
  *     save, and a session may not have seen one;
  *   - a push that never landed throws, so the caller refuses the submit
- *     rather than handing in a head the student never saw.
+ *     rather than handing in a head the student never saw;
+ *   - and all three run in ONE loop rather than in sequence, because a save
+ *     landing between the wait and the re-read would otherwise slip past
+ *     both (see the loop's own comment).
  *
  * A member with no save session (not the baton holder) has nothing of their
  * own in flight and no permission to write: this resolves at once.
@@ -194,14 +197,26 @@ export async function flushGroupSaves(groupId) {
   const session = liveSession && liveSession.groupId === groupId ? liveSession : null;
   if (!session) return;
 
-  await drain(session);
-  const local = await loadProject(session.projectId);
-  // Re-pushing a copy the listener already sent would file a duplicate
-  // checkpoint on the group's history for no reason — the timeline names who
-  // saved what (spec §5.5), so it must not be padded with saves nobody made.
-  if (local && local.updatedAt !== session.pushedAt) {
-    session.pending = track(session, local);
+  // ONE loop, not drain-then-check. A save landing between those two steps
+  // used to escape both: `track()` stamps `pushedAt` synchronously, so by the
+  // time the freshness check read the store it saw a local copy that matched
+  // and concluded there was nothing to send — while the push that save had
+  // just started was never awaited, and a failure in it never reached the
+  // check below. Each pass drains what is in flight and then re-reads; the
+  // barrier lifts only on a pass that finds nothing left to do.
+  for (;;) {
+    const before = session.pending;
     await drain(session);
+    const local = await loadProject(session.projectId);
+    // Re-pushing a copy the listener already sent would file a duplicate
+    // checkpoint on the group's history for no reason — the timeline names
+    // who saved what (spec §5.5), so it must not be padded with saves nobody
+    // made.
+    if (local && local.updatedAt !== session.pushedAt) {
+      session.pending = track(session, local);
+      continue;
+    }
+    if (session.pending === before) break; // a full pass changed nothing
   }
   if (session.failure) throw new Error(GROUP_PUSH_FAILED_MESSAGE);
 }

@@ -95,7 +95,14 @@ function InboxBody({ classData }) {
     mutationFn: () => api(`/api/assignments/${aid}/remind`, { method: "POST", body: {} }),
     onSuccess: (data) => {
       setRemindError(null);
-      setRemindNote(`Reminded ${data.reminded} student${data.reminded === 1 ? "" : "s"}.`);
+      // Scoped, not "Reminded N students": POST /remind really does compose a
+      // dueReminder per recipient, but the only Mailer implementation writes
+      // rows the admin console's Emails tab reads — delivery is a §9
+      // exclusion. Same wording pattern TeachersPage.js uses for the same
+      // button, so the two surfaces agree about where the message goes.
+      setRemindNote(
+        `Reminder written for ${data.reminded} student${data.reminded === 1 ? "" : "s"} — it lands in the Emails log rather than being posted out.`,
+      );
     },
     onError: (err) => {
       setRemindNote(null);
@@ -169,8 +176,11 @@ function InboxBody({ classData }) {
   function handleRemind() {
     setRemindNote(null);
     setRemindError(null);
-    // The exact consequence sentence — its own precise wording is the point.
-    const ok = window.confirm(`Email ${missingPeople} students who have not submitted?`);
+    // The exact consequence sentence — its own precise wording is the point,
+    // and the consequence is a written message, not a delivered one.
+    const ok = window.confirm(
+      `Write a reminder for ${missingPeople} students who have not submitted? It lands in the Emails log rather than being posted out.`,
+    );
     if (!ok) return;
     remind.mutate();
   }

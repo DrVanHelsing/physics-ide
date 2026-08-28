@@ -238,7 +238,14 @@ describe("InboxPage — remind", () => {
     click(byText(container, "Remind"));
     await flush();
 
-    expect(window.confirm).toHaveBeenCalledWith("Email 1 students who have not submitted?");
+    /* Final fix wave: the sentence is scoped the way TeachersPage.js scopes
+       the same button. POST /remind composes a real dueReminder per
+       recipient, but the only Mailer writes rows the admin console's Emails
+       tab reads — delivery is a §9 exclusion, so "Email N students" was a
+       promise the product does not keep. */
+    expect(window.confirm).toHaveBeenCalledWith(
+      "Write a reminder for 1 students who have not submitted? It lands in the Emails log rather than being posted out.",
+    );
     expect(mutateSpy).toHaveBeenCalled();
   });
 
@@ -259,7 +266,9 @@ describe("InboxPage — remind", () => {
 
     const alert = container.querySelector(".alert.alert--success");
     expect(alert).not.toBeNull();
-    expect(alert.textContent).toBe("Reminded 1 student.");
+    expect(alert.textContent).toBe(
+      "Reminder written for 1 student — it lands in the Emails log rather than being posted out.",
+    );
     expect(api).toHaveBeenCalledWith("/api/assignments/a1/remind", { method: "POST", body: {} });
   });
 });
@@ -415,7 +424,10 @@ describe("InboxPage — group rows (Task 23)", () => {
     await flush();
 
     // Two missing ROWS, but three people: The Solo's two members plus the
-    // ungrouped student. The sentence promises emails, so it counts emails.
-    expect(window.confirm).toHaveBeenCalledWith("Email 3 students who have not submitted?");
+    // ungrouped student. The sentence names the messages it writes, so it
+    // counts messages — one per person, not one per row.
+    expect(window.confirm).toHaveBeenCalledWith(
+      "Write a reminder for 3 students who have not submitted? It lands in the Emails log rather than being posted out.",
+    );
   });
 });

@@ -18,6 +18,7 @@ import React from "react";
 import { act } from "react";
 import { mountComponent } from "../../test/renderHelpers";
 import { ProjectProvider, useProjectContext } from "../ProjectContext";
+import { requestProjectOpen } from "../../utils/projectOpenRequest";
 import { LAST_PROJECT_KEY } from "../../constants";
 
 vi.mock("../../utils/storage/projectStore", () => ({
@@ -157,5 +158,58 @@ describe("ProjectContext bootstrap restore vs. explicit navigation", () => {
 
     expect(latestCtx.activeProjectId).toBeNull();
     expect(latestCtx.activeManifest).toBeNull();
+  });
+});
+
+/**
+ * Final fix wave, D2 — the consumer half of the portal's hand-off into the
+ * IDE. "Start work" and "Open a test copy" both settle on a project id and
+ * then navigate to "/" client-side, which remounts nothing: the bootstrap
+ * effect above ran long ago and LAST_PROJECT_KEY on its own only answers a
+ * reload. This provider listens for the announcement instead.
+ */
+describe("ProjectContext — an open requested from outside the IDE", () => {
+  test("a requested project becomes the active one, without a remount or a reload", async () => {
+    const projectB = { id: "project-B", title: "B" };
+    listProjects.mockResolvedValue([{ id: "project-B", title: "B", updatedAt: 2 }]);
+    loadProject.mockImplementation((id) => Promise.resolve(id === "project-B" ? projectB : null));
+
+    mounted = mountComponent(
+      React.createElement(ProjectProvider, null, React.createElement(Consumer)),
+    );
+    await act(async () => {
+      await flush();
+    });
+    expect(latestCtx.activeProjectId).toBeNull();
+
+    await act(async () => {
+      requestProjectOpen("project-B");
+      await flush();
+    });
+
+    expect(latestCtx.activeProjectId).toBe("project-B");
+    expect(latestCtx.activeManifest?.id).toBe("project-B");
+    // openProject's own stamp: a reload after this lands in the same place.
+    expect(localStorage.getItem(LAST_PROJECT_KEY)).toBe("project-B");
+  });
+
+  test("the subscription is dropped on unmount — a late request never touches a torn-down provider", async () => {
+    listProjects.mockResolvedValue([{ id: "project-B", title: "B", updatedAt: 2 }]);
+    loadProject.mockResolvedValue({ id: "project-B", title: "B" });
+
+    mounted = mountComponent(
+      React.createElement(ProjectProvider, null, React.createElement(Consumer)),
+    );
+    await act(async () => {
+      await flush();
+    });
+    mounted.unmount();
+    mounted = null;
+    loadProject.mockClear();
+
+    requestProjectOpen("project-B");
+    await flush();
+
+    expect(loadProject).not.toHaveBeenCalled();
   });
 });

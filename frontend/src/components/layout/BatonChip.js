@@ -90,6 +90,12 @@ export default function BatonChip({ onBaton }) {
      network round trip, and one that started under the last group must not
      land on this one. */
   const groupIdRef = useRef(groupId);
+  /* One number per adopt, so an adopt can tell whether it is still the
+     LATEST one. The group check above only catches a change of group; two
+     adopts of the same group interleave just as easily — a slow take-pull
+     against a poll that lands while it is in flight — and the older one must
+     not re-assert a baton the newer reading has already taken away. */
+  const adoptGenRef = useRef(0);
 
   // A different group — or none — must never keep showing the last one's
   // holder while the first poll is in flight.
@@ -124,6 +130,7 @@ export default function BatonChip({ onBaton }) {
    */
   const adopt = useCallback(
     async (next) => {
+      const generation = (adoptGenRef.current += 1);
       const nowHolding = batonView(next, meId, Date.now()).held === true;
       if (nowHolding && !holdingRef.current) {
         try {
@@ -133,6 +140,7 @@ export default function BatonChip({ onBaton }) {
           return;
         }
         if (groupIdRef.current !== groupId) return; // the group changed under the fetch
+        if (adoptGenRef.current !== generation) return; // a newer reading already landed
       }
       holdingRef.current = nowHolding;
       setBaton(next);

@@ -104,7 +104,7 @@ export default function HistoryTimeline({ entries, onRestore }) {
           {entry.type === "checkpoint" && onRestore ? (
             <button
               type="button"
-              className="btn btn--small"
+              className="btn btn--sm"
               onClick={() => onRestore(entry.versionId)}
             >
               Restore

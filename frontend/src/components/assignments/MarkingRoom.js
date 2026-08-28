@@ -5,6 +5,7 @@ import { api } from "../../utils/api/client";
 import { useMe } from "../../auth/useAuth";
 import { createManifest } from "../../utils/manifest/factory";
 import { saveProject } from "../../utils/storage/projectStore";
+import { requestProjectOpen } from "../../utils/projectOpenRequest";
 import { LAST_PROJECT_KEY } from "../../constants";
 import PortalHeader from "../layout/PortalHeader";
 import SubmissionViewer from "./SubmissionViewer";
@@ -20,8 +21,10 @@ import HistoryTimeline, { buildTimelineEntries } from "./HistoryTimeline";
  *     §7.2 — "the submission itself is read-only and untouchable... the
  *     teacher works in a test copy"). Builds a fresh manifest from the
  *     snapshot, saves it into the TEACHER's own project space (never
- *     touching the student's), stamps LAST_PROJECT_KEY, and navigates to
- *     "/" — the full IDE, with Run and debug mode, opens on the copy.
+ *     touching the student's), stamps LAST_PROJECT_KEY, announces the copy
+ *     (projectOpenRequest.js — the stamp alone only answers a reload, and
+ *     this navigation is client-side), and navigates to "/" — the full IDE,
+ *     with Run and debug mode, opens on the copy.
  *   - **Previous / Next**: walk Task 16's inbox row order (query key
  *     ["assignment", aid, "inbox"], shared verbatim with InboxPage.js) so
  *     marking a set of submissions is one continuous flow, never a trip
@@ -171,6 +174,9 @@ export default function MarkingRoom() {
       } catch {
         /* storage blocked */
       }
+      // The stamp answers a reload; this answers the client-side navigation
+      // on the next line, which remounts nothing (see projectOpenRequest.js).
+      requestProjectOpen(saved.id);
       navigate("/");
     } catch (err) {
       setCopyError(err.message);
