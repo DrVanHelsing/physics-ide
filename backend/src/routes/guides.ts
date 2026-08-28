@@ -5,24 +5,18 @@ import { guides } from "../db/schema.js";
 import { requireConfirmed } from "../auth/guards.js";
 import {
   getMembership,
+  isStaffRole,
   requireClassTeacher,
   sendClassAuthError,
 } from "../classes/guards.js";
 import { logEvent } from "../db/events.js";
 import type { Db } from "../db/types.js";
+import { toEpoch } from "../lib/util.js";
 
 type GuideRow = typeof guides.$inferSelect;
 
 const NOT_A_MEMBER = "Not a member of this class.";
 const NO_SUCH_GUIDE = "No such guide.";
-
-function toEpoch(d: Date | null): number | null {
-  return d ? d.getTime() : null;
-}
-
-function isStaffRole(role: string): boolean {
-  return role === "teacher" || role === "ta";
-}
 
 export function toGuideSummary(g: GuideRow, extras: Record<string, unknown> = {}) {
   return {
@@ -35,8 +29,11 @@ export function toGuideSummary(g: GuideRow, extras: Record<string, unknown> = {}
 }
 
 /** Students see a guide only once it is published — same "existence not
- *  admitted" treatment a draft assignment gets (spec §5.1 / this plan §4). */
-function visibleToStudent(g: GuideRow): boolean {
+ *  admitted" treatment a draft assignment gets (spec §5.1 / this plan §4).
+ *  Named guideVisibleToStudent, not visibleToStudent, to keep this a
+ *  DIFFERENT predicate from lib/util.ts's assignment-shaped one — same name,
+ *  different row, never merged (design D§14.10). */
+function guideVisibleToStudent(g: GuideRow): boolean {
   return g.publishedAt != null;
 }
 
@@ -83,7 +80,7 @@ export function guideRoutes(app: FastifyInstance): void {
     const rows = await app.db.select().from(guides).where(eq(guides.classId, classId));
 
     if (!isStaffRole(m.role)) {
-      return { guides: rows.filter(visibleToStudent).map((g) => toGuideSummary(g)) };
+      return { guides: rows.filter(guideVisibleToStudent).map((g) => toGuideSummary(g)) };
     }
     return { guides: rows.map((g) => toGuideSummary(g)) };
   });
@@ -97,7 +94,7 @@ export function guideRoutes(app: FastifyInstance): void {
       return reply.code(403).send({ error: NOT_A_MEMBER });
     }
     const staff = isStaffRole(m.role);
-    if (!staff && !visibleToStudent(g)) {
+    if (!staff && !guideVisibleToStudent(g)) {
       return reply.code(404).send({ error: NO_SUCH_GUIDE });
     }
     return { guide: toGuideSummary(g, { body: g.body }) };

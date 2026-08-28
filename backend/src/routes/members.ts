@@ -5,6 +5,7 @@ import { classes, classMembers, invites, users } from "../db/schema.js";
 import { requireConfirmed } from "../auth/guards.js";
 import { getMembership, requireClassTeacher, sendClassAuthError } from "../classes/guards.js";
 import { logEvent } from "../db/events.js";
+import { pgErrorCode } from "../lib/util.js";
 
 export function memberRoutes(app: FastifyInstance): void {
   app.addHook("preHandler", requireConfirmed);
@@ -197,9 +198,3 @@ export function memberRoutes(app: FastifyInstance): void {
 class MemberNotFound extends Error {}
 class LastTeacher extends Error {}
 class ClassArchived extends Error {}
-
-/** drizzle 0.44 may wrap driver errors; the pg code then lives on .cause. */
-function pgErrorCode(err: unknown): string | undefined {
-  const e = err as { code?: string; cause?: { code?: string } };
-  return e.code ?? e.cause?.code;
-}

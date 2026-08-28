@@ -1,10 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { and, desc, eq, inArray, notInArray } from "drizzle-orm";
-import {
-  CreateGroupInputSchema,
-  GroupProjectSaveInputSchema,
-  computeAssignmentPhase,
-} from "@physics-ide/shared";
+import { CreateGroupInputSchema, GroupProjectSaveInputSchema } from "@physics-ide/shared";
 import {
   assignments,
   groupMembers,
@@ -15,9 +11,10 @@ import {
   users,
 } from "../db/schema.js";
 import { requireConfirmed } from "../auth/guards.js";
-import { ClassAuthError, getMembership, sendClassAuthError } from "../classes/guards.js";
+import { ClassAuthError, getMembership, isStaffRole, sendClassAuthError } from "../classes/guards.js";
 import { logEvent } from "../db/events.js";
 import type { Db } from "../db/types.js";
+import { visibleToStudent } from "../lib/util.js";
 import {
   INVALID_PROJECT_ERROR,
   ManifestSchema,
@@ -52,16 +49,6 @@ const BATON_HELD = "Another member holds the baton.";
 const NO_BATON = "Take the baton before saving.";
 const NOT_STARTED = "This group has not started work yet.";
 const STUDENTS_ONLY = "Groups are for students.";
-
-function isStaffRole(role: string): boolean {
-  return role === "teacher" || role === "ta";
-}
-
-/** Same "a draft's existence is the teacher's business" posture the
- *  assignment routes take — a student acting on one gets a 404, not a 403. */
-function visibleToStudent(a: AssignmentRow): boolean {
-  return computeAssignmentPhase(a, new Date()) !== "draft";
-}
 
 function isGroupWork(a: AssignmentRow): boolean {
   return a.submissionMode === "pair" || a.submissionMode === "group";
