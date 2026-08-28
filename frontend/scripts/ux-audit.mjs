@@ -33,12 +33,55 @@ if (!fs.existsSync(E2E_DIR)) fs.mkdirSync(E2E_DIR, { recursive: true });
 const C = { pass: '\x1b[32m', fail: '\x1b[31m', warn: '\x1b[33m', dim: '\x1b[90m', reset: '\x1b[0m' };
 
 // ─── Colour maths ─────────────────────────────────────────────────────────────
+/**
+ * getComputedStyle hands back `rgba(r, g, b, a)` with fractional channels and a
+ * fractional alpha. The old parser matched `(\d+)` only and threw the alpha
+ * away, so a card painted `rgba(255, 255, 255, 0.024)` — a 2.4% white wash over
+ * a #1e1e1e page — was read as opaque white. That is what put the start menu's
+ * goal-card title at "1.23:1" when the pixels a student actually sees are
+ * #e8e8e8 on #232323, i.e. 12.76:1. Alpha is parsed, and composited, now.
+ */
 function parseRgb(cssColor) {
   if (!cssColor) return null;
-  const m = cssColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+  const m = cssColor.match(/rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:\s*[,/]\s*([\d.]+%?))?/);
   if (!m) return null;
-  return { r: +m[1], g: +m[2], b: +m[3] };
+  let a = 1;
+  if (m[4] !== undefined) a = m[4].endsWith('%') ? parseFloat(m[4]) / 100 : parseFloat(m[4]);
+  return { r: +m[1], g: +m[2], b: +m[3], a };
 }
+
+/** Source-over: `fg` (which may be translucent) painted onto opaque `bg`. */
+function compositeOver(fg, bg) {
+  const a = fg.a ?? 1;
+  if (a >= 1) return { r: fg.r, g: fg.g, b: fg.b, a: 1 };
+  return {
+    r: fg.r * a + bg.r * (1 - a),
+    g: fg.g * a + bg.g * (1 - a),
+    b: fg.b * a + bg.b * (1 - a),
+    a: 1,
+  };
+}
+
+/**
+ * Flatten the ancestor background stack an element actually sits on.
+ * `layers` runs element-first (nearest painted background first); `base` is
+ * the deepest fully-opaque background found, or the page background.
+ */
+function flattenBackdrop(layers, fallback) {
+  const parsed = layers.map(parseRgb).filter((c) => c && c.a > 0);
+  let base = null;
+  const translucent = [];
+  for (const c of parsed) {
+    if (c.a >= 1) { base = c; break; }
+    translucent.push(c);
+  }
+  if (!base) base = parseRgb(fallback) || { r: 255, g: 255, b: 255, a: 1 };
+  let out = base;
+  for (let i = translucent.length - 1; i >= 0; i--) out = compositeOver(translucent[i], out);
+  return out;
+}
+
+const fmtRgb = (c) => `rgb(${Math.round(c.r)}, ${Math.round(c.g)}, ${Math.round(c.b)})`;
 
 function relativeLuminance(r, g, b) {
   return [r, g, b].reduce((acc, c, i) => {
@@ -160,20 +203,23 @@ console.log('\n═══ C.1: Colour Contrast (WCAG AA) ════════
 
 // Helper: measure contrast of an element's text vs background
 async function measureContrast(selector, label, isLargeText = false) {
+  // Collect the whole ancestor background stack rather than stopping at the
+  // first non-"rgba(0, 0, 0, 0)" value: a 2%-alpha wash is *not* the backdrop
+  // the text is read against, it is one thin layer over whatever is beneath.
   const result = await page.evaluate((sel) => {
     const el = document.querySelector(sel);
     if (!el) return null;
     const style = getComputedStyle(el);
-    const bgEl = (() => {
-      let e = el;
-      while (e) {
-        const bg = getComputedStyle(e).backgroundColor;
-        if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') return bg;
-        e = e.parentElement;
-      }
-      return getComputedStyle(document.body).backgroundColor;
-    })();
-    return { color: style.color, bg: bgEl, fontSize: style.fontSize, fontWeight: style.fontWeight };
+    const layers = [];
+    for (let e = el; e; e = e.parentElement) layers.push(getComputedStyle(e).backgroundColor);
+    return {
+      color: style.color,
+      layers,
+      pageBg: getComputedStyle(document.body).backgroundColor,
+      rootBg: getComputedStyle(document.documentElement).backgroundColor,
+      fontSize: style.fontSize,
+      fontWeight: style.fontWeight,
+    };
   }, selector);
 
   if (!result) {
@@ -181,19 +227,23 @@ async function measureContrast(selector, label, isLargeText = false) {
     return;
   }
 
-  const fg = parseRgb(result.color);
-  const bg = parseRgb(result.bg);
-  if (!fg || !bg) {
-    record('C.1 Contrast', label, 'could not parse colours', 'INFO', `fg:${result.color} bg:${result.bg}`);
+  const rawFg = parseRgb(result.color);
+  if (!rawFg) {
+    record('C.1 Contrast', label, 'could not parse colours', 'INFO', `fg:${result.color}`);
     return;
   }
+  const pageFallback = (parseRgb(result.pageBg)?.a ?? 0) >= 1 ? result.pageBg : result.rootBg;
+  const bg = flattenBackdrop(result.layers, pageFallback);
+  const fg = compositeOver(rawFg, bg); // translucent text is read through its backdrop too
 
   const lFg = relativeLuminance(fg.r, fg.g, fg.b);
   const lBg = relativeLuminance(bg.r, bg.g, bg.b);
   const ratio = contrastRatio(lFg, lBg);
   const rating = ratingFor(ratio, isLargeText);
   const status = rating === 'FAIL' ? 'FAIL' : rating === 'AA-large' ? 'WARN' : 'PASS';
-  record('C.1 Contrast', label, `${ratio.toFixed(2)}:1 (${rating}) — ${result.fontSize} ${result.fontWeight}w`, status);
+  record('C.1 Contrast', label,
+    `${ratio.toFixed(2)}:1 (${rating}) — ${result.fontSize} ${result.fontWeight}w, ${fmtRgb(fg)} on ${fmtRgb(bg)}`,
+    status);
 }
 
 // Start menu contrast
