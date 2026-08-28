@@ -47,3 +47,26 @@ export async function requireClassTeacher(
   }
   return m;
 }
+
+/** Teacher or TA — the two staff hats (spec §2.1). Was three private copies
+ *  (assignments.ts, groups.ts, guides.ts). */
+export function isStaffRole(role: string): boolean {
+  return role === "teacher" || role === "ta";
+}
+
+const STAFF_ONLY = "Teachers and assistants only.";
+
+/** Active teacher-or-TA membership in THIS class — requireClassTeacher's
+ *  exact shape, one rung looser. One predicate, one sentence, where eight
+ *  hand-inlined copies used to live in assignments.ts. */
+export async function requireClassStaff(
+  db: Db,
+  classId: string,
+  userId: string,
+): Promise<typeof classMembers.$inferSelect> {
+  const m = await getMembership(db, classId, userId);
+  if (!m || m.status !== "active" || !isStaffRole(m.role)) {
+    throw new ClassAuthError(403, STAFF_ONLY);
+  }
+  return m;
+}

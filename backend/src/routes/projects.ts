@@ -5,6 +5,7 @@ import { projects, projectVersions, users } from "../db/schema.js";
 import { requireUser } from "../auth/guards.js";
 import { logEvent } from "../db/events.js";
 import type { Db } from "../db/types.js";
+import { pgErrorCode } from "../lib/util.js";
 
 export const MAX_PROJECTS_PER_USER = 100;
 export const MAX_MANIFEST_BYTES = 400 * 1024;
@@ -98,13 +99,6 @@ async function isAtCap(tx: Pick<Db, "select">, ownerId: string): Promise<boolean
     .from(projects)
     .where(and(eq(projects.ownerId, ownerId), sql`deleted_at IS NULL`));
   return count >= MAX_PROJECTS_PER_USER;
-}
-
-/** drizzle 0.44 may wrap driver errors; the pg code then lives on .cause.
- *  Same private-per-file idiom auth.ts, members.ts and assignments.ts use. */
-function pgErrorCode(err: unknown): string | undefined {
-  const e = err as { code?: string; cause?: { code?: string } };
-  return e.code ?? e.cause?.code;
 }
 
 export function projectRoutes(app: FastifyInstance): void {

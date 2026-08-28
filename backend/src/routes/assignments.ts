@@ -27,12 +27,16 @@ import {
 } from "../db/schema.js";
 import { requireConfirmed } from "../auth/guards.js";
 import {
+  ClassAuthError,
   getMembership,
+  isStaffRole,
+  requireClassStaff,
   requireClassTeacher,
   sendClassAuthError,
 } from "../classes/guards.js";
 import { logEvent } from "../db/events.js";
 import type { Db } from "../db/types.js";
+import { pgErrorCode, toEpoch, visibleToStudent } from "../lib/util.js";
 import { stableStringify } from "./projects.js";
 import { groupMembersOf, groupShape, myGroupFor } from "./groups.js";
 import { submissionReceipt, dueReminder, marksReleased, workReturned } from "../email/templates.js";
@@ -56,7 +60,6 @@ const NOT_STARTED = "Start this assignment before submitting.";
 const DUE_DATE_PASSED = "The due date has passed.";
 const ASSIGNMENT_CLOSED = "This assignment is closed.";
 const NO_SUCH_SUBMISSION = "No submission from this student.";
-const STAFF_ONLY_FOR_CLASS = "Teachers and TAs only for this class.";
 const NO_SUCH_STUDENT_WORK = "This student has not started this assignment.";
 const NO_SUCH_STUDENT_IN_CLASS = "No such student in this class.";
 const JOIN_A_GROUP_FIRST = "Join a group before starting this assignment.";
@@ -69,10 +72,6 @@ const ADJUSTMENT_NOT_A_MEMBER = "That adjustment names someone outside the group
 // Same exact sentence as AssignmentPage.js's own gateSentence(phase) for the
 // Start/Continue button — the two surfaces must agree (review finding).
 const MARKS_RELEASED_CLOSED = "This assignment is closed — marks have been released.";
-
-function toEpoch(d: Date | null): number | null {
-  return d ? d.getTime() : null;
-}
 
 export function toAssignmentSummary(
   a: typeof assignments.$inferSelect,
@@ -94,16 +93,6 @@ export function toAssignmentSummary(
     hasStarter: a.starterManifest != null,
     ...extras,
   };
-}
-
-/** Students see an assignment only once it has left draft (spec §5.1).
- *  A draft 404s rather than 403s — its existence is the teacher's business. */
-function visibleToStudent(a: typeof assignments.$inferSelect): boolean {
-  return computeAssignmentPhase(a, new Date()) !== "draft";
-}
-
-function isStaffRole(role: string): boolean {
-  return role === "teacher" || role === "ta";
 }
 
 /** Account-level teacher check (spec §3.1) — used by the rule-set routes, which
@@ -1377,10 +1366,7 @@ export function assignmentRoutes(app: FastifyInstance): void {
   // The teacher's (and TA's) roster-wide view of one assignment: every
   // active student, submitted or missing, their mark status, and a
   // one-click reminder for whoever hasn't turned it in yet. GET is staff
-  // (teacher + TA, same "Teachers and assistants only." wording as
-  // members.ts's own roster route); the reminder itself is teacher-only.
-
-  const STAFF_ONLY = "Teachers and assistants only.";
+  // (teacher + TA); the reminder itself is teacher-only.
 
   type InboxEntry = {
     /** Task 23: a group assignment's row IS the group (spec §5.5 — one
@@ -1530,9 +1516,11 @@ export function assignmentRoutes(app: FastifyInstance): void {
     const { id } = req.params as { id: string };
     const a = await loadAssignment(app.db, id);
     if (!a) return reply.code(404).send({ error: NO_SUCH_ASSIGNMENT });
-    const m = await getMembership(app.db, a.classId, req.user!.id);
-    if (!m || m.status !== "active" || !isStaffRole(m.role)) {
-      return reply.code(403).send({ error: STAFF_ONLY });
+    try {
+      await requireClassStaff(app.db, a.classId, req.user!.id);
+    } catch (err) {
+      if (await sendClassAuthError(reply, err)) return;
+      throw err;
     }
     const entries = await inboxEntriesFor(app.db, a);
     return {
@@ -1714,9 +1702,11 @@ export function assignmentRoutes(app: FastifyInstance): void {
     const { id, studentId } = req.params as { id: string; studentId: string };
     const a = await loadAssignment(app.db, id);
     if (!a) return reply.code(404).send({ error: NO_SUCH_ASSIGNMENT });
-    const m = await getMembership(app.db, a.classId, req.user!.id);
-    if (!m || m.status !== "active" || !isStaffRole(m.role)) {
-      return reply.code(403).send({ error: STAFF_ONLY_FOR_CLASS });
+    try {
+      await requireClassStaff(app.db, a.classId, req.user!.id);
+    } catch (err) {
+      if (await sendClassAuthError(reply, err)) return;
+      throw err;
     }
 
     const work = await myWorkRowFor(app.db, id, studentId);
@@ -1767,9 +1757,11 @@ export function assignmentRoutes(app: FastifyInstance): void {
     const { id, gid } = req.params as { id: string; gid: string };
     const a = await loadAssignment(app.db, id);
     if (!a) return reply.code(404).send({ error: NO_SUCH_ASSIGNMENT });
-    const m = await getMembership(app.db, a.classId, req.user!.id);
-    if (!m || m.status !== "active" || !isStaffRole(m.role)) {
-      return reply.code(403).send({ error: STAFF_ONLY_FOR_CLASS });
+    try {
+      await requireClassStaff(app.db, a.classId, req.user!.id);
+    } catch (err) {
+      if (await sendClassAuthError(reply, err)) return;
+      throw err;
     }
     const group = await groupOfAssignment(app.db, id, gid);
     if (!group) return reply.code(404).send({ error: NO_SUCH_GROUP });
@@ -1823,9 +1815,11 @@ export function assignmentRoutes(app: FastifyInstance): void {
     const { id, studentId } = req.params as { id: string; studentId: string };
     const a = await loadAssignment(app.db, id);
     if (!a) return reply.code(404).send({ error: NO_SUCH_ASSIGNMENT });
-    const m = await getMembership(app.db, a.classId, req.user!.id);
-    if (!m || m.status !== "active" || !isStaffRole(m.role)) {
-      return reply.code(403).send({ error: STAFF_ONLY });
+    try {
+      await requireClassStaff(app.db, a.classId, req.user!.id);
+    } catch (err) {
+      if (await sendClassAuthError(reply, err)) return;
+      throw err;
     }
 
     // Every attempt, newest first — the current one (isCurrent) is the
@@ -1868,9 +1862,11 @@ export function assignmentRoutes(app: FastifyInstance): void {
     const { id, gid } = req.params as { id: string; gid: string };
     const a = await loadAssignment(app.db, id);
     if (!a) return reply.code(404).send({ error: NO_SUCH_ASSIGNMENT });
-    const m = await getMembership(app.db, a.classId, req.user!.id);
-    if (!m || m.status !== "active" || !isStaffRole(m.role)) {
-      return reply.code(403).send({ error: STAFF_ONLY });
+    try {
+      await requireClassStaff(app.db, a.classId, req.user!.id);
+    } catch (err) {
+      if (await sendClassAuthError(reply, err)) return;
+      throw err;
     }
     const group = await groupOfAssignment(app.db, id, gid);
     if (!group) return reply.code(404).send({ error: NO_SUCH_GROUP });
@@ -1921,9 +1917,11 @@ export function assignmentRoutes(app: FastifyInstance): void {
     const { id, studentId } = req.params as { id: string; studentId: string };
     const a = await loadAssignment(app.db, id);
     if (!a) return reply.code(404).send({ error: NO_SUCH_ASSIGNMENT });
-    const m = await getMembership(app.db, a.classId, req.user!.id);
-    if (!m || m.status !== "active" || !isStaffRole(m.role)) {
-      return reply.code(403).send({ error: STAFF_ONLY });
+    try {
+      await requireClassStaff(app.db, a.classId, req.user!.id);
+    } catch (err) {
+      if (await sendClassAuthError(reply, err)) return;
+      throw err;
     }
     if (!(await isMarkableStudent(app.db, a.classId, studentId))) {
       return reply.code(404).send({ error: NO_SUCH_STUDENT_IN_CLASS });
@@ -2022,9 +2020,12 @@ export function assignmentRoutes(app: FastifyInstance): void {
   async function markableGroup(userId: string, id: string, gid: string): Promise<MarkableGroup> {
     const a = await loadAssignment(app.db, id);
     if (!a) return { ok: false, code: 404, error: NO_SUCH_ASSIGNMENT };
-    const m = await getMembership(app.db, a.classId, userId);
-    if (!m || m.status !== "active" || !isStaffRole(m.role)) {
-      return { ok: false, code: 403, error: STAFF_ONLY };
+    let m: typeof classMembers.$inferSelect;
+    try {
+      m = await requireClassStaff(app.db, a.classId, userId);
+    } catch (err) {
+      if (err instanceof ClassAuthError) return { ok: false, code: err.status, error: err.message };
+      throw err;
     }
     if (!(await groupOfAssignment(app.db, id, gid))) {
       return { ok: false, code: 404, error: NO_SUCH_GROUP };
@@ -2328,9 +2329,12 @@ export function assignmentRoutes(app: FastifyInstance): void {
     const { id, studentId } = req.params as { id: string; studentId: string };
     const a = await loadAssignment(app.db, id);
     if (!a) return reply.code(404).send({ error: NO_SUCH_ASSIGNMENT });
-    const m = await getMembership(app.db, a.classId, req.user!.id);
-    if (!m || m.status !== "active" || !isStaffRole(m.role)) {
-      return reply.code(403).send({ error: STAFF_ONLY });
+    let m: typeof classMembers.$inferSelect;
+    try {
+      m = await requireClassStaff(app.db, a.classId, req.user!.id);
+    } catch (err) {
+      if (await sendClassAuthError(reply, err)) return;
+      throw err;
     }
     if (!(await isMarkableStudent(app.db, a.classId, studentId))) {
       return reply.code(404).send({ error: NO_SUCH_STUDENT_IN_CLASS });
@@ -2390,11 +2394,4 @@ export function assignmentRoutes(app: FastifyInstance): void {
 
     return { mark: toMarkStaffShape(saved) };
   });
-}
-
-/** drizzle 0.44 may wrap driver errors; the pg code then lives on .cause.
- *  Same private-per-file idiom auth.ts and members.ts already use. */
-function pgErrorCode(err: unknown): string | undefined {
-  const e = err as { code?: string; cause?: { code?: string } };
-  return e.code ?? e.cause?.code;
 }

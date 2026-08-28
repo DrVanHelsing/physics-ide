@@ -2307,7 +2307,7 @@ describe("GET /api/assignments/:id/timeline/:studentId", () => {
       cookies: { pide_session: otherStudentCookie },
     });
     expect(res.statusCode).toBe(403);
-    expect(res.json().error).toBe("Teachers and TAs only for this class.");
+    expect(res.json().error).toBe("Teachers and assistants only.");
   });
 
   test("a non-member of the class is refused too", async () => {

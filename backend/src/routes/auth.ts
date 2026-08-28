@@ -24,6 +24,7 @@ import {
 import { requireUser } from "../auth/guards.js";
 import { confirmEmail, teacherSignupAlert, resetEmail } from "../email/templates.js";
 import { config } from "../config.js";
+import { pgErrorCode } from "../lib/util.js";
 
 export const CONFIRM_TTL_MS = 48 * 60 * 60 * 1000;
 export const RESET_TTL_MS = 60 * 60 * 1000;
@@ -328,9 +329,3 @@ export function authRoutes(app: FastifyInstance): void {
 }
 
 class CapReached extends Error {}
-
-/** drizzle 0.44 may wrap driver errors; the pg code then lives on .cause. */
-function pgErrorCode(err: unknown): string | undefined {
-  const e = err as { code?: string; cause?: { code?: string } };
-  return e.code ?? e.cause?.code;
-}
