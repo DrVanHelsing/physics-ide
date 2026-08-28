@@ -4,6 +4,14 @@ import Toolbar from "../Toolbar";
 import { mountComponent, click, byText, byTitle, keyDown } from "../../test/renderHelpers";
 import { useMe } from "../../auth/useAuth";
 import { useAssignmentContext } from "../../contexts/AssignmentContext";
+import { BUILT_IN_RULE_SETS } from "@physics-ide/shared";
+
+// Plan 7 Task 11: the Share… item mounts <ShareDialog> on click. Stub it to
+// a bare marker — its own behaviour is covered by
+// components/sharing/__tests__/shareDialog.test.js.
+vi.mock("../sharing/ShareDialog", () => ({
+  default: () => React.createElement("div", { "data-testid": "share-dialog" }),
+}));
 
 // HeaderAccount calls useMe() (TanStack Query) and useNavigate() (router) —
 // neither provider is mounted in this suite, so stub it out. Its own
@@ -347,5 +355,53 @@ describe("Toolbar — History & restore (Task 20)", () => {
     const { container } = render({ activeProjectId: "p-locked" });
     click(container.querySelector(".tb-btn--dropdown"));
     expect(byText(container, "History & restore", "button")).not.toBeNull();
+  });
+});
+
+describe("the Share… item (Plan 7)", () => {
+  test("signed-in + activeProjectId + null context: present, and clicking it mounts the dialog", () => {
+    useMe.mockReturnValue({ data: { role: "user", isTeacher: false }, isLoading: false });
+    useAssignmentContext.mockReturnValue(null);
+    const { container } = render({ activeProjectId: "p1" });
+
+    click(byText(container, "File", "span").closest("button"));
+    const item = byText(container, "Share…", "span");
+    expect(item).not.toBeNull();
+    expect(container.querySelector('[data-testid="share-dialog"]')).toBeNull();
+
+    click(item.closest("button"));
+    expect(container.querySelector('[data-testid="share-dialog"]')).not.toBeNull();
+  });
+
+  test("absent for a guest even with an active project", () => {
+    useMe.mockReturnValue({ data: null, isLoading: false });
+    useAssignmentContext.mockReturnValue(null);
+    const { container } = render({ activeProjectId: "p1" });
+    click(container.querySelector(".tb-btn--dropdown"));
+    expect(byText(container, "Share…", "span")).toBeNull();
+  });
+
+  test("absent when exportAndCopy is switched off", () => {
+    useMe.mockReturnValue({ data: { role: "user", isTeacher: false }, isLoading: false });
+    useAssignmentContext.mockReturnValue({ rules: { ...BUILT_IN_RULE_SETS.open_practice, exportAndCopy: false } });
+    const { container } = render({ activeProjectId: "p1" });
+    click(container.querySelector(".tb-btn--dropdown"));
+    expect(byText(container, "Share…", "span")).toBeNull();
+  });
+
+  test("absent for a group project", () => {
+    useMe.mockReturnValue({ data: { role: "user", isTeacher: false }, isLoading: false });
+    useAssignmentContext.mockReturnValue({ groupId: "g1" });
+    const { container } = render({ activeProjectId: "p1" });
+    click(container.querySelector(".tb-btn--dropdown"));
+    expect(byText(container, "Share…", "span")).toBeNull();
+  });
+
+  test("absent for individual work", () => {
+    useMe.mockReturnValue({ data: { role: "user", isTeacher: false }, isLoading: false });
+    useAssignmentContext.mockReturnValue({ individualWork: true });
+    const { container } = render({ activeProjectId: "p1" });
+    click(container.querySelector(".tb-btn--dropdown"));
+    expect(byText(container, "Share…", "span")).toBeNull();
   });
 });

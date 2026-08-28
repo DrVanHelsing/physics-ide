@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   DownloadIcon,
@@ -12,6 +12,7 @@ import {
   FilePdfIcon,
   ImageIcon,
   CopyIcon,
+  ShareIcon,
   PanelRightCloseIcon,
   PanelRightOpenIcon,
   TableIcon,
@@ -26,6 +27,7 @@ import DropdownMenu from "./common/DropdownMenu";
 import ProjectTitle from "./layout/ProjectTitle";
 import ThemeToggleButton from "./layout/ThemeToggleButton";
 import HeaderAccount from "./auth/HeaderAccount";
+import ShareDialog from "./sharing/ShareDialog";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { useMe } from "../auth/useAuth";
 import { useAssignmentContext } from "../contexts/AssignmentContext";
@@ -79,6 +81,7 @@ function Toolbar({
   const stage2 = useMediaQuery(HEADER_STAGE2_QUERY);
   const importInputRef = useRef(null);
   const importProjectRef = useRef(null);
+  const [shareOpen, setShareOpen] = useState(false);
 
   /* ── Adaptive header (Plan 3, Task 10): every control's existence is
      decided in one pure place — visibleControls() — instead of scattered
@@ -227,6 +230,19 @@ function Toolbar({
               <span>Export Project Bundle (.physide.json)</span>
             </button>
           ) : null}
+          {/* Plan 7 Task 11: Share… — a share is a copy-out (D§5.3), so it
+             rides the same exportsAllowed gate as its siblings above, plus
+             three axes only assignment work supplies: signed-in, a project
+             open, not group work, not individual work. Refused means ABSENT,
+             not disabled (D§5.4 — no greyed-out temptations); the server
+             re-refuses all five server-side regardless of what this client
+             gate decided. */}
+          {me && activeProjectId && exportsAllowed && !assignment?.groupId && !assignment?.individualWork ? (
+            <button type="button" className="tb-dropdown-item" onClick={() => setShareOpen(true)}>
+              <ShareIcon size={14} />
+              <span>Share…</span>
+            </button>
+          ) : null}
           {/* Task 20: History & restore — signed-in users only (me from
              useMe), gated on there being a project to show history for.
              Deliberately NOT gated by exportsAllowed: restoring your own
@@ -317,6 +333,7 @@ function Toolbar({
   const secondaryActions = zones.view.map((key) => VIEW_DESCRIPTORS[key]).filter(Boolean);
 
   return (
+    <>
     <header className={`app-header${stage1 ? " app-header--stage1" : ""}${stage2 ? " app-header--stage2" : ""}`}>
       {/* ── Identity: menu · brand · project ── */}
       <div className="app-header__identity">
@@ -386,6 +403,8 @@ function Toolbar({
         <HeaderAccount />
       </div>
     </header>
+    {shareOpen && <ShareDialog projectId={activeProjectId} onClose={() => setShareOpen(false)} />}
+    </>
   );
 }
 
