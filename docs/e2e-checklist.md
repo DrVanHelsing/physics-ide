@@ -488,7 +488,7 @@ See `frontend/docs/ux-audit.md` for full findings.
 
 ---
 
-## Not yet covered — the portal (recorded 2026-08-25, Plan 5 wrap-up; widened 2026-08-28, Plan 6)
+## Not yet covered — the portal (recorded 2026-08-25, Plan 5 wrap-up; widened 2026-08-28, Plan 6; extended 2026-08-28, Plan 7)
 
 Five surfaces were recorded here at Plan 5's wrap with **zero e2e coverage**:
 `/welcome`, the auth screens (`/auth/*`, `/profile`), `/classes` (wall, class
@@ -528,14 +528,33 @@ npm run dev                                           # backend :4000 + frontend
 node frontend/scripts/portal-e2e.mjs
 ```
 
-41 checks; screenshots land in `frontend/e2e/portal-*.png` and the machine-
+**Second repayment — the sharing golden flow, landed with Plan 7's final task
+(Task 16, 2026-08-28).** The same run now carries peer sharing end to end, in
+a **third** browser context: the teacher flips Sharing rules On in Class
+Settings (the door asserted Off first, so the flip is what is being read) → a
+second student B signs up, confirms through the pretend inbox and joins by
+code → student A is refused `Share…` inside their standard-classwork
+assignment work (a share is a copy-out; refused means **absent**, not greyed
+out) → A makes an ordinary project of their own through the start menu's
+wizard and waits for it to reach the server → File → `Share…` lists the one
+class with sharing on, its roster minus the sharer, and the consequence line
+verbatim → Share confirms by name → the section stays absent on A's own class
+page → B's class page offers it, named by sharer and title → Add to my
+projects lands B in the IDE with the copy open and the status-bar chip reading
+`Based on work shared by <A>` → the start menu's library row carries the same
+sentence → and the section is gone from B's class page again. Screenshots
+`portal-10-share-dialog`, `portal-11-attribution-chip`,
+`portal-12-library-label`.
+
+57 checks; screenshots land in `frontend/e2e/portal-*.png` and the machine-
 readable result (including the per-screen sweeps) in
 `frontend/e2e/portal-results.json`. The run mints its own class, assignment and
-student account each time, so it is safe to re-run against a dev database that
+student accounts each time, so it is safe to re-run against a dev database that
 is never reset.
 
-**A clean run is 41/41.** That is the baseline; anything less is a regression
-to read by its named failures, never a count to be talked down.
+**A clean run is 57/57** (41/41 before Plan 7 extended it). That is the
+baseline; anything less is a regression to read by its named failures, never a
+count to be talked down.
 
 It was not always. The flow found three genuine product defects at hand-over —
 recorded here because what a harness catches is worth keeping, and because a
@@ -561,13 +580,36 @@ a third rule-less class the flow does not reach (`.btn--small` in
 `HistoryTimeline.js`, also fixed), are in
 `docs/superpowers/reviews/2026-08-28-plan6-browser-pass-checklist.md`.
 
+Plan 7's extension found one more of exactly the same shape on its first run:
+**`.attribution-chip`** carried no stylesheet rule — the status-bar credit had
+its `__text` styled but the pill itself unbounded, so a long sharer name would
+push the run status out of a 26px strip. Fixed in `styles/assignments.css`
+(bounded like its `.rules-chip` sibling, the text ellipsizing, the full
+sentence on the tooltip). Nothing else the sharing flow touched was rule-less,
+and the console-error audit stayed at zero across the new third context.
+
 **Still uncovered after that lands**, and the reason spec §18's
-forward-reference item 6 stays open: `/admin`, the invite landing, `/profile`,
-two-browser group work with the editing baton, the gradebook CSV opened in a
-real spreadsheet, the History restore round-trip, and the stack briefing's §5
-design regressions. Those are handed to a human browser pass — the Plan 6
-checklist joins `2026-08-22-plan4-browser-pass-checklist.md` and
-`2026-08-25-plan5-browser-pass-checklist.md` under
+forward-reference item 6 stays open:
+
+- `/admin` — no browser coverage.
+- The invite landing (`/join/invite`) — no browser coverage.
+- `/profile` — no browser coverage.
+- Two-browser group work with the editing baton — no browser coverage.
+- The gradebook CSV opened in a real spreadsheet — needs a human and a
+  spreadsheet app.
+- The History restore round-trip — no browser coverage.
+- The stack briefing's §5 design regressions — no browser coverage.
+- **Sharing golden flow — covered (portal-e2e).** Share → accept →
+  attribution runs end to end, both label surfaces asserted. What the script
+  does *not* reach, and the Plan 7 human checklist carries instead: the
+  dialog's three empty/refusal states, `Share…`'s absence for a guest and on
+  group/individual work, revoking a pending share, flipping the switch back
+  off with a share pending, offline behaviour, and the 1024px floor.
+
+Those are handed to a human browser pass — the Plan 7 checklist
+(`2026-08-28-plan7-browser-pass-checklist.md`) joins the Plan 6, Plan 5
+(`2026-08-25-plan5-browser-pass-checklist.md`) and Plan 4
+(`2026-08-22-plan4-browser-pass-checklist.md`) files under
 `docs/superpowers/reviews/` — until a script takes them over.
 
 ---

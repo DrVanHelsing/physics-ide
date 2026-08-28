@@ -16,6 +16,12 @@
  *      a mark is saved and released.
  *   4. The gradebook shows it; the student's Home strip carries the feedback
  *      and the assignment page shows the mark.
+ *   5. Peer sharing (Plan 7): the teacher flips Sharing rules On; a second
+ *      student (B) signs up, confirms and joins the same way the first did;
+ *      student A — offered no Share… inside rule-bound assignment work —
+ *      makes a project of their own, shares it with B through File →
+ *      Share…, and B adds it to their projects and lands in the IDE with
+ *      the credit chip on it. Three browser contexts, three cookie jars.
  *
  * Alongside the flow it sweeps every screen it lands on for the two things
  * no unit test can see: `.welcome-btn` ghosts (the alias retired in Plan 5's
@@ -77,10 +83,28 @@ const POINTS = 20;
 const AWARDED = 17;
 const MARK_COMMENT = 'Good model — say why the bounce height falls each time.';
 
+/* Plan 7 (peer sharing): a SECOND student, signed up the same way the first
+   was, so the share has a real classmate to land on. Student A shares, B
+   receives — two more cookie jars than the assignments flow needed. */
+const STUDENT_B_NAME = `E2E Peer ${RUN}`;
+const STUDENT_B_EMAIL = `e2e.peer.${RUN}@example.test`;
+/* A share is a copy-out, so the assignment work itself refuses to be shared
+   (standard_classwork switches export & copy off). The student makes an
+   ordinary project of their own to share — through the start menu's wizard,
+   the way any student would — and this is what it is called. */
+const PERSONAL_TITLE = `Peer project ${RUN}`;
+
 /* standard_classwork (shared/src/workspaceRules.ts) switches off import,
    export & copy and templates, and RulesChip renders them in the shared
    schema's own field order. This is the sentence a student must read. */
 const EXPECTED_RULES_SENTENCE = 'Your teacher has turned off: import, export & copy, templates';
+
+/* Plan 7's two verbatim sentences, said in the product's own words:
+   ShareDialog's HANDOFF_SENTENCE (design D§8 — revocation policy stated at
+   the point of use) and attributionSentence() (spec §8.1 — the credit that
+   travels with the copy). Both are asserted character for character. */
+const HANDOFF_SENTENCE = "Once they add it, it's theirs — you can't take it back.";
+const ATTRIBUTION_SENTENCE = `Based on work shared by ${STUDENT_NAME}`;
 
 // ─── Test state ───────────────────────────────────────────────────────────────
 let totalPass = 0, totalFail = 0;
@@ -158,6 +182,40 @@ async function dismissGuestImport(page) {
   });
   if (dismissed) await delay(400);
   return dismissed;
+}
+
+/** Open the IDE header's File menu and return the labels it offers. The
+ *  menu's own contents are the assertion in two places (Share… absent inside
+ *  locked assignment work, present on the student's own project), so reading
+ *  them is a first-class step rather than a click helper. */
+async function openFileMenu(page) {
+  await page.waitForSelector('button[title="File — import and export"]', { timeout: 20000 });
+  await page.click('button[title="File — import and export"]');
+  await page.waitForSelector('.tb-dropdown-menu', { timeout: 10000 });
+  return page.$$eval('.tb-dropdown-menu .tb-dropdown-item', (els) =>
+    els.map((e) => e.textContent.trim()),
+  );
+}
+
+/** Wait until a project id that was not on the server before appears there —
+ *  the sync engine's adopt-and-push, OBSERVED rather than assumed. A share
+ *  names a project the server must already own (`shares.ts`'s NO_SUCH_PROJECT
+ *  refusal), so this is the precondition, not a convenience. */
+async function waitForPushedProject(page, known) {
+  const handle = await page
+    .waitForFunction(
+      async (before) => {
+        const res = await fetch('/api/projects');
+        if (!res.ok) return false;
+        const data = await res.json();
+        const fresh = (data.projects ?? []).map((p) => p.id).filter((id) => !before.includes(id));
+        return fresh[0] ?? false;
+      },
+      { timeout: 45000, polling: 1500 },
+      known,
+    )
+    .catch(() => null);
+  return handle ? handle.jsonValue() : null;
 }
 
 function attachConsoleCapture(page, who) {
@@ -240,12 +298,18 @@ const browser = await puppeteer.launch({
    swap. This is genuinely two browsers. */
 const teacherCtx = await browser.createBrowserContext();
 const studentCtx = await browser.createBrowserContext();
+/* Plan 7: student B receives the share. Same reasoning as the pair above —
+   a share that both people drive from one cookie jar proves nothing. */
+const studentBCtx = await browser.createBrowserContext();
 const teacher = await teacherCtx.newPage();
 const student = await studentCtx.newPage();
+const studentB = await studentBCtx.newPage();
 await teacher.setViewport({ width: 1440, height: 900 });
 await student.setViewport({ width: 1440, height: 900 });
+await studentB.setViewport({ width: 1440, height: 900 });
 attachConsoleCapture(teacher, 'teacher');
 attachConsoleCapture(student, 'student');
+attachConsoleCapture(studentB, 'student B');
 
 let classId = null;
 let assignmentId = null;
@@ -627,14 +691,254 @@ try {
     studentPage.slice(0, 200).replace(/\s+/g, ' '));
   await sweepScreen(student, 'student assignment page (marked)');
   await screenshot(student, '15-student-feedback');
+
+  // ── 13: The teacher opens the sharing door; a second student arrives ──────
+  console.log('\n═══ 13: Sharing rules On, and a second student joins ════════════════');
+  await teacher.goto(`${BASE}/classes/${classId}/settings`, { waitUntil: 'networkidle0', timeout: 30000 });
+  await teacher.waitForSelector('input[name="peerSharing"]', { timeout: 20000 });
+  /* Off by default (D§5.1's fail-closed switch) — assert that BEFORE pressing
+     On, or "it is on" proves nothing about what the teacher did. */
+  const doorsBefore = await teacher.$$eval('input[name="peerSharing"]', (els) => els.map((e) => e.checked));
+  await teacher.evaluate(() => document.querySelectorAll('input[name="peerSharing"]')[1].click());
+  /* The door is painted from the SAVED class, not from the click: waiting for
+     `auth-door--on` waits for the PATCH and the refetch behind it, which is
+     what makes this a round-trip assertion rather than a DOM one. */
+  const sharingOn = await teacher
+    .waitForFunction(
+      () => {
+        const inputs = document.querySelectorAll('input[name="peerSharing"]');
+        return (
+          inputs.length === 2 &&
+          inputs[1].checked &&
+          inputs[1].closest('label')?.classList.contains('auth-door--on') === true
+        );
+      },
+      { timeout: 20000 },
+    )
+    .then(() => true)
+    .catch(() => false);
+  check('Class Settings starts with sharing Off and the door flips to On when the teacher presses it',
+    doorsBefore.length === 2 && doorsBefore[0] === true && doorsBefore[1] === false && sharingOn,
+    `doors before ${JSON.stringify(doorsBefore)}, flipped ${sharingOn}`);
+  await sweepScreen(teacher, 'class Settings tab (sharing on)');
+
+  // Student B — signed up, confirmed and joined exactly as student A was.
+  await studentB.goto(`${BASE}/auth/signup`, { waitUntil: 'networkidle0', timeout: 30000 });
+  const signupB = await studentB.evaluate(async (body) => {
+    const res = await fetch('/api/auth/signup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    return { status: res.status, data: await res.json().catch(() => null) };
+  }, { name: STUDENT_B_NAME, email: STUDENT_B_EMAIL, password: STUDENT_PASSWORD, wantsTeacher: false, consent: true });
+  const inboxB = await teacher.evaluate(async () => {
+    const res = await fetch('/api/admin/emails?limit=100');
+    return res.ok ? res.json() : { emails: [] };
+  });
+  const confirmMailB = (inboxB.emails ?? []).find(
+    (e) => e.toEmail === STUDENT_B_EMAIL && e.template === 'confirm',
+  );
+  const confirmLinkB = confirmMailB?.bodyText?.match(/https?:\/\/\S+\/auth\/confirm\?token=[A-Za-z0-9_-]+/)?.[0] ?? null;
+  if (confirmLinkB) {
+    const linkB = new URL(confirmLinkB);
+    await studentB.goto(BASE + linkB.pathname + linkB.search, { waitUntil: 'networkidle0', timeout: 30000 });
+    await delay(600);
+  }
+  const confirmedB = !!confirmLinkB && (await bodyText(studentB)).includes('Your email address is confirmed.');
+  check('A second student signs up and confirms through the pretend inbox',
+    signupB.status === 201 && confirmedB,
+    `signup ${signupB.status} ${JSON.stringify(signupB.data)}, confirm link ${String(confirmLinkB)}`);
+  if (!confirmedB) throw new Error('student B could not be confirmed — the sharing flow has nobody to share with');
+
+  await studentB.goto(`${BASE}/auth/signin`, { waitUntil: 'networkidle0', timeout: 30000 });
+  await setInput(studentB, 'input[type="email"]', STUDENT_B_EMAIL);
+  await setInput(studentB, 'input[type="password"]', STUDENT_PASSWORD);
+  await clickByText(studentB, 'button', /^sign in$/);
+  await studentB.waitForFunction(() => location.pathname === '/', { timeout: 25000 });
+  await delay(1500);
+  await dismissGuestImport(studentB);
+
+  await studentB.goto(`${BASE}/join`, { waitUntil: 'networkidle0', timeout: 30000 });
+  await setInput(studentB, '.auth-form .input', joinCode);
+  await clickByText(studentB, '.auth-form button[type="submit"]', /^join$/);
+  const joinedB = await studentB
+    .waitForFunction(
+      (name) => (document.querySelector('p.auth-text[role="status"]')?.textContent ?? '').includes(`You're in ${name}!`),
+      { timeout: 20000 },
+      CLASS_NAME,
+    )
+    .then(() => true)
+    .catch(() => false);
+  check('Student B joins the same class by code', joinedB,
+    joinedB ? '' : (await textOf(studentB, 'p.auth-text[role="status"]')) ?? 'no status line');
+  await studentB.waitForFunction(
+    () => /^\/classes\/[0-9a-f-]{36}$/.test(location.pathname),
+    { timeout: 20000 },
+  );
+
+  // ── 14: Share → accept → the credit that follows the copy ────────────────
+  console.log('\n═══ 14: Share → accept → attribution ════════════════════════════════');
+  await student.goto(`${BASE}/`, { waitUntil: 'networkidle0', timeout: 30000 });
+  const backInIde = await student
+    .waitForSelector('.app-header', { timeout: 30000 })
+    .then(() => true)
+    .catch(() => false);
+  if (!backInIde) {
+    // The bootstrap restore did not reopen the assignment work — open it from
+    // the library, the way a student would, rather than failing the segment.
+    await student.waitForSelector('.start-menu-overlay .start-project-open', { timeout: 20000 });
+    await student.click('.start-menu-overlay .start-project-open');
+    await student.waitForSelector('.app-header', { timeout: 25000 });
+  }
+  await delay(1200);
+  await dismissGuestImport(student);
+
+  /* D§5.3/D§5.4: a share is a copy-out, so standard classwork's
+     `exportAndCopy: false` hides Share… entirely — refused means ABSENT, not
+     a greyed-out temptation. Reading the whole menu makes the negative
+     assertion honest: an empty read would pass this vacuously. */
+  const assignmentFileMenu = await openFileMenu(student);
+  check('Inside standard-classwork assignment work the File menu offers no Share…',
+    assignmentFileMenu.length > 0 && !assignmentFileMenu.some((t) => /^share/i.test(t)),
+    assignmentFileMenu.join(' | '));
+  await student.keyboard.press('Escape');
+  await delay(300);
+
+  // So the student has something of their own to share: a plain project, made
+  // through the start menu's wizard the way any student makes one.
+  await student.click('.app-header__identity .tb-btn--nav');
+  await student.waitForSelector('.start-menu-overlay .start-card--goal', { timeout: 20000 });
+  const knownProjects = await student.evaluate(async () => {
+    const res = await fetch('/api/projects');
+    const data = res.ok ? await res.json() : { projects: [] };
+    return (data.projects ?? []).map((p) => p.id);
+  });
+  await student.click('.start-grid .start-card--goal');
+  await student.waitForSelector('.start-wizard', { timeout: 15000 });
+  await setInput(student, '.start-wizard-body .start-wizard-field input', PERSONAL_TITLE);
+  await clickByText(student, '.start-wizard-footer button', /create project/);
+  await student.waitForSelector('.app-header', { timeout: 25000 });
+  const personalId = await waitForPushedProject(student, knownProjects);
+  const personalTitleShown = await textOf(student, '.status-bar__project');
+  check('The student\'s own project is created from the start menu and reaches the server',
+    !!personalId && personalTitleShown === PERSONAL_TITLE,
+    `pushed ${String(personalId)}, status bar "${String(personalTitleShown)}"`);
+
+  const personalFileMenu = await openFileMenu(student);
+  check('File → Share… is offered on the student\'s own project, where no rule forbids a copy',
+    personalFileMenu.some((t) => /^share/i.test(t)), personalFileMenu.join(' | '));
+  await student.evaluate(() => {
+    const item = [...document.querySelectorAll('.tb-dropdown-menu .tb-dropdown-item')]
+      .find((b) => /^share/i.test(b.textContent.trim()));
+    item?.click();
+  });
+  await student.waitForSelector('.share-dialog', { timeout: 15000 });
+  await student.waitForSelector('.share-roster .auth-door', { timeout: 20000 });
+  const roster = await student.$$eval('.share-roster .auth-door', (els) => els.map((e) => e.textContent.trim()));
+  check('The dialog resolves the one class with sharing on and lists its roster, the sharer excluded',
+    roster.includes(STUDENT_B_NAME) && !roster.includes(STUDENT_NAME), roster.join(' | '));
+  const handoffNote = await textOf(student, '.share-dialog__note');
+  check('The dialog says the consequence in the product\'s own words, verbatim',
+    handoffNote === HANDOFF_SENTENCE, String(handoffNote));
+  await sweepScreen(student, 'share dialog');
+  await screenshot(student, '10-share-dialog');
+
+  await student.evaluate((name) => {
+    const label = [...document.querySelectorAll('.share-roster .auth-door')]
+      .find((l) => l.textContent.trim() === name);
+    label?.querySelector('input[type="radio"]')?.click();
+  }, STUDENT_B_NAME);
+  await student.waitForFunction(
+    () => {
+      const b = document.querySelector('.share-dialog__actions .btn--primary');
+      return !!b && !b.disabled;
+    },
+    { timeout: 15000 },
+  );
+  await student.click('.share-dialog__actions .btn--primary');
+  const shareDone = await student
+    .waitForSelector('.share-dialog__done', { timeout: 25000 })
+    .then(() => true)
+    .catch(() => false);
+  const shareDoneText = await textOf(student, '.share-dialog__done');
+  check('Share confirms by name and says where the copy waits',
+    shareDone &&
+      shareDoneText === `Shared with ${STUDENT_B_NAME}. It will wait on their class page until they add it.`,
+    String(shareDoneText ?? (await textOf(student, '.share-dialog .alert--danger'))));
+  await student.keyboard.press('Escape');
+  await delay(400);
+
+  /* D§6: the receive surface renders NOTHING when empty — the sharer has
+     nothing pending, so their own class page must not grow a section. */
+  await student.goto(`${BASE}/classes/${classId}`, { waitUntil: 'networkidle0', timeout: 30000 });
+  await student.waitForSelector('.page-header__title', { timeout: 20000 });
+  await delay(1200);
+  check('The sharer\'s own class page grows no "Shared with you" — nothing is pending for them',
+    (await student.$('.shared-with-you')) === null);
+
+  await studentB.goto(`${BASE}/classes/${classId}`, { waitUntil: 'networkidle0', timeout: 30000 });
+  const sectionShown = await studentB
+    .waitForSelector('.shared-with-you .share-row', { timeout: 25000 })
+    .then(() => true)
+    .catch(() => false);
+  const shareRow = sectionShown
+    ? await studentB.$eval('.shared-with-you .share-row', (el) => el.innerText.replace(/\s+/g, ' ').trim())
+    : null;
+  check('Student B\'s class page offers the share, named by its sharer and its title',
+    sectionShown && shareRow.includes(STUDENT_NAME) && shareRow.includes(PERSONAL_TITLE),
+    String(shareRow));
+  await sweepScreen(studentB, 'student B class page (shared with you)');
+
+  await clickByText(studentB, '.shared-with-you .share-row button', /add to my projects/);
+  const bAtIde = await studentB
+    .waitForFunction(() => location.pathname === '/', { timeout: 25000 })
+    .then(() => true)
+    .catch(() => false);
+  const chipShown = await studentB
+    .waitForSelector('.attribution-chip', { timeout: 25000 })
+    .then(() => true)
+    .catch(() => false);
+  check('Add to my projects lands student B in the IDE with the copy open',
+    bAtIde && chipShown,
+    bAtIde ? 'at "/" but no attribution chip' : `at ${studentB.url()} — ${await textOf(studentB, '.shared-with-you .alert--danger')}`);
+  const chipText = await textOf(studentB, '.attribution-chip');
+  check('The status bar credits the sharer by name, in §8.1\'s own sentence',
+    chipText === ATTRIBUTION_SENTENCE, String(chipText));
+  check('The copy opens under the title it was shared under',
+    (await textOf(studentB, '.status-bar__project')) === PERSONAL_TITLE,
+    String(await textOf(studentB, '.status-bar__project')));
+  await sweepScreen(studentB, 'IDE holding an accepted copy');
+  await screenshot(studentB, '11-attribution-chip');
+
+  // The second label surface: the same sentence under the library row.
+  await studentB.click('.app-header__identity .tb-btn--nav');
+  const libraryLabelShown = await studentB
+    .waitForSelector('.start-menu-overlay .start-project-attrib', { timeout: 25000 })
+    .then(() => true)
+    .catch(() => false);
+  const libraryLabel = await textOf(studentB, '.start-project-attrib');
+  check('The start menu\'s library row carries the same credit under the copy',
+    libraryLabelShown && libraryLabel === ATTRIBUTION_SENTENCE, String(libraryLabel));
+  await sweepScreen(studentB, 'start menu with an accepted copy');
+  await screenshot(studentB, '12-library-label');
+
+  /* One pending hand-off, once accepted, is gone: the section that appeared
+     for B must disappear again rather than offering a second copy. */
+  await studentB.goto(`${BASE}/classes/${classId}`, { waitUntil: 'networkidle0', timeout: 30000 });
+  await studentB.waitForSelector('.page-header__title', { timeout: 20000 });
+  await delay(1200);
+  check('Once accepted, "Shared with you" is gone from student B\'s class page',
+    (await studentB.$('.shared-with-you')) === null);
 } catch (err) {
   check('The golden flow runs to the end without throwing', false, err.message);
   await screenshot(teacher, 'zz-teacher-at-failure').catch(() => {});
   await screenshot(student, 'zz-student-at-failure').catch(() => {});
+  await screenshot(studentB, 'zz-student-b-at-failure').catch(() => {});
 }
 
-// ── 13: The sweeps, summarised ──────────────────────────────────────────────
-console.log('\n═══ 13: Design-system sweeps across every screen visited ════════════');
+// ── 15: The sweeps, summarised ──────────────────────────────────────────────
+console.log('\n═══ 15: Design-system sweeps across every screen visited ════════════');
 const ghosts = sweeps.filter((s) => s.welcomeBtns > 0);
 check('No .welcome-btn ghosts on any screen this run touched',
   ghosts.length === 0,
