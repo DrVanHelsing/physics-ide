@@ -57,7 +57,14 @@ function gateSentence(phase) {
 }
 
 export default function AssignmentPage() {
-  return <ClassChrome tab="assignments">{(c, me) => <AssignmentBody classData={c} me={me} />}</ClassChrome>;
+  const { id } = useParams();
+  // A sub-page of the Assignments tab: the tab row lights that tab, so the
+  // control that actually goes UP has to say so itself (F2, 2026-08-28).
+  return (
+    <ClassChrome tab="assignments" back={{ to: `/classes/${id}`, label: "Back to assignments" }}>
+      {(c, me) => <AssignmentBody classData={c} me={me} />}
+    </ClassChrome>
+  );
 }
 
 /**

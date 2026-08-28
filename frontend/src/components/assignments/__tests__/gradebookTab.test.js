@@ -1,4 +1,4 @@
-import { describe, test, expect, vi, afterEach } from "vitest";
+import { describe, test, expect, vi, beforeEach, afterEach } from "vitest";
 import React from "react";
 import GradebookTab, { gradebookCsvString } from "../GradebookTab";
 import { mountComponent, byText } from "../../../test/renderHelpers";
@@ -10,11 +10,16 @@ import { useQuery } from "@tanstack/react-query";
    ClassChrome's own tab-switching is classTabs.test.js's job. */
 vi.mock("../../../utils/api/client", () => ({ api: vi.fn() }));
 vi.mock("@tanstack/react-query", () => ({ useQuery: vi.fn() }));
+const { roleHolder } = vi.hoisted(() => ({ roleHolder: { current: "teacher" } }));
 vi.mock("../../classes/ClassChrome", () => ({
-  default: ({ children }) => children({ id: "c1", name: "Physics 101", myRole: "teacher" }, { id: "u1" }),
+  default: ({ children }) =>
+    children({ id: "c1", name: "Physics 101", myRole: roleHolder.current }, { id: "u1" }),
 }));
 
 let mounted = null;
+beforeEach(() => {
+  roleHolder.current = "teacher";
+});
 afterEach(() => {
   mounted?.unmount();
   mounted = null;
@@ -51,6 +56,43 @@ describe("gradebookCsvString — the pure CSV builder", () => {
       '"Amy Chen","8 (late)","—"\r\n' +
       '"Wolfe, Zach","1 (draft)","✓"';
     expect(csv).toBe(expected);
+  });
+});
+
+/**
+ * N1 (2026-08-28 UI audit) — a student who typed /classes/:id/gradebook got
+ * the TEACHER's screen: an Export CSV button and a bare Student header, with
+ * no refusal and no redirect. The backend 403s ("Teachers and assistants
+ * only.") but React Query's retries kept isLoading true, so even the error
+ * alert never painted. The class read already carries myRole; the gate is the
+ * one InboxPage has, and it surfaces the server's own sentence.
+ */
+describe("GradebookTab — the staff gate", () => {
+  test("a student sees the server's own refusal, and none of the staff surface", () => {
+    roleHolder.current = "student";
+    useQuery.mockReturnValue({ data: undefined, error: null, isLoading: true });
+    const container = renderTab();
+
+    const alert = container.querySelector(".alert.alert--danger");
+    expect(alert).not.toBeNull();
+    expect(alert.textContent).toBe("Teachers and assistants only.");
+    expect(container.querySelector(".admin-table")).toBeNull();
+    expect(byText(container, "Export CSV")).toBeNull();
+    // And the read is never even attempted for a non-staff member.
+    expect(useQuery.mock.calls[0][0].enabled).toBe(false);
+  });
+
+  test("a TA is staff — the grid renders, no refusal", () => {
+    roleHolder.current = "ta";
+    useQuery.mockReturnValue({
+      data: { students: STUDENTS, assignments: ASSIGNMENTS, cells: CELLS },
+      error: null,
+      isLoading: false,
+    });
+    const container = renderTab();
+    expect(container.querySelector(".admin-table")).not.toBeNull();
+    expect(container.querySelector(".alert.alert--danger")).toBeNull();
+    expect(useQuery.mock.calls[0][0].enabled).toBe(true);
   });
 });
 

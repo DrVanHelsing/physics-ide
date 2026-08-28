@@ -8,6 +8,11 @@ import PortalHeader from "../layout/PortalHeader";
 
 const TABS = ["People", "Classes", "Emails", "Health"];
 
+/* F2 (2026-08-28 UI audit) — the console's only structural link was the
+   wordmark, and it ejects to "/" (the IDE), which is not a portal
+   destination. An admin who arrived from their classes had no path back. */
+const ADMIN_BACK = { to: "/classes", label: "Back to my classes" };
+
 export default function AdminConsole() {
   const { data: me, isLoading } = useMe();
   const [tab, setTab] = useState("People");
@@ -45,6 +50,7 @@ export default function AdminConsole() {
     <div className="page">
       <PortalHeader
         title="Admin console"
+        back={ADMIN_BACK}
         nav={
           <nav className="tabs" role="tablist" aria-label="Admin sections">
             {TABS.map((t) => (
@@ -101,7 +107,7 @@ function PeopleTab() {
   });
 
   return (
-    <div className="page-body">
+    <div className="page-body page-body--wide">
       {capQuery.data ? (
         <div className="admin-cap">
           <strong>
@@ -205,7 +211,7 @@ function EmailsTab() {
     queryFn: () => api("/api/admin/emails?limit=200"),
   });
   return (
-    <div className="page-body">
+    <div className="page-body page-body--wide">
       <p className="auth-text auth-text--dim">
         The pretend inbox: every email the system would have sent, exactly as it would look.
       </p>
@@ -260,7 +266,7 @@ function ClassesTab() {
     queryFn: () => api("/api/admin/classes"),
   });
   return (
-    <div className="page-body">
+    <div className="page-body page-body--wide">
       <p className="auth-text auth-text--dim">
         Every class on the site — visibility, not management.
       </p>

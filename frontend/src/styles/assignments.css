@@ -181,6 +181,28 @@
   flex-direction: column;
   gap: var(--space-2);
 }
+/* N3 (2026-08-28 UI audit) — the single most important field in the
+   assignment editor (the brief students read) had NO input surface: a row of
+   toolbar chips and then bare page background. Every other field in the same
+   form is a bordered, filled box, so empty there was nothing to click, and
+   filled the text read as static copy — starkest in light mode, where the
+   form is white boxes and the instructions area was unpainted page.
+
+   Borrows the .input primitive's vocabulary verbatim (background, border,
+   radius, padding, text colour) and adds only the one thing .input cannot
+   supply: a min-height that says "this is a place to write paragraphs", not
+   a one-line control. min-height is deliberately outside the metric linter's
+   covered set (see metricLint.js) — a layout dimension, on no ramp. The
+   focus ring stays the product's one ring: tokens.css's :where() list now
+   includes [contenteditable="true"], so nothing is written here. */
+.rich-text-editor .ProseMirror {
+  min-height: 180px;
+  padding: var(--space-2) var(--space-3);
+  color: var(--text-bright);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
 
 /* ── Starter project row (Task 8) ───────────────────────────────
    AssignmentEditorPage's project picker + Pin/Clear. */

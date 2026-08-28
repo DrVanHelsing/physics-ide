@@ -72,7 +72,19 @@ function matchesFilter(row, filter) {
 }
 
 export default function InboxPage() {
-  return <ClassChrome tab="assignments">{(c) => <InboxBody classData={c} />}</ClassChrome>;
+  const { id, aid } = useParams();
+  // This screen's own "Back to assignment" link is the one the 2026-08-28 UI
+  // audit called the single correct back affordance in the product. It has
+  // been generalised (BackLink.js) and moved into the header region, so it no
+  // longer sits in the body styled as a dim caption.
+  return (
+    <ClassChrome
+      tab="assignments"
+      back={{ to: `/classes/${id}/assignments/${aid}`, label: "Back to assignment" }}
+    >
+      {(c) => <InboxBody classData={c} />}
+    </ClassChrome>
+  );
 }
 
 function InboxBody({ classData }) {
@@ -194,13 +206,10 @@ function InboxBody({ classData }) {
   }
 
   return (
-    <div className="page-body">
+    <div className="page-body page-body--wide">
       <div className="assignment-page-header">
         <h2>Inbox</h2>
       </div>
-      <Link className="auth-text auth-text--dim" to={`/classes/${id}/assignments/${aid}`}>
-        Back to assignment
-      </Link>
 
       <p className="inbox-progress-line">
         {submittedCount} of {total} submitted

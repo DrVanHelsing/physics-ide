@@ -160,6 +160,17 @@ describe("MarkingRoom — header and SubmissionViewer", () => {
     expect(container.querySelector('[data-testid="readonly-blockly"]')).toBeNull();
   });
 
+  /* F2 (2026-08-28 UI audit) — the marking room held ZERO <Link>s: the only
+     escape was the wordmark, silently retargeted to the assignment page, and
+     nothing led back to the inbox the marker arrived from. */
+  test("the header carries the shared back link, pointing at the inbox this room was opened from", () => {
+    const container = render();
+    const back = container.querySelector(".back-link");
+    expect(back).not.toBeNull();
+    expect(back.getAttribute("href")).toBe("/classes/c1/assignments/a1/inbox");
+    expect(back.textContent.replace(/\s+/g, " ").trim()).toBe("Back to inbox");
+  });
+
   test("header carries student name, attempt, a late badge, and the fingerprint in --mono", () => {
     const container = render();
     expect(container.textContent).toContain("Kid One");

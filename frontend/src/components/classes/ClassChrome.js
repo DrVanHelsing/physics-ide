@@ -8,8 +8,18 @@ import PortalHeader from "../layout/PortalHeader";
 /**
  * Shell for /classes/:id — header, tab nav, and the class query.
  * Children render via the `children(classData, me)` function prop.
+ *
+ * `back` is the shared up-control every class screen carries (F2, 2026-08-28:
+ * the tab row was the ONLY navigation here, and on a sub-page of a tab the
+ * *current* tab was the thing that went up — nothing said so). The default
+ * names the class wall; a sub-page overrides it with its own real parent
+ * (AssignmentPage → the class, InboxPage → the assignment).
  */
-export default function ClassChrome({ tab, children }) {
+export default function ClassChrome({
+  tab,
+  back = { to: "/classes", label: "Back to my classes" },
+  children,
+}) {
   const { id } = useParams();
   const { data: me, isLoading } = useMe();
   const classQuery = useQuery({
@@ -51,6 +61,7 @@ export default function ClassChrome({ tab, children }) {
     <div className="page">
       <PortalHeader
         home="/classes"
+        back={back}
         title={
           <>
             {c.name}
