@@ -8,7 +8,7 @@
  * this task creates the module complete, per the controller ruling).
  *
  * One record per project: { assignmentId, classId, title, dueAt, rules,
- * groupId }.
+ * groupId, individualWork }.
  *
  * `groupId` (Task 22) names the group whose SHARED project this local copy
  * is, or null for ordinary individual work. It is written as an explicit
@@ -16,6 +16,10 @@
  * fact the IDE reads offline, and it decides which routes the project's
  * saves take: a group project's saves go through the group endpoints, never
  * the personal sync engine (plan Stage D's architectural note).
+ *
+ * `individualWork` (Plan 7) is read OFFLINE by the Toolbar's Share gate —
+ * like the rules, enforcement errs toward enforcement when the cache is
+ * stale.
  */
 import localforage from "localforage";
 
@@ -39,6 +43,7 @@ export async function setAssignmentMeta(projectId, meta) {
     dueAt: meta.dueAt,
     rules: meta.rules,
     groupId: meta.groupId ?? null,
+    individualWork: meta.individualWork ?? false,
   });
 }
 

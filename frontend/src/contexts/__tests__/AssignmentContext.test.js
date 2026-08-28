@@ -63,7 +63,7 @@ describe("AssignmentProvider — cache, refresh, and the guest gate (Task 11)", 
     mounted = mountComponent(<AssignmentProvider projectId="p-1"><Probe /></AssignmentProvider>);
     await flush();
 
-    expect(JSON.parse(probeText())).toEqual({ ...CACHED, groupId: null });
+    expect(JSON.parse(probeText())).toEqual({ ...CACHED, groupId: null, individualWork: false });
   });
 
   test("offline cache-stands: a rejected refresh leaves the rendered context and the stored cache both untouched", async () => {
@@ -75,8 +75,8 @@ describe("AssignmentProvider — cache, refresh, and the guest gate (Task 11)", 
     await flush();
     await flush();
 
-    expect(JSON.parse(probeText())).toEqual({ ...CACHED, groupId: null });
-    expect(await getAssignmentMeta("p-1")).toEqual({ ...CACHED, groupId: null });
+    expect(JSON.parse(probeText())).toEqual({ ...CACHED, groupId: null, individualWork: false });
+    expect(await getAssignmentMeta("p-1")).toEqual({ ...CACHED, groupId: null, individualWork: false });
   });
 
   test("fresh-refresh overwrite: a successful GET overwrites both the rendered context and the cache ('new rules next time they open the work')", async () => {
@@ -94,7 +94,7 @@ describe("AssignmentProvider — cache, refresh, and the guest gate (Task 11)", 
     await flush();
     await flush();
 
-    const expected = { assignmentId: "a-1", ...fresh, groupId: null };
+    const expected = { assignmentId: "a-1", ...fresh, groupId: null, individualWork: false };
     expect(JSON.parse(probeText())).toEqual(expected);
     expect(await getAssignmentMeta("p-1")).toEqual(expected);
     expect(api).toHaveBeenCalledWith("/api/assignments/a-1");
@@ -135,8 +135,41 @@ describe("AssignmentProvider — cache, refresh, and the guest gate (Task 11)", 
     await flush();
 
     expect(() => JSON.parse(probeText())).not.toThrow();
-    expect(JSON.parse(probeText())).toEqual({ assignmentId: "a-pending", ...fresh, groupId: null });
+    expect(JSON.parse(probeText())).toEqual({ assignmentId: "a-pending", ...fresh, groupId: null, individualWork: false });
     expect(api).toHaveBeenCalledWith("/api/assignments/a-pending");
+  });
+});
+
+/* Task 6: the flag threaded from the server payload into the cached meta —
+   Task 11's Toolbar Share gate reads assignment?.individualWork straight
+   off this context, synchronously and offline, so the refresh has to carry
+   it exactly like rules/groupId do. */
+describe("AssignmentProvider — the individual-work flag (Task 6)", () => {
+  test("a refresh where the assignment carries individualWork: true lands it on the context and the cache", async () => {
+    await setAssignmentMeta("p-1", CACHED);
+    useMe.mockReturnValue({ data: ME });
+    api.mockResolvedValue({
+      assignment: { classId: "c-1", title: "Pendulum Lab", dueAt: 1000, rules: CACHED.rules, individualWork: true },
+    });
+
+    mounted = mountComponent(<AssignmentProvider projectId="p-1"><Probe /></AssignmentProvider>);
+    await flush();
+    await flush();
+
+    expect(JSON.parse(probeText()).individualWork).toBe(true);
+    expect((await getAssignmentMeta("p-1")).individualWork).toBe(true);
+  });
+
+  test("offline: a cached individualWork flag keeps standing so the Share gate reads it without the network", async () => {
+    await setAssignmentMeta("p-1", { ...CACHED, individualWork: true });
+    useMe.mockReturnValue({ data: ME });
+    api.mockRejectedValue(new Error("offline"));
+
+    mounted = mountComponent(<AssignmentProvider projectId="p-1"><Probe /></AssignmentProvider>);
+    await flush();
+    await flush();
+
+    expect(JSON.parse(probeText()).individualWork).toBe(true);
   });
 });
 

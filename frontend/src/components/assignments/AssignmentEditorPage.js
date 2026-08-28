@@ -325,7 +325,7 @@ export default function AssignmentEditorPage() {
               disabled={form.submissionMode !== "individual"}
               onChange={(e) => updateField("individualWork", e.target.checked)}
             />
-            Each student's submission is marked individually
+            Individual work — students see the stamp, and this work can't be shared with classmates
           </label>
 
           <label className="auth-label">

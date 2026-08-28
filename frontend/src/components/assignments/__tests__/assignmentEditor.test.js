@@ -175,6 +175,16 @@ describe("AssignmentEditorPage — new mode", () => {
     expect(individualWork.checked).toBe(false);
     expect(individualWork.disabled).toBe(false); // default mode is "individual"
 
+    // Task 6: the honest label — sharing does not exist anywhere yet, so
+    // "can't be shared" is simply true today (brief's honesty note).
+    expect(
+      byText(
+        container,
+        "Individual work — students see the stamp, and this work can't be shared with classmates",
+        "label",
+      ),
+    ).not.toBeNull();
+
     expect(container.querySelector('input[name="opensAt"][type="datetime-local"]')).not.toBeNull();
     expect(container.querySelector('input[name="dueAt"][type="datetime-local"]')).not.toBeNull();
     expect(container.querySelector('input[name="lateUntil"][type="datetime-local"]')).not.toBeNull();

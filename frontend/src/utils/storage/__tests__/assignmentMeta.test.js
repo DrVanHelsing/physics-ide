@@ -32,7 +32,8 @@ describe("assignment-meta store — mirrors syncMeta.js's own harness", () => {
     await setAssignmentMeta("p-1", meta);
     // groupId is an explicit null, not an absent key: "this project is not
     // group work" is a fact the IDE reads offline, so it is written down.
-    expect(await getAssignmentMeta("p-1")).toEqual({ ...meta, groupId: null });
+    // Same for individualWork (Task 6) — defaults to false when absent.
+    expect(await getAssignmentMeta("p-1")).toEqual({ ...meta, groupId: null, individualWork: false });
 
     await setAssignmentMeta("p-2", { ...meta, assignmentId: "a-2" });
     const all = await listAssignmentMeta();
@@ -55,7 +56,7 @@ describe("assignment-meta store — mirrors syncMeta.js's own harness", () => {
       rules: { editors: "both", debug: true, importFiles: true, exportAndCopy: true, advancedBlocks: true, templates: true },
     };
     await setAssignmentMeta("p-pending", pending);
-    expect(await getAssignmentMeta("p-pending")).toEqual({ ...pending, groupId: null });
+    expect(await getAssignmentMeta("p-pending")).toEqual({ ...pending, groupId: null, individualWork: false });
   });
 
   test("group work: the group id rides with the rest of the context, so the IDE knows offline which routes its saves take", async () => {
@@ -68,7 +69,20 @@ describe("assignment-meta store — mirrors syncMeta.js's own harness", () => {
       groupId: "g-7",
     };
     await setAssignmentMeta("p-group", meta);
-    expect(await getAssignmentMeta("p-group")).toEqual(meta);
+    expect(await getAssignmentMeta("p-group")).toEqual({ ...meta, individualWork: false });
+  });
+
+  test("individual work: the flag rides with the rest of the context, so Task 11's Toolbar Share gate can read it offline", async () => {
+    const meta = {
+      assignmentId: "a-6",
+      classId: "c-6",
+      title: "Free Fall",
+      dueAt: null,
+      rules: RULES,
+      individualWork: true,
+    };
+    await setAssignmentMeta("p-solo", meta);
+    expect(await getAssignmentMeta("p-solo")).toEqual({ ...meta, groupId: null });
   });
 
   test("blocked storage: getAssignmentMeta rejects rather than silently returning null", async () => {

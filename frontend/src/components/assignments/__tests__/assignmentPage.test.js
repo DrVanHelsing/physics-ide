@@ -133,6 +133,32 @@ describe("AssignmentPage — content", () => {
   });
 });
 
+/* Task 6, spec §5.1: the student-visible stamp for the honest flag —
+   `individualWork` gates sharing (Task 11's Toolbar gate, Task 7's
+   server-side override), so the page says so up front, beside the phase
+   badge, using the existing .badge primitives. */
+describe("AssignmentPage — individual work stamp (Task 6)", () => {
+  test("individualWork: true renders the stamp as an accent badge", () => {
+    useQuery.mockReturnValue({ data: assignmentData({ individualWork: true }), error: null, isLoading: false });
+    const container = render();
+    const stamp = byText(container, "individual work", "span");
+    expect(stamp).not.toBeNull();
+    expect(stamp.classList.contains("badge")).toBe(true);
+    expect(stamp.classList.contains("badge--accent")).toBe(true);
+  });
+
+  test("individualWork: false renders no stamp", () => {
+    useQuery.mockReturnValue({ data: assignmentData({ individualWork: false }), error: null, isLoading: false });
+    const container = render();
+    expect(byText(container, "individual work", "span")).toBeNull();
+  });
+
+  test("individualWork absent (group/pair work never carries it): no stamp either", () => {
+    const container = render();
+    expect(byText(container, "individual work", "span")).toBeNull();
+  });
+});
+
 describe("AssignmentPage — Start work / Continue", () => {
   test("no myWork -> Start work button", () => {
     const container = render();
