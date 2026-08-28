@@ -488,3 +488,11 @@
     width: 100%;
   }
 }
+
+/* ── Plan 7 — peer sharing (design D§6/D§7) ─────────────────────────── */
+.share-dialog { display: flex; flex-direction: column; gap: var(--space-4); }
+.share-dialog__title { font-size: var(--fs-xl); font-weight: var(--fw-semibold); }
+.share-roster { display: flex; flex-direction: column; gap: var(--space-2); max-height: 40vh; overflow-y: auto; }
+.share-dialog__note { color: var(--text-dim); font-size: var(--fs-sm); }
+.share-dialog__done { font-size: var(--fs-lg); }
+.share-dialog__actions { display: flex; justify-content: flex-end; gap: var(--space-3); }

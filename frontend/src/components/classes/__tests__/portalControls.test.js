@@ -9,7 +9,7 @@ const ROOT = resolve(__dirname, "../../..");   // frontend/src
 // None of these names is an API — .btn/.card/.input/.alert/.badge/.tabs
 // (primitives.css) and the platform-specific classes are. A hit here is a
 // regression: fix the markup, never re-add the alias.
-const DIRS = ["components/auth", "components/classes", "components/admin", "components/assignments", "sync", "welcome"];
+const DIRS = ["components/auth", "components/classes", "components/admin", "components/assignments", "components/sharing", "sync", "welcome"];
 const ALIASES = [
   "admin-btn", "admin-btn--primary",
   "welcome-btn", "welcome-btn--small",
