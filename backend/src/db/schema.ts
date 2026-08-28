@@ -72,6 +72,9 @@ export const classes = pgTable("classes", {
   subjectLabel: text("subject_label"),
   joinCode: text("join_code").notNull().unique(),
   joinMode: text("join_mode").notNull().default("open"),
+  /** Spec §8.3's class-level switch — peer sharing on or off for the whole
+   *  class, OFF by default. Flipping it off lapses pending shares (D§8). */
+  peerSharing: boolean("peer_sharing").notNull().default(false),
   archived: boolean("archived").notNull().default(false),
   createdBy: uuid("created_by")
     .notNull()
@@ -128,6 +131,13 @@ export const projects = pgTable(
     manifest: jsonb("manifest").notNull(),
     /** The manifest's own updatedAt (epoch ms) — the most-recent-wins key (spec §15.2). */
     clientUpdatedAt: bigint("client_updated_at", { mode: "number" }).notNull(),
+    /** Plan 7 (spec §8.1): { sharerId, shareId } — set at share-accept,
+     *  null for every other project. IDS ONLY: the sharer's name is
+     *  resolved at read time so §11 erasure has one place to act. Never
+     *  copied into the manifest (contract D§2 — the manifest is never
+     *  tagged) and deliberately NOT an FK: an erased sharer must not
+     *  delete or block on the recipient's copy. */
+    attribution: jsonb("attribution"),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -355,4 +365,45 @@ export const guides = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("guides_class_idx").on(t.classId)],
+);
+
+/** Plan 7 (spec §8.1/§8.3, design D§4): DELIVERY state for peer shares —
+ *  pending until the recipient accepts ("Add to my projects").
+ *  THE LEDGER IS NOT THIS TABLE: every share action writes its own
+ *  `events` row in the same transaction, and the event payload's
+ *  denormalised ids are the permanent record (D§3). No user or project
+ *  column here carries an FK — erasing a person or deleting the source
+ *  project must neither delete nor block on delivery rows (the posture
+ *  events.actorId and groups.ownerId/projectId already take).
+ *  status: "pending" | "accepted" | "revoked" | "lapsed". */
+export const shares = pgTable(
+  "shares",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    classId: uuid("class_id")
+      .notNull()
+      .references(() => classes.id, { onDelete: "cascade" }),
+    sharerId: uuid("sharer_id").notNull(),
+    recipientId: uuid("recipient_id").notNull(),
+    /** Owner and sharer are the ancestor spec's SEPARATE fields (§17.1);
+     *  in Plan 7 they are always equal (you share your own project) and
+     *  both are recorded so a re-share chain stays legible in the ledger. */
+    sourceOwnerId: uuid("source_owner_id").notNull(),
+    sourceProjectId: text("source_project_id").notNull(),
+    /** Frozen at share time from the sharer's SERVER head (design D§2) —
+     *  accept still works if the source is later deleted or rewritten.
+     *  Always ≤ MAX_MANIFEST_BYTES because it was a stored head. */
+    frozenManifest: jsonb("frozen_manifest").notNull(),
+    /** The ancestor spec's "version identifier" (spec §17.1). */
+    sourceClientUpdatedAt: bigint("source_client_updated_at", { mode: "number" }).notNull(),
+    status: text("status").notNull().default("pending"),
+    /** Set at accept — the recipient's fresh copy id (D§4). */
+    copyProjectId: text("copy_project_id"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+  },
+  (t) => [
+    index("shares_recipient_status_idx").on(t.recipientId, t.status),
+    index("shares_class_status_idx").on(t.classId, t.status),
+  ],
 );
