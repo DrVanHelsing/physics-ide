@@ -31,6 +31,7 @@ export const UpdateClassSettingsInputSchema = z.object({
   name: z.string().trim().min(1).max(100).optional(),
   subjectLabel: z.string().trim().max(60).nullable().optional(),
   joinMode: z.enum(JOIN_MODES).optional(),
+  peerSharing: z.boolean().optional(),
 });
 
 export const JoinByCodeInputSchema = z.object({

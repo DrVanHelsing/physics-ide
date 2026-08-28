@@ -85,6 +85,26 @@ function SettingsBody({ classData }) {
           </label>
         ))}
       </div>
+      <h2 className="section-title">Sharing rules</h2>
+      <div className="auth-doors" style={{ maxWidth: 520 }}>
+        {[
+          [false, "Off — classmates can't share work with each other"],
+          [true, "On — classmates can share copies of their work; every share is recorded"],
+        ].map(([value, label]) => (
+          <label
+            key={String(value)}
+            className={classData.peerSharing === value ? "auth-door auth-door--on" : "auth-door"}
+          >
+            <input
+              type="radio"
+              name="peerSharing"
+              checked={classData.peerSharing === value}
+              onChange={() => patch.mutate({ peerSharing: value })}
+            />
+            {label}
+          </label>
+        ))}
+      </div>
       {msg ? (
         <div className="alert alert--success" role="status">
           {msg}

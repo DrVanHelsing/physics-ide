@@ -23,6 +23,7 @@ function toClassSummary(row: ClassRow, myRole: string | null, includeCode: boole
     subjectLabel: row.subjectLabel,
     joinMode: row.joinMode,
     archived: row.archived,
+    peerSharing: row.peerSharing,
     myRole,
     ...(includeCode ? { joinCode: row.joinCode } : {}),
   };
@@ -117,6 +118,7 @@ export function classRoutes(app: FastifyInstance): void {
     if (parsed.data.name !== undefined) patch.name = parsed.data.name;
     if (parsed.data.subjectLabel !== undefined) patch.subjectLabel = parsed.data.subjectLabel;
     if (parsed.data.joinMode !== undefined) patch.joinMode = parsed.data.joinMode;
+    if (parsed.data.peerSharing !== undefined) patch.peerSharing = parsed.data.peerSharing;
     if (Object.keys(patch).length === 0) return { class: toClassSummary(c, "teacher", true) };
     const updated = await app.db.transaction(async (tx) => {
       const [row] = await tx.update(classes).set(patch).where(eq(classes.id, id)).returning();
