@@ -5,6 +5,7 @@ import { setAssignmentMeta, listAssignmentMeta, deleteAssignmentMeta } from "../
 import { getGlobalSyncEngine } from "../../sync/syncEngine";
 import { api } from "../../api/client";
 import { pullGroupProject } from "../groupSync";
+import { requestProjectOpen } from "../../projectOpenRequest";
 import { LAST_PROJECT_KEY } from "../../../constants";
 
 /* createManifest (utils/manifest/factory.js) is pure and left real, so the
@@ -21,6 +22,7 @@ vi.mock("../../storage/assignmentMeta", () => ({
 vi.mock("../../sync/syncEngine", () => ({ getGlobalSyncEngine: vi.fn() }));
 vi.mock("../../api/client", () => ({ api: vi.fn() }));
 vi.mock("../groupSync", () => ({ pullGroupProject: vi.fn() }));
+vi.mock("../../projectOpenRequest", () => ({ requestProjectOpen: vi.fn() }));
 
 const ME = { id: "u1" };
 
@@ -342,6 +344,46 @@ describe("startAssignmentWork — push failure (engine never throws)", () => {
 
     expect(deleteAssignmentMeta).toHaveBeenCalledWith("p-gone");
     expect(saveProject).toHaveBeenCalledTimes(1); // fell through to a fresh create
+  });
+});
+
+/* ── Final fix wave, D2: the pending-open handshake ──────────────────
+   Stamping LAST_PROJECT_KEY only answers a RELOAD of "/". AssignmentPage
+   navigates there client-side, which remounts nothing — ProjectContext read
+   that key once, at boot, long before this click. So every start landed the
+   student on the start menu rather than in the work they just opened. The
+   settled id is now announced as well; the stamp stays, for the reload. */
+describe("startAssignmentWork — announcing the project to open", () => {
+  test("a fresh start asks for the project the server actually linked", async () => {
+    await startAssignmentWork({ assignment: assignment(), me: ME });
+    expect(requestProjectOpen).toHaveBeenCalledWith("p-saved-1");
+  });
+
+  test("Continue asks for the existing work's project", async () => {
+    const a = assignment({ myWork: { projectId: "p-existing-1", startedAt: 123 } });
+    await startAssignmentWork({ assignment: a, me: ME });
+    expect(requestProjectOpen).toHaveBeenCalledWith("p-existing-1");
+  });
+
+  test("losing the start race asks for the WINNER's project, never this attempt's orphan", async () => {
+    api.mockImplementation(async (path) => {
+      order.push(`api:${path}`);
+      return { work: { projectId: "p-winner-from-other-tab" } };
+    });
+
+    await startAssignmentWork({ assignment: assignment(), me: ME });
+
+    expect(requestProjectOpen).toHaveBeenLastCalledWith("p-winner-from-other-tab");
+  });
+
+  test("a failed push announces nothing — there is no project to open", async () => {
+    getGlobalSyncEngine.mockResolvedValue({
+      pushProject: pushProjectSpy,
+      getStatus: () => ({ state: "offline", pendingCount: 1, lastError: null }),
+    });
+
+    await expect(startAssignmentWork({ assignment: assignment(), me: ME })).rejects.toThrow();
+    expect(requestProjectOpen).not.toHaveBeenCalled();
   });
 });
 

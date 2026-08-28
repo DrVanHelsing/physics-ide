@@ -5,9 +5,9 @@ import { mountComponent } from "../../test/renderHelpers";
 import { useMe } from "../../auth/useAuth";
 import { getGlobalSyncEngine } from "../../utils/sync/syncEngine";
 import { createManifest } from "../../utils/manifest/factory";
-import { saveProject, _resetAllProjectStorageForTests } from "../../utils/storage/projectStore";
+import { saveProject, deleteProject, _resetAllProjectStorageForTests } from "../../utils/storage/projectStore";
 import { setAssignmentMeta, _resetAssignmentMetaForTests } from "../../utils/storage/assignmentMeta";
-import { _resetSyncMetaForTests } from "../../utils/storage/syncMeta";
+import { setSyncMeta, _resetSyncMetaForTests } from "../../utils/storage/syncMeta";
 
 /**
  * Task 22 — the plan's binding architectural note for group work: "group
@@ -119,5 +119,48 @@ describe("push-after-save and group work", () => {
     await flush();
 
     expect(engine.adoptLocalProject).toHaveBeenCalledWith(m.id, ME.id);
+  });
+});
+
+/**
+ * Final fix wave, I2. The save listener got the group guard above; the DELETE
+ * listener did not — and the FOUNDER of a group holds real sync meta for the
+ * shared project (it is an ordinary project on their account, pushed before
+ * the group ever existed). Deleting their own local copy therefore passed
+ * every sync-meta check and tombstoned the whole group's shared row: pulls
+ * 404, adopt refuses, every member's workspace locks, and submit still
+ * snapshots the tombstone. The guard is the same one line, in the same place
+ * in the handler, for the same reason.
+ */
+describe("push-after-delete and group work", () => {
+  test("deleting a group project's local copy never tombstones the group's shared row", async () => {
+    await mountWired();
+    const m = createManifest({ goal: "physics", title: "Momentum Lab" });
+    await saveProject(m);
+    // The founder's own copy: pushed as an ordinary project, so it carries
+    // real sync meta — which is exactly what makes the delete look legitimate.
+    await setSyncMeta(m.id, { ownerId: ME.id, remoteUpdatedAt: 1, lastPushedAt: 1 });
+    await setAssignmentMeta(m.id, context("g-1"));
+    await flush();
+
+    await deleteProject(m.id);
+    await flush();
+    await flush();
+
+    expect(engine.deleteRemoteProject).not.toHaveBeenCalled();
+  });
+
+  test("an ordinary project's delete still reaches the server — the guard is about group work, nothing else", async () => {
+    await mountWired();
+    const m = createManifest({ goal: "physics", title: "My own project" });
+    await saveProject(m);
+    await setSyncMeta(m.id, { ownerId: ME.id, remoteUpdatedAt: 1, lastPushedAt: 1 });
+    await flush();
+
+    await deleteProject(m.id);
+    await flush();
+    await flush();
+
+    expect(engine.deleteRemoteProject).toHaveBeenCalledWith(m.id);
   });
 });

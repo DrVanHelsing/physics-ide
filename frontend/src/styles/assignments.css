@@ -171,6 +171,17 @@
 }
 .rules-save-as .input { flex: 1; }
 
+/* ── Rich text editor wrapper (Tasks 5/20) ──────────────────────
+   RichTextEditor.js — the formatting toolbar (.assignments-actions), an
+   optional warning, and the ProseMirror surface underneath. Only the
+   wrapper's own stacking is set here; the toolbar and the alert keep the
+   primitives they already use. */
+.rich-text-editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
 /* ── Starter project row (Task 8) ───────────────────────────────
    AssignmentEditorPage's project picker + Pin/Clear. */
 .assignments-starter-row {
@@ -195,6 +206,17 @@
 }
 .pane-header--brief { border-top: 2px solid var(--cat-communicate); padding-top: 0; }
 .brief-pane__body { padding: var(--space-3) var(--space-4); }
+/* The submit dock at the foot of the pane: the button, the late-window note
+   and the receipt/refusal alert. Ruled so it reads as a separate area from
+   the instructions it sits under, rather than as their last paragraph. */
+.brief-pane__footer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--border);
+  margin-top: auto;
+}
 .brief-handle {
   writing-mode: vertical-rl;
   padding: var(--space-3) var(--space-1);

@@ -175,6 +175,15 @@ export default function SyncProvider({ children }) {
         if (opts?.fromSync) return; // sync-applied deletes must not echo back to the server
         (async () => {
           try {
+            // Group work never rides the personal engine — the same rule the
+            // save handler above enforces, and the delete side needs it MORE.
+            // A group's shared project sits on the FOUNDING member's account
+            // and carries their real sync meta, so the checks below all pass
+            // for them: without this line, a founder tidying up their own
+            // local copy tombstones the whole group's work (pulls 404, adopt
+            // refuses, every member's workspace locks, and submit snapshots
+            // the tombstone).
+            if ((await getAssignmentMeta(id))?.groupId) return;
             const meta = await getSyncMeta(id);
             if (!meta) return; // guest-era/unadopted local: untouched
             if (meta.ownerId && meta.ownerId !== me.id) return; // another account's project

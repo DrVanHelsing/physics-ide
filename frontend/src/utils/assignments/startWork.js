@@ -17,6 +17,11 @@
  *      not necessarily this attempt's own — see "second device" below), so
  *      the IDE can render assignment chrome once it opens that project
  *      (Task 11).
+ *   7. Announce the settled id (projectOpenRequest.js). Step 3's stamp only
+ *      answers a RELOAD of "/" — ProjectContext reads that key once, in its
+ *      bootstrap effect — and AssignmentPage's navigate("/") is a client-side
+ *      transition that remounts nothing. Without the announcement every start
+ *      lands the student on the start menu instead of their work.
  *
  * Two things step 4-5 have to account for, discovered in task-10 review:
  *
@@ -63,6 +68,7 @@ import { createManifest } from "../manifest/factory";
 import { saveProject, loadProject } from "../storage/projectStore";
 import { setAssignmentMeta, listAssignmentMeta, deleteAssignmentMeta } from "../storage/assignmentMeta";
 import { getGlobalSyncEngine } from "../sync/syncEngine";
+import { requestProjectOpen } from "../projectOpenRequest";
 import { LAST_PROJECT_KEY } from "../../constants";
 
 const PUSH_FAILED_MESSAGE = "Could not reach the server — check your connection and try again.";
@@ -84,6 +90,7 @@ export async function startAssignmentWork({ assignment, me }) {
     await cacheContext(assignment, assignment.myWork.projectId);
     stampLastProject(assignment.myWork.projectId);
     if (groupId) await pullGroupProject(groupId);
+    requestProjectOpen(assignment.myWork.projectId);
     return assignment.myWork.projectId;
   }
 
@@ -114,6 +121,7 @@ export async function startAssignmentWork({ assignment, me }) {
     // adopt and the group route is the only way to it.
     if (groupId) await pullGroupProject(groupId);
   }
+  requestProjectOpen(linkedProjectId);
   return linkedProjectId;
 }
 

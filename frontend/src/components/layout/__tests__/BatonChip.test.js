@@ -238,6 +238,47 @@ describe("BatonChip — taking the baton delivers the group's head (fix round 1)
     warn.mockRestore();
   });
 
+  /* Final fix wave (Task 22 residual). `adopt` awaits the head, and the
+     group-id check after that await only catches a change of GROUP. Two
+     adopts of the SAME group can still interleave — a slow take-pull and a
+     poll (or push-failure re-read) that lands while it is in flight — and
+     the older one would then re-assert a baton the newer reading has already
+     taken away, unlocking a workspace this member no longer owns. */
+  test("a slow take-pull can never re-assert a baton a later reading has already taken away", async () => {
+    api.mockResolvedValueOnce({ baton: baton({ holderId: "u-2", holderName: "Thabo", ms: -1000 }) });
+    const { container, onBaton } = await render();
+
+    let deliverHead = null;
+    pullGroupProject.mockImplementationOnce(
+      () => new Promise((resolve) => { deliverHead = resolve; }),
+    );
+    api.mockResolvedValueOnce({ baton: baton({ holderId: ME.id, holderName: "Ada", ms: LIVE }) });
+
+    await act(async () => {
+      byText(container, "Take over").dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    await flush();
+    expect(pullGroupProject).toHaveBeenCalledWith("g-1");
+
+    // The lease moves on while that head is still in flight: a refused push
+    // re-reads the baton and finds somebody else holding it.
+    api.mockResolvedValueOnce({ baton: baton({ holderId: "u-3", holderName: "Naledi", ms: LIVE }) });
+    await act(async () => {
+      pushFailed(new Error("Another member holds the baton."));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(chipText(container)).toBe("Read-only — Naledi is editing");
+
+    // The superseded pull finally lands. It must not put the baton back.
+    await act(async () => {
+      deliverHead(null);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(chipText(container)).toBe("Read-only — Naledi is editing");
+    expect(onBaton).not.toHaveBeenCalledWith({ groupId: "g-1", held: true });
+  });
+
   test("the head is fetched once per turn, not on every poll while the baton stays yours", async () => {
     api.mockResolvedValue({ baton: baton({ holderId: ME.id, holderName: "Ada", ms: LIVE }) });
     vi.useFakeTimers();

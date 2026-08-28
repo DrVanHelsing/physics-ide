@@ -26,6 +26,7 @@ import {
   onProjectDeleted,
 } from "../utils/storage/projectStore";
 import { readLegacyV1, migrate, LEGACY_V1_KEY } from "../utils/manifest/migrate";
+import { onProjectOpenRequested } from "../utils/projectOpenRequest";
 import { SIGNED_IN_HINT_KEY, LAST_PROJECT_KEY } from "../constants";
 
 const ProjectContext = createContext(null);
@@ -162,6 +163,21 @@ export function ProjectProvider({ children }) {
       return m;
     },
     [],
+  );
+
+  /* The portal's hand-off into the IDE. "Start work" and "Open a test copy"
+     settle on a project id, stamp LAST_PROJECT_KEY and navigate to "/" —
+     but that navigation is client-side, so the bootstrap effect above (the
+     only reader of that key) ran long before the click. Subscribing here is
+     the other half of the handshake; see utils/projectOpenRequest.js. */
+  useEffect(
+    () =>
+      onProjectOpenRequested((id) => {
+        Promise.resolve(openProject(id)).catch((err) => {
+          console.warn("ProjectContext: could not open the requested project:", err);
+        });
+      }),
+    [openProject],
   );
 
   /* Called by any explicit-navigation path that doesn't go through
