@@ -886,3 +886,185 @@ describe("POST /api/shares/:id/accept", () => {
     expect(shareRow.copyProjectId).toBeNull();
   });
 });
+
+/* §11/D§9: the online name-refresh feed — names resolved at read time (so
+ * erasure has one place to act) and a re-share chain that still labels only
+ * the immediate sharer while the ledger keeps the whole provenance. */
+describe("GET /api/shares/attributions", () => {
+  test("bravo's map carries p-copy-1 with alpha's live name", async () => {
+    // p-copy-1 was minted by the "bravo accepts" happy-path test above —
+    // this block runs after it (fileParallelism is off, tests run in
+    // declared order), so the row is already there.
+    const [shareRow] = await testDb.select().from(shares).where(eq(shares.copyProjectId, "p-copy-1"));
+    expect(shareRow).toBeDefined();
+
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/shares/attributions",
+      cookies: { pide_session: bravo.cookie },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().attributions["p-copy-1"]).toEqual({
+      sharerId: alpha.id,
+      shareId: shareRow.id,
+      sharerName: "shalpha",
+    });
+  });
+
+  test("erasure: alpha's user row deleted directly — her own projects cascade away, but the recipient's copy and the shares row survive (no FK), and every name that resolves reads Removed student", async () => {
+    const erAlpha = await makeUser("sherase-alpha@example.com");
+    const erBravo = await makeUser("sherase-bravo@example.com");
+    const erAlphaCookie = await signin("sherase-alpha@example.com");
+    const erBravoCookie = await signin("sherase-bravo@example.com");
+    await testDb.insert(classMembers).values([
+      { classId, userId: erAlpha.id, role: "student", status: "active" },
+      { classId, userId: erBravo.id, role: "student", status: "active" },
+    ]);
+    try {
+      await pushProject(erAlpha.id, "p-erase-src", {
+        schemaVersion: 2,
+        id: "p-erase-src",
+        title: "Erasure Fixture",
+        goal: "physics",
+        projectType: "custom",
+        createdAt: 1000,
+        updatedAt: 3000,
+      });
+      const acceptedShareRes = await app.inject({
+        method: "POST",
+        url: "/api/shares",
+        cookies: { pide_session: erAlphaCookie },
+        payload: { classId, recipientId: erBravo.id, projectId: "p-erase-src" },
+      });
+      expect(acceptedShareRes.statusCode).toBe(201);
+      const acceptedShareId = acceptedShareRes.json().share.id as string;
+      const acceptRes = await acceptShare(erBravoCookie, acceptedShareId, "p-erase-copy");
+      expect(acceptRes.statusCode).toBe(200);
+
+      // A second, still-PENDING share, alive when alpha is erased — the
+      // fresh incoming row the brief asks for.
+      await pushProject(erAlpha.id, "p-erase-src-2", {
+        schemaVersion: 2,
+        id: "p-erase-src-2",
+        title: "Erasure Fixture 2",
+        goal: "physics",
+        projectType: "custom",
+        createdAt: 1000,
+        updatedAt: 3000,
+      });
+      const pendingShareRes = await app.inject({
+        method: "POST",
+        url: "/api/shares",
+        cookies: { pide_session: erAlphaCookie },
+        payload: { classId, recipientId: erBravo.id, projectId: "p-erase-src-2" },
+      });
+      expect(pendingShareRes.statusCode).toBe(201);
+      const pendingShareId = pendingShareRes.json().share.id as string;
+
+      // The erasure itself — a direct delete on `users`, the way an admin's
+      // erasure flow would do it. Neither `shares` nor `projects.attribution`
+      // carries an FK to `users` (D§4/D§9), so this must NOT cascade either.
+      await testDb.delete(users).where(eq(users.id, erAlpha.id));
+
+      // alpha's OWN projects DID cascade away (projects.ownerId -> users FK).
+      const alphaProjectsAfter = await testDb
+        .select()
+        .from(projects)
+        .where(eq(projects.ownerId, erAlpha.id));
+      expect(alphaProjectsAfter).toHaveLength(0);
+
+      // SURVIVAL 1: the recipient's copy row.
+      const copyRows = await testDb
+        .select()
+        .from(projects)
+        .where(and(eq(projects.ownerId, erBravo.id), eq(projects.id, "p-erase-copy")));
+      expect(copyRows).toHaveLength(1);
+      expect(copyRows[0].attribution).toEqual({ sharerId: erAlpha.id, shareId: acceptedShareId });
+
+      // SURVIVAL 2: the `shares` row itself, untouched.
+      const [survivingShareRow] = await testDb.select().from(shares).where(eq(shares.id, acceptedShareId));
+      expect(survivingShareRow).toBeDefined();
+      expect(survivingShareRow.sharerId).toBe(erAlpha.id);
+
+      const attrRes = await app.inject({
+        method: "GET",
+        url: "/api/shares/attributions",
+        cookies: { pide_session: erBravoCookie },
+      });
+      expect(attrRes.statusCode).toBe(200);
+      expect(attrRes.json().attributions["p-erase-copy"]).toEqual({
+        sharerId: erAlpha.id,
+        shareId: acceptedShareId,
+        sharerName: "Removed student",
+      });
+
+      const incomingRes = await app.inject({
+        method: "GET",
+        url: `/api/shares/incoming?classId=${classId}`,
+        cookies: { pide_session: erBravoCookie },
+      });
+      expect(incomingRes.statusCode).toBe(200);
+      const pendingEntry = (incomingRes.json().shares as Array<{ id: string; sharerName: string }>).find(
+        (s) => s.id === pendingShareId,
+      );
+      expect(pendingEntry).toBeDefined();
+      expect(pendingEntry!.sharerName).toBe("Removed student");
+    } finally {
+      await testDb.delete(shares).where(eq(shares.recipientId, erBravo.id));
+      await testDb.delete(users).where(eq(users.id, erBravo.id));
+    }
+  });
+
+  test("the chain: bravo re-shares p-copy-1 onward to a fresh charlie — the new event's sourceAttribution names the FIRST share, and charlie's own attribution names bravo, not alpha", async () => {
+    const [firstShareRow] = await testDb.select().from(shares).where(eq(shares.copyProjectId, "p-copy-1"));
+    expect(firstShareRow).toBeDefined();
+
+    const charlie = await makeUser("shcharlie@example.com");
+    const charlieCookie = await signin("shcharlie@example.com");
+    await testDb.insert(classMembers).values({ classId, userId: charlie.id, role: "student", status: "active" });
+    try {
+      const chainRes = await app.inject({
+        method: "POST",
+        url: "/api/shares",
+        cookies: { pide_session: bravo.cookie },
+        payload: { classId, recipientId: charlie.id, projectId: "p-copy-1" },
+      });
+      expect(chainRes.statusCode).toBe(201);
+      const chainShareId = chainRes.json().share.id as string;
+
+      // The ledger keeps the WHOLE provenance: sourceAttribution on the new
+      // event equals the FIRST share's identity, not bravo's own.
+      const logged = await eventsOfType("project.shared");
+      const entry = logged.find((e) => (e.payload as { shareId: string }).shareId === chainShareId);
+      expect(entry).toBeDefined();
+      expect((entry!.payload as { sourceAttribution: unknown }).sourceAttribution).toEqual({
+        sharerId: alpha.id,
+        shareId: firstShareRow.id,
+      });
+
+      // The LABEL names only the immediate sharer: bravo, not alpha.
+      const acceptRes = await acceptShare(charlieCookie, chainShareId, "p-chain-copy");
+      expect(acceptRes.statusCode).toBe(200);
+      expect(acceptRes.json().attribution).toEqual({
+        sharerId: bravo.id,
+        shareId: chainShareId,
+        sharerName: "shbravo",
+      });
+
+      const attrRes = await app.inject({
+        method: "GET",
+        url: "/api/shares/attributions",
+        cookies: { pide_session: charlieCookie },
+      });
+      expect(attrRes.statusCode).toBe(200);
+      expect(attrRes.json().attributions["p-chain-copy"]).toEqual({
+        sharerId: bravo.id,
+        shareId: chainShareId,
+        sharerName: "shbravo",
+      });
+    } finally {
+      await testDb.delete(shares).where(eq(shares.recipientId, charlie.id));
+      await testDb.delete(users).where(eq(users.id, charlie.id));
+    }
+  });
+});
