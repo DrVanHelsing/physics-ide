@@ -508,15 +508,42 @@ the above at the component level, and the conformance suites (`platformTokens`,
 `welcomeTokens`, `primitivesTokens`, `assignmentsTokens`, `tokenRamp`,
 `portalControls`, `iconsIdiom`) hold the design-system rules.
 
-**First repayment — landing with Plan 6's final task (Task 26).**
-`frontend/scripts/portal-e2e.mjs` drives one browser run of the golden flow:
-teacher signs in → creates a class → authors and publishes an assignment →
-student signs up, confirms via the pretend inbox, joins by code, opens the
-assignment, starts work (brief pane and rules chip present), edits and submits
-with a fingerprint → teacher's inbox shows 1 of 1, the marking room renders the
-snapshot, a mark is saved and released → the gradebook shows it → the student
-sees the feedback. Run it with `node frontend/scripts/portal-e2e.mjs` against a
-dev server on `:3000`.
+**First repayment — landed with Plan 6's final task (Task 26).**
+`frontend/scripts/portal-e2e.mjs` drives one browser run of the golden flow, a
+teacher and a student in two separate browser contexts: teacher signs in →
+creates a class → authors and publishes an assignment → student signs up,
+confirms via the pretend inbox, joins by code, opens the assignment, starts
+work (brief pane and rules chip present), edits and submits with a fingerprint
+→ teacher's inbox shows 1 of 1, the marking room renders the snapshot, a mark
+is saved and released → the gradebook shows it → the student sees the feedback.
+Alongside the flow it sweeps every screen it lands on for `.welcome-btn` ghosts
+and rule-less classes (classes on live elements that no stylesheet rule
+defines), and audits the whole run for console errors.
+
+To run it:
+
+```bash
+npm run db:up && npm run db:migrate && npm run seed   # Postgres, schema, seeded admin
+npm run dev                                           # backend :4000 + frontend :3000
+node frontend/scripts/portal-e2e.mjs
+```
+
+41 checks; screenshots land in `frontend/e2e/portal-*.png` and the machine-
+readable result (including the per-screen sweeps) in
+`frontend/e2e/portal-results.json`. The run mints its own class, assignment and
+student account each time, so it is safe to re-run against a dev database that
+is never reset.
+
+**Three checks are RED at hand-over**, on genuine product defects the flow
+found rather than on the harness — recorded here so a later run is read
+correctly and not "fixed" by weakening the checks: Start work is intermittently
+refused by a concurrent double-push of the same new project (`PUT
+/api/projects/:id` is not race-safe when creating); Start work then lands on
+the start menu instead of the work (`LAST_PROJECT_KEY` is only read at app
+boot, but `navigate("/")` is a client-side transition); and `.brief-pane__footer`
+plus `.rich-text-editor` carry no CSS rule. Details and a third rule-less class
+(`.btn--small` in `HistoryTimeline.js`) are in
+`docs/superpowers/reviews/2026-08-28-plan6-browser-pass-checklist.md`.
 
 **Still uncovered after that lands**, and the reason spec §18's
 forward-reference item 6 stays open: `/admin`, the invite landing, `/profile`,
