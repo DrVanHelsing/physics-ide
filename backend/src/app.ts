@@ -13,6 +13,7 @@ import { assignmentRoutes } from "./routes/assignments.js";
 import { groupRoutes } from "./routes/groups.js";
 import { guideRoutes } from "./routes/guides.js";
 import { tickRoutes } from "./routes/tick.js";
+import { shareRoutes } from "./routes/shares.js";
 
 export interface AppDeps {
   db: Db;
@@ -50,6 +51,7 @@ export function buildApp(deps: AppDeps): FastifyInstance {
   app.register(assignmentRoutes);
   app.register(groupRoutes);
   app.register(guideRoutes);
+  app.register(shareRoutes);
   app.register(tickRoutes);
 
   return app;
