@@ -22,16 +22,24 @@ import { useTheme } from "../../contexts/ThemeContext";
  * up-control, so a drill-down page (marking room, assignment editor, guide,
  * admin console) had nothing on it that led back up. `to` is the screen's real
  * parent route and `label` names it; a top-level screen passes nothing.
+ *
+ * A `back` that only repeats `home` stands down. The bar must never offer one
+ * destination twice, and the rule belongs here rather than in each caller:
+ * ClassChrome hands every class screen the same sensible default, and the
+ * screens whose parent genuinely IS the class wall (the tabs) would otherwise
+ * each have to remember to pass nothing. A screen that overrides `back` with
+ * its real parent keeps it, because that target differs from home.
  */
 export default function PortalHeader({ title, nav, home = "/", back }) {
   const { isDark, toggle } = useTheme();
+  const showBack = back && back.to !== home;
   return (
     <header className="page-header">
       <div className="page-header__bar">
         <Link to={home} className="auth-brand">
           Physics<span>IDE</span>
         </Link>
-        {back ? <BackLink to={back.to} label={back.label} /> : null}
+        {showBack ? <BackLink to={back.to} label={back.label} /> : null}
         <div className="page-header__spacer" />
         <ThemeToggleButton isDark={isDark} onToggle={toggle} />
         <HeaderAccount />

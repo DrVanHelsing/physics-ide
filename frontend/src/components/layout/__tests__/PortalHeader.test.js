@@ -78,6 +78,33 @@ describe("PortalHeader — the one portal header (spec §18 D9)", () => {
     expect(container.querySelector(".back-link")).toBeNull();
   });
 
+  /* Fix round (2026-08-28 wave review) — the header must never offer the same
+     destination twice. ClassChrome sends home="/classes" AND a default back of
+     "/classes", so every class tab that did not override `back` showed two
+     adjacent links to one URL. The rule lives here rather than in any caller:
+     a redundant `back` stands down wherever it comes from. */
+  test("a back link that only repeats the wordmark's destination stands down", () => {
+    useTheme.mockReturnValue({ isDark: true, toggle: vi.fn() });
+    const container = render({
+      home: "/classes",
+      back: { to: "/classes", label: "Back to my classes" },
+    });
+    expect(container.querySelector(".back-link")).toBeNull();
+    // The wordmark still carries the destination — nothing was lost.
+    expect(container.querySelector(".auth-brand").getAttribute("href")).toBe("/classes");
+  });
+
+  test("the same back target survives when home points somewhere else", () => {
+    useTheme.mockReturnValue({ isDark: true, toggle: vi.fn() });
+    const container = render({
+      home: "/",
+      back: { to: "/classes", label: "Back to my classes" },
+    });
+    const back = container.querySelector(".back-link");
+    expect(back).not.toBeNull();
+    expect(back.getAttribute("href")).toBe("/classes");
+  });
+
   test("renders a nav slot when given one, omits it entirely when not", () => {
     useTheme.mockReturnValue({ isDark: true, toggle: vi.fn() });
     const withNav = render({ nav: <nav className="tabs">tabs</nav> });

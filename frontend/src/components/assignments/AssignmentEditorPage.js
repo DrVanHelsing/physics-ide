@@ -165,6 +165,15 @@ export default function AssignmentEditorPage() {
     onError: (err) => setError(err.message),
   });
 
+  // Cancel exists, but at the BOTTOM of a ten-field form (F2, 2026-08-28).
+  // The way out belongs above the fold too, and it names where it goes: the
+  // class for a new assignment, the assignment itself when editing one that
+  // already exists. Declared before the gates so the refused states get the
+  // same exit the happy path does — GuidePage's equivalent branch already did.
+  const back = isNew
+    ? { to: `/classes/${id}`, label: "Back to assignments" }
+    : { to: `/classes/${id}/assignments/${aid}`, label: "Back to the assignment" };
+
   if (meLoading) return null;
   if (!me) return <Navigate to="/auth/signin" replace />;
   if (classQuery.isLoading) return null;
@@ -179,6 +188,7 @@ export default function AssignmentEditorPage() {
           Back to my classes
         </Link>
       </>,
+      back,
     );
   }
   if (!classQuery.data) return null;
@@ -190,6 +200,7 @@ export default function AssignmentEditorPage() {
       <div className="alert alert--danger" role="alert">
         {TEACHERS_ONLY}
       </div>,
+      back,
     );
   }
 
@@ -238,14 +249,6 @@ export default function AssignmentEditorPage() {
       rules: form.rules,
     });
   }
-
-  // Cancel exists, but at the BOTTOM of a ten-field form (F2, 2026-08-28).
-  // The way out belongs above the fold too, and it names where it goes: the
-  // class for a new assignment, the assignment itself when editing one that
-  // already exists.
-  const back = isNew
-    ? { to: `/classes/${id}`, label: "Back to assignments" }
-    : { to: `/classes/${id}/assignments/${aid}`, label: "Back to the assignment" };
 
   return (
     <div className="page">
