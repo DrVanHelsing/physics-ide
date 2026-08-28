@@ -91,8 +91,10 @@ async function pruneTombstones(db: Pick<Db, "execute">, ownerId: string): Promis
  * Locks the owner's row and reports whether they're already at the live-project cap.
  * Shared by the create path and the tombstone-revive path so neither can bypass it —
  * reviving a tombstone re-adds a live project, same as creating one from scratch.
+ * Exported for the share-accept route (Plan 7): an accepted copy is a created project
+ * and pays the same cap, refused with the share's OWN sentence.
  */
-async function isAtCap(tx: Pick<Db, "select">, ownerId: string): Promise<boolean> {
+export async function isAtCap(tx: Pick<Db, "select">, ownerId: string): Promise<boolean> {
   await tx.select({ id: users.id }).from(users).where(eq(users.id, ownerId)).for("update");
   const [{ count }] = await tx
     .select({ count: sql<number>`count(*)::int` })
