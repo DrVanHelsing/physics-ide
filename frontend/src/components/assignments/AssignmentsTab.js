@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../../utils/api/client";
 import ClassChrome from "../classes/ClassChrome";
+import SharedWithYou from "../sharing/SharedWithYou";
 
 export function phaseBadge(phase) {
   switch (phase) {
@@ -33,6 +34,7 @@ function AssignmentsBody({ classData }) {
   const list = q.data?.assignments ?? [];
   return (
     <div className="page-body">
+      <SharedWithYou classId={id} />
       {classData.myRole === "teacher" ? (
         <div className="assignments-actions">
           <Link className="btn" to={`/classes/${id}/assignments/new`}>New assignment</Link>
