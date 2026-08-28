@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { CreateShareInputSchema, AcceptShareInputSchema, WorkspaceRulesSchema } from "@physics-ide/shared";
 import {
@@ -279,6 +279,40 @@ export function shareRoutes(app: FastifyInstance): void {
         createdAt: share.createdAt.getTime(),
       })),
     };
+  });
+
+  // The client's online name-refresh feed (Task 13's refreshShareAttributions)
+  // and the second-device path by which a copy accepted elsewhere gains its
+  // local label: every live attributed project the CALLER owns, names
+  // resolved fresh so §11 erasure has one place to act.
+  app.get("/api/shares/attributions", async (req) => {
+    const rows = await app.db
+      .select({ id: projects.id, attribution: projects.attribution })
+      .from(projects)
+      .where(
+        and(
+          eq(projects.ownerId, req.user!.id),
+          isNotNull(projects.attribution),
+          isNull(projects.deletedAt),
+        ),
+      );
+    const sharerIds = [...new Set(rows.map((r) => (r.attribution as { sharerId: string }).sharerId))];
+    const named = sharerIds.length
+      ? await app.db.select({ id: users.id, name: users.name }).from(users).where(inArray(users.id, sharerIds))
+      : [];
+    const nameById = new Map(named.map((u) => [u.id, u.name]));
+    const attributions: Record<string, { sharerId: string; shareId: string; sharerName: string }> = {};
+    for (const r of rows) {
+      const a = r.attribution as { sharerId: string; shareId: string };
+      attributions[r.id] = {
+        sharerId: a.sharerId,
+        shareId: a.shareId,
+        // §11: resolved at read time — an erased sharer is the same
+        // "Removed student" the spec uses for erased submissions.
+        sharerName: nameById.get(a.sharerId) ?? REMOVED_STUDENT,
+      };
+    }
+    return { attributions };
   });
 
   app.get("/api/shares/roster/:classId", async (req, reply) => {
