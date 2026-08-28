@@ -12,6 +12,7 @@ let cookieA: string;
 let cookieB: string;
 let cookieC: string;
 let cookieD: string;
+let cookieE: string;
 
 function manifest(overrides: Record<string, unknown> = {}) {
   return {
@@ -74,10 +75,12 @@ beforeAll(async () => {
   await makeUser("syncb@example.com");
   await makeUser("syncc@example.com");
   await makeUser("syncd@example.com");
+  await makeUser("synce@example.com");
   cookieA = await signin("synca@example.com");
   cookieB = await signin("syncb@example.com");
   cookieC = await signin("syncc@example.com");
   cookieD = await signin("syncd@example.com");
+  cookieE = await signin("synce@example.com");
 });
 
 afterAll(async () => {
@@ -319,6 +322,47 @@ describe("tombstone revive respects the cap (review fix)", () => {
     );
     expect(revive.statusCode).toBe(403);
     expect(revive.json().error).toBe("You've reached the 100-project limit — delete something first.");
+  });
+});
+
+/* ── Final fix wave, D1: the race-safe create ────────────────────────
+   The `FOR UPDATE` on the head select locks NOTHING when the row does not
+   exist yet, so two concurrent FIRST pushes of one new id both take the
+   create branch. That is not a hypothetical: pressing "Start work" fires
+   startWork's own explicit `engine.pushProject` and SyncProvider's
+   auto-adopt of the same freshly-saved project a millisecond or two apart,
+   and the loser used to 500 on the composite primary key — surfacing in the
+   IDE as a false "Could not reach the server" on a Start that had in fact
+   worked. The server heals it for every double-push, whatever its source. */
+describe("two concurrent first pushes of one new id (final fix wave D1)", () => {
+  test("both are accepted and exactly one row exists — the loser falls through to the ordinary update path", async () => {
+    const owner = (await testDb.select().from(users).where(eq(users.email, "synce@example.com")))[0];
+    // Warm two pool connections first. Without this the two injects do NOT
+    // overlap: the second request spends ~20 ms establishing its own
+    // connection while the first has already committed, and the race the
+    // test exists to reproduce quietly does not happen.
+    await Promise.all([
+      app.inject({ method: "GET", url: "/api/projects", cookies: { pide_session: cookieE } }),
+      app.inject({ method: "GET", url: "/api/projects", cookies: { pide_session: cookieE } }),
+    ]);
+    const [first, second] = await Promise.all([
+      put(cookieE, "p-race-1", manifest({ id: "p-race-1", updatedAt: 5000, title: "Racer one" })),
+      put(cookieE, "p-race-1", manifest({ id: "p-race-1", updatedAt: 6000, title: "Racer two" })),
+    ]);
+
+    expect(first.statusCode).toBe(200);
+    expect(second.statusCode).toBe(200);
+
+    const rows = await testDb
+      .select()
+      .from(projects)
+      .where(and(eq(projects.ownerId, owner.id), eq(projects.id, "p-race-1")));
+    expect(rows).toHaveLength(1);
+    // clientUpdatedAt decides between them exactly as it does for any other
+    // pair of pushes: the newer manifest is the head whichever one landed
+    // second, and the older one is archived rather than dropped.
+    expect(rows[0].clientUpdatedAt).toBe(6000);
+    expect((rows[0].manifest as { title: string }).title).toBe("Racer two");
   });
 });
 

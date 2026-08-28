@@ -100,6 +100,13 @@ async function isAtCap(tx: Pick<Db, "select">, ownerId: string): Promise<boolean
   return count >= MAX_PROJECTS_PER_USER;
 }
 
+/** drizzle 0.44 may wrap driver errors; the pg code then lives on .cause.
+ *  Same private-per-file idiom auth.ts, members.ts and assignments.ts use. */
+function pgErrorCode(err: unknown): string | undefined {
+  const e = err as { code?: string; cause?: { code?: string } };
+  return e.code ?? e.cause?.code;
+}
+
 export function projectRoutes(app: FastifyInstance): void {
   app.addHook("preHandler", requireUser);
 
@@ -159,25 +166,56 @@ export function projectRoutes(app: FastifyInstance): void {
       // Updates serialize on the head row lock; creations (and revives, which also
       // add a live project) lock the owner row via isAtCap so concurrent pushes
       // cannot race past the cap check.
-      const existing = await tx
-        .select()
-        .from(projects)
-        .where(and(eq(projects.ownerId, req.user!.id), eq(projects.id, id)))
-        .for("update");
-      const head = existing[0];
+      const readHead = async () => {
+        const rows = await tx
+          .select()
+          .from(projects)
+          .where(and(eq(projects.ownerId, req.user!.id), eq(projects.id, id)))
+          .for("update");
+        return rows[0];
+      };
+      let head = await readHead();
 
       if (!head) {
         if (await isAtCap(tx, req.user!.id)) return { kind: "cap" as const };
-        await tx.insert(projects).values({
-          id,
-          ownerId: req.user!.id,
-          title: m.title,
-          goal: m.goal,
-          projectType: m.projectType,
-          manifest: m,
-          clientUpdatedAt: m.updatedAt,
-        });
-        return { kind: "saved" as const };
+        // `FOR UPDATE` locks nothing when the row does not exist yet, so two
+        // concurrent FIRST pushes of one new id both arrive here — which is
+        // not hypothetical: pressing "Start work" fires startWork's own
+        // explicit push and SyncProvider's auto-adopt of the same freshly
+        // saved project a millisecond or two apart. The composite primary key
+        // is the real guard, and the loser's 23505 used to escape as a 500,
+        // read by the IDE as "Could not reach the server" on a Start that had
+        // in fact worked. It is caught here instead: the winner's head is
+        // re-read and the push carries on down the ordinary update path
+        // below, where `clientUpdatedAt` decides between the two exactly as
+        // it does for any other pair of pushes.
+        //
+        // The insert runs inside its own SAVEPOINT (drizzle's nested
+        // transaction) — a unique violation aborts the statement's savepoint,
+        // not the whole transaction, so there is something left to carry on
+        // WITH. And by the time 23505 is raised the winning row is committed:
+        // the insert blocks on the unique index until the other writer
+        // settles, so the re-read below always finds it.
+        let created = true;
+        try {
+          await tx.transaction(async (sp) => {
+            await sp.insert(projects).values({
+              id,
+              ownerId: req.user!.id,
+              title: m.title,
+              goal: m.goal,
+              projectType: m.projectType,
+              manifest: m,
+              clientUpdatedAt: m.updatedAt,
+            });
+          });
+        } catch (err) {
+          if (pgErrorCode(err) !== "23505") throw err;
+          created = false;
+        }
+        if (created) return { kind: "saved" as const };
+        head = await readHead();
+        if (!head) return { kind: "saved" as const }; // vanished again: nothing left to reconcile against
       }
 
       if (!head.deletedAt && m.updatedAt < head.clientUpdatedAt) {
