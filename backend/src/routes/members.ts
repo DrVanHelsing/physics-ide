@@ -3,7 +3,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { JoinByCodeInputSchema } from "@physics-ide/shared";
 import { classes, classMembers, invites, users } from "../db/schema.js";
 import { requireConfirmed } from "../auth/guards.js";
-import { getMembership, requireClassTeacher, sendClassAuthError } from "../classes/guards.js";
+import { getMembership, isStaffRole, requireClassTeacher, sendClassAuthError } from "../classes/guards.js";
 import { logEvent } from "../db/events.js";
 import { pgErrorCode } from "../lib/util.js";
 
@@ -55,7 +55,7 @@ export function memberRoutes(app: FastifyInstance): void {
   app.get("/api/classes/:id/members", async (req, reply) => {
     const { id } = req.params as { id: string };
     const me = await getMembership(app.db, id, req.user!.id);
-    if (!me || me.status !== "active" || me.role === "student") {
+    if (!me || me.status !== "active" || !isStaffRole(me.role)) {
       return reply.code(403).send({ error: "Teachers and assistants only." });
     }
     const rows = await app.db

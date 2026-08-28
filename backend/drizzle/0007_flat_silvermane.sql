@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "shares_pending_dedup_idx" ON "shares" USING btree ("source_owner_id","source_project_id","recipient_id") WHERE "status" = 'pending';

@@ -1,4 +1,5 @@
-import { pgTable, text, jsonb, bigserial, uuid, timestamp, boolean, unique, bigint, primaryKey, index, foreignKey } from "drizzle-orm/pg-core";
+import { pgTable, text, jsonb, bigserial, uuid, timestamp, boolean, unique, uniqueIndex, bigint, primaryKey, index, foreignKey } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 /** Admin-adjustable switches — first row: account_cap = 200 (spec §3.1). */
 export const settings = pgTable("settings", {
@@ -405,5 +406,15 @@ export const shares = pgTable(
   (t) => [
     index("shares_recipient_status_idx").on(t.recipientId, t.status),
     index("shares_class_status_idx").on(t.classId, t.status),
+    /** RACE BACKSTOP behind the route's friendly read-then-409 duplicate
+     *  check: two concurrent identical POSTs can both pass the read, so
+     *  this partial unique index is what makes the second insert fail
+     *  instead of minting a second pending row for the same
+     *  (sourceOwnerId, sourceProjectId, recipientId) triple. Partial on
+     *  status = 'pending' so a resolved share (accepted/revoked/lapsed)
+     *  never blocks a fresh share of the same triple. */
+    uniqueIndex("shares_pending_dedup_idx")
+      .on(t.sourceOwnerId, t.sourceProjectId, t.recipientId)
+      .where(sql`"status" = 'pending'`),
   ],
 );
