@@ -2322,8 +2322,11 @@ angle = clamp(input_angle, -30, 30)`}</Pre>
                 </li>
               </ul>
               <Note type="info">
-                Physics and data analysis never move to a server, with or without an account.
-                Only the classroom records do.
+                Physics and data analysis never <em>run</em> on a server, with or without an
+                account — every simulation and every analysis executes on the machine in front
+                of you. A guest's work never leaves the browser at all. Signing in syncs your
+                projects to your account, and handing work in freezes a copy of the project as
+                submitted; what moves is the saved work, never the running of it.
               </Note>
 
               <h3 className="help-h3">Deploying to students</h3>

@@ -30,6 +30,19 @@ import WelcomeSubpage from "./WelcomeSubpage";
  *      that. The old sentence promised a runnable read-only script, which
  *      would be a live document — exactly the thing spec §7.2 forbids.
  *
+ * Fix round 1 (2026-08-28, review of the pass above): the honesty pass added
+ * a sentence about the inbox's reminder button that itself overclaimed —
+ * "a reminder you can send to the students who still owe you work" reads as
+ * delivery, and `POST /api/assignments/:id/remind` really does compose one
+ * `dueReminder` per missing recipient — but the only `Mailer` implementation
+ * writes rows the admin console's Emails tab reads. Delivery is a §9
+ * exclusion this same commit's contract amendment restates as NOT lifted, so
+ * the copy and the contract disagreed inside one commit. The sentence now
+ * scopes itself the way this page's own admin-console paragraph already
+ * scopes that tab ("every message the system would send"). An honesty pass
+ * that introduces a claim is the failure mode it exists to catch; recorded
+ * here rather than quietly corrected.
+ *
  * Everything else verified as it stands. Nothing here reaches past the
  * stage table — §9 of the same document lists what launch deliberately
  * excludes (the notification bell, rubric marking, peer sharing, real email
@@ -105,8 +118,10 @@ export default function TeachersPage() {
       <h2>The marking room</h2>
       <p>
         Every published assignment has an inbox: who has submitted, who is
-        late, who is missing, and a reminder you can send to the students
-        who still owe you work.
+        late, and who is missing. One button writes a reminder to every
+        student who still owes you work &mdash; and, like every message the
+        system would send, it lands in the Emails log the site owner reads
+        in the admin console rather than being posted out.
       </p>
       <p>
         Marking opens the submission as a read-only script &mdash; the
