@@ -43,6 +43,13 @@ const NOT_A_MEMBER = "Not a member of this class.";
 const NO_SUCH_ASSIGNMENT = "No such assignment.";
 const TEACHERS_ONLY = "Teachers only.";
 const STARTER_LOCKED = "This assignment already has submissions — the starter is a starting point, not a mid-flight swap.";
+/** The same shape as STARTER_LOCKED, one step earlier: the submission mode is
+ *  a starting decision. Every work row is keyed either to a user or to a
+ *  group, so flipping the mode after the first Start orphans what is already
+ *  there and desynchronizes myWork, the inbox and the gradebook at once. */
+const MODE_LOCKED = "Students have started — the submission mode is fixed once work exists.";
+const RELEASED_RETURN_TEACHER_ONLY =
+  "Only the class teacher can return a mark that has already been released.";
 const NOT_OPEN = "This assignment is not open.";
 const NO_SUCH_PROJECT = "No such project.";
 const NOT_STARTED = "Start this assignment before submitting.";
@@ -110,6 +117,18 @@ async function assignmentHasSubmissions(db: Db, assignmentId: string): Promise<b
     .select({ id: submissions.id })
     .from(submissions)
     .where(eq(submissions.assignmentId, assignmentId))
+    .limit(1);
+  return rows.length > 0;
+}
+
+/** Anyone at all has pressed Start on this assignment. A submission implies a
+ *  work row, so this is the wider of the two checks — but not by construction
+ *  (a mark can be entered without one), so MODE_LOCKED reads both. */
+async function assignmentHasWork(db: Db, assignmentId: string): Promise<boolean> {
+  const rows = await db
+    .select({ id: assignmentWork.id })
+    .from(assignmentWork)
+    .where(eq(assignmentWork.assignmentId, assignmentId))
     .limit(1);
   return rows.length > 0;
 }
@@ -795,6 +814,19 @@ export function assignmentRoutes(app: FastifyInstance): void {
     };
     const dateError = validateMergedDates(merged);
     if (dateError) return reply.code(400).send({ error: dateError });
+
+    // The submission mode is a starting decision (see MODE_LOCKED). Only an
+    // actual CHANGE is refused — re-sending the value the row already holds
+    // is what an edit form that posts every field does, and it changes
+    // nothing, so it stays accepted alongside title, points and the dates.
+    const changesMode =
+      merged.submissionMode !== a.submissionMode || merged.individualWork !== a.individualWork;
+    if (
+      changesMode &&
+      ((await assignmentHasWork(app.db, id)) || (await assignmentHasSubmissions(app.db, id)))
+    ) {
+      return reply.code(400).send({ error: MODE_LOCKED });
+    }
 
     const patch: Partial<typeof assignments.$inferInsert> = {};
     if (d.title !== undefined) patch.title = d.title;
@@ -1977,7 +2009,7 @@ export function assignmentRoutes(app: FastifyInstance): void {
 
   type GroupMember = { userId: string; name: string; email: string };
   type MarkableGroup =
-    | { ok: true; a: AssignmentRow; members: GroupMember[]; markable: GroupMember[] }
+    | { ok: true; a: AssignmentRow; role: string; members: GroupMember[]; markable: GroupMember[] }
     | { ok: false; code: number; error: string };
 
   /** Both group-mark routes start here: an assignment, a staff caller, a
@@ -2003,7 +2035,10 @@ export function assignmentRoutes(app: FastifyInstance): void {
       if (await isMarkableStudent(app.db, a.classId, mm.userId)) markable.push(mm);
     }
     if (markable.length === 0) return { ok: false, code: 404, error: NO_SUCH_STUDENT_IN_CLASS };
-    return { ok: true, a, members, markable };
+    // The caller's own role travels with the context: the return route below
+    // needs to tell a teacher from a TA, and re-reading the membership it
+    // just checked would be a second answer to the same question.
+    return { ok: true, a, role: m.role, members, markable };
   }
 
   app.put("/api/assignments/:id/marks/group/:gid", async (req, reply) => {
@@ -2100,6 +2135,16 @@ export function assignmentRoutes(app: FastifyInstance): void {
     const ctx = await markableGroup(req.user!.id, id, gid);
     if (!ctx.ok) return reply.code(ctx.code).send({ error: ctx.error });
     const { a, members, markable } = ctx;
+
+    // The group half of the individual route's R5 gate: a return un-releases
+    // every member's row at once, so one released row among them makes this
+    // the teacher's call. A group still on draft marks stays open to TAs.
+    if (ctx.role !== "teacher") {
+      const existing = await marksForStudents(app.db, id, markable.map((mm) => mm.userId));
+      if (existing.some((row) => row.status === "released")) {
+        return reply.code(403).send({ error: RELEASED_RETURN_TEACHER_ONLY });
+      }
+    }
 
     const parsed = MarkReturnInputSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -2289,6 +2334,14 @@ export function assignmentRoutes(app: FastifyInstance): void {
     }
     if (!(await isMarkableStudent(app.db, a.classId, studentId))) {
       return reply.code(404).send({ error: NO_SUCH_STUDENT_IN_CLASS });
+    }
+    // Ruling R5 made Return an UN-RELEASE, which turned this staff-wide route
+    // into a way around the teacher-only release gate below it: a TA could
+    // reverse a release they were never allowed to make. Returning a DRAFT is
+    // still ordinary marking work and stays open to TAs; only undoing a
+    // release needs the authority that made it.
+    if (m.role !== "teacher" && (await loadMark(app.db, id, studentId))?.status === "released") {
+      return reply.code(403).send({ error: RELEASED_RETURN_TEACHER_ONLY });
     }
     const parsed = MarkReturnInputSchema.safeParse(req.body);
     if (!parsed.success) {

@@ -225,6 +225,120 @@ describe("PATCH /api/assignments/:id", () => {
   });
 });
 
+/* Final fix wave, I4: PATCH used to accept submissionMode/individualWork at
+   any stage. Flipping either one after students have started orphans the work
+   rows the myWork / inbox / gradebook reads all key off — an individual's row
+   under a group assignment, or the reverse — so the same STARTER_LOCKED shape
+   applies: the mode is a starting decision, fixed once there is work. */
+describe("PATCH /api/assignments/:id — the submission mode locks once work exists (final fix wave I4)", () => {
+  const LOCKED = "Students have started — the submission mode is fixed once work exists.";
+  let studentId: string;
+  let seq = 0;
+
+  beforeAll(async () => {
+    const [studentRow] = await testDb.select().from(users).where(eq(users.email, "akid@example.com"));
+    studentId = studentRow.id;
+  });
+
+  async function publishedAssignment(title: string) {
+    const draftRes = await app.inject({
+      method: "POST",
+      url: `/api/classes/${classId}/assignments`,
+      cookies: { pide_session: teacherCookie },
+      payload: { title },
+    });
+    const id = draftRes.json().assignment.id as string;
+    await app.inject({
+      method: "POST",
+      url: `/api/assignments/${id}/publish`,
+      cookies: { pide_session: teacherCookie },
+    });
+    return id;
+  }
+
+  async function startWorkOn(id: string) {
+    seq += 1;
+    const projectId = `p-mode-lock-${seq}`;
+    await testDb.insert(projects).values({
+      id: projectId,
+      ownerId: studentId,
+      title: "My Copy",
+      goal: "physics",
+      projectType: "physics",
+      manifest: { schemaVersion: 2, marker: `mode-lock-${seq}` },
+      clientUpdatedAt: Date.now(),
+    });
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/assignments/${id}/start`,
+      cookies: { pide_session: studentCookie },
+      payload: { projectId },
+    });
+    expect(res.statusCode).toBe(201);
+    return projectId;
+  }
+
+  function patch(id: string, payload: Record<string, unknown>) {
+    return app.inject({
+      method: "PATCH",
+      url: `/api/assignments/${id}`,
+      cookies: { pide_session: teacherCookie },
+      payload,
+    });
+  }
+
+  test("before anyone has started, the mode is still the teacher's to change", async () => {
+    const id = await publishedAssignment("Mode Lock — Nobody Started");
+    expect((await patch(id, { submissionMode: "pair" })).statusCode).toBe(200);
+    // ...and back again, this time with individualWork, which only an
+    // individually-submitted assignment may carry.
+    expect((await patch(id, { submissionMode: "individual", individualWork: true })).statusCode).toBe(200);
+
+    const [row] = await testDb.select().from(assignments).where(eq(assignments.id, id));
+    expect(row.submissionMode).toBe("individual");
+    expect(row.individualWork).toBe(true);
+  });
+
+  test("once a student has started — before any submission — the mode is refused with the honest sentence", async () => {
+    const id = await publishedAssignment("Mode Lock — Work Started");
+    await startWorkOn(id);
+
+    const res = await patch(id, { submissionMode: "pair" });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toBe(LOCKED);
+
+    const [row] = await testDb.select().from(assignments).where(eq(assignments.id, id));
+    expect(row.submissionMode).toBe("individual");
+  });
+
+  test("individualWork is locked by the same rule, and a submission locks it too", async () => {
+    const id = await publishedAssignment("Mode Lock — Submitted");
+    await startWorkOn(id);
+    const submitRes = await app.inject({
+      method: "POST",
+      url: `/api/assignments/${id}/submit`,
+      cookies: { pide_session: studentCookie },
+    });
+    expect(submitRes.statusCode).toBe(201);
+
+    const res = await patch(id, { individualWork: true });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toBe(LOCKED);
+
+    const [row] = await testDb.select().from(assignments).where(eq(assignments.id, id));
+    expect(row.individualWork).toBe(false);
+  });
+
+  test("re-sending the SAME mode is not a change and is still accepted, alongside everything else that stays editable", async () => {
+    const id = await publishedAssignment("Mode Lock — Same Value");
+    await startWorkOn(id);
+
+    const res = await patch(id, { submissionMode: "individual", individualWork: false, points: 42 });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().assignment.points).toBe(42);
+  });
+});
+
 describe("POST /api/assignments/:id/close", () => {
   test("close stamps closedAt; phase reads closed", async () => {
     const res = await app.inject({
@@ -2700,6 +2814,55 @@ describe("Task 18: marks — PUT / release / return", () => {
     });
     expect(reopened.statusCode).toBe(201);
     expect(reopened.json().submission.attempt).toBe(2);
+  });
+
+  /* Final fix wave, I3. Ruling R5 turned Return into an UN-RELEASE (status
+     back to draft, releasedAt cleared, submission reopened even on a closed
+     assignment). The route's gate was still the plain staff one, so a TA
+     could reverse a release only a teacher is allowed to make — the same
+     authority inversion the release route itself is built to prevent. The
+     gate now splits by what is being returned: a released row is the
+     teacher's, a draft is still ordinary marking work. */
+  test("a TA cannot return a RELEASED mark — that would undo a release only the teacher may make", async () => {
+    const id = await makePublishedAssignment({ title: "TA Cannot Unrelease", points: 10 });
+    await submitAs(id, "p-ta-unrelease");
+    await putMark(id, teacherCookie, { points: 8, comment: "Good.", privateNote: "" });
+    await releaseMarks(id, teacherCookie, { studentIds: [studentId] });
+    expect((await markRow(id)).status).toBe("released");
+
+    const res = await returnMark(id, taCookie, studentId, { comment: "Please redo part 2." });
+    expect(res.statusCode).toBe(403);
+    expect(res.json().error).toBe("Only the class teacher can return a mark that has already been released.");
+
+    const row = await markRow(id);
+    expect(row.status).toBe("released");
+    expect(row.releasedAt).not.toBeNull();
+    expect(row.returned).toBe(false);
+  });
+
+  test("the teacher CAN return a released mark — the un-release is theirs to make", async () => {
+    const id = await makePublishedAssignment({ title: "Teacher May Unrelease", points: 10 });
+    await submitAs(id, "p-teacher-unrelease");
+    await putMark(id, teacherCookie, { points: 8, comment: "Good.", privateNote: "" });
+    await releaseMarks(id, teacherCookie, { studentIds: [studentId] });
+
+    const res = await returnMark(id, teacherCookie, studentId, { comment: "Please redo part 2." });
+    expect(res.statusCode).toBe(200);
+
+    const row = await markRow(id);
+    expect(row.status).toBe("draft");
+    expect(row.releasedAt).toBeNull();
+    expect(row.returned).toBe(true);
+  });
+
+  test("a TA can still return a DRAFT mark — nothing has been released to undo", async () => {
+    const id = await makePublishedAssignment({ title: "TA May Return Draft", points: 10 });
+    await submitAs(id, "p-ta-return-draft");
+    await putMark(id, taCookie, { points: 5, comment: "Draft.", privateNote: "" });
+
+    const res = await returnMark(id, taCookie, studentId, { comment: "Have another go." });
+    expect(res.statusCode).toBe(200);
+    expect((await markRow(id)).returned).toBe(true);
   });
 
   test("return requires a non-empty comment", async () => {

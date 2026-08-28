@@ -1248,6 +1248,14 @@ describe("Task 23: the inbox and reminders for group work", () => {
 
 describe("Task 23: the group mark", () => {
   let seq = 0;
+  /* Final fix wave I3 needs a staff member who is NOT the class teacher. */
+  let markTaCookie: string;
+
+  beforeAll(async () => {
+    const ta = await makeUser("gmarkta@example.com");
+    await testDb.insert(classMembers).values({ classId, userId: ta.id, role: "ta", status: "active" });
+    markTaCookie = await signin("gmarkta@example.com");
+  });
 
   /** A published group assignment with alpha+bravo grouped, work started and
    *  one submission on file — the state the marking room actually opens on. */
@@ -1533,6 +1541,44 @@ describe("Task 23: the group mark", () => {
     const resubmit = await submitFor(bravo, aid);
     expect(resubmit.statusCode).toBe(201);
     expect(resubmit.json().submission.attempt).toBe(2);
+  });
+
+  /* Final fix wave, I3 — the group half of the same authority inversion the
+     individual return route carried: R5 made Return an un-release, so a TA
+     returning a RELEASED group mark would reverse the teacher's release for
+     every member at once. Returning a draft group mark is still ordinary
+     marking work and stays open to TAs. */
+  test("a TA cannot return a RELEASED group mark — the un-release is the teacher's to make", async () => {
+    const { aid, gid } = await groupFixture("Group TA Cannot Unrelease");
+    await putGroupMark(aid, gid, teacherCookie, { points: 7, comment: "Group mark.", privateNote: "", adjustments: [] });
+    await releaseMarks(aid, [alpha.id, bravo.id]);
+    expect((await marksOf(aid)).every((r) => r.status === "released")).toBe(true);
+
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/assignments/${aid}/marks/group/${gid}/return`,
+      cookies: { pide_session: markTaCookie },
+      payload: { comment: "Show your working." },
+    });
+    expect(res.statusCode).toBe(403);
+    expect(res.json().error).toBe("Only the class teacher can return a mark that has already been released.");
+
+    const rows = await marksOf(aid);
+    expect(rows.every((r) => r.status === "released" && r.releasedAt != null && !r.returned)).toBe(true);
+  });
+
+  test("a TA can still return a DRAFT group mark — nothing has been released to undo", async () => {
+    const { aid, gid } = await groupFixture("Group TA May Return Draft");
+    await putGroupMark(aid, gid, markTaCookie, { points: 4, comment: "Draft.", privateNote: "", adjustments: [] });
+
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/assignments/${aid}/marks/group/${gid}/return`,
+      cookies: { pide_session: markTaCookie },
+      payload: { comment: "Have another go." },
+    });
+    expect(res.statusCode).toBe(200);
+    expect((await marksOf(aid)).every((r) => r.returned && r.status === "draft")).toBe(true);
   });
 
   test("a student can neither read the group's submission nor write its mark", async () => {
