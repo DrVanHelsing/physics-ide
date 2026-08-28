@@ -284,6 +284,9 @@ function AssignmentBody({ classData, me }) {
             and InstructionsView.js document. */}
         <h2>{assignment.title}</h2>
         <span className={badge.cls}>{badge.label}</span>
+        {assignment.individualWork ? (
+          <span className="badge badge--accent">individual work</span>
+        ) : null}
       </div>
       {assignment.dueAt ? (
         <p className="assignment-row__due">due {new Date(assignment.dueAt).toLocaleString()}</p>

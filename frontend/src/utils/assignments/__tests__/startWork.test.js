@@ -163,7 +163,20 @@ describe("startAssignmentWork — fresh start (no myWork, no pending retry)", ()
       dueAt: 1700000000000,
       rules: { debug: true },
       groupId: null,
+      individualWork: false,
     });
+  });
+
+  // Task 6: the flag threaded into the cached meta — Task 11's Toolbar Share
+  // gate reads it offline via assignmentMeta, so it has to survive the SAME
+  // cacheContext call the rest of the record goes through.
+  test("individualWork: true on the assignment is carried into the cached meta", async () => {
+    const a = assignment({ individualWork: true });
+    await startAssignmentWork({ assignment: a, me: ME });
+    expect(setAssignmentMeta).toHaveBeenCalledWith(
+      "p-saved-1",
+      expect.objectContaining({ assignmentId: "a1", individualWork: true }),
+    );
   });
 });
 
@@ -183,6 +196,7 @@ describe("startAssignmentWork — myWork already present (Continue)", () => {
       dueAt: 1700000000000,
       rules: { debug: true },
       groupId: null,
+      individualWork: false,
     });
   });
 

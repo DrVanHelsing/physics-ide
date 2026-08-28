@@ -199,5 +199,8 @@ async function cacheContext(assignment, projectId) {
     // Which routes this project's saves take, cached with everything else so
     // the IDE knows it offline (Task 22).
     groupId: assignment.myGroup?.id ?? null,
+    // Task 6: threaded so Task 11's Toolbar Share gate can read it
+    // synchronously and offline off the cached record, like groupId.
+    individualWork: assignment.individualWork ?? false,
   });
 }

@@ -79,6 +79,7 @@ export function AssignmentProvider({ projectId, children }) {
           dueAt: fresh.assignment.dueAt,
           rules: fresh.assignment.rules ?? null,
           groupId: fresh.assignment.myGroup?.id ?? null,
+          individualWork: fresh.assignment.individualWork ?? false,
         };
         await setAssignmentMeta(projectId, meta);
         setCtx(meta);
