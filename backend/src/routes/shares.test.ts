@@ -534,25 +534,68 @@ describe("shares — the pending-share unique backstop (A1)", () => {
       createdAt: 1000,
       updatedAt: 6000,
     });
-    const first = await postShare(alpha.cookie, { projectId });
-    expect(first.statusCode).toBe(201);
-    const firstId = first.json().share.id as string;
+    try {
+      const first = await postShare(alpha.cookie, { projectId });
+      expect(first.statusCode).toBe(201);
+      const firstId = first.json().share.id as string;
 
-    const revoke = await app.inject({
-      method: "POST",
-      url: `/api/shares/${firstId}/revoke`,
-      cookies: { pide_session: alpha.cookie },
+      const revoke = await app.inject({
+        method: "POST",
+        url: `/api/shares/${firstId}/revoke`,
+        cookies: { pide_session: alpha.cookie },
+      });
+      expect(revoke.statusCode).toBe(200);
+
+      // Resolved (revoked), so a fresh share of the same triple through the
+      // route succeeds — the partial index never sees the revoked row.
+      const second = await postShare(alpha.cookie, { projectId });
+      expect(second.statusCode).toBe(201);
+
+      const rows = await testDb.select().from(shares).where(eq(shares.sourceProjectId, projectId));
+      expect(rows).toHaveLength(2);
+      expect(rows.map((r) => r.status).sort()).toEqual(["pending", "revoked"]);
+    } finally {
+      await testDb.delete(shares).where(eq(shares.sourceProjectId, projectId));
+    }
+  });
+
+  // Reviewer finding: the route-side 23505->409 mapping (shares.ts's nested
+  // savepoint around the insert) was previously untested — the read-then-409
+  // check above queries the SAME predicate the index enforces, so single
+  // threaded it always wins the race and the catch branch never fires. Two
+  // requests fired together are the only way to force the TOCTOU window: one
+  // wins the read, the other either also passes the read (and is caught by
+  // shares_pending_dedup_idx at insert time) or loses the read outright.
+  // Either way the assertion is the same and is correct under BOTH outcomes
+  // — non-flaky — and fails loudly (statuses wouldn't sort to [201, 409]) if
+  // the race loser ever gets an unhandled 500 instead of the 409.
+  test("two identical concurrent POST /api/shares — the race loser gets 409 ALREADY_PENDING, never a 500", async () => {
+    const projectId = "p-backstop-concurrent";
+    await pushProject(alpha.id, projectId, {
+      schemaVersion: 2,
+      id: projectId,
+      title: "Concurrent Fixture",
+      goal: "physics",
+      projectType: "custom",
+      createdAt: 1000,
+      updatedAt: 1000,
     });
-    expect(revoke.statusCode).toBe(200);
-
-    // Resolved (revoked), so a fresh share of the same triple through the
-    // route succeeds — the partial index never sees the revoked row.
-    const second = await postShare(alpha.cookie, { projectId });
-    expect(second.statusCode).toBe(201);
-
-    const rows = await testDb.select().from(shares).where(eq(shares.sourceProjectId, projectId));
-    expect(rows).toHaveLength(2);
-    expect(rows.map((r) => r.status).sort()).toEqual(["pending", "revoked"]);
+    try {
+      const [a, b] = await Promise.all([
+        postShare(alpha.cookie, { projectId }),
+        postShare(alpha.cookie, { projectId }),
+      ]);
+      const statuses = [a.statusCode, b.statusCode].sort((x, y) => x - y);
+      expect(statuses).toEqual([201, 409]);
+      const loser = a.statusCode === 409 ? a : b;
+      expect(loser.json().error).toBe(
+        "Already shared with them — it's waiting on their class page.",
+      );
+      const rows = await testDb.select().from(shares).where(eq(shares.sourceProjectId, projectId));
+      expect(rows).toHaveLength(1);
+    } finally {
+      await testDb.delete(shares).where(eq(shares.sourceProjectId, projectId));
+    }
   });
 });
 
