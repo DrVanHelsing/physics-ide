@@ -496,3 +496,8 @@
 .share-dialog__note { color: var(--text-dim); font-size: var(--fs-sm); }
 .share-dialog__done { font-size: var(--fs-lg); }
 .share-dialog__actions { display: flex; justify-content: flex-end; gap: var(--space-3); }
+.shared-with-you { margin-block-end: var(--space-6); }
+.share-list { list-style: none; display: flex; flex-direction: column; gap: var(--space-3); padding: 0; }
+.share-row { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4); }
+.share-row__title { font-weight: var(--fw-medium); }
+.share-row__from { color: var(--text-dim); font-size: var(--fs-sm); margin-inline-end: auto; }

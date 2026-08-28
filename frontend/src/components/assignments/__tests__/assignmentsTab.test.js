@@ -35,6 +35,11 @@ vi.mock("../../classes/ClassChrome", () => ({
   default: ({ children }) => children({ id: "c1", myRole: roleHolder.myRole }, { id: "u1" }),
 }));
 
+/* SharedWithYou (Plan 7) is another heavy neighbour with its own query,
+   useMe(), and navigation — stubbed out the same way ClassChrome is above;
+   its own behaviour is sharedWithYou.test.js's business. */
+vi.mock("../../sharing/SharedWithYou", () => ({ default: () => null }));
+
 let mounted = null;
 afterEach(() => {
   mounted?.unmount();

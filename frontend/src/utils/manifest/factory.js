@@ -43,7 +43,7 @@ const PHYSICS_STARTER_XML = `<xml xmlns="https://developers.google.com/blockly/x
   </block>
 </xml>`;
 
-function generateId(prefix = "p") {
+export function generateId(prefix = "p") {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
     return `${prefix}-${crypto.randomUUID()}`;
   }
