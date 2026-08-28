@@ -501,3 +501,5 @@
 .share-row { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4); }
 .share-row__title { font-weight: var(--fw-medium); }
 .share-row__from { color: var(--text-dim); font-size: var(--fs-sm); margin-inline-end: auto; }
+.attribution-chip__text { color: var(--text-dim); }
+.start-project-attrib { display: block; color: var(--text-dim); font-size: var(--fs-xs); }

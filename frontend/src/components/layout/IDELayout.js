@@ -43,6 +43,7 @@ import TracePromoteDialog from "../TracePromoteDialog";
 import SaveState    from "./SaveState";
 import RulesChip    from "./RulesChip";
 import BatonChip    from "./BatonChip";
+import AttributionChip from "./AttributionChip";
 import RunErrorBanner from "./RunErrorBanner";
 import BriefPane    from "../assignments/BriefPane";
 import { BlocksIcon, CodeIcon, GlobeIcon } from "../Icons";
@@ -842,6 +843,7 @@ export default function IDELayout() {
         <SaveState updatedAt={proj.activeManifest?.updatedAt} />
         <RulesChip />
         <BatonChip onBaton={setBaton} />
+        <AttributionChip projectId={proj.activeProjectId} />
         <span className="status-bar__spacer" />
         <span
           className={running ? "console-bar console-bar--running" : statusClass}

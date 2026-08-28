@@ -19,11 +19,13 @@
  * projectile / spring / orbit / pendulum content.
  */
 
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { EXAMPLES } from "../utils/precodedExamples";
 import { BLOCK_TEMPLATES, DS_TEMPLATES, HYBRID_TOPICS } from "../utils/blockTemplates";
 import { DEFAULT_PYTHON_CODE } from "../constants";
 import { relativeTime } from "../utils/relativeTime";
+import { listShareAttribution } from "../utils/storage/shareMeta";
+import { refreshShareAttributions, attributionSentence } from "../utils/sharing/attribution";
 import AccountChip from "./auth/AccountChip";
 import {
   RocketIcon,
@@ -235,6 +237,24 @@ export default function StartMenu({
   const [wizardTemplateId, setWizardTemplateId] = useState(null);
   const [wizardEditor, setWizardEditor] = useState("blocks");
   const [wizardHybridEntry, setWizardHybridEntry] = useState("model");
+  const [attributions, setAttributions] = useState({});
+
+  /* Offline-correct first paint (design D§7): seed from the sidecar
+     immediately, then resolve live names when online. Keyed on
+     [projectList] only — never on `attributions` itself, or the refresh's
+     own setAttributions call would re-trigger the effect. */
+  useEffect(() => {
+    let dead = false;
+    listShareAttribution().then((local) => {
+      if (!dead) setAttributions(local);
+    });
+    refreshShareAttributions().then((merged) => {
+      if (!dead) setAttributions(merged);
+    });
+    return () => {
+      dead = true;
+    };
+  }, [projectList]);
 
   const openWizard = (goalId) => {
     setWizardGoal(goalId);
@@ -414,6 +434,7 @@ export default function StartMenu({
                     <ProjectRow
                       key={p.id}
                       project={p}
+                      attribution={attributions[p.id]}
                       onOpen={() => onOpenProject?.(p.id)}
                       onDelete={() => onDeleteProject?.(p.id)}
                     />
@@ -493,7 +514,7 @@ export default function StartMenu({
 
 /* ── Subcomponents ───────────────────────────────────────── */
 
-function ProjectRow({ project, onOpen, onDelete }) {
+function ProjectRow({ project, attribution, onOpen, onDelete }) {
   const Icon = project.goal === "datascience" ? TableIcon : project.goal === "hybrid" ? GlobeIcon : AtomIcon;
   return (
     <div className="start-project-row">
@@ -504,6 +525,9 @@ function ProjectRow({ project, onOpen, onDelete }) {
           <span className="start-project-sub">
             {project.goal} · {relativeTime(project.updatedAt)}
           </span>
+          {attribution ? (
+            <span className="start-project-attrib">{attributionSentence(attribution.sharerName)}</span>
+          ) : null}
         </span>
       </button>
       <button
@@ -517,6 +541,7 @@ function ProjectRow({ project, onOpen, onDelete }) {
     </div>
   );
 }
+export { ProjectRow }; // test seam only
 
 function WizardPanel({
   goalDef,
