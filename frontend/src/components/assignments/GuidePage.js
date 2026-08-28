@@ -33,10 +33,10 @@ function emptyForm() {
   return { title: "", body: EMPTY_INSTRUCTIONS_DOC };
 }
 
-function gatedPage(title, body) {
+function gatedPage(title, body, back) {
   return (
     <div className="page">
-      <PortalHeader home="/classes" title={title} />
+      <PortalHeader home="/classes" title={title} back={back} />
       <div className="page-body">{body}</div>
     </div>
   );
@@ -123,6 +123,7 @@ export default function GuidePage({ mode }) {
       <div className="alert alert--danger" role="alert">
         {TEACHERS_ONLY}
       </div>,
+      { to: `/classes/${id}/guides`, label: "Back to guides" },
     );
   }
 
@@ -152,7 +153,15 @@ export default function GuidePage({ mode }) {
 
     return (
       <div className="page">
-        <PortalHeader home="/classes" title={isNew ? "New guide" : "Edit guide"} />
+        <PortalHeader
+          home="/classes"
+          title={isNew ? "New guide" : "Edit guide"}
+          back={
+            isNew
+              ? { to: `/classes/${id}/guides`, label: "Back to guides" }
+              : { to: `/classes/${id}/guides/${gid}`, label: "Back to the guide" }
+          }
+        />
         <div className="page-body">
           <form className="card auth-form" onSubmit={handleSubmit}>
             <label className="auth-label">
@@ -205,6 +214,7 @@ export default function GuidePage({ mode }) {
     <div className="page">
       <PortalHeader
         home="/classes"
+        back={{ to: `/classes/${id}/guides`, label: "Back to guides" }}
         title={
           <>
             {guide.title}

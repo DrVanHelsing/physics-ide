@@ -10,23 +10,50 @@ import ClassChrome from "../classes/ClassChrome";
  * active student down, every assignment across, one read (Task 19, D§11.5).
  * A TA sees draft mark values too, flagged as drafts rather than hidden —
  * the grid exists to preview where release stands, not to gate anything a
- * TA is already allowed to see. Students never reach this route at all
- * (backend staff gate, same idiom GET /members uses).
+ * TA is already allowed to see.
+ *
+ * The tab row hides this tab from a student; the URL does not. Before the
+ * 2026-08-28 UI audit (N1) this file's docstring claimed "students never
+ * reach this route at all (backend staff gate)" and that was false: a
+ * student who typed the URL got the teacher's screen — an Export CSV button
+ * and a bare Student header — because React Query's retries kept isLoading
+ * true and even the error alert never painted. The gate is now in the
+ * component, on the class read's own myRole, and it surfaces the server's
+ * own refusal sentence (assignments.ts's STAFF_ONLY) rather than inventing
+ * a second wording. Same shape InboxPage.js uses.
  *
  * The table renders inside its own .admin-table-wrap: a wide roster or a
  * long assignment list scrolls horizontally WITHIN that wrapper — the page
  * itself must never gain a horizontal scrollbar.
  */
+
+/** Verbatim from the backend's own 403 (assignments.ts) — one sentence for
+ *  the refusal, whichever side of the wire the reader hits first. */
+const STAFF_ONLY = "Teachers and assistants only.";
+
 export default function GradebookTab() {
   return <ClassChrome tab="gradebook">{(c) => <GradebookBody classData={c} />}</ClassChrome>;
 }
 
 function GradebookBody({ classData }) {
   const { id } = useParams();
+  const isStaff = classData.myRole === "teacher" || classData.myRole === "ta";
   const q = useQuery({
     queryKey: ["class", id, "gradebook"],
     queryFn: () => api(`/api/classes/${id}/gradebook`),
+    enabled: isStaff,
   });
+
+  if (!isStaff) {
+    return (
+      <div className="page-body">
+        <div className="alert alert--danger" role="alert">
+          {STAFF_ONLY}
+        </div>
+      </div>
+    );
+  }
+
   const students = q.data?.students ?? [];
   const assignmentList = q.data?.assignments ?? [];
   const cells = q.data?.cells ?? [];
@@ -48,7 +75,7 @@ function GradebookBody({ classData }) {
   }
 
   return (
-    <div className="page-body">
+    <div className="page-body page-body--wide">
       {q.error ? (
         <div className="alert alert--danger" role="alert">
           {q.error.message}

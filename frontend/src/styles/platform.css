@@ -33,6 +33,15 @@
   top: var(--space-4);
   right: var(--space-4);
 }
+/* Its mirror: /profile's way out (F2/N2, 2026-08-28 — AuthLayout put a lone
+   theme toggle in an otherwise empty header, so Profile & settings had no
+   in-app exit at all). Same .back-link the portal header carries, defined
+   with the shell rules further down. */
+.auth-page__back {
+  position: absolute;
+  top: var(--space-4);
+  left: var(--space-4);
+}
 /* Width only — the card chrome itself is .card .card--panel .card--lg in markup. */
 .auth-panel {
   width: 100%;
@@ -161,18 +170,49 @@
   min-height: var(--header-h);
 }
 .page-header__spacer { flex: 1; min-width: 0; }
+/* F2 (2026-08-28 UI audit) — the ONE back affordance (BackLink.js). Before it
+   there was no back-link component, class or shared idiom anywhere in the
+   product: every "back" was an ad-hoc <Link className="btn">, most of them
+   inside error branches that never render on the happy path, and the marking
+   room had no link at all. Quieter than a .btn (it is not the screen's action)
+   and louder than a caption (the inbox's old `auth-text--dim` back link read
+   as one). Two channels, always: the arrow AND the destination's real name.
+   No focus rule of its own — an <a href> is already in tokens.css's one ring. */
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--fs-md);
+  color: var(--text-dim);
+  text-decoration: none;
+  border-radius: var(--radius-sm);
+  transition: color var(--transition);
+}
+.back-link:hover { color: var(--text-bright); }
+.back-link svg { flex-shrink: 0; }
 .page-header__title {
   margin: var(--space-3) 0;
   font-size: var(--fs-2xl);
   color: var(--text-bright);
 }
+/* F1 (2026-08-28 UI audit) — this box had a cap and no `margin-inline`, so it
+   started at x=0 and ended at x=1000 on EVERY portal screen: 920px of dead
+   space at 1920, 47.9% of the viewport, while the gradebook's columns crushed
+   inside 952px. Centred now, with the readable measure as a token; the
+   table-heavy screens opt into the wider one below, and the marking room keeps
+   its own `max-width: none` opt-out (assignments.css). */
 .page-body {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
-  max-width: 1000px;
+  width: 100%;
+  max-width: var(--page-max);
+  margin-inline: auto;
   padding: var(--space-5) var(--space-6);
 }
+/* Screens that grow a column per assignment, per roster row or per action —
+   gradebook, submissions inbox, class People, the admin console. */
+.page-body--wide { max-width: var(--page-max-wide); }
 
 /* ---- Admin console (Plan 2) ---- */
 .admin-cap { display: flex; align-items: center; gap: var(--space-3); font-size: var(--fs-lg); }

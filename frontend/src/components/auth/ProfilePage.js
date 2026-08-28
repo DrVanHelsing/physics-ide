@@ -43,7 +43,10 @@ export default function ProfilePage() {
   }
 
   return (
-    <AuthLayout title="Profile & settings">
+    <AuthLayout
+      title="Profile & settings"
+      back={{ to: "/classes", label: "Back to my classes" }}
+    >
       <p className="auth-text">
         {me.email}
         <span className="badge badge--accent">

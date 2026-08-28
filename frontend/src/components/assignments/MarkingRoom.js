@@ -40,10 +40,10 @@ import HistoryTimeline, { buildTimelineEntries } from "./HistoryTimeline";
 
 const STAFF_ONLY = "Teachers and assistants only for this class.";
 
-function gatedPage(title, body) {
+function gatedPage(title, body, back) {
   return (
     <div className="page">
-      <PortalHeader home="/classes" title={title} />
+      <PortalHeader home="/classes" title={title} back={back} />
       <div className="page-body">{body}</div>
     </div>
   );
@@ -95,6 +95,12 @@ export default function MarkingRoom() {
     enabled: !!me,
   });
 
+  // Every exit from this room, gated or not, leads to the inbox it was opened
+  // from (F2, 2026-08-28 — this file held zero <Link>s and the wordmark was
+  // the only escape). A class read that failed is the one case where the inbox
+  // is not knowably reachable either, so that branch aims at the class wall.
+  const backToInbox = { to: `/classes/${id}/assignments/${aid}/inbox`, label: "Back to inbox" };
+
   if (meLoading) return null;
   if (!me) return <Navigate to="/auth/signin" replace />;
   if (classQuery.isLoading) return null;
@@ -104,6 +110,7 @@ export default function MarkingRoom() {
       <div className="alert alert--danger" role="alert">
         {classQuery.error.message}
       </div>,
+      { to: "/classes", label: "Back to my classes" },
     );
   }
   if (!classQuery.data) return null;
@@ -115,6 +122,7 @@ export default function MarkingRoom() {
       <div className="alert alert--danger" role="alert">
         {STAFF_ONLY}
       </div>,
+      { to: `/classes/${id}`, label: "Back to the class" },
     );
   }
 
@@ -125,6 +133,7 @@ export default function MarkingRoom() {
       <div className="alert alert--danger" role="alert">
         {assignmentQuery.error.message}
       </div>,
+      backToInbox,
     );
   }
   if (submissionQuery.error) {
@@ -133,6 +142,7 @@ export default function MarkingRoom() {
       <div className="alert alert--danger" role="alert">
         {submissionQuery.error.message}
       </div>,
+      backToInbox,
     );
   }
   const assignment = assignmentQuery.data?.assignment;
@@ -188,6 +198,7 @@ export default function MarkingRoom() {
     <div className="page">
       <PortalHeader
         home={`/classes/${id}/assignments/${aid}`}
+        back={backToInbox}
         title={
           <span className="marking-room__header">
             {markedName}

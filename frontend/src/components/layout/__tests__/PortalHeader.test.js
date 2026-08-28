@@ -52,6 +52,32 @@ describe("PortalHeader — the one portal header (spec §18 D9)", () => {
     expect(container.querySelector(".auth-brand").getAttribute("href")).toBe("/");
   });
 
+  /* F2 (2026-08-28 UI audit) — the wordmark reads as a logo, not an
+     up-control, and on a drill-down page it was the ONLY structural link on
+     the screen. `back` is the one shared affordance every stranded page now
+     renders, naming its real parent rather than "back". */
+  test("back={{to,label}} renders one .back-link in the bar, pointing at the named destination", () => {
+    useTheme.mockReturnValue({ isDark: true, toggle: vi.fn() });
+    const container = render({
+      home: "/classes",
+      back: { to: "/classes/c1/assignments/a1/inbox", label: "Back to inbox" },
+    });
+    const bar = container.querySelector(".page-header__bar");
+    const back = bar.querySelector(".back-link");
+    expect(back).not.toBeNull();
+    expect(back.getAttribute("href")).toBe("/classes/c1/assignments/a1/inbox");
+    expect(back.textContent.replace(/\s+/g, " ").trim()).toBe("Back to inbox");
+    // The brand is still the brand — the back link is a second, distinct link.
+    expect(container.querySelector(".auth-brand").getAttribute("href")).toBe("/classes");
+    expect(container.querySelectorAll(".back-link")).toHaveLength(1);
+  });
+
+  test("no back prop, no back link — a top-level screen renders none", () => {
+    useTheme.mockReturnValue({ isDark: true, toggle: vi.fn() });
+    const container = render({ title: "My classes" });
+    expect(container.querySelector(".back-link")).toBeNull();
+  });
+
   test("renders a nav slot when given one, omits it entirely when not", () => {
     useTheme.mockReturnValue({ isDark: true, toggle: vi.fn() });
     const withNav = render({ nav: <nav className="tabs">tabs</nav> });

@@ -97,6 +97,15 @@
   --panel-header-h-compact: 30px;
   --pane-header-h: var(--panel-header-h);
 
+  /* ── Portal shell measures (consumed by .page-body) ──────
+     Two measures, not one: --page-max is the readable default
+     for prose-and-form screens, --page-max-wide the opt-in for
+     the table-heavy ones (gradebook, inbox, roster, admin) that
+     grow a column per assignment or per action. The marking room
+     opts out of both (max-width: none, assignments.css). */
+  --page-max:      1200px;
+  --page-max-wide: 1600px;
+
   /* ── Focus geometry (colour is --focus-ring-color, per theme) */
   --focus-ring-width:  2px;
   --focus-ring-offset: 2px;
@@ -325,6 +334,7 @@ button {
   select,
   textarea,
   summary,
+  [contenteditable="true"],
   [role="button"],
   [role="tab"],
   [tabindex]:not([tabindex="-1"])

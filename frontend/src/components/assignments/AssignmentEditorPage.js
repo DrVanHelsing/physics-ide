@@ -66,10 +66,10 @@ function publishConsequence(opensAtMs) {
     : "Students in this class will see it immediately.";
 }
 
-function gatedPage(title, body) {
+function gatedPage(title, body, back) {
   return (
     <div className="page">
-      <PortalHeader home="/classes" title={title} />
+      <PortalHeader home="/classes" title={title} back={back} />
       <div className="page-body">{body}</div>
     </div>
   );
@@ -239,9 +239,21 @@ export default function AssignmentEditorPage() {
     });
   }
 
+  // Cancel exists, but at the BOTTOM of a ten-field form (F2, 2026-08-28).
+  // The way out belongs above the fold too, and it names where it goes: the
+  // class for a new assignment, the assignment itself when editing one that
+  // already exists.
+  const back = isNew
+    ? { to: `/classes/${id}`, label: "Back to assignments" }
+    : { to: `/classes/${id}/assignments/${aid}`, label: "Back to the assignment" };
+
   return (
     <div className="page">
-      <PortalHeader home="/classes" title={isNew ? "New assignment" : "Edit assignment"} />
+      <PortalHeader
+        home="/classes"
+        title={isNew ? "New assignment" : "Edit assignment"}
+        back={back}
+      />
       <div className="page-body">
         <form className="card auth-form" onSubmit={handleSubmit}>
           <label className="auth-label">
