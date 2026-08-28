@@ -267,6 +267,14 @@ describe("TeachersPage — /teachers", () => {
     const text = container.textContent.replace(/\s+/g, " ");
     expect(text).toContain("Marking opens the submission as a read-only script");
     expect(text).toContain("To run it, open a test copy");
+    /* Fix round 1: the reminder sentence must keep saying where the message
+       actually goes. `POST /api/assignments/:id/remind` composes a real
+       dueReminder per missing recipient, but the only Mailer implementation
+       writes rows the admin console's Emails tab reads — delivery is a §9
+       exclusion. The scoped wording is pinned; the unscoped one that shipped
+       for review is banned so it cannot come back on a copy edit. */
+    expect(text).toContain("rather than being posted out");
+    expect(text).not.toMatch(/a reminder you can send to the students/i);
     expect(text).not.toMatch(/read-only in the full IDE/i);
     expect(text).not.toMatch(/script you can watch run/i);
     expect(text).toContain("a receipt carrying a fingerprint of exactly what was submitted");
