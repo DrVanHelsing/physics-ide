@@ -11,6 +11,24 @@
 > does it *feel* right — and it starts with the one flow no automated test
 > covers end to end.
 
+## Before you start
+
+```
+npm run db:up && npm run db:migrate && npm run seed   # Postgres, schema, seeded admin
+npm run dev                                           # backend :4000 + frontend :3000
+```
+
+Sign-in: the seeded admin's credentials are in `backend/scripts/seed` (or create a
+fresh teacher — signup is open). You need: one teacher account, two student
+accounts, and **two separate browser profiles** for the group items (a normal
+window plus a private window works; two tabs of one profile do not — they share
+storage). Do every item in **both themes**; the theme toggle is in the header.
+
+**How to record:** fill in the Results sheet at the bottom as you go — one row
+per item, a column per theme, and a Notes cell for anything that felt wrong even
+if it technically worked ("reads oddly", "slow", "had to look for the button" are
+all findings). Anything broken also gets a row in the Findings table beneath it.
+
 ## 0. Groups and the baton — TWO BROWSERS, do this one first
 
 **Why first:** every other item here has at least partial automated backup.
@@ -151,3 +169,52 @@ they are the human half of the same evidence.
    **FIXED**: `.brief-pane__footer` and `.rich-text-editor` have token-only
    rules in `styles/assignments.css`, and `HistoryTimeline.js` now spells the
    primitive `btn--sm`.
+
+---
+
+## Results sheet
+
+One row per item. Mark each theme cell **OK**, **ISSUE** (and add a Findings row),
+or **SKIP** (say why in Notes). The Notes cell is yours — impressions count as
+data here, not just defects.
+
+| # | Item (short name) | Light | Dark | Notes |
+|---|---|---|---|---|
+| 1 | Group set-up (pair assignment, two browsers) | | | |
+| 2 | Group formation, cap refusal | | | |
+| 3 | Start work → B lands in A's project | | | |
+| 4 | Baton takeover delivers A's last save | | | |
+| 5 | Edit-then-submit snapshots the last save | | | |
+| 6 | Credit shown for both members | | | |
+| 7 | One group mark, per-member adjustment | | | |
+| 8 | New class → assignment editor read-through | | | |
+| 9 | Instructions editor: image cap, video refusal, LaTeX | | | |
+| 10 | Rules picker + custom set save/delete | | | |
+| 11 | Publish consequence line (unsaved-date case) | | | |
+| 12 | Student assignment page at exactly 1024px | | | |
+| 13 | Rules chip wording + narrow status bar | | | |
+| 14 | Submit + late label on attempt 2 | | | |
+| 15 | Stale-draft release refusal | | | |
+| 16 | Return reopens; release ends the episode | | | |
+| 17 | Release/remind emails in the pretend inbox | | | |
+| 18 | Gradebook CSV in a real spreadsheet | | | |
+| 19 | History restore round-trip (+ Restore button size) | | | |
+| 20 | Theme persistence across the portal/IDE seam | | | |
+| 21 | Guest IDE byte-identical | | | |
+
+**Overall verdict:** _(fill in: pass / pass with findings / fail — date, name)_
+
+## Findings
+
+For anything marked ISSUE. Severity: **blocker** (a student or teacher cannot
+proceed), **wrong** (behaves incorrectly but recoverable), **rough** (works but
+reads or feels wrong).
+
+| # | Item | Severity | What happened (what you did, what you saw, what you expected) |
+|---|---|---|---|
+| F1 | | | |
+| F2 | | | |
+| F3 | | | |
+
+_Add rows as needed. Hand the filled file back (or just say "browser pass done —
+read the checklist") and the findings become the next fix list._
