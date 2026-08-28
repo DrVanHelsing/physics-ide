@@ -13,8 +13,32 @@ import {
   sendClassAuthError,
 } from "../classes/guards.js";
 import { logEvent } from "../db/events.js";
+import type { Db } from "../db/types.js";
 
 type ClassRow = typeof classes.$inferSelect;
+
+/** D§8's lapse, reused: pending hand-offs lapse the same way whether the
+ *  class switch goes off or the class itself is archived — one row and one
+ *  event each, for("update") to serialize against a concurrent accept. */
+async function lapsePendingShares(tx: Db, classId: string, actorId: string): Promise<void> {
+  const pending = await tx
+    .select()
+    .from(shares)
+    .where(and(eq(shares.classId, classId), eq(shares.status, "pending")))
+    .for("update");
+  for (const s of pending) {
+    await tx
+      .update(shares)
+      .set({ status: "lapsed", resolvedAt: new Date() })
+      .where(eq(shares.id, s.id));
+    await logEvent(tx, "project.share_lapsed", actorId, {
+      shareId: s.id,
+      classId,
+      sharerId: s.sharerId,
+      recipientId: s.recipientId,
+    });
+  }
+}
 
 function toClassSummary(row: ClassRow, myRole: string | null, includeCode: boolean) {
   return {
@@ -126,23 +150,7 @@ export function classRoutes(app: FastifyInstance): void {
       // hand-offs lapse. Accepted copies are the recipient's own projects
       // and stand; the ledger keeps every row it ever wrote.
       if (patch.peerSharing === false && c.peerSharing === true) {
-        const pending = await tx
-          .select()
-          .from(shares)
-          .where(and(eq(shares.classId, id), eq(shares.status, "pending")))
-          .for("update");
-        for (const s of pending) {
-          await tx
-            .update(shares)
-            .set({ status: "lapsed", resolvedAt: new Date() })
-            .where(eq(shares.id, s.id));
-          await logEvent(tx, "project.share_lapsed", req.user!.id, {
-            shareId: s.id,
-            classId: id,
-            sharerId: s.sharerId,
-            recipientId: s.recipientId,
-          });
-        }
+        await lapsePendingShares(tx, id, req.user!.id);
       }
       await logEvent(tx, "class.updated", req.user!.id, { classId: id, patch });
       return row;
@@ -181,6 +189,11 @@ export function classRoutes(app: FastifyInstance): void {
       const archived = action === "archive";
       await app.db.transaction(async (tx) => {
         await tx.update(classes).set({ archived }).where(eq(classes.id, id));
+        // Archiving closes the seam the same way the switch-off does:
+        // nothing pending survives into an archived class to be accepted.
+        if (archived) {
+          await lapsePendingShares(tx, id, req.user!.id);
+        }
         await logEvent(tx, archived ? "class.archived" : "class.unarchived", req.user!.id, {
           classId: id,
         });

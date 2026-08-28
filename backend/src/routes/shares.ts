@@ -1,7 +1,12 @@
 import type { FastifyInstance } from "fastify";
 import { and, desc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import { z } from "zod";
-import { CreateShareInputSchema, AcceptShareInputSchema, WorkspaceRulesSchema } from "@physics-ide/shared";
+import {
+  AttributionSchema,
+  CreateShareInputSchema,
+  AcceptShareInputSchema,
+  WorkspaceRulesSchema,
+} from "@physics-ide/shared";
 import {
   assignments,
   assignmentWork,
@@ -32,7 +37,7 @@ const GROUP_PROJECT = "A group's shared project belongs to the whole group — i
 const INDIVIDUAL_WORK = "This assignment is individual work — it can't be shared.";
 const EXPORT_OFF = "This assignment's rules don't allow copies to leave the workspace.";
 const ALREADY_PENDING = "Already shared with them — it's waiting on their class page.";
-/* The five below belong to the routes that extend this file (accept, decline,
+/* The five below belong to the routes that extend this file (accept,
  * revoke) — declared with the rest so the sentence block reads as one
  * authority rather than arriving piecemeal. */
 const NO_SUCH_SHARE = "No such share.";
@@ -206,8 +211,9 @@ export function shareRoutes(app: FastifyInstance): void {
             manifest: checked.data,
             clientUpdatedAt: checked.data.updatedAt,
             // D§3: ids only — the name is resolved at read time, so §11
-            // erasure has one place to act.
-            attribution: { sharerId: share.sharerId, shareId: share.id },
+            // erasure has one place to act. Routed through the schema so
+            // the advertised strip actually guards storage.
+            attribution: AttributionSchema.parse({ sharerId: share.sharerId, shareId: share.id }),
           });
         });
       } catch (err) {
