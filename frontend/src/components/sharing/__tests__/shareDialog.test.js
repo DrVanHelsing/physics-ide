@@ -1,6 +1,6 @@
 import { describe, test, expect, vi, afterEach } from "vitest";
 import React, { act } from "react";
-import ShareDialog, { HANDOFF_SENTENCE, NO_SHARING_CLASSES } from "../ShareDialog";
+import ShareDialog, { HANDOFF_SENTENCE, NO_SHARING_CLASSES, EMPTY_ROSTER } from "../ShareDialog";
 import { mountComponent, byText, click } from "../../../test/renderHelpers";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { api } from "../../../utils/api/client";
@@ -69,6 +69,19 @@ describe("ShareDialog (Plan 7)", () => {
 
     const container = render();
     expect(byText(container, NO_SHARING_CLASSES, "p")).not.toBeNull();
+  });
+
+  test("one sharing-on class whose roster is empty renders EMPTY_ROSTER and keeps Share disabled", () => {
+    mockQueries({ classes: [SHARING_CLASS], roster: [] });
+    useMutation.mockReturnValue({ mutate: vi.fn(), isPending: false, error: null });
+
+    const container = render();
+    expect(container.querySelectorAll('input[name="shareRecipient"]')).toHaveLength(0);
+    const empty = byText(container, EMPTY_ROSTER, "p");
+    expect(empty).not.toBeNull();
+    expect(empty.className).toBe("empty");
+    const shareBtn = byText(container, "Share", "button");
+    expect(shareBtn.disabled).toBe(true);
   });
 
   test("choosing a recipient and pressing Share calls the mutation with { classId, recipientId, projectId }", async () => {

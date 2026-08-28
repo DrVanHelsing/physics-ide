@@ -4,6 +4,7 @@ import { ProjectRow } from "../../StartMenu";
 import AttributionChip from "../../layout/AttributionChip";
 import { mountComponent } from "../../../test/renderHelpers";
 import { getShareAttribution } from "../../../utils/storage/shareMeta";
+import { refreshShareAttributions } from "../../../utils/sharing/attribution";
 
 /**
  * Both surfaces of the label (spec §8.1): the StartMenu library row's
@@ -12,8 +13,17 @@ import { getShareAttribution } from "../../../utils/storage/shareMeta";
  * passes down; AttributionChip resolves its own sidecar read via an effect,
  * so those tests await it. "Removed student" (§11's erasure) is exercised
  * as an ordinary name — no special branch in either component.
+ *
+ * AttributionChip's second path (a deep-linked/reloaded session on a
+ * second device, whose sidecar has no record yet) calls
+ * refreshShareAttributions() — kept real for attributionSentence but
+ * stubbed for that call so these tests control what the "server" returns.
  */
 vi.mock("../../../utils/storage/shareMeta", () => ({ getShareAttribution: vi.fn() }));
+vi.mock("../../../utils/sharing/attribution", async () => {
+  const actual = await vi.importActual("../../../utils/sharing/attribution");
+  return { ...actual, refreshShareAttributions: vi.fn() };
+});
 
 const PROJECT = { id: "p-1", title: "Pendulum lab", goal: "physics", updatedAt: Date.now() };
 
@@ -66,19 +76,36 @@ describe("AttributionChip — the status-bar identity surface", () => {
     await flush();
 
     expect(getShareAttribution).toHaveBeenCalledWith("p-1");
+    expect(refreshShareAttributions).not.toHaveBeenCalled();
     const chip = mounted.container.querySelector(".sync-chip.attribution-chip");
     expect(chip).not.toBeNull();
     expect(chip.textContent).toBe("Based on work shared by Thabo M.");
     expect(chip.getAttribute("title")).toBe("Based on work shared by Thabo M.");
   });
 
-  test("no sidecar entry renders nothing", async () => {
+  test("no sidecar entry, and a second-device refresh finds nothing either: renders nothing", async () => {
     getShareAttribution.mockResolvedValue(null);
+    refreshShareAttributions.mockResolvedValue({});
 
     mounted = mountComponent(<AttributionChip projectId="p-1" />);
     await flush();
 
+    expect(refreshShareAttributions).toHaveBeenCalled();
     expect(mounted.container.firstChild).toBeNull();
+  });
+
+  test("no sidecar entry, but a second-device refresh finds this project's attribution: renders the sentence after the effect", async () => {
+    getShareAttribution.mockResolvedValue(null);
+    refreshShareAttributions.mockResolvedValue({
+      "p-1": { shareId: "s-2", sharerId: "u-2", sharerName: "Naledi K." },
+    });
+
+    mounted = mountComponent(<AttributionChip projectId="p-1" />);
+    await flush();
+
+    const chip = mounted.container.querySelector(".sync-chip.attribution-chip");
+    expect(chip).not.toBeNull();
+    expect(chip.textContent).toBe("Based on work shared by Naledi K.");
   });
 
   test("no projectId renders nothing and never reads the sidecar", async () => {
@@ -101,5 +128,6 @@ describe("AttributionChip — the status-bar identity surface", () => {
 
     const chip = mounted.container.querySelector(".sync-chip.attribution-chip");
     expect(chip.textContent).toBe("Based on work shared by Removed student");
+    expect(refreshShareAttributions).not.toHaveBeenCalled();
   });
 });
