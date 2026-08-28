@@ -227,6 +227,28 @@ describe("PATCH edge case and join-code visibility by role+status", () => {
     expect(res.json().class.joinCode).toBeUndefined();
   });
 
+  test("the sharing switch: off by default, teacher flips it, the event records it", async () => {
+    const before = await app.inject({
+      method: "GET",
+      url: `/api/classes/${classId}`,
+      cookies: { pide_session: teacherCookie },
+    });
+    expect(before.json().class.peerSharing).toBe(false);
+
+    const res = await app.inject({
+      method: "PATCH",
+      url: `/api/classes/${classId}`,
+      cookies: { pide_session: teacherCookie },
+      payload: { peerSharing: true },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().class.peerSharing).toBe(true);
+
+    const evts = await testDb.select().from(events).where(eq(events.type, "class.updated"));
+    const payload = evts.at(-1)!.payload as { patch: Record<string, unknown> };
+    expect(payload.patch).toEqual({ peerSharing: true });
+  });
+
   test("a waiting teacher-role member does not see the join code", async () => {
     const [pending] = await testDb
       .insert(users)
