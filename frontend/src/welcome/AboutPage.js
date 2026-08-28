@@ -105,9 +105,11 @@ export default function AboutPage() {
           recorded is as dishonest as one that overclaims a feature, so the
           copy now names the shape of the record instead of a stale list.
           Still deliberately absent, per §8.2 and unchanged: any similarity
-          scan, any paste or typing telemetry, any webcam or screen capture
-          — and the peer-sharing ledger, which cannot be claimed until
-          sharing ships. */}
+          scan, any paste or typing telemetry, any webcam or screen capture.
+          Plan 7's honesty pass (28 August 2026) added one more sentence
+          to the same paragraph rather than a new one: the §8.3 peer-sharing
+          ledger shipped in Stage C, so a share event now simply joins the
+          record already described here. */}
       <p>
         The platform keeps one append-only record of the actions accounts
         take: signing up, joining a class or asking to, publishing an
@@ -116,7 +118,9 @@ export default function AboutPage() {
         opens a student&rsquo;s timeline. It exists so an action can be
         checked afterwards, never so a person can be watched while they
         work. It does not scan for copied work, does not watch how you type,
-        and has no webcam or screen monitoring of any kind.
+        and has no webcam or screen monitoring of any kind. Every share of
+        work between classmates joins the same record &mdash; who shared
+        what, with whom, when.
       </p>
 
       <h2>Accessibility</h2>

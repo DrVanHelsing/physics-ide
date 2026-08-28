@@ -77,9 +77,16 @@ describe("AboutPage — /about", () => {
      undercounts what is recorded is exactly as dishonest as one that
      overclaims a feature, and on a privacy paragraph it is the worse of the
      two failures. The copy now names the record's shape, so it cannot rot
-     again each time a route gains an event; the lock pins the shape, both
-     old wordings are banned, and the "not a surveillance layer" promise —
-     the part that actually constrains the build — is pinned hardest. */
+     again each time a route gains an event; the lock pins the shape, the
+     underclaim wording is banned, and the "not a surveillance layer"
+     promise — the part that actually constrains the build — is pinned
+     hardest.
+
+     Same pass, second half: peer sharing shipped in Stage C, which retired
+     the OVERCLAIM's ban along with it — "who made, shared and joined what"
+     stopped being an overclaim the day the ledger it described shipped.
+     The record's own paragraph now says so directly, and the positive lock
+     below pins that sentence rather than banning its old absence. */
   test("the surveillance sentence claims exactly what the ledger records — neither more nor less", () => {
     const container = render(<AboutPage />);
     const text = container.textContent.replace(/\s+/g, " ");
@@ -89,9 +96,10 @@ describe("AboutPage — /about", () => {
     expect(text).toContain(
       "so an action can be checked afterwards, never so a person can be watched while they work",
     );
-    // The overclaim (peer sharing, still unshipped) stays banned…
-    expect(text).not.toMatch(/who made,?\s*shared and joined/i);
-    // …and so does the underclaim that replaced it.
+    // Peer sharing shipped in Stage C — a share event simply joins the
+    // record this paragraph already describes.
+    expect(text).toContain("who shared what, with whom, when");
+    // The underclaim ("that is the whole of the monitoring") stays banned.
     expect(text).not.toMatch(/that is the whole of the monitoring/i);
   });
 
@@ -342,10 +350,15 @@ describe("Subpage shell — the shared closing footer (About, Contact, Teachers)
    present tense, on the premise that the site publishes only once Plan 6 is
    complete. That premise has a hard edge: Plan 6 §9 ("Deliberately NOT in
    Plan 6") names features that stay out of scope even at launch — the
-   notification bell, rubric marking, peer sharing, real email delivery and
-   admin data requests among them. This guard is mechanized, not a one-time
-   read, so a future present-tense edit to any of the four pages cannot
-   silently smuggle an excluded feature back in.
+   notification bell, rubric marking, real email delivery and admin data
+   requests among them. This guard is mechanized, not a one-time read, so a
+   future present-tense edit to any of the four pages cannot silently
+   smuggle an excluded feature back in.
+
+   Honesty pass (2026-08-28): peer sharing shipped in Stage C of Plan 7 and
+   left this list — the exclusion it named is no longer true, so banning it
+   would forbid the product's own copy from saying so. The other four
+   exclusions are unchanged.
 
    Consistency-audit hardening: two exclusions from the same §9 list — real
    email delivery and admin data requests — had no ban here at all, and
@@ -359,12 +372,11 @@ describe("Subpage shell — the shared closing footer (About, Contact, Teachers)
    request* (export/erase) — so the bans target those phrases, not the word
    "email" or "data" alone. */
 describe("Launch-truth scope guard — Plan 6 §9 exclusions appear on none of the four public pages", () => {
-  test("no page names the notification bell, rubric marking, peer sharing, real email delivery or admin data requests", () => {
+  test("no page names the notification bell, rubric marking, real email delivery or admin data requests", () => {
     const EXCLUDED = [
       /rubric/i,
       /notification bell/i,
       /\bbell\b/i,
-      /peer sharing/i,
       /real email/i,
       /email delivery/i,
       /data request/i,

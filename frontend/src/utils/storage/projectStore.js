@@ -9,7 +9,9 @@
  * Dataset blobs (`dataset:{id}:rows`) and run-trace blobs (`run:{id}:trace`)
  * land in their own localForage stores so this one stays focused.
  *
- * No backend. No network. No auth. Per docs/product-contract.md.
+ * Local-first: this store is the source of truth in the browser; for
+ * signed-in accounts the sync engine (src/sync/) mirrors it to the
+ * classroom backend. Per docs/product-contract.md.
  */
 
 import localforage from "localforage";

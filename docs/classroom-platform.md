@@ -17,6 +17,8 @@ And the two standing constraints: **at most 200 people**, and **nothing may cons
 
 **22 August 2026, later the same day** — §18's two open decisions closed: the spacing ramp gained one rung (`--space-9: 64px`) for the welcome page's section rhythm, and the join code's wider tracking survives as a named token (`--tracking-code`). See §18's "Decisions taken."
 
+**28 August 2026** — Plan 7 (peer sharing, section 8.3): §14 clarified, no new screens — the share control is part of the IDE workspace screen (File menu), and pending shares ("Shared with you") are part of the Class page screen. The §8.1 ledger and label shipped as specified; decisions recorded in product-contract.md's peer-sharing amendment.
+
 ---
 
 ## 1. The big picture
@@ -395,7 +397,7 @@ Every screen on this list is built from the shared design system in **section 18
 |---|---|
 | Front page (`/welcome`) | Guest entry · create an account · sign in · what the IDE is, for someone who has never seen it |
 | Sign in / Sign up / Check your email / Confirm address / Forgot password / Reset password | The doors |
-| The IDE workspace | The existing editor — blocks, code, 3D, data panel, debug drawer — with the light/dark toggle, and (for signed-in users) the sync chip and, inside assignments, the instructions side panel and the switched-off-tools note (section 5.4) |
+| The IDE workspace | The existing editor — blocks, code, 3D, data panel, debug drawer — with the light/dark toggle, and (for signed-in users) the sync chip and, inside assignments, the instructions side panel and the switched-off-tools note (section 5.4), and — where a class has sharing on (section 8.3) — the Share control in the File menu |
 | Profile & settings | Name, password, notification switches |
 | Notifications panel | The bell |
 
@@ -406,7 +408,7 @@ Every screen on this list is built from the shared design system in **section 18
 | Home | My classes · due soon · recent feedback · my own projects |
 | Join a class | Enter a code (or arrive by link/QR) |
 | Invite landing | Where an emailed **Join class** button lands — accept the invitation, signing up first if there is no account yet (section 3.3) |
-| Class page | Assignments list · guides · my marks in this class |
+| Class page | Assignments list · pending shares ("Shared with you", section 8.3) · guides · my marks in this class |
 | Assignment page | Instructions · Start/Continue · group choice (when set) · submission status · Submit |
 | My marks | Everything marked, per class |
 

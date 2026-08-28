@@ -173,7 +173,7 @@ Effective for the `feature/classroom-platform` branch onward:
 - **The label names the immediate sharer; the ledger records the chain** (D§9).
 - **No notification of any kind** (D§10): §9's email table is closed and the bell is Plan 8's; discovery is pull-based on the class page.
 
-**Copy is bound by this too.** On 28 August 2026 the four public pages (`/welcome`, `/about`, `/teachers`, `/contact`) and the in-app Help page were audited in both directions — nothing shipped may still be described as absent, and nothing excluded may be described as present. Two mechanisms keep it that way rather than a memory: `welcomePage.test.js`'s non-claims list greps the front page's copy, and `welcomeSubpages.test.js`'s launch-truth scope guard sweeps all four rendered public pages for every §9 exclusion. §17.3's remaining cleanups — the "no accounts, no backend" sentences in [README.md](../README.md) and [DEPLOY.md](../DEPLOY.md) — are **still owed**; the in-app Help page's copy was corrected in that pass.
+**Copy is bound by this too.** On 28 August 2026 the four public pages (`/welcome`, `/about`, `/teachers`, `/contact`) and the in-app Help page were audited in both directions — nothing shipped may still be described as absent, and nothing excluded may be described as present. Two mechanisms keep it that way rather than a memory: `welcomePage.test.js`'s non-claims list greps the front page's copy, and `welcomeSubpages.test.js`'s launch-truth scope guard sweeps all four rendered public pages for every §9 exclusion. §17.3's remaining cleanups — the "no accounts, no backend" sentences in [README.md](../README.md) and [DEPLOY.md](../DEPLOY.md) — were cleared by Plan 7's honesty pass (28 August 2026).
 
 ## Change protocol
 
