@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { and, eq, gte, lte, sql } from "drizzle-orm";
 import { assignments, classes, classMembers, events, users } from "../db/schema.js";
 import { logEvent } from "../db/events.js";
+import { notify } from "../notifications/notify.js";
 import { config } from "../config.js";
 import { dueTomorrow } from "../email/templates.js";
 import { rosterSubmissionStatus } from "./assignments.js";
@@ -141,7 +142,13 @@ export function tickRoutes(app: FastifyInstance): void {
           // logEvent inside the SAME transaction as the lock and the read
           // that decided to send — the event IS the dedupe row, so there is
           // nothing else for this transaction to cover.
-          await logEvent(tx, DUE_REMINDER_SENT, null, { assignmentId: a.id, userId: student.id });
+          const eid = await logEvent(tx, DUE_REMINDER_SENT, null, { assignmentId: a.id, userId: student.id });
+          // Task 5, site 7: classId comes from the ASSIGNMENT row `a` — the
+          // roster helper above returns only id/name/email.
+          await notify(tx, [student.id], eid, DUE_REMINDER_SENT, {
+            assignmentId: a.id,
+            classId: a.classId,
+          });
           toSend.push({ student, assignment: a, className });
         }
       }

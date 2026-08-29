@@ -4,7 +4,7 @@ import { and, eq } from "drizzle-orm";
 import { buildApp } from "../app.js";
 import { testDb, testPool, truncateAuthTables } from "../db/testClient.js";
 import { setSetting } from "../db/settings.js";
-import { users, classMembers, invites, emails } from "../db/schema.js";
+import { users, classMembers, invites, emails, notifications, events } from "../db/schema.js";
 
 const app = buildApp({ db: testDb });
 let teacherCookie: string;
@@ -27,13 +27,22 @@ async function makeUser(email: string, opts: Record<string, unknown> = {}) {
   return u;
 }
 
+// Each signin gets its own source IP — the auth route's per-IP rate limit is
+// sized for humans and this file signs in several accounts.
+let signinIpCounter = 0;
 async function signin(email: string): Promise<string> {
+  signinIpCounter += 1;
   const res = await app.inject({
     method: "POST",
     url: "/api/auth/signin",
+    remoteAddress: `10.96.${Math.floor(signinIpCounter / 250)}.${(signinIpCounter % 250) + 1}`,
     payload: { email, password: "a-long-password" },
   });
   return res.cookies.find((c) => c.name === "pide_session")!.value;
+}
+
+async function notificationsFor(userId: string) {
+  return testDb.select().from(notifications).where(eq(notifications.userId, userId));
 }
 
 beforeAll(async () => {
@@ -410,5 +419,64 @@ describe("accepting and revoking", () => {
     expect(res.statusCode).toBe(200);
     const list = res.json().invites as Array<{ email: string; status: string }>;
     expect(list.every((i) => i.status === "pending")).toBe(true);
+  });
+});
+
+/* Task 5, site 9: invite.accepted fans out to the class's active teachers —
+ * the quiet joined event's second door (an invited member lands ACTIVE
+ * without passing the join route). A fresh class isolates the recipient set
+ * from the rest of this file's shared `classId`, which is in approval mode
+ * by this point and carries other teachers' worth of history. */
+describe("notification fan-out for invite.accepted (Task 5, site 9)", () => {
+  test("accepting a fresh invite notifies the class's active teachers, addressed to the accepting user — never the accepter themselves", async () => {
+    const notifyClassRes = await app.inject({
+      method: "POST",
+      url: "/api/classes",
+      cookies: { pide_session: teacherCookie },
+      payload: { name: "Notify Invite Class" },
+    });
+    const notifyClassId = notifyClassRes.json().class.id as string;
+
+    const inviteRes = await app.inject({
+      method: "POST",
+      url: `/api/classes/${notifyClassId}/invites`,
+      cookies: { pide_session: teacherCookie },
+      payload: { emails: ["inaccept-notify@example.com"], role: "student" },
+    });
+    expect(inviteRes.statusCode).toBe(200);
+    const [mail] = await testDb
+      .select()
+      .from(emails)
+      .where(and(eq(emails.template, "class-invite"), eq(emails.toEmail, "inaccept-notify@example.com")));
+    const token = /token=([A-Za-z0-9_-]+)/.exec(mail.bodyText)![1];
+
+    const accepter = await makeUser("inaccept-notify@example.com");
+    const accepterCookie = await signin("inaccept-notify@example.com");
+
+    const acceptRes = await app.inject({
+      method: "POST",
+      url: "/api/invites/accept",
+      cookies: { pide_session: accepterCookie },
+      payload: { token },
+    });
+    expect(acceptRes.statusCode).toBe(200);
+
+    const [teacherRow] = await testDb.select().from(users).where(eq(users.email, "iteach@example.com"));
+    const teacherNotifs = await notificationsFor(teacherRow.id);
+    // Scoped to THIS class — iteach teaches every class this file creates, so
+    // earlier accept tests (classId, promoClassId) have already addressed
+    // iteach with their own invite.accepted rows.
+    const matching = teacherNotifs.filter(
+      (n) => n.type === "invite.accepted" && (n.payload as { classId?: string }).classId === notifyClassId,
+    );
+    expect(matching).toHaveLength(1);
+    expect(matching[0].payload).toEqual({ classId: notifyClassId, joinerId: accepter.id });
+
+    const [ev] = await testDb.select().from(events).where(eq(events.id, matching[0].eventId));
+    expect(ev.type).toBe("invite.accepted");
+    expect(ev.actorId).toBe(accepter.id);
+
+    // Negative: the accepting user is not notified about their own acceptance.
+    expect(await notificationsFor(accepter.id)).toHaveLength(0);
   });
 });

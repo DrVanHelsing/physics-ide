@@ -7,6 +7,7 @@ import { requireClassTeacher, sendClassAuthError } from "../classes/guards.js";
 import { newToken, hashToken } from "../auth/tokens.js";
 import { classInvite } from "../email/templates.js";
 import { logEvent } from "../db/events.js";
+import { notify } from "../notifications/notify.js";
 import { config } from "../config.js";
 
 export function inviteRoutes(app: FastifyInstance): void {
@@ -222,10 +223,27 @@ export function inviteRoutes(app: FastifyInstance): void {
             .set({ role: inv.role })
             .where(eq(classMembers.id, existing[0].id));
         }
-        await logEvent(tx, "invite.accepted", req.user!.id, {
+        const eid = await logEvent(tx, "invite.accepted", req.user!.id, {
           classId: inv.classId,
           invitedEmail: inv.email,
           role: inv.role,
+        });
+        // Task 5, site 9: the class's active teachers — the quiet joined
+        // event's second door (an invited member lands ACTIVE without
+        // passing the join route), same select as site 8.
+        const teachers = await tx
+          .select({ userId: classMembers.userId })
+          .from(classMembers)
+          .where(
+            and(
+              eq(classMembers.classId, inv.classId),
+              eq(classMembers.role, "teacher"),
+              eq(classMembers.status, "active"),
+            ),
+          );
+        await notify(tx, teachers.map((t) => t.userId), eid, "invite.accepted", {
+          classId: inv.classId,
+          joinerId: req.user!.id,
         });
         return inv;
       });

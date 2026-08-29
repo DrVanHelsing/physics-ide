@@ -6,7 +6,21 @@ import { BUILT_IN_RULE_SETS } from "@physics-ide/shared";
 import { buildApp } from "../app.js";
 import { testDb, testPool, truncateAuthTables } from "../db/testClient.js";
 import { setSetting } from "../db/settings.js";
-import { users, classMembers, assignments, events, projects, projectVersions, submissions, assignmentWork, marks, emails } from "../db/schema.js";
+import {
+  users,
+  classMembers,
+  assignments,
+  events,
+  projects,
+  projectVersions,
+  submissions,
+  assignmentWork,
+  marks,
+  emails,
+  groups,
+  groupMembers,
+  notifications,
+} from "../db/schema.js";
 import { stableStringify } from "./projects.js";
 
 const app = buildApp({ db: testDb });
@@ -50,6 +64,10 @@ async function signin(email: string): Promise<string> {
 
 async function eventsOfType(type: string) {
   return testDb.select().from(events).where(eq(events.type, type));
+}
+
+async function notificationsFor(userId: string) {
+  return testDb.select().from(notifications).where(eq(notifications.userId, userId));
 }
 
 beforeAll(async () => {
@@ -188,6 +206,44 @@ describe("POST /api/assignments/:id/publish", () => {
     });
     expect(studentList.json().assignments).toHaveLength(1);
     expect(studentList.json().assignments[0].phase).toBe("open");
+  });
+
+  // Task 5, site 1: active students of the class are notified; the teacher
+  // who published it and a waiting (not yet approved) member get nothing.
+  test("publish notifies active students with assignment.published — a waiting member and the teacher get nothing", async () => {
+    const [studentRow] = await testDb.select().from(users).where(eq(users.email, "akid@example.com"));
+    const [teacherRow] = await testDb.select().from(users).where(eq(users.email, "ateach@example.com"));
+    const waiting = await makeUser("apub-notify-waiting@example.com");
+    await testDb
+      .insert(classMembers)
+      .values({ classId, userId: waiting.id, role: "student", status: "waiting" });
+
+    const draftRes = await app.inject({
+      method: "POST",
+      url: `/api/classes/${classId}/assignments`,
+      cookies: { pide_session: teacherCookie },
+      payload: { title: "Notify Publish" },
+    });
+    const id = draftRes.json().assignment.id as string;
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/assignments/${id}/publish`,
+      cookies: { pide_session: teacherCookie },
+    });
+    expect(res.statusCode).toBe(200);
+
+    const logged = await eventsOfType("assignment.published");
+    const myEvent = logged.find((e) => (e.payload as { assignmentId?: string }).assignmentId === id);
+    expect(myEvent).toBeDefined();
+
+    const studentNotifs = (await notificationsFor(studentRow.id)).filter((n) => n.eventId === myEvent!.id);
+    expect(studentNotifs).toHaveLength(1);
+    expect(studentNotifs[0].type).toBe("assignment.published");
+    expect(studentNotifs[0].payload).toEqual({ assignmentId: id, classId });
+
+    // Negative: a waiting member and the publishing teacher get nothing.
+    expect(await notificationsFor(waiting.id)).toHaveLength(0);
+    expect((await notificationsFor(teacherRow.id)).filter((n) => n.eventId === myEvent!.id)).toHaveLength(0);
   });
 });
 
@@ -1074,6 +1130,38 @@ describe("POST /api/assignments/:id/submit", () => {
     expect(row.creditedIds).toEqual([studentId]);
   });
 
+  // Task 5, site 6: every credited id is notified — for individual work
+  // that's just the submitter, pinned via the submission's OWN creditedIds
+  // rather than a hardcoded [studentId].
+  test("submit notifies every credited id with assignment.submitted, eventId pointing at the submit event", async () => {
+    const id = await createPublished({ title: "Submit Notify Test" });
+    await publish(id);
+    const projectId = "p-submit-notify";
+    await pushAndStart(id, projectId, { schemaVersion: 2, marker: "notify" });
+
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/assignments/${id}/submit`,
+      cookies: { pide_session: studentCookie },
+    });
+    expect(res.statusCode).toBe(201);
+    const submissionId = res.json().submission.id as string;
+
+    const [row] = await testDb.select().from(submissions).where(eq(submissions.id, submissionId));
+    expect(row.creditedIds).toEqual([studentId]);
+
+    const logged = await eventsOfType("assignment.submitted");
+    const myEvent = logged.find((e) => (e.payload as { submissionId?: string }).submissionId === submissionId);
+    expect(myEvent).toBeDefined();
+
+    for (const creditedId of row.creditedIds as string[]) {
+      const notifs = (await notificationsFor(creditedId)).filter((n) => n.eventId === myEvent!.id);
+      expect(notifs).toHaveLength(1);
+      expect(notifs[0].type).toBe("assignment.submitted");
+      expect(notifs[0].payload).toEqual({ assignmentId: id, classId: submitClassId, attempt: row.attempt });
+    }
+  });
+
   test("resubmit flips isCurrent off the previous attempt and increments attempt", async () => {
     const id = await createPublished({ title: "Resubmit Test" });
     await publish(id);
@@ -1912,6 +2000,37 @@ describe("GET /api/assignments/:id/inbox / POST /api/assignments/:id/remind", ()
       expect(myEvent!.actorId).not.toBeNull();
     });
 
+    // Task 5, site 5: every missing student (the route's own `recipients`
+    // list) is notified; the already-submitted student gets nothing. A
+    // fresh assignment keeps this test's event lookup unambiguous — the
+    // happy-path test above already minted its own assignment.reminded row.
+    test("notifies every missing student with assignment.reminded; the already-submitted student gets nothing", async () => {
+      const freshId = await createPublished({ title: "Remind Notify Assignment" });
+      await seedSubmission(freshId, submittedId, { late: false, attempt: 1 });
+
+      const res = await app.inject({
+        method: "POST",
+        url: `/api/assignments/${freshId}/remind`,
+        cookies: { pide_session: teacherCookie },
+      });
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({ reminded: 2 });
+
+      const logged = await eventsOfType("assignment.reminded");
+      const myEvent = logged.find((e) => (e.payload as { assignmentId?: string }).assignmentId === freshId);
+      expect(myEvent).toBeDefined();
+
+      for (const id of [lateId, missingId]) {
+        const notifs = (await notificationsFor(id)).filter((n) => n.eventId === myEvent!.id);
+        expect(notifs).toHaveLength(1);
+        expect(notifs[0].type).toBe("assignment.reminded");
+        expect(notifs[0].payload).toEqual({ assignmentId: freshId, classId: inboxClassId });
+      }
+
+      const submittedNotifs = (await notificationsFor(submittedId)).filter((n) => n.eventId === myEvent!.id);
+      expect(submittedNotifs).toHaveLength(0);
+    });
+
     test("a TA may not remind — teacher only", async () => {
       const res = await app.inject({
         method: "POST",
@@ -2711,6 +2830,33 @@ describe("Task 18: marks — PUT / release / return", () => {
     expect(released!.bodyText).toContain("Excellent.");
   });
 
+  // Task 5, site 2: recipients are exactly the release route's own
+  // `releasable` list — the released student is notified, eventId pointing
+  // at the marks_released ledger row.
+  test("release notifies the released student with assignment.marks_released", async () => {
+    const id = await makePublishedAssignment({ title: "Release Notify", points: 10 });
+    await submitAs(id, "p-release-notify");
+    await putMark(id, teacherCookie, { points: 9, comment: "Nice.", privateNote: "" });
+
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/assignments/${id}/marks/release`,
+      cookies: { pide_session: teacherCookie },
+      payload: { studentIds: [studentId] },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().released).toEqual([studentId]);
+
+    const logged = await eventsOfType("assignment.marks_released");
+    const myEvent = logged.find((e) => (e.payload as { assignmentId?: string }).assignmentId === id);
+    expect(myEvent).toBeDefined();
+
+    const notifs = (await notificationsFor(studentId)).filter((n) => n.eventId === myEvent!.id);
+    expect(notifs).toHaveLength(1);
+    expect(notifs[0].type).toBe("assignment.marks_released");
+    expect(notifs[0].payload).toEqual({ assignmentId: id, classId: markingClassId });
+  });
+
   test("release-all flips the assignment's stored status to marks_released and releases every draft in one go", async () => {
     const id = await makePublishedAssignment({ title: "Release All Stamps Assignment", points: 10 });
     await submitAs(id, "p-release-all");
@@ -2814,6 +2960,33 @@ describe("Task 18: marks — PUT / release / return", () => {
     });
     expect(reopened.statusCode).toBe(201);
     expect(reopened.json().submission.attempt).toBe(2);
+  });
+
+  // Task 5, site 3: recipients are [studentId] — the mark_returned route's
+  // own target.
+  test("return notifies the student with assignment.mark_returned", async () => {
+    const id = await makePublishedAssignment({ title: "Return Notify", points: 10 });
+    await submitAs(id, "p-return-notify");
+    await putMark(id, teacherCookie, { points: 5, comment: "", privateNote: "" });
+
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/assignments/${id}/marks/${studentId}/return`,
+      cookies: { pide_session: teacherCookie },
+      payload: { comment: "Please redo part 2." },
+    });
+    expect(res.statusCode).toBe(200);
+
+    const logged = await eventsOfType("assignment.mark_returned");
+    const myEvent = logged.find(
+      (e) => (e.payload as { assignmentId?: string; studentId?: string }).assignmentId === id,
+    );
+    expect(myEvent).toBeDefined();
+
+    const notifs = (await notificationsFor(studentId)).filter((n) => n.eventId === myEvent!.id);
+    expect(notifs).toHaveLength(1);
+    expect(notifs[0].type).toBe("assignment.mark_returned");
+    expect(notifs[0].payload).toEqual({ assignmentId: id, classId: markingClassId });
   });
 
   /* Final fix wave, I3. Ruling R5 turned Return into an UN-RELEASE (status
@@ -3146,5 +3319,47 @@ describe("Task 18: marks — PUT / release / return", () => {
     const tooLong = await returnMark(id, teacherCookie, studentId, { comment: "x".repeat(5001) });
     expect(tooLong.statusCode).toBe(400);
     expect(tooLong.json().error).toBe("That comment is too long.");
+  });
+
+  // Task 5, site 4: recipients are the group's member ids — `markable`, the
+  // same list the route's own email fan-out already uses. The group and its
+  // membership are seeded directly (groups/groupMembers), the way tick.ts's
+  // own suite builds a group fixture — markableGroup needs only an active
+  // student membership per member, no real submission.
+  test("group return notifies every group member with assignment.group_mark_returned", async () => {
+    const groupmate = await makeUser("marks-groupmate@example.com");
+    await testDb
+      .insert(classMembers)
+      .values({ classId: markingClassId, userId: groupmate.id, role: "student", status: "active" });
+
+    const id = await makePublishedAssignment({
+      title: "Group Return Notify",
+      points: 10,
+      submissionMode: "pair",
+    });
+    const [group] = await testDb.insert(groups).values({ assignmentId: id, name: "Notify Group" }).returning();
+    await testDb.insert(groupMembers).values([
+      { groupId: group.id, userId: studentId },
+      { groupId: group.id, userId: groupmate.id },
+    ]);
+
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/assignments/${id}/marks/group/${group.id}/return`,
+      cookies: { pide_session: teacherCookie },
+      payload: { comment: "Show your working." },
+    });
+    expect(res.statusCode).toBe(200);
+
+    const logged = await eventsOfType("assignment.group_mark_returned");
+    const myEvent = logged.find((e) => (e.payload as { groupId?: string }).groupId === group.id);
+    expect(myEvent).toBeDefined();
+
+    for (const memberId of [studentId, groupmate.id]) {
+      const notifs = (await notificationsFor(memberId)).filter((n) => n.eventId === myEvent!.id);
+      expect(notifs).toHaveLength(1);
+      expect(notifs[0].type).toBe("assignment.group_mark_returned");
+      expect(notifs[0].payload).toEqual({ assignmentId: id, classId: markingClassId });
+    }
   });
 });

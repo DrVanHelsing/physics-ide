@@ -5,7 +5,16 @@ import { buildApp } from "../app.js";
 import { config } from "../config.js";
 import { testDb, testPool, truncateAuthTables } from "../db/testClient.js";
 import { setSetting } from "../db/settings.js";
-import { users, classMembers, emails, events, groups, groupMembers, submissions } from "../db/schema.js";
+import {
+  users,
+  classMembers,
+  emails,
+  events,
+  groups,
+  groupMembers,
+  submissions,
+  notifications,
+} from "../db/schema.js";
 
 const app = buildApp({ db: testDb });
 
@@ -119,6 +128,10 @@ async function allDueTomorrowEmails() {
 
 async function dueReminderEvents() {
   return testDb.select().from(events).where(eq(events.type, "assignment.due_reminder_sent"));
+}
+
+async function notificationsFor(userId: string) {
+  return testDb.select().from(notifications).where(eq(notifications.userId, userId));
 }
 
 beforeAll(async () => {
@@ -362,5 +375,39 @@ describe("POST /api/tick — overlapping ticks send at most once", () => {
       assignmentIds.includes((e.payload as { assignmentId?: string }).assignmentId ?? ""),
     );
     expect(forThese).toHaveLength(expectedPairs);
+  });
+});
+
+/* Task 5, site 7: the DUE_REMINDER_SENT ledger row that IS the dedupe key
+ * also carries the delivery — notify(tx, [student.id], eid, ...) beside the
+ * logEvent inside the same advisory-locked transaction. classId comes from
+ * the ASSIGNMENT row, not the roster helper (which returns only id/name/email). */
+describe("POST /api/tick — notification fan-out (Task 5, site 7)", () => {
+  test("a reminded student gets one assignment.due_reminder_sent notification, eventId pointing at the dedupe ledger row", async () => {
+    const classId = await makeClass("Tick Notify Class");
+    const student = await makeUser("tick-notify-student@example.com");
+    await testDb.insert(classMembers).values({ classId, userId: student.id, role: "student", status: "active" });
+    const assignmentId = await createPublished(classId, {
+      title: "Tick Notify Assignment",
+      submissionMode: "individual",
+      dueAt: Date.now() + 24 * HOUR,
+    });
+
+    const res = await tick(config.tickSecret);
+    expect(res.statusCode).toBe(200);
+
+    const logged = await dueReminderEvents();
+    const ev = logged.find(
+      (e) =>
+        (e.payload as { assignmentId?: string; userId?: string }).assignmentId === assignmentId &&
+        (e.payload as { assignmentId?: string; userId?: string }).userId === student.id,
+    );
+    expect(ev).toBeDefined();
+
+    const studentNotifs = await notificationsFor(student.id);
+    const mine = studentNotifs.filter((n) => n.eventId === ev!.id);
+    expect(mine).toHaveLength(1);
+    expect(mine[0].type).toBe("assignment.due_reminder_sent");
+    expect(mine[0].payload).toEqual({ assignmentId, classId });
   });
 });

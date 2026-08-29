@@ -16,6 +16,7 @@ import {
   assignmentWork,
   groups,
   shares,
+  notifications,
 } from "../db/schema.js";
 
 const app = buildApp({ db: testDb });
@@ -76,6 +77,10 @@ async function signin(email: string): Promise<string> {
 
 async function eventsOfType(type: string) {
   return testDb.select().from(events).where(eq(events.type, type));
+}
+
+async function notificationsFor(userId: string) {
+  return testDb.select().from(notifications).where(eq(notifications.userId, userId));
 }
 
 async function pushProject(ownerId: string, projectId: string, manifest: Record<string, unknown>) {
@@ -375,6 +380,21 @@ describe("POST /api/shares — the hand-off", () => {
       sourceClientUpdatedAt: 5000,
       sourceAttribution: null,
     });
+
+    // Task 5, site 10: the recipient (and only the recipient) is notified,
+    // eventId pointing at the ledger row just asserted above.
+    const recipientNotifs = await notificationsFor(bravo.id);
+    const mineNotif = recipientNotifs.filter((n) => n.eventId === logged[0].id);
+    expect(mineNotif).toHaveLength(1);
+    expect(mineNotif[0].type).toBe("project.shared");
+    expect(mineNotif[0].payload).toEqual({
+      shareId: share.id,
+      classId,
+      sharerId: alpha.id,
+      title: "Pendulum",
+    });
+    // Negative: the sharer (alpha) is not addressed about their own share.
+    expect((await notificationsFor(alpha.id)).filter((n) => n.eventId === logged[0].id)).toHaveLength(0);
   });
 
   test("sharing the same project with the same person twice -> 409", async () => {
@@ -959,6 +979,48 @@ describe("POST /api/shares/:id/revoke", () => {
     expect(second.statusCode).toBe(409);
     expect(second.json().error).toBe("That share has already been dealt with.");
   });
+
+  // D§2 fiat, pinned: project.share_revoked mints NOTHING — the ledger row
+  // above is the whole record. Counted as a delta (not an absolute zero)
+  // because earlier tests in this file already minted notifications for
+  // unrelated shares.
+  test("revoking a share mints no notification row — the D§2 fiat", async () => {
+    const shareId = await freshPendingShare("revoke-zero-mint");
+    const before = await testDb.select().from(notifications);
+
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/shares/${shareId}/revoke`,
+      cookies: { pide_session: alpha.cookie },
+    });
+    expect(res.statusCode).toBe(200);
+
+    const after = await testDb.select().from(notifications);
+    expect(after).toHaveLength(before.length);
+  });
+});
+
+// D§2 fiat, pinned in the suite that owns share resolution: switching a
+// class's peer sharing off lapses every pending share (classes.ts's
+// lapsePendingShares, driven here through the same setPeerSharing helper
+// this file already uses for the D§5 gate), but project.share_lapsed mints
+// NOTHING — same posture as revoke above, delta not absolute-zero.
+describe("PATCH peerSharing:false lapses pending shares, minting no notification (Task 5, D§2)", () => {
+  test("a pending share lapses on switch-off but mints no notification row", async () => {
+    const shareId = await freshPendingShare("lapse-zero-mint");
+    const before = await testDb.select().from(notifications);
+
+    await setPeerSharing(false);
+    try {
+      const [row] = await testDb.select().from(shares).where(eq(shares.id, shareId));
+      expect(row.status).toBe("lapsed");
+
+      const after = await testDb.select().from(notifications);
+      expect(after).toHaveLength(before.length);
+    } finally {
+      await setPeerSharing(true);
+    }
+  });
 });
 
 /** A fresh alpha->bravo pending share on its own project id, for the accept
@@ -1037,6 +1099,22 @@ describe("POST /api/shares/:id/accept", () => {
       sourceClientUpdatedAt: 5000,
       copyProjectId: "p-copy-1",
     });
+
+    // Task 5, site 11: the original sharer (and only the sharer) is
+    // notified, eventId pointing at the share_accepted ledger row above.
+    const sharerNotifs = await notificationsFor(alpha.id);
+    const mineNotif = sharerNotifs.filter((n) => n.eventId === entry.id);
+    expect(mineNotif).toHaveLength(1);
+    expect(mineNotif[0].type).toBe("project.share_accepted");
+    expect(mineNotif[0].payload).toEqual({
+      shareId,
+      classId,
+      recipientId: bravo.id,
+      title: manifest.title,
+    });
+    // Negative: the accepting recipient (bravo) is not addressed about their
+    // own acceptance.
+    expect((await notificationsFor(bravo.id)).filter((n) => n.eventId === entry.id)).toHaveLength(0);
   });
 
   test("the copy survives the source's death: tombstoning the source doesn't touch the frozen manifest", async () => {
