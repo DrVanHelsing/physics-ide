@@ -1,27 +1,54 @@
 import { describe, test, expect, beforeAll, afterAll } from "vitest";
 import argon2 from "argon2";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
+import { BUILT_IN_RULE_SETS } from "@physics-ide/shared";
 import { buildApp } from "../app.js";
 import { testDb, testPool, truncateAuthTables } from "../db/testClient.js";
 import { getSetting, setSetting } from "../db/settings.js";
-import { users, emails, sessions } from "../db/schema.js";
+import {
+  users,
+  emails,
+  sessions,
+  emailTokens,
+  events,
+  notifications,
+  notificationPrefs,
+  classes,
+  classMembers,
+  invites,
+  guides,
+  assignments,
+  assignmentWork,
+  projects,
+  projectVersions,
+  groups,
+  groupMembers,
+  submissions,
+  marks,
+  shares,
+} from "../db/schema.js";
 
 const app = buildApp({ db: testDb });
 let adminCookie: string;
+let adminId: string;
 let studentId: string;
 
 beforeAll(async () => {
   await truncateAuthTables();
   await setSetting(testDb, "account_cap", 200);
   const hash = await argon2.hash("admin-password-1", { type: argon2.argon2id });
-  await testDb.insert(users).values({
-    name: "Root",
-    email: "root@example.com",
-    passwordHash: hash,
-    role: "admin",
-    emailConfirmedAt: new Date(),
-    consentAt: new Date(),
-  });
+  const [root] = await testDb
+    .insert(users)
+    .values({
+      name: "Root",
+      email: "root@example.com",
+      passwordHash: hash,
+      role: "admin",
+      emailConfirmedAt: new Date(),
+      consentAt: new Date(),
+    })
+    .returning();
+  adminId = root.id;
   const [student] = await testDb
     .insert(users)
     .values({
@@ -257,5 +284,701 @@ describe("classes list", () => {
     expect(row!.activeMembers).toBe(1);
     expect(row!.teachers).toContain("List Teacher");
     void t;
+  });
+});
+
+/* ═══════════════════════════════════════════════════════════════════════
+ * Plan 8 Task 9 — POST /api/admin/users/:id/erase (design D§5)
+ *
+ * Erasure is an in-place PII SCRUB, never `DELETE FROM users`. The class
+ * RECORD survives — memberships, submissions, marks, the events ledger —
+ * and the PERSON does not: the identifying columns are overwritten, the
+ * delivery state (sessions, email tokens, notifications, prefs) is
+ * deleted, their own projects go, and the group's shared workspace stays.
+ *
+ * The world these cases run against is built by `seedStudentWorld`, which
+ * is deliberately a REUSABLE helper: D§5's erase sweep and D§6's export
+ * list are the SAME table read twice (plan self-review 6), so Task 10's
+ * export suite seeds its student with this same function.
+ * ═══════════════════════════════════════════════════════════════════════ */
+
+/* The refusals, verbatim — file-level consts on both sides of the wire. */
+const ALREADY_ERASED = "They have already been erased.";
+const SELF_ERASE = "You can't erase your own account.";
+const CONFIRM_MISMATCH = "The confirmation doesn't match this account's email.";
+const NO_SUCH_ACCOUNT = "No such account.";
+/** D§5 fiat 6: the scrub WRITES the same literal the read-time fallback
+ *  resolves TO, so a scrubbed row and an unresolvable id never disagree. */
+const ERASED_NAME = "Removed student";
+
+const WORLD_PASSWORD = "a-long-password";
+
+/* Each world signs in three or four seats and the signin door is rate
+ * limited to 10 per minute PER IP — every world signin gets its own source
+ * address (the shares.test.ts idiom) so the file's older 127.0.0.1 signins
+ * keep their own budget. */
+let worldIp = 0;
+async function signinFrom(email: string, password: string = WORLD_PASSWORD) {
+  worldIp += 1;
+  return app.inject({
+    method: "POST",
+    url: "/api/auth/signin",
+    remoteAddress: `10.42.${Math.floor(worldIp / 250)}.${(worldIp % 250) + 1}`,
+    payload: { email, password },
+  });
+}
+
+/** One person: their id, the email they signed up with, a live cookie. */
+type Seat = { id: string; email: string; cookie: string };
+
+async function makeSeat(email: string, extra: Record<string, unknown> = {}): Promise<Seat> {
+  const [u] = await testDb
+    .insert(users)
+    .values({
+      name: email.split("@")[0],
+      email,
+      passwordHash: await argon2.hash(WORLD_PASSWORD, { type: argon2.argon2id }),
+      emailConfirmedAt: new Date(),
+      consentAt: new Date(),
+      ...extra,
+    })
+    .returning();
+  const res = await signinFrom(email);
+  expect(res.statusCode).toBe(200);
+  return { id: u.id, email, cookie: res.cookies.find((c) => c.name === "pide_session")!.value };
+}
+
+function manifestFor(id: string, title: string) {
+  return {
+    schemaVersion: 2,
+    id,
+    title,
+    goal: "physics",
+    projectType: "custom",
+    createdAt: 1000,
+    updatedAt: 5000,
+  };
+}
+
+async function pushProject(ownerId: string, id: string, title: string) {
+  const manifest = manifestFor(id, title);
+  await testDb.insert(projects).values({
+    id,
+    ownerId,
+    title,
+    goal: "physics",
+    projectType: "custom",
+    manifest,
+    clientUpdatedAt: manifest.updatedAt,
+  });
+  return manifest;
+}
+
+/** Everything the D§5 sweep and the D§6 export name, for ONE student. */
+type StudentWorld = {
+  teacher: Seat;
+  student: Seat;
+  classmate: Seat;
+  classId: string;
+  assignmentId: string;
+  groupId: string;
+  /** Theirs alone — the scrub deletes it, and its versions follow. */
+  personalProjectId: string;
+  /** The group's shared workspace, owned by them — it SURVIVES (D§5 fiat 7). */
+  groupProjectId: string;
+  /** The classmate's copy of the accepted share, attributed to the student. */
+  copyProjectId: string;
+  acceptedShareId: string;
+  pendingOutShareId: string;
+  pendingInShareId: string;
+  submissionId: string;
+  markId: string;
+  emailTokenId: string;
+  notificationId: number;
+};
+
+/** One student with a row in EVERY bucket the sweep names: a personal
+ *  project (+ a version, + an assignment_work row), a group-linked project
+ *  (+ a version), a pending outgoing share, an accepted outgoing share, a
+ *  pending incoming share, a submission, a mark, a class membership, a
+ *  group membership, a session, an email token, a notification, a pref. */
+async function seedStudentWorld(tag: string): Promise<StudentWorld> {
+  const teacher = await makeSeat(`${tag}-teach@example.com`, { isTeacher: true });
+  const student = await makeSeat(`${tag}-kid@example.com`);
+  const classmate = await makeSeat(`${tag}-mate@example.com`);
+
+  const [cls] = await testDb
+    .insert(classes)
+    .values({
+      name: `${tag} Class`,
+      joinCode: `${tag}-code`,
+      // The share routes fail closed on the class switch — this world
+      // mints real shares through the real doors, so it is on.
+      peerSharing: true,
+      createdBy: teacher.id,
+    })
+    .returning();
+  await testDb.insert(classMembers).values([
+    { classId: cls.id, userId: teacher.id, role: "teacher", status: "active" },
+    { classId: cls.id, userId: student.id, role: "student", status: "active" },
+    { classId: cls.id, userId: classmate.id, role: "student", status: "active" },
+  ]);
+
+  const [assignment] = await testDb
+    .insert(assignments)
+    .values({
+      classId: cls.id,
+      createdBy: teacher.id,
+      title: `${tag} Assignment`,
+      instructions: { type: "doc", content: [] },
+      projectType: "physics",
+      rules: BUILT_IN_RULE_SETS.open_practice,
+      status: "published",
+      publishedAt: new Date(),
+    })
+    .returning();
+
+  const personalProjectId = `p-${tag}-personal`;
+  const groupProjectId = `p-${tag}-groupwork`;
+  const classmateSourceId = `p-${tag}-mate-src`;
+  await pushProject(student.id, personalProjectId, "Their own work");
+  await pushProject(student.id, groupProjectId, "The group's workspace");
+  await pushProject(classmate.id, classmateSourceId, "A classmate's work");
+  await testDb.insert(projectVersions).values([
+    {
+      ownerId: student.id,
+      projectId: personalProjectId,
+      manifest: manifestFor(personalProjectId, "Their own work"),
+      clientUpdatedAt: 4000,
+      savedBy: student.id,
+      reason: "overwrite",
+    },
+    {
+      ownerId: student.id,
+      projectId: groupProjectId,
+      manifest: manifestFor(groupProjectId, "The group's workspace"),
+      clientUpdatedAt: 4000,
+      savedBy: student.id,
+      reason: "overwrite",
+    },
+  ]);
+
+  // The `groups.projectId` row is what MARKS the workspace as the group's
+  // (D§5 fiat 7) — the scrub reads exactly this to know what to spare.
+  const [group] = await testDb
+    .insert(groups)
+    .values({
+      assignmentId: assignment.id,
+      name: `${tag} Pair`,
+      ownerId: student.id,
+      projectId: groupProjectId,
+    })
+    .returning();
+  await testDb.insert(groupMembers).values([
+    { groupId: group.id, userId: student.id },
+    { groupId: group.id, userId: classmate.id },
+  ]);
+  await testDb.insert(assignmentWork).values({
+    assignmentId: assignment.id,
+    userId: student.id,
+    ownerId: student.id,
+    projectId: personalProjectId,
+  });
+
+  const [submission] = await testDb
+    .insert(submissions)
+    .values({
+      assignmentId: assignment.id,
+      submitterId: student.id,
+      submittedBy: student.id,
+      creditedIds: [student.id],
+      manifest: manifestFor(personalProjectId, "Their own work"),
+      fingerprint: `${tag}-fingerprint`,
+      isCurrent: true,
+    })
+    .returning();
+  const [mark] = await testDb
+    .insert(marks)
+    .values({
+      assignmentId: assignment.id,
+      studentId: student.id,
+      points: 8,
+      comment: "Good work",
+      markedBy: teacher.id,
+      status: "released",
+      releasedAt: new Date(),
+    })
+    .returning();
+
+  const [token] = await testDb
+    .insert(emailTokens)
+    .values({
+      userId: student.id,
+      type: "reset",
+      tokenHash: `${tag}-reset-hash`,
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+    })
+    .returning();
+
+  const [ev] = await testDb
+    .insert(events)
+    .values({ type: "assignment.marks_released", actorId: teacher.id, payload: { classId: cls.id } })
+    .returning();
+  const [note] = await testDb
+    .insert(notifications)
+    .values({
+      userId: student.id,
+      eventId: ev.id,
+      type: "assignment.marks_released",
+      payload: { classId: cls.id, assignmentId: assignment.id },
+    })
+    .returning();
+  await testDb
+    .insert(notificationPrefs)
+    .values({ userId: student.id, key: "due-tomorrow", enabled: false });
+
+  // The three shares, through the real routes: an accepted outgoing one
+  // (so the classmate ends up with a real attributed copy), a still-pending
+  // outgoing one, and a pending one addressed TO them.
+  const acceptedRes = await app.inject({
+    method: "POST",
+    url: "/api/shares",
+    cookies: { pide_session: student.cookie },
+    payload: { classId: cls.id, recipientId: classmate.id, projectId: personalProjectId },
+  });
+  expect(acceptedRes.statusCode).toBe(201);
+  const acceptedShareId = acceptedRes.json().share.id as string;
+  const copyProjectId = `p-${tag}-copy`;
+  const acceptRes = await app.inject({
+    method: "POST",
+    url: `/api/shares/${acceptedShareId}/accept`,
+    cookies: { pide_session: classmate.cookie },
+    payload: { projectId: copyProjectId },
+  });
+  expect(acceptRes.statusCode).toBe(200);
+
+  const pendingOutRes = await app.inject({
+    method: "POST",
+    url: "/api/shares",
+    cookies: { pide_session: student.cookie },
+    payload: { classId: cls.id, recipientId: classmate.id, projectId: personalProjectId },
+  });
+  expect(pendingOutRes.statusCode).toBe(201);
+
+  const pendingInRes = await app.inject({
+    method: "POST",
+    url: "/api/shares",
+    cookies: { pide_session: classmate.cookie },
+    payload: { classId: cls.id, recipientId: student.id, projectId: classmateSourceId },
+  });
+  expect(pendingInRes.statusCode).toBe(201);
+
+  return {
+    teacher,
+    student,
+    classmate,
+    classId: cls.id,
+    assignmentId: assignment.id,
+    groupId: group.id,
+    personalProjectId,
+    groupProjectId,
+    copyProjectId,
+    acceptedShareId,
+    pendingOutShareId: pendingOutRes.json().share.id as string,
+    pendingInShareId: pendingInRes.json().share.id as string,
+    submissionId: submission.id,
+    markId: mark.id,
+    emailTokenId: token.id,
+    notificationId: note.id,
+  };
+}
+
+async function erase(userId: string, confirm: unknown) {
+  return app.inject({
+    method: "POST",
+    url: `/api/admin/users/${userId}/erase`,
+    cookies: { pide_session: adminCookie },
+    payload: confirm === undefined ? {} : { confirm },
+  });
+}
+
+describe("erase: the refusals", () => {
+  let world: StudentWorld;
+
+  beforeAll(async () => {
+    world = await seedStudentWorld("erx");
+  });
+
+  test("an unknown id -> 404, and a malformed one gets the SAME sentence", async () => {
+    const unknown = await erase("00000000-0000-4000-8000-000000000000", "nobody@example.com");
+    expect(unknown.statusCode).toBe(404);
+    expect(unknown.json().error).toBe(NO_SUCH_ACCOUNT);
+
+    const malformed = await erase("not-a-uuid", "nobody@example.com");
+    expect(malformed.statusCode).toBe(404);
+    expect(malformed.json().error).toBe(NO_SUCH_ACCOUNT);
+  });
+
+  test("an admin cannot erase their own account", async () => {
+    const res = await erase(adminId, "root@example.com");
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error).toBe(SELF_ERASE);
+  });
+
+  test("a wrong confirmation, and a missing one, are both the same 400", async () => {
+    const wrong = await erase(world.student.id, "someone-else@example.com");
+    expect(wrong.statusCode).toBe(400);
+    expect(wrong.json().error).toBe(CONFIRM_MISMATCH);
+
+    const missing = await erase(world.student.id, undefined);
+    expect(missing.statusCode).toBe(400);
+    expect(missing.json().error).toBe(CONFIRM_MISMATCH);
+
+    // Refused means untouched: the row is still theirs.
+    const [row] = await testDb.select().from(users).where(eq(users.id, world.student.id));
+    expect(row.erasedAt).toBeNull();
+    expect(row.email).toBe(world.student.email);
+  });
+});
+
+describe("erase: the scrub", () => {
+  let world: StudentWorld;
+  let before: typeof users.$inferSelect;
+
+  beforeAll(async () => {
+    world = await seedStudentWorld("ers");
+    [before] = await testDb.select().from(users).where(eq(users.id, world.student.id));
+    const res = await erase(world.student.id, world.student.email);
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ ok: true });
+  });
+
+  test("the users row SURVIVES, scrubbed field by field", async () => {
+    const rows = await testDb.select().from(users).where(eq(users.id, world.student.id));
+    expect(rows).toHaveLength(1);
+    const u = rows[0];
+    expect(u.name).toBe(ERASED_NAME);
+    expect(u.email).toBe(`erased+${world.student.id}@erased.invalid`);
+    expect(u.passwordHash).toBe("");
+    expect(u.role).toBe("user");
+    expect(u.isTeacher).toBe(false);
+    expect(u.emailConfirmedAt).toBeNull();
+    expect(u.active).toBe(false);
+    expect(u.erasedAt).not.toBeNull();
+    // The two columns the design keeps: consent and account age are the
+    // record of a decision, not a detail about the person.
+    expect(u.consentAt.getTime()).toBe(before.consentAt.getTime());
+    expect(u.createdAt.getTime()).toBe(before.createdAt.getTime());
+  });
+
+  test("delivery state is GONE: sessions, email tokens, notifications, prefs", async () => {
+    expect(
+      await testDb.select().from(sessions).where(eq(sessions.userId, world.student.id)),
+    ).toHaveLength(0);
+    expect(
+      await testDb.select().from(emailTokens).where(eq(emailTokens.userId, world.student.id)),
+    ).toHaveLength(0);
+    expect(
+      await testDb.select().from(notifications).where(eq(notifications.userId, world.student.id)),
+    ).toHaveLength(0);
+    expect(
+      await testDb
+        .select()
+        .from(notificationPrefs)
+        .where(eq(notificationPrefs.userId, world.student.id)),
+    ).toHaveLength(0);
+  });
+
+  test("the class RECORD is kept: memberships, submission, mark, events", async () => {
+    // D§5: the marking inbox and the gradebook build their rosters from
+    // membership — deleting these rows would make the surviving marks
+    // invisible, which is §11's promise broken at the view level.
+    expect(
+      await testDb.select().from(classMembers).where(eq(classMembers.userId, world.student.id)),
+    ).toHaveLength(1);
+    expect(
+      await testDb.select().from(groupMembers).where(eq(groupMembers.userId, world.student.id)),
+    ).toHaveLength(1);
+    const submissionRows = await testDb
+      .select()
+      .from(submissions)
+      .where(eq(submissions.id, world.submissionId));
+    expect(submissionRows).toHaveLength(1);
+    expect(submissionRows[0].submitterId).toBe(world.student.id);
+    const markRows = await testDb.select().from(marks).where(eq(marks.id, world.markId));
+    expect(markRows).toHaveLength(1);
+    expect(markRows[0].points).toBe(8);
+    // The append-only ledger is never touched: their own actions stay.
+    const theirEvents = await testDb.select().from(events).where(eq(events.actorId, world.student.id));
+    expect(theirEvents.length).toBeGreaterThan(0);
+  });
+
+  test("their own project is GONE with its versions; the GROUP's workspace survives", async () => {
+    const personal = await testDb
+      .select()
+      .from(projects)
+      .where(and(eq(projects.ownerId, world.student.id), eq(projects.id, world.personalProjectId)));
+    expect(personal).toHaveLength(0);
+    expect(
+      await testDb
+        .select()
+        .from(projectVersions)
+        .where(
+          and(
+            eq(projectVersions.ownerId, world.student.id),
+            eq(projectVersions.projectId, world.personalProjectId),
+          ),
+        ),
+    ).toHaveLength(0);
+    // The assignment_work row rode the project's composite cascade.
+    expect(
+      await testDb
+        .select()
+        .from(assignmentWork)
+        .where(eq(assignmentWork.projectId, world.personalProjectId)),
+    ).toHaveLength(0);
+
+    // D§5 fiat 7: erasing one member must not destroy the group's work.
+    const groupWork = await testDb
+      .select()
+      .from(projects)
+      .where(and(eq(projects.ownerId, world.student.id), eq(projects.id, world.groupProjectId)));
+    expect(groupWork).toHaveLength(1);
+    expect(
+      await testDb
+        .select()
+        .from(projectVersions)
+        .where(
+          and(
+            eq(projectVersions.ownerId, world.student.id),
+            eq(projectVersions.projectId, world.groupProjectId),
+          ),
+        ),
+    ).toHaveLength(1);
+    const groupRows = await testDb.select().from(groups).where(eq(groups.id, world.groupId));
+    expect(groupRows[0].projectId).toBe(world.groupProjectId);
+  });
+
+  test("shares: pending rows on both sides GO, the accepted row stays with an emptied manifest", async () => {
+    expect(
+      await testDb.select().from(shares).where(eq(shares.id, world.pendingOutShareId)),
+    ).toHaveLength(0);
+    expect(
+      await testDb.select().from(shares).where(eq(shares.id, world.pendingInShareId)),
+    ).toHaveLength(0);
+
+    const accepted = await testDb.select().from(shares).where(eq(shares.id, world.acceptedShareId));
+    expect(accepted).toHaveLength(1);
+    expect(accepted[0].status).toBe("accepted");
+    expect(accepted[0].frozenManifest).toEqual({});
+    // D§8's promise: the recipient's copy is their OWN project, untouched.
+    const copy = await testDb
+      .select()
+      .from(projects)
+      .where(and(eq(projects.ownerId, world.classmate.id), eq(projects.id, world.copyProjectId)));
+    expect(copy).toHaveLength(1);
+  });
+
+  test("one account.erased event, actored by the admin, naming only the subject", async () => {
+    const logged = await testDb.select().from(events).where(eq(events.type, "account.erased"));
+    const mine = logged.filter((e) => (e.payload as { subject?: string }).subject === world.student.id);
+    expect(mine).toHaveLength(1);
+    expect(mine[0].actorId).toBe(adminId);
+    expect(mine[0].payload).toEqual({ subject: world.student.id });
+  });
+
+  test("the picker drops them; the record-facing gradebook keeps them, marks intact", async () => {
+    // Person-facing: you cannot hand work to someone who is gone.
+    const roster = await app.inject({
+      method: "GET",
+      url: `/api/shares/roster/${world.classId}`,
+      cookies: { pide_session: world.classmate.cookie },
+    });
+    expect(roster.statusCode).toBe(200);
+    const members = roster.json().members as Array<{ userId: string }>;
+    expect(members.some((m) => m.userId === world.student.id)).toBe(false);
+    expect(members.some((m) => m.userId === world.teacher.id)).toBe(true);
+
+    // Record-facing: the same membership row still renders the row §11
+    // keeps — now under the scrubbed name, with the mark still on it.
+    const gradebook = await app.inject({
+      method: "GET",
+      url: `/api/classes/${world.classId}/gradebook`,
+      cookies: { pide_session: world.teacher.cookie },
+    });
+    expect(gradebook.statusCode).toBe(200);
+    const body = gradebook.json() as {
+      students: Array<{ id: string; name: string }>;
+      cells: Array<{ studentId: string; assignmentId: string; points: number | null; released: boolean }>;
+    };
+    const studentRow = body.students.find((s) => s.id === world.student.id);
+    expect(studentRow).toBeDefined();
+    expect(studentRow!.name).toBe(ERASED_NAME);
+    const cell = body.cells.find(
+      (c) => c.studentId === world.student.id && c.assignmentId === world.assignmentId,
+    );
+    expect(cell).toBeDefined();
+    expect(cell!.points).toBe(8);
+    expect(cell!.released).toBe(true);
+  });
+
+  test("the attribution resolves live through the scrubbed row: Removed student", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/shares/attributions",
+      cookies: { pide_session: world.classmate.cookie },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().attributions[world.copyProjectId]).toEqual({
+      sharerId: world.student.id,
+      shareId: world.acceptedShareId,
+      sharerName: ERASED_NAME,
+    });
+  });
+
+  test("GET /api/admin/users carries erased: true for them and false for everyone else", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/admin/users",
+      cookies: { pide_session: adminCookie },
+    });
+    expect(res.statusCode).toBe(200);
+    const rows = res.json().users as Array<{ id: string; name: string; erased: boolean }>;
+    const scrubbed = rows.find((r) => r.id === world.student.id);
+    expect(scrubbed).toBeDefined();
+    expect(scrubbed!.erased).toBe(true);
+    expect(scrubbed!.name).toBe(ERASED_NAME);
+    expect(rows.find((r) => r.id === world.classmate.id)!.erased).toBe(false);
+  });
+
+  test("erasing twice: the naive repeat is a mismatch, and naming the scrubbed email is 409", async () => {
+    // The guard order is 404 -> self -> confirm -> already (D§5): you can
+    // never act on an account without naming the email it carries NOW.
+    const repeat = await erase(world.student.id, world.student.email);
+    expect(repeat.statusCode).toBe(400);
+    expect(repeat.json().error).toBe(CONFIRM_MISMATCH);
+
+    const named = await erase(world.student.id, `erased+${world.student.id}@erased.invalid`);
+    expect(named.statusCode).toBe(409);
+    expect(named.json().error).toBe(ALREADY_ERASED);
+  });
+});
+
+describe("erase: a teacher takes the same path", () => {
+  let teacher: Seat;
+  let classId: string;
+  let assignmentId: string;
+  let guideId: string;
+  let inviteId: string;
+
+  beforeAll(async () => {
+    teacher = await makeSeat("ert-teach@example.com", { isTeacher: true });
+    const [cls] = await testDb
+      .insert(classes)
+      .values({ name: "Erased Teacher Class", joinCode: "ert-code", createdBy: teacher.id })
+      .returning();
+    classId = cls.id;
+    await testDb
+      .insert(classMembers)
+      .values({ classId, userId: teacher.id, role: "teacher", status: "active" });
+    const [a] = await testDb
+      .insert(assignments)
+      .values({
+        classId,
+        createdBy: teacher.id,
+        title: "Theirs",
+        instructions: { type: "doc", content: [] },
+        projectType: "physics",
+        rules: BUILT_IN_RULE_SETS.open_practice,
+      })
+      .returning();
+    assignmentId = a.id;
+    const [g] = await testDb
+      .insert(guides)
+      .values({ classId, createdBy: teacher.id, title: "A guide", body: { type: "doc", content: [] } })
+      .returning();
+    guideId = g.id;
+    const [inv] = await testDb
+      .insert(invites)
+      .values({
+        classId,
+        email: "someone@example.com",
+        role: "student",
+        tokenHash: "ert-invite-hash",
+        invitedBy: teacher.id,
+      })
+      .returning();
+    inviteId = inv.id;
+  });
+
+  test("the scrub succeeds where a hard delete would hit four bare FKs", async () => {
+    const res = await erase(teacher.id, teacher.email);
+    expect(res.statusCode).toBe(200);
+
+    // The four `no action` FKs a `DELETE FROM users` would fail on.
+    const classRows = await testDb.select().from(classes).where(eq(classes.id, classId));
+    expect(classRows).toHaveLength(1);
+    expect(classRows[0].createdBy).toBe(teacher.id);
+    expect(
+      await testDb.select().from(assignments).where(eq(assignments.id, assignmentId)),
+    ).toHaveLength(1);
+    expect(await testDb.select().from(guides).where(eq(guides.id, guideId))).toHaveLength(1);
+    expect(await testDb.select().from(invites).where(eq(invites.id, inviteId))).toHaveLength(1);
+
+    // The teacher hat comes off with everything else (D§5: one mechanism).
+    const [u] = await testDb.select().from(users).where(eq(users.id, teacher.id));
+    expect(u.isTeacher).toBe(false);
+    expect(u.name).toBe(ERASED_NAME);
+
+    // Their class still names them, through the surviving scrubbed row.
+    const adminClasses = await app.inject({
+      method: "GET",
+      url: "/api/admin/classes",
+      cookies: { pide_session: adminCookie },
+    });
+    const listed = (adminClasses.json().classes as Array<{ name: string; teachers: string[] }>).find(
+      (c) => c.name === "Erased Teacher Class",
+    );
+    expect(listed!.teachers).toEqual([ERASED_NAME]);
+  });
+
+  test("every door is shut behind them: the live session, the old email, the sentinel", async () => {
+    // 1. The session they were holding — destroyed inside the scrub, and
+    //    `active=false` would refuse it even if one survived.
+    const stale = await app.inject({
+      method: "GET",
+      url: "/api/auth/me",
+      cookies: { pide_session: teacher.cookie },
+    });
+    expect(stale.statusCode).toBe(401);
+    expect(stale.json().error).toBe("Not signed in.");
+
+    // 2. The credentials they used to have: the email they name no longer
+    //    belongs to any row, so the door is the ordinary wrong-credentials
+    //    one. (The brief anticipated the deactivated-door 403 here; the
+    //    scrub rewrites the email, so signin never finds the row to get
+    //    that far. Refused either way — asserted as it actually behaves.)
+    const oldEmail = await signinFrom("ert-teach@example.com");
+    expect(oldEmail.statusCode).toBe(401);
+    expect(oldEmail.json().error).toBe("Invalid email or password.");
+
+    // 3. The sentinel address is public arithmetic — any classmate holds
+    //    the id. An empty passwordHash must refuse, never throw a 500.
+    const sentinel = await signinFrom(`erased+${teacher.id}@erased.invalid`);
+    expect(sentinel.statusCode).toBe(401);
+    expect(sentinel.json().error).toBe("Invalid email or password.");
+
+    // 4. And the reset door stays shut: `forgot` only mints for an ACTIVE
+    //    account, so a scrubbed one can never be handed a new password.
+    const forgot = await app.inject({
+      method: "POST",
+      url: "/api/auth/forgot",
+      remoteAddress: "10.43.0.1",
+      payload: { email: `erased+${teacher.id}@erased.invalid` },
+    });
+    expect(forgot.statusCode).toBe(200);
+    expect(
+      await testDb.select().from(emailTokens).where(eq(emailTokens.userId, teacher.id)),
+    ).toHaveLength(0);
   });
 });

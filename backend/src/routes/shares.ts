@@ -23,7 +23,7 @@ import { logEvent } from "../db/events.js";
 import { notify } from "../notifications/notify.js";
 import type { Db } from "../db/types.js";
 import { isAtCap, ManifestSchema } from "./projects.js";
-import { pgErrorCode } from "../lib/util.js";
+import { ERASED_NAME, pgErrorCode } from "../lib/util.js";
 
 /* Every refusal is a named sentence, asserted verbatim by shares.test.ts
  * and the authority matrix — the assignments.ts idiom. */
@@ -54,8 +54,11 @@ const COPY_ID_TAKEN = "That project id is already in use — try again.";
  *  the recipient's fresh copy id substituted in — this is the branch that
  *  catches it if that substitution somehow produces something invalid. */
 const INVALID_MANIFEST = "That doesn't look like a valid project.";
-/** §11's own word for an erased person, everywhere a sharer's name resolves. */
-export const REMOVED_STUDENT = "Removed student";
+/** §11's own word for an erased person, everywhere a sharer's name
+ *  resolves. Plan 8 D§5 moved the literal to `lib/util.ts` so the erase
+ *  scrub can WRITE the very string these fallbacks resolve TO — one name
+ *  everywhere. This export stays for the Plan 7 call sites that name it. */
+export const REMOVED_STUDENT = ERASED_NAME;
 
 /** The D§5 gate — ONE function, one place, every refusal a named sentence,
  *  everything failing closed. Thrown as ClassAuthError so the routes keep
@@ -383,11 +386,21 @@ export function shareRoutes(app: FastifyInstance): void {
     // The picker obeys the same switch as the share itself — no roster
     // browsing through a feature the teacher has off (D§5 fails closed).
     if (!c.peerSharing) return reply.code(403).send({ error: SHARING_OFF });
+    // D§5: an erased person KEEPS their membership rows — the gradebook
+    // and the marking inbox build record-facing rosters from them and must
+    // still show the work. This roster is PERSON-facing, so it is the one
+    // place that filters: you cannot hand a project to someone who is gone.
     const rows = await app.db
       .select({ userId: classMembers.userId, name: users.name, role: classMembers.role })
       .from(classMembers)
       .innerJoin(users, eq(classMembers.userId, users.id))
-      .where(and(eq(classMembers.classId, classId), eq(classMembers.status, "active")))
+      .where(
+        and(
+          eq(classMembers.classId, classId),
+          eq(classMembers.status, "active"),
+          isNull(users.erasedAt),
+        ),
+      )
       .orderBy(users.name);
     return { members: rows.filter((r) => r.userId !== req.user!.id) };
   });

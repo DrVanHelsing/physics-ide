@@ -31,10 +31,10 @@ import { classMembers, invites, marks, projects, projectVersions, shares, users 
  * ── The enumeration (grep of app.post|put|patch|delete over
  *    backend/src/routes/*.ts, cross-checked at runtime by the coverage
  *    test at the bottom of this file, which walks fastify's own router):
- *    60 mutating routes = 51 rows + 9 named skips.
+ *    61 mutating routes = 52 rows + 9 named skips.
  *
- *      assignments.ts 17 · auth.ts 8 (all skipped) · classes.ts 5 ·
- *      admin.ts 5 · groups.ts 5 · guides.ts 4 · invites.ts 4 ·
+ *      assignments.ts 17 · auth.ts 8 (all skipped) · admin.ts 6 ·
+ *      classes.ts 5 · groups.ts 5 · guides.ts 4 · invites.ts 4 ·
  *      members.ts 4 · projects.ts 3 · shares.ts 3 · notifications.ts 1 ·
  *      tick.ts 1 (skipped)
  *
@@ -480,6 +480,17 @@ const MATRIX: Array<{ file: string; rows: Row[] }> = [
         name: "POST /api/admin/users/:id/send-reset",
         method: "POST",
         path: () => `/api/admin/users/${unconfirmedId}/send-reset`,
+        expect: ADMIN_ONLY_SEATS,
+      },
+      {
+        name: "POST /api/admin/users/:id/erase",
+        method: "POST",
+        path: () => `/api/admin/users/${unconfirmedId}/erase`,
+        // The confirmation is deliberately WRONG: every seat here is
+        // refused by requireAdmin before the body is ever read, and a
+        // matching one would scrub the fixture out from under the rows
+        // that follow if that guard ever regressed.
+        body: () => ({ confirm: "not-their-email@example.com" }),
         expect: ADMIN_ONLY_SEATS,
       },
       {
@@ -1088,11 +1099,11 @@ describe("the authority matrix — coverage", () => {
     }
   });
 
-  test("the enumeration adds up: 60 mutating routes = 51 rows + 9 skips", async () => {
+  test("the enumeration adds up: 61 mutating routes = 52 rows + 9 skips", async () => {
     await app.ready();
-    expect(MATRIX.flatMap((s) => s.rows)).toHaveLength(51);
+    expect(MATRIX.flatMap((s) => s.rows)).toHaveLength(52);
     expect(SKIPPED).toHaveLength(9);
-    expect(new Set(registeredMutating).size).toBe(60);
+    expect(new Set(registeredMutating).size).toBe(61);
   });
 });
 

@@ -839,6 +839,48 @@ describe("GET /api/shares/roster/:classId", () => {
       await setPeerSharing(true);
     }
   });
+
+  /* Plan 8 D§5: the ONE consequence of keeping an erased person's
+   * membership rows. Record-facing rosters (the gradebook, the marking
+   * inbox) deliberately still show them — this picker must not, because a
+   * person who is gone can never be handed anything. */
+  test("an erased member is not offered by the picker, though their membership row stays", async () => {
+    const ghost = await makeUser("shghost@example.com");
+    await testDb
+      .insert(classMembers)
+      .values({ classId, userId: ghost.id, role: "student", status: "active" });
+    try {
+      const before = await app.inject({
+        method: "GET",
+        url: `/api/shares/roster/${classId}`,
+        cookies: { pide_session: alpha.cookie },
+      });
+      expect((before.json().members as Array<{ userId: string }>).some((m) => m.userId === ghost.id)).toBe(
+        true,
+      );
+
+      await testDb.update(users).set({ erasedAt: new Date() }).where(eq(users.id, ghost.id));
+
+      const after = await app.inject({
+        method: "GET",
+        url: `/api/shares/roster/${classId}`,
+        cookies: { pide_session: alpha.cookie },
+      });
+      expect(after.statusCode).toBe(200);
+      const members = after.json().members as Array<{ userId: string }>;
+      expect(members.some((m) => m.userId === ghost.id)).toBe(false);
+      // The active membership row is untouched — only the picker filters.
+      const stillMember = await testDb
+        .select()
+        .from(classMembers)
+        .where(and(eq(classMembers.classId, classId), eq(classMembers.userId, ghost.id)));
+      expect(stillMember).toHaveLength(1);
+      expect(stillMember[0].status).toBe("active");
+    } finally {
+      await testDb.delete(classMembers).where(eq(classMembers.userId, ghost.id));
+      await testDb.delete(users).where(eq(users.id, ghost.id));
+    }
+  });
 });
 
 /* A2: a malformed :id/:classId can never exist — same posture as missing,
