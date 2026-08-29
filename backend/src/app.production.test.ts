@@ -79,6 +79,11 @@ describe("trustProxy reaches Fastify (DEPLOY.md box 2)", () => {
   });
 
   test("the TRUST_PROXY default (unset -> false) uses the raw socket address, not X-Forwarded-For", async () => {
+    // Hermetic against the ambient environment: backend/.env has no
+    // TRUST_PROXY today, but .env.example documents it, so a developer who
+    // sets it locally while working box 2 would otherwise turn this into a
+    // misleading red without this test explicitly pinning "false" itself.
+    stubAll({ TRUST_PROXY: "false" });
     const { buildApp } = await import("./app.js");
     const app = buildApp({ db: testDb });
     app.get("/__test-only/ip", async (req) => ({ ip: req.ip }));
@@ -128,11 +133,14 @@ describe("Secure session cookie (DEPLOY.md box 4)", () => {
   test("NODE_ENV=production sets Secure on the session cookie", async () => {
     stubAll(PRODUCTION_ENV);
     const setCookie = await signinSetCookieHeader();
-    expect(setCookie).toContain("Secure");
+    // Matched as a cookie attribute (preceded by "; "), not a bare substring
+    // — says what's meant, rather than relying on "Secure" being unlikely to
+    // appear elsewhere in the header.
+    expect(setCookie).toMatch(/;\s*Secure/i);
   });
 
   test("outside production (this suite's own NODE_ENV=test) the cookie carries no Secure", async () => {
     const setCookie = await signinSetCookieHeader();
-    expect(setCookie).not.toContain("Secure");
+    expect(setCookie).not.toMatch(/;\s*Secure/i);
   });
 });

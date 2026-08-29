@@ -80,6 +80,10 @@ describe("forgot / reset", () => {
     expect(res.statusCode).toBe(200);
 
     const [u] = await testDb.select().from(users).where(eq(users.email, "reset@example.com"));
+    // DEPLOY.md box 3: proves ARGON2_PARAMS reached the /api/auth/reset hash
+    // call specifically (a fixed-order literal would be wrong here — see
+    // argon2Params.test.ts's docblock; this binding encodes m,p,t not m,t,p).
+    expect(u.passwordHash.split("$")[3]?.split(",").sort()).toEqual(["m=19456", "p=1", "t=2"]);
     const liveSessions = await testDb.select().from(sessions).where(eq(sessions.userId, u.id));
     expect(liveSessions).toHaveLength(0);
 
@@ -647,6 +651,13 @@ describe("change password (signed in)", () => {
       payload: { currentPassword: "new-password-1", newPassword: "brand-new-pw-1" },
     });
     expect(good.statusCode).toBe(200);
+
+    // DEPLOY.md box 3: proves ARGON2_PARAMS reached the
+    // /api/auth/change-password hash call specifically (see
+    // argon2Params.test.ts for why this is a sorted-array comparison, not a
+    // fixed-order literal).
+    const [changed] = await testDb.select().from(users).where(eq(users.email, "reset@example.com"));
+    expect(changed.passwordHash.split("$")[3]?.split(",").sort()).toEqual(["m=19456", "p=1", "t=2"]);
 
     const me1 = await app.inject({
       method: "GET",
