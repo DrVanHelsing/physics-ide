@@ -39,10 +39,16 @@ async function signin(email: string): Promise<string> {
   return res.cookies.find((c) => c.name === "pide_session")!.value;
 }
 
-// The class-creation cap tests below each need a fully isolated per-account
-// hour count, so each gets its OWN app instance (the auth.password.test.ts /
-// auth.signup.test.ts idiom) rather than the shared `app` + `teacherCookie`
-// this file's other describes use.
+// The class-creation cap tests below each use their own FRESH ACCOUNT — the
+// cap is a DB query keyed on `createdBy`, so a fresh account (not a fresh
+// app instance) is what isolates one test's hour count from another's. The
+// app instances are load-bearing for a different reason: unlike
+// members.test.ts / invites.test.ts, THIS file's `signin` (above) does not
+// rotate `remoteAddress`, so piling more sign-ins onto the shared `app`
+// would push /api/auth/signin toward its own 10/min per-IP bucket — each
+// cap test below gets a fresh app (the auth.password.test.ts /
+// auth.signup.test.ts idiom) purely to keep its one signin call off that
+// shared budget, not for the class-creation cap's sake.
 async function signinTo(targetApp: ReturnType<typeof buildApp>, email: string): Promise<string> {
   const res = await targetApp.inject({
     method: "POST",

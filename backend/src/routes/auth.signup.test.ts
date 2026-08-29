@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeAll, afterAll } from "vitest";
 import { eq } from "drizzle-orm";
-import { buildApp } from "../app.js";
+import { buildApp, RATE_LIMIT_MESSAGE } from "../app.js";
 import { testDb, testPool, truncateAuthTables } from "../db/testClient.js";
 import { setSetting } from "../db/settings.js";
 import { users, emails, emailTokens, events } from "../db/schema.js";
@@ -129,6 +129,12 @@ describe("signup rate limit", () => {
       }
       const res11 = await rlApp.inject({ method: "POST", url: "/api/auth/signup", payload: {} });
       expect(res11.statusCode).toBe(429);
+      // DEPLOY.md box 8 — the plugin's own default body ({ error: "Too Many
+      // Requests", message: "Rate limit exceeded, retry in 1 minute" })
+      // never reaches a client: app.ts's shared errorResponseBuilder
+      // replaces it with this house sentence for every limiter registered
+      // under it, this inherited auth-route one included.
+      expect(res11.json().error).toBe(RATE_LIMIT_MESSAGE);
     } finally {
       await rlApp.close();
     }

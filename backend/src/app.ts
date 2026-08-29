@@ -25,6 +25,18 @@ export interface AppDeps {
   mailer?: Mailer;
 }
 
+/** DEPLOY.md box 8 — every 429 in this app, from any `config: { rateLimit
+ *  }` route registered below, gets this house sentence instead of
+ *  @fastify/rate-limit's own default body ({ error: "Too Many Requests",
+ *  message: `Rate limit exceeded, retry in ${after}` } — its own
+ *  `defaultErrorResponse`). That default reaches the client verbatim: the
+ *  frontend's api client surfaces `data.error` straight through, and this
+ *  project holds a high bar on product copy. One `errorResponseBuilder` on
+ *  the plugin registration below fixes every limiter that shares it — the
+ *  join-code throttle (members.ts) and the five inherited auth-route
+ *  limiters (auth.ts x4, mailEvents.ts x1) alike. */
+export const RATE_LIMIT_MESSAGE = "You're doing that too fast. Wait a moment and try again.";
+
 declare module "fastify" {
   interface FastifyInstance {
     db: Db;
@@ -49,7 +61,13 @@ export function buildApp(deps: AppDeps): FastifyInstance {
   );
 
   app.register(cookie);
-  app.register(rateLimit, { global: false });
+  app.register(rateLimit, {
+    global: false,
+    errorResponseBuilder: (_req, context) => ({
+      statusCode: context.statusCode,
+      error: RATE_LIMIT_MESSAGE,
+    }),
+  });
 
   // NOTE: routes added directly on this root instance register BEFORE the
   // rate-limit plugin boots, so `config.rateLimit` on them is silently

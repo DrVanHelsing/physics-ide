@@ -15,9 +15,21 @@ export function memberRoutes(app: FastifyInstance): void {
     "/api/classes/join",
     // DEPLOY.md box 8 — join-code guessing. Plain per-IP throttle: a code
     // is not an account secret to enumerate against, just a 6-character
-    // string over a 32-symbol alphabet, so no DB counting or lock is
-    // needed here, unlike the class-creation and invite-pacing caps below.
-    { config: { rateLimit: { max: 10, timeWindow: "1 minute" } } },
+    // string over a 32-symbol alphabet (classes/codes.ts) — 32^6 ≈ 1.07
+    // billion codes — and the route is authenticated (req.user!.id at the
+    // membership check below), so a guesser needs an account on a platform
+    // with a hard 200-user cap. Even at 60/min that's ~86,400 guesses/day,
+    // ~34 years to exhaust the space: the attacker was never the binding
+    // constraint. `max` is sized instead for the product's primary use
+    // case — a teacher projects a join code to a class sitting behind one
+    // NAT'd IP (config.ts's trustProxy makes req.ip the real client
+    // address). 10/min would 429 two thirds of a 30-student class in the
+    // first minute of term; 60/min clears a class that size with room to
+    // spare while still throttling unauthenticated probing (the limiter
+    // counts every hit, 401s included — see members.test.ts's rate-limit
+    // test). No DB counting or lock needed here, unlike the class-creation
+    // and invite-pacing caps below.
+    { config: { rateLimit: { max: 60, timeWindow: "1 minute" } } },
     async (req, reply) => {
       const parsed = JoinByCodeInputSchema.safeParse(req.body);
       if (!parsed.success) {

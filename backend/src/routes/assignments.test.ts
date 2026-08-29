@@ -70,6 +70,38 @@ async function notificationsFor(userId: string) {
   return testDb.select().from(notifications).where(eq(notifications.userId, userId));
 }
 
+let ateachId: string;
+
+// Class-creation cap isolation (DEPLOY.md box 8, Task 7: 10/hour per CREATOR
+// account). This file mints 8 fixture classes across its many describes,
+// all originally attributed to the one shared `ateach@example.com` account
+// — 8/10 against that cap, two slots of headroom from an opaque 429 one
+// fixture away. Each fixture class here is instead created by its own
+// throwaway, single-use teacher account (never referenced again), then
+// `ateach` is seeded straight into `classMembers` as an active co-teacher —
+// every OTHER call site in this file that acts as `teacherCookie` keeps
+// working exactly as before; only the creation ATTRIBUTION moves off the
+// shared account, so this file's fixture count can grow without ever
+// touching that cap.
+let capTeacherCounter = 0;
+async function createClassFor(name: string): Promise<{ id: string; joinCode: string }> {
+  capTeacherCounter += 1;
+  const email = `acap${capTeacherCounter}@example.com`;
+  await makeUser(email, { isTeacher: true });
+  const cookie = await signin(email);
+  const res = await app.inject({
+    method: "POST",
+    url: "/api/classes",
+    cookies: { pide_session: cookie },
+    payload: { name },
+  });
+  const cls = res.json().class as { id: string; joinCode: string };
+  await testDb
+    .insert(classMembers)
+    .values({ classId: cls.id, userId: ateachId, role: "teacher", status: "active" });
+  return cls;
+}
+
 beforeAll(async () => {
   await truncateAuthTables();
   await setSetting(testDb, "account_cap", 200);
@@ -79,18 +111,13 @@ beforeAll(async () => {
   teacherCookie = await signin("ateach@example.com");
   studentCookie = await signin("akid@example.com");
   strangerCookie = await signin("stranger@example.com");
+  ateachId = teacher.id;
 
-  const classRes = await app.inject({
-    method: "POST",
-    url: "/api/classes",
-    cookies: { pide_session: teacherCookie },
-    payload: { name: "Assignments Test Class" },
-  });
-  classId = classRes.json().class.id;
+  const cls = await createClassFor("Assignments Test Class");
+  classId = cls.id;
   await testDb
     .insert(classMembers)
     .values({ classId, userId: student.id, role: "student", status: "active" });
-  void teacher;
 });
 
 afterAll(async () => {
@@ -1075,13 +1102,8 @@ describe("POST /api/assignments/:id/submit", () => {
     studentId = student.id;
     studentCookie = await signin("submitkid@example.com");
 
-    const classRes = await app.inject({
-      method: "POST",
-      url: "/api/classes",
-      cookies: { pide_session: teacherCookie },
-      payload: { name: "Submit Test Class" },
-    });
-    submitClassId = classRes.json().class.id;
+    const cls = await createClassFor("Submit Test Class");
+    submitClassId = cls.id;
     await testDb
       .insert(classMembers)
       .values({ classId: submitClassId, userId: studentId, role: "student", status: "active" });
@@ -1518,13 +1540,8 @@ describe("GET /api/assignments/upcoming", () => {
     const [teacherRow] = await testDb.select().from(users).where(eq(users.email, "ateach@example.com"));
     teacherId = teacherRow.id;
 
-    const classRes = await app.inject({
-      method: "POST",
-      url: "/api/classes",
-      cookies: { pide_session: teacherCookie },
-      payload: { name: "Upcoming Strip Test Class" },
-    });
-    upcomingClassId = classRes.json().class.id;
+    const cls = await createClassFor("Upcoming Strip Test Class");
+    upcomingClassId = cls.id;
     await testDb
       .insert(classMembers)
       .values({ classId: upcomingClassId, userId: studentId, role: "student", status: "active" });
@@ -1689,13 +1706,8 @@ describe("GET /api/assignments/upcoming", () => {
     let staleReleaseAssignmentId: string;
 
     beforeAll(async () => {
-      const classRes = await app.inject({
-        method: "POST",
-        url: "/api/classes",
-        cookies: { pide_session: teacherCookie },
-        payload: { name: "Feedback Strip Test Class" },
-      });
-      feedbackClassId = classRes.json().class.id;
+      const cls = await createClassFor("Feedback Strip Test Class");
+      feedbackClassId = cls.id;
       await testDb
         .insert(classMembers)
         .values({ classId: feedbackClassId, userId: studentId, role: "student", status: "active" });
@@ -1816,13 +1828,8 @@ describe("GET /api/assignments/:id/inbox / POST /api/assignments/:id/remind", ()
   }
 
   beforeAll(async () => {
-    const classRes = await app.inject({
-      method: "POST",
-      url: "/api/classes",
-      cookies: { pide_session: teacherCookie },
-      payload: { name: "Inbox Test Class" },
-    });
-    inboxClassId = classRes.json().class.id;
+    const cls = await createClassFor("Inbox Test Class");
+    inboxClassId = cls.id;
 
     const ta = await makeUser("inboxta@example.com");
     taCookie = await signin("inboxta@example.com");
@@ -2089,13 +2096,8 @@ describe("GET /api/classes/:id/gradebook", () => {
     const [teacherRow] = await testDb.select().from(users).where(eq(users.email, "ateach@example.com"));
     teacherIdForGradebook = teacherRow.id;
 
-    const classRes = await app.inject({
-      method: "POST",
-      url: "/api/classes",
-      cookies: { pide_session: teacherCookie },
-      payload: { name: "Gradebook Test Class" },
-    });
-    gradebookClassId = classRes.json().class.id;
+    const cls = await createClassFor("Gradebook Test Class");
+    gradebookClassId = cls.id;
 
     const zach = await makeUser("gb-zach@example.com", { name: "Zach Wolfe" });
     zachId = zach.id;
@@ -2296,13 +2298,8 @@ describe("GET /api/assignments/:id/timeline/:studentId", () => {
     const ta = await makeUser("timelineta@example.com");
     taCookie = await signin("timelineta@example.com");
 
-    const classRes = await app.inject({
-      method: "POST",
-      url: "/api/classes",
-      cookies: { pide_session: teacherCookie },
-      payload: { name: "Timeline Test Class" },
-    });
-    timelineClassId = classRes.json().class.id;
+    const cls = await createClassFor("Timeline Test Class");
+    timelineClassId = cls.id;
     await testDb.insert(classMembers).values([
       { classId: timelineClassId, userId: timelineStudentId, role: "student", status: "active" },
       { classId: timelineClassId, userId: other.id, role: "student", status: "active" },
@@ -2729,13 +2726,8 @@ describe("Task 18: marks — PUT / release / return", () => {
     const [strangerRow] = await testDb.select().from(users).where(eq(users.email, "stranger@example.com"));
     strangerId = strangerRow.id;
 
-    const classRes = await app.inject({
-      method: "POST",
-      url: "/api/classes",
-      cookies: { pide_session: teacherCookie },
-      payload: { name: "Marking Test Class" },
-    });
-    markingClassId = classRes.json().class.id;
+    const cls = await createClassFor("Marking Test Class");
+    markingClassId = cls.id;
     await testDb.insert(classMembers).values({ classId: markingClassId, userId: studentId, role: "student", status: "active" });
 
     const ta = await makeUser("marks-ta@example.com");

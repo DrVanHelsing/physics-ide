@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeAll, afterAll, afterEach } from "vitest";
 import { eq } from "drizzle-orm";
-import { buildApp } from "../app.js";
+import { buildApp, RATE_LIMIT_MESSAGE } from "../app.js";
 import { config } from "../config.js";
 import { testDb, testPool, truncateAuthTables } from "../db/testClient.js";
 import { emails } from "../db/schema.js";
@@ -215,7 +215,7 @@ describe("POST /api/mail/events — unknown message-id", () => {
   });
 });
 
-/* app.ts:41-44's own note: a route registered directly on the root instance
+/* app.ts:54-57's own note: a route registered directly on the root instance
  * has a SILENTLY INERT `config.rateLimit` — the rate-limit plugin hasn't
  * booted yet when that route registers. Proving the 429 actually fires is
  * the only way to know mailEventsRoutes was registered as a plugin scope,
@@ -236,6 +236,10 @@ describe("POST /api/mail/events — rate limit (its own gate; Task 7 throttles e
       }
       const res121 = await rlApp.inject({ method: "POST", url: "/api/mail/events", payload: {} });
       expect(res121.statusCode).toBe(429);
+      // DEPLOY.md box 8 — same shared errorResponseBuilder as every other
+      // limiter in the app (app.ts); this route's default body would
+      // otherwise be the untouched library message.
+      expect(res121.json().error).toBe(RATE_LIMIT_MESSAGE);
     } finally {
       await rlApp.close();
     }
