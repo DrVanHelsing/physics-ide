@@ -1080,9 +1080,18 @@ type ExportBody = {
   classMemberships: Array<{ userId: string }>;
   projects: Array<{ id: string; manifest: unknown }>;
   projectVersions: Array<Record<string, unknown>>;
-  assignmentWork: Array<{ userId: string | null }>;
-  submissions: Array<{ submitterId: string | null }>;
-  marksReceived: Array<{ studentId: string }>;
+  assignmentWork: Array<{ userId: string | null; groupId: string | null }>;
+  submissions: Array<{ id: string; submitterId: string | null; groupId: string | null }>;
+  marksReceived: Array<{
+    id: string;
+    assignmentId: string;
+    points: number | null;
+    comment: string;
+    released: boolean;
+    returned: boolean;
+    privateNote?: string;
+    studentId?: string;
+  }>;
   groups: Array<{ id: string; ownerId: string | null }>;
   groupMemberships: Array<{ userId: string }>;
   ruleSets: Array<{ id: string; ownerId: string }>;
@@ -1128,6 +1137,10 @@ async function exportOf(userId: string) {
 
 describe("export", () => {
   let world: StudentWorld;
+  let draftAssignmentId: string;
+  let group2Id: string;
+  let groupSubmissionId: string;
+  let lateJoiner: Seat;
 
   beforeAll(async () => {
     world = await seedStudentWorld("exp");
@@ -1185,6 +1198,99 @@ describe("export", () => {
       cookies: { pide_session: world.teacher.cookie },
     });
     expect(timelineRes.statusCode).toBe(200);
+
+    // Review finding 1's fixtures: the world's released mark carries a
+    // teacher privateNote (never seeded by seedStudentWorld itself) that
+    // must never leave the server, PLUS a second, DRAFT (unreleased,
+    // unreturned) mark that must not appear in the export AT ALL.
+    await testDb
+      .update(marks)
+      .set({ privateNote: "SECRET-MARKER-RELEASED" })
+      .where(eq(marks.id, world.markId));
+
+    const [draftAssignment] = await testDb
+      .insert(assignments)
+      .values({
+        classId: world.classId,
+        createdBy: world.teacher.id,
+        title: "exp Draft-Only Assignment",
+        instructions: { type: "doc", content: [] },
+        projectType: "physics",
+        rules: BUILT_IN_RULE_SETS.open_practice,
+        status: "published",
+        publishedAt: new Date(),
+      })
+      .returning();
+    draftAssignmentId = draftAssignment.id;
+    await testDb.insert(marks).values({
+      assignmentId: draftAssignmentId,
+      studentId: world.student.id,
+      points: 3,
+      comment: "not yet seen",
+      privateNote: "SECRET-MARKER-DRAFT",
+      markedBy: world.teacher.id,
+      status: "draft",
+      returned: false,
+    });
+
+    // Review finding 2's fixture: a GROUP-mode assignment with the student
+    // + a credited groupmate as submitter, plus a THIRD member who joined
+    // the group but was never credited on the submission — the credit
+    // list, not group membership, is what makes a submission theirs.
+    const [groupAssignment] = await testDb
+      .insert(assignments)
+      .values({
+        classId: world.classId,
+        createdBy: world.teacher.id,
+        title: "exp Group Assignment",
+        instructions: { type: "doc", content: [] },
+        projectType: "physics",
+        submissionMode: "group",
+        rules: BUILT_IN_RULE_SETS.open_practice,
+        status: "published",
+        publishedAt: new Date(),
+      })
+      .returning();
+    const groupProjectId2 = `p-exp-group2`;
+    await pushProject(world.student.id, groupProjectId2, "Group submission workspace");
+    const [group2] = await testDb
+      .insert(groups)
+      .values({
+        assignmentId: groupAssignment.id,
+        name: "exp Group 2",
+        ownerId: world.student.id,
+        projectId: groupProjectId2,
+      })
+      .returning();
+    group2Id = group2.id;
+    lateJoiner = await makeSeat("exp-late-joiner@example.com");
+    await testDb.insert(groupMembers).values([
+      { groupId: group2.id, userId: world.student.id },
+      { groupId: group2.id, userId: world.classmate.id },
+      // Joined the group; never credited on the submission below.
+      { groupId: group2.id, userId: lateJoiner.id },
+    ]);
+    await testDb.insert(assignmentWork).values({
+      assignmentId: groupAssignment.id,
+      userId: null,
+      groupId: group2.id,
+      ownerId: world.student.id,
+      projectId: groupProjectId2,
+    });
+    const [groupSubmission] = await testDb
+      .insert(submissions)
+      .values({
+        assignmentId: groupAssignment.id,
+        submitterId: null,
+        groupId: group2.id,
+        submittedBy: world.student.id,
+        creditedIds: [world.student.id, world.classmate.id],
+        manifest: manifestFor(groupProjectId2, "Group submission workspace"),
+        fingerprint: "exp-group-fingerprint",
+        isCurrent: true,
+      })
+      .returning();
+    groupSubmissionId = groupSubmission.id;
   });
 
   test("every key is present, the note is verbatim, and the user row carries no secret", async () => {
@@ -1207,7 +1313,7 @@ describe("export", () => {
     expect(body.projectVersions.length).toBeGreaterThanOrEqual(2);
     expect(body.assignmentWork.length).toBeGreaterThanOrEqual(1);
     expect(body.submissions.some((s) => s.submitterId === world.student.id)).toBe(true);
-    expect(body.marksReceived.some((m) => m.studentId === world.student.id)).toBe(true);
+    expect(body.marksReceived.some((m) => m.assignmentId === world.assignmentId)).toBe(true);
     expect(body.groups.some((g) => g.id === world.groupId)).toBe(true);
     expect(body.groupMemberships.some((m) => m.userId === world.student.id)).toBe(true);
     expect(body.ruleSets.some((r) => r.ownerId === world.student.id)).toBe(true);
@@ -1269,5 +1375,50 @@ describe("export", () => {
       cookies: { pide_session: world.student.cookie },
     });
     expect(res.statusCode).toBe(403);
+  });
+
+  // Plan 8 Task 10 review, finding 1 (critical): a raw select on `marks`
+  // read `privateNote` — staff-only everywhere else in the product — and
+  // every draft mark straight into the export. Fixed by reusing
+  // `toMyMark`, the exact function assignments.ts already uses to draw
+  // that boundary for the student's own in-app read.
+  test("marksReceived: privateNote never leaks, and a draft/unreleased mark is absent entirely", async () => {
+    const res = await exportOf(world.student.id);
+    const body = res.json() as ExportBody;
+    const raw = JSON.stringify(body);
+    expect(raw).not.toContain("SECRET-MARKER-RELEASED");
+    expect(raw).not.toContain("SECRET-MARKER-DRAFT");
+    expect(raw).not.toContain("privateNote");
+
+    // The draft row is absent entirely, not merely stripped of its note.
+    expect(body.marksReceived.some((m) => m.assignmentId === draftAssignmentId)).toBe(false);
+
+    // The released mark IS present, shaped to the student-facing boundary.
+    const released = body.marksReceived.find((m) => m.assignmentId === world.assignmentId);
+    expect(released).toBeDefined();
+    expect(released).toMatchObject({ points: 8, comment: "Good work", released: true, returned: false });
+    expect(released).not.toHaveProperty("privateNote");
+    expect(released).not.toHaveProperty("studentId");
+  });
+
+  // Plan 8 Task 10 review, finding 2 (important): assignmentWork/submissions
+  // were filtered on userId/submitterId ONLY, both null for group-mode
+  // rows, so a group member's own graded work was invisible in their own
+  // export. Fixed: submissions join by creditedIds membership (the credit
+  // authority), assignmentWork by the student's current group memberships.
+  test("group-mode: assignmentWork follows group membership; submissions follow the credited list, not mere membership", async () => {
+    const res = await exportOf(world.student.id);
+    const body = res.json() as ExportBody;
+    expect(body.assignmentWork.some((w) => w.groupId === group2Id)).toBe(true);
+    expect(body.submissions.some((s) => s.id === groupSubmissionId)).toBe(true);
+
+    const lateRes = await exportOf(lateJoiner.id);
+    const lateBody = lateRes.json() as ExportBody;
+    // The late joiner IS a current member of the group, so the group's
+    // ongoing assignment_work row is theirs too.
+    expect(lateBody.assignmentWork.some((w) => w.groupId === group2Id)).toBe(true);
+    // But they were never credited on THIS submission — group membership
+    // alone does not retroactively grant them someone else's graded work.
+    expect(lateBody.submissions.some((s) => s.id === groupSubmissionId)).toBe(false);
   });
 });

@@ -537,8 +537,11 @@ function toGroupMarkShape(
 
 /** The student's own read — released or returned rows only (drafts are
  *  staff-only business), and privateNote is never even read into the
- *  shape returned here (by construction, not by omission after the fact). */
-function toMyMark(row: (typeof marks.$inferSelect) | undefined) {
+ *  shape returned here (by construction, not by omission after the fact).
+ *  Exported: this is also the export route's (admin.ts, D§6) student-facing
+ *  boundary for `marksReceived` — reused rather than re-derived, so the two
+ *  never drift apart on what a student is allowed to see of their own mark. */
+export function toMyMark(row: (typeof marks.$inferSelect) | undefined) {
   if (!row) return null;
   if (row.status !== "released" && !row.returned) return null;
   return {
