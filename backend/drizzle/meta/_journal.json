@@ -57,6 +57,13 @@
       "when": 1787953251839,
       "tag": "0007_flat_silvermane",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1787992288730,
+      "tag": "0008_material_magus",
+      "breakpoints": true
     }
   ]
 }

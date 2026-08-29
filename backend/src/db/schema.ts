@@ -27,6 +27,11 @@ export const users = pgTable("users", {
   emailConfirmedAt: timestamp("email_confirmed_at", { withTimezone: true }),
   active: boolean("active").notNull().default(true),
   consentAt: timestamp("consent_at", { withTimezone: true }).notNull(),
+  /** Plan 8 (spec §11, design D§5): set by the admin erase route's in-place
+   *  scrub — the ONLY way to tell an erased row from a deactivated one.
+   *  Erasure never deletes this row: hard delete would cascade away the
+   *  submissions and marks §11 keeps, and bare-FK-fail on any teacher. */
+  erasedAt: timestamp("erased_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -417,4 +422,53 @@ export const shares = pgTable(
       .on(t.sourceOwnerId, t.sourceProjectId, t.recipientId)
       .where(sql`"status" = 'pending'`),
   ],
+);
+
+/** Plan 8 (spec §9, design D§2): DELIVERY for the in-app bell — one row per
+ *  recipient, fanned out AT WRITE TIME in the same transaction as the event,
+ *  because the events ledger records who ACTED and never who should be told
+ *  (three bell-relevant event types store no recoverable audience at all).
+ *  THE LEDGER IS NOT THIS TABLE: `events` stays append-only, unindexed and
+ *  audience-free — the bell reads here, never there. user_id cascades on a
+ *  real user delete; under the D§5 erasure scrub the rows are deleted
+ *  explicitly (delivery state, not history). */
+export const notifications = pgTable(
+  "notifications",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    eventId: bigint("event_id", { mode: "number" })
+      .notNull()
+      .references(() => events.id),
+    /** Denormalised so the bell renders without joining events. */
+    type: text("type").notNull(),
+    payload: jsonb("payload").notNull().default({}),
+    readAt: timestamp("read_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("notifications_user_idx").on(t.userId, t.id.desc()),
+    index("notifications_user_unread_idx")
+      .on(t.userId, t.id.desc())
+      .where(sql`"read_at" IS NULL`),
+  ],
+);
+
+/** Plan 8 (spec §9, design D§4): the five email switches. Keys are the email
+ *  TEMPLATE strings verbatim (submission-receipt, marks-released,
+ *  work-returned, due-tomorrow, due-reminder) — an absent row means the
+ *  default, ON, so adding a key never needs a backfill. These gate EMAIL
+ *  only; the bell is never preference-gated (D§4). */
+export const notificationPrefs = pgTable(
+  "notification_prefs",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    key: text("key").notNull(),
+    enabled: boolean("enabled").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.key] })],
 );
