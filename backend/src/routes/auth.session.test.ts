@@ -124,6 +124,31 @@ describe("signin / me / signout", () => {
   });
 });
 
+describe("argon2 parameter migration (DEPLOY.md box 3)", () => {
+  test("a user hashed under the library's un-pinned defaults still signs in after ARGON2_PARAMS pins explicit costs", async () => {
+    // argon2.verify() takes no memoryCost/timeCost/parallelism — VerifyOptions
+    // is just `{ secret }` — because argon2 digests are self-describing: the
+    // parameters that produced a hash travel inside the stored string. This
+    // pins that regression directly: a hash minted with the library's bare
+    // defaults (no ARGON2_PARAMS, the shape every hash predating this task
+    // has) must keep verifying after the hash sites start passing explicit
+    // memoryCost/timeCost/parallelism.
+    await testDb.insert(users).values({
+      name: "Old Hash Person",
+      email: "oldhash@example.com",
+      passwordHash: await argon2.hash("old-defaults-pw-1", { type: argon2.argon2id }),
+      emailConfirmedAt: new Date(),
+      consentAt: new Date(),
+    });
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/auth/signin",
+      payload: { email: "oldhash@example.com", password: "old-defaults-pw-1" },
+    });
+    expect(res.statusCode).toBe(200);
+  });
+});
+
 describe("session rejection", () => {
   test("expired session → 401", async () => {
     const [user] = await testDb.select().from(users).where(eq(users.email, "sess@example.com"));

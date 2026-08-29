@@ -24,6 +24,7 @@ import {
   SESSION_TTL_MS,
 } from "../auth/session.js";
 import { requireUser } from "../auth/guards.js";
+import { ARGON2_PARAMS } from "../auth/argon2Params.js";
 import { confirmEmail, teacherSignupAlert, resetEmail } from "../email/templates.js";
 import { config } from "../config.js";
 import { pgErrorCode } from "../lib/util.js";
@@ -88,7 +89,7 @@ export function authRoutes(app: FastifyInstance): void {
         return reply.code(400).send({ error: parsed.error.issues[0]?.message ?? "Invalid input." });
       }
       const input = parsed.data;
-      const passwordHash = await argon2.hash(input.password, { type: argon2.argon2id });
+      const passwordHash = await argon2.hash(input.password, ARGON2_PARAMS);
       const confirm = newToken();
 
       let userId: string;
@@ -363,7 +364,7 @@ export function authRoutes(app: FastifyInstance): void {
         return reply.code(400).send({ error: "That link is invalid or has expired." });
       }
       const tokenHash = hashToken(parsed.data.token);
-      const passwordHash = await argon2.hash(parsed.data.password, { type: argon2.argon2id });
+      const passwordHash = await argon2.hash(parsed.data.password, ARGON2_PARAMS);
       const now = new Date();
       const done = await app.db.transaction(async (tx) => {
         const claimed = await tx
@@ -413,7 +414,7 @@ export function authRoutes(app: FastifyInstance): void {
       if (!ok) {
         return reply.code(400).send({ error: "Your current password is incorrect." });
       }
-      const passwordHash = await argon2.hash(parsed.data.newPassword, { type: argon2.argon2id });
+      const passwordHash = await argon2.hash(parsed.data.newPassword, ARGON2_PARAMS);
       const currentTokenHash = hashToken(req.cookies[SESSION_COOKIE]!);
       const now = new Date();
       await app.db.transaction(async (tx) => {
