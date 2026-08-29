@@ -40,6 +40,13 @@ describe("POST /api/auth/signup", () => {
     expect(u).toBeDefined();
     expect(u.role).toBe("user");
     expect(u.passwordHash).toMatch(/^\$argon2id\$/);
+    // DEPLOY.md box 3: proves ARGON2_PARAMS reached THIS hash call, not just
+    // that the const has the right value or that verify() still works
+    // (self-describing — it would pass even against `ARGON2_PARAMS = {}`).
+    // Compared as a sorted array, not a fixed-order literal: this argon2
+    // binding encodes the cost segment as `m=...,p=...,t=...`, a library
+    // detail not worth pinning the order of.
+    expect(u.passwordHash.split("$")[3]?.split(",").sort()).toEqual(["m=19456", "p=1", "t=2"]);
     expect(u.emailConfirmedAt).toBeNull();
 
     const toks = await testDb.select().from(emailTokens).where(eq(emailTokens.userId, u.id));

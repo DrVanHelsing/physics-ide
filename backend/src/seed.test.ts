@@ -4,7 +4,7 @@ import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { eq } from "drizzle-orm";
-import { testDb, testPool } from "./db/testClient.js";
+import { testDb, testPool, TEST_URL } from "./db/testClient.js";
 import { users } from "./db/schema.js";
 
 /**
@@ -42,7 +42,7 @@ const PRODUCTION_ENV_BASE = {
   MAIL_FROM: "no-reply@example.com",
   BREVO_API_KEY: "a-real-brevo-key",
   MAIL_WEBHOOK_SECRET: "a-real-webhook-secret",
-  DATABASE_URL: "postgres://postgres:physics@localhost:5433/physics_ide_test",
+  DATABASE_URL: TEST_URL,
 };
 
 function runSeed(overrides: Record<string, string | undefined>) {
@@ -67,11 +67,21 @@ describe("seed — production admin password is mandatory (DEPLOY.md box 5)", ()
     const email = `seed-abort-missing-${Date.now()}@example.com`;
     const result = runSeed({ ADMIN_PASSWORD: undefined, ADMIN_EMAIL: email });
 
-    expect(result.status).not.toBe(0);
+    // process.exit(1) specifically — not just "non-zero": a signal-killed
+    // child also has status !== 0 (status === null in that case), which a
+    // bare `.not.toBe(0)` would have let slide.
+    expect(result.status).toBe(1);
     expect(result.stderr).toContain(PRODUCTION_ADMIN_PASSWORD_REQUIRED);
 
-    // "before any DB work": no admin row exists for this run's unique email —
-    // the account_cap read and the admin insert both never ran.
+    // No admin row for this run's unique email, and the account_cap read/
+    // write (the first console output on the success path, "Seeded
+    // account_cap = 200" or "account_cap already set to ... ") never
+    // printed either — both signals a partial/misplaced abort could still
+    // pass on their own. Placement itself (top-of-module vs. inside the
+    // "admin already exists" branch, Ruling 11) is pinned separately below
+    // by the pre-existing-admin case, which the row-absence check here
+    // cannot distinguish.
+    expect(result.stdout).not.toContain("account_cap");
     const rows = await testDb.select().from(users).where(eq(users.email, email));
     expect(rows).toHaveLength(0);
   });
@@ -80,11 +90,39 @@ describe("seed — production admin password is mandatory (DEPLOY.md box 5)", ()
     const email = `seed-abort-devdefault-${Date.now()}@example.com`;
     const result = runSeed({ ADMIN_PASSWORD: DEV_DEFAULT_ADMIN_PASSWORD, ADMIN_EMAIL: email });
 
-    expect(result.status).not.toBe(0);
+    expect(result.status).toBe(1);
     expect(result.stderr).toContain(PRODUCTION_ADMIN_PASSWORD_REQUIRED);
+    expect(result.stdout).not.toContain("account_cap");
 
     const rows = await testDb.select().from(users).where(eq(users.email, email));
     expect(rows).toHaveLength(0);
+  });
+
+  test("NODE_ENV=production with ADMIN_PASSWORD unset ALSO aborts when the admin row already exists (Ruling 11's exact scenario)", async () => {
+    // The two cases above both use a timestamp-unique ADMIN_EMAIL, so
+    // `found.length === 0` is true in the child regardless of WHERE the
+    // abort sits — including if a future edit moved it inside the "admin
+    // already exists" branch, exactly the mistake Ruling 11 forbids (that
+    // placement is modelled three lines away by the existing dev-only
+    // warning). Pre-inserting a row at this run's ADMIN_EMAIL — bypassing
+    // the script entirely — makes `found.length === 0` FALSE in the child,
+    // so this test can only pass if the abort fires unconditionally, before
+    // that branch is even reached.
+    const email = `seed-abort-existing-${Date.now()}@example.com`;
+    await testDb.insert(users).values({
+      name: "Pre-existing Admin",
+      email,
+      passwordHash: "x",
+      role: "admin",
+      emailConfirmedAt: new Date(),
+      consentAt: new Date(),
+    });
+
+    const result = runSeed({ ADMIN_PASSWORD: undefined, ADMIN_EMAIL: email });
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(PRODUCTION_ADMIN_PASSWORD_REQUIRED);
+    expect(result.stdout).not.toContain("account_cap");
   });
 
   test("NODE_ENV=production with a real ADMIN_PASSWORD set seeds the admin normally, no abort", async () => {
@@ -100,6 +138,18 @@ describe("seed — production admin password is mandatory (DEPLOY.md box 5)", ()
     const rows = await testDb.select().from(users).where(eq(users.email, email));
     expect(rows).toHaveLength(1);
     expect(rows[0].role).toBe("admin");
+    // Proves ARGON2_PARAMS actually reached THIS hash call, not just that
+    // the const has the right value (argon2Params.test.ts) or that verify()
+    // still works (self-describing, so it would pass even against
+    // `ARGON2_PARAMS = {}`). The encoded digest's cost segment — the
+    // `$`-delimited field right after `$argon2id$v=19$` — carries the real
+    // parameters; a partial revert of this hash site changes it. Compared
+    // as a sorted array, not a fixed-order literal: this argon2 binding
+    // encodes it as `m=...,p=...,t=...`, not the `m,t,p` order some argon2
+    // references use, and that order is a library encoding detail, not a
+    // property worth pinning here.
+    const costSegment = rows[0].passwordHash.split("$")[3];
+    expect(costSegment?.split(",").sort()).toEqual(["m=19456", "p=1", "t=2"]);
   });
 
   test("outside production, an unset ADMIN_PASSWORD still only warns (unchanged dev path)", async () => {
