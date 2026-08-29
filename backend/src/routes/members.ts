@@ -5,6 +5,7 @@ import { classes, classMembers, invites, users } from "../db/schema.js";
 import { requireConfirmed } from "../auth/guards.js";
 import { getMembership, isStaffRole, requireClassTeacher, sendClassAuthError } from "../classes/guards.js";
 import { logEvent } from "../db/events.js";
+import { notify } from "../notifications/notify.js";
 import { pgErrorCode } from "../lib/util.js";
 
 export function memberRoutes(app: FastifyInstance): void {
@@ -34,12 +35,24 @@ export function memberRoutes(app: FastifyInstance): void {
           role: "student",
           status,
         });
-        await logEvent(
-          tx,
-          status === "active" ? "class.joined" : "class.join_requested",
-          req.user!.id,
-          { classId: c.id },
-        );
+        const type = status === "active" ? "class.joined" : "class.join_requested";
+        const eid = await logEvent(tx, type, req.user!.id, { classId: c.id });
+        // Task 5, site 8: the class's active teachers — one select, the same
+        // shape site 9 (invite.accepted) reuses.
+        const teachers = await tx
+          .select({ userId: classMembers.userId })
+          .from(classMembers)
+          .where(
+            and(
+              eq(classMembers.classId, c.id),
+              eq(classMembers.role, "teacher"),
+              eq(classMembers.status, "active"),
+            ),
+          );
+        await notify(tx, teachers.map((t) => t.userId), eid, type, {
+          classId: c.id,
+          joinerId: req.user!.id,
+        });
       });
     } catch (err) {
       // check-then-insert is TOCTOU under concurrent joins; the unique

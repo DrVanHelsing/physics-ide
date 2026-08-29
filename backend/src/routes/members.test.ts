@@ -4,7 +4,7 @@ import { and, eq } from "drizzle-orm";
 import { buildApp } from "../app.js";
 import { testDb, testPool, truncateAuthTables } from "../db/testClient.js";
 import { setSetting } from "../db/settings.js";
-import { users, classes, classMembers, emails, invites } from "../db/schema.js";
+import { users, classes, classMembers, emails, invites, notifications, events } from "../db/schema.js";
 
 const app = buildApp({ db: testDb });
 let teacherCookie: string;
@@ -30,13 +30,23 @@ async function makeUser(email: string, opts: Record<string, unknown> = {}) {
   return u;
 }
 
+// Each signin gets its own source IP — the auth route's per-IP rate limit is
+// sized for humans, and this file's notification-fan-out block (Task 5)
+// pushes the total signin count in this file past what one shared IP allows.
+let signinIpCounter = 0;
 async function signin(email: string): Promise<string> {
+  signinIpCounter += 1;
   const res = await app.inject({
     method: "POST",
     url: "/api/auth/signin",
+    remoteAddress: `10.98.${Math.floor(signinIpCounter / 250)}.${(signinIpCounter % 250) + 1}`,
     payload: { email, password: "a-long-password" },
   });
   return res.cookies.find((c) => c.name === "pide_session")!.value;
+}
+
+async function notificationsFor(userId: string) {
+  return testDb.select().from(notifications).where(eq(notifications.userId, userId));
 }
 
 async function createClass(cookie: string, name: string) {
@@ -420,5 +430,77 @@ describe("removing a member revokes their outstanding pending invites", () => {
     });
     expect(accept.statusCode).toBe(400);
     expect(accept.json().error).toBe("That invite link is no longer valid.");
+  });
+});
+
+/* Task 5, site 8: the class.joined / class.join_requested ternary fans out
+ * to the class's active teachers ONLY — never the joiner, never a fellow
+ * student. Fresh class + fresh accounts per test so the recipient set is
+ * unambiguous (openClass above has accumulated members across many earlier
+ * describes in this file). */
+describe("notification fan-out for class join (Task 5, site 8)", () => {
+  test("an open-mode join notifies active teachers with class.joined; the joiner and a fellow student get nothing", async () => {
+    const t = await makeUser("mnotify-teach@example.com", { isTeacher: true });
+    const teachCookie = await signin("mnotify-teach@example.com");
+    const cls = await createClass(teachCookie, "Notify Open Class");
+    const fellow = await makeUser("mnotify-fellow@example.com");
+    await testDb
+      .insert(classMembers)
+      .values({ classId: cls.id, userId: fellow.id, role: "student", status: "active" });
+
+    const joiner = await makeUser("mnotify-joiner@example.com");
+    const joinerCookie = await signin("mnotify-joiner@example.com");
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/classes/join",
+      cookies: { pide_session: joinerCookie },
+      payload: { code: cls.joinCode },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().status).toBe("active");
+
+    const teacherNotifs = await notificationsFor(t.id);
+    expect(teacherNotifs).toHaveLength(1);
+    expect(teacherNotifs[0].type).toBe("class.joined");
+    expect(teacherNotifs[0].payload).toEqual({ classId: cls.id, joinerId: joiner.id });
+
+    const [ev] = await testDb.select().from(events).where(eq(events.id, teacherNotifs[0].eventId));
+    expect(ev.type).toBe("class.joined");
+    expect(ev.actorId).toBe(joiner.id);
+
+    // Negative: neither the joiner nor a fellow student is addressed.
+    expect(await notificationsFor(joiner.id)).toHaveLength(0);
+    expect(await notificationsFor(fellow.id)).toHaveLength(0);
+  });
+
+  test("an approval-mode join notifies active teachers with class.join_requested", async () => {
+    const t = await makeUser("mnotify-teach2@example.com", { isTeacher: true });
+    const teachCookie = await signin("mnotify-teach2@example.com");
+    const cls = await createClass(teachCookie, "Notify Approval Class");
+    await app.inject({
+      method: "PATCH",
+      url: `/api/classes/${cls.id}`,
+      cookies: { pide_session: teachCookie },
+      payload: { joinMode: "approval" },
+    });
+
+    const joiner = await makeUser("mnotify-joiner2@example.com");
+    const joinerCookie = await signin("mnotify-joiner2@example.com");
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/classes/join",
+      cookies: { pide_session: joinerCookie },
+      payload: { code: cls.joinCode },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().status).toBe("waiting");
+
+    const teacherNotifs = await notificationsFor(t.id);
+    expect(teacherNotifs).toHaveLength(1);
+    expect(teacherNotifs[0].type).toBe("class.join_requested");
+    expect(teacherNotifs[0].payload).toEqual({ classId: cls.id, joinerId: joiner.id });
+
+    // Negative: the joiner (still waiting) gets nothing for their own request.
+    expect(await notificationsFor(joiner.id)).toHaveLength(0);
   });
 });

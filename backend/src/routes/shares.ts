@@ -20,6 +20,7 @@ import {
 import { requireConfirmed } from "../auth/guards.js";
 import { ClassAuthError, getMembership, isStaffRole, sendClassAuthError } from "../classes/guards.js";
 import { logEvent } from "../db/events.js";
+import { notify } from "../notifications/notify.js";
 import type { Db } from "../db/types.js";
 import { isAtCap, ManifestSchema } from "./projects.js";
 import { pgErrorCode } from "../lib/util.js";
@@ -178,7 +179,7 @@ export function shareRoutes(app: FastifyInstance): void {
       // without its event. D§9: the label will name the immediate sharer;
       // the LEDGER records the chain, so the source's own attribution (if
       // this is a re-share of an accepted copy) rides the payload.
-      await logEvent(tx, "project.shared", req.user!.id, {
+      const eid = await logEvent(tx, "project.shared", req.user!.id, {
         shareId: created.id,
         classId: parsed.data.classId,
         recipientId: parsed.data.recipientId,
@@ -186,6 +187,15 @@ export function shareRoutes(app: FastifyInstance): void {
         sourceProjectId: parsed.data.projectId,
         sourceClientUpdatedAt: sourceHead.clientUpdatedAt,
         sourceAttribution: sourceHead.attribution ?? null,
+      });
+      // Task 5, site 10: the recipient only. `created` is this same
+      // post-savepoint alias — the savepoint-scoped `row` binding above is
+      // not safely readable here.
+      await notify(tx, [parsed.data.recipientId], eid, "project.shared", {
+        shareId: created.id,
+        classId: parsed.data.classId,
+        sharerId: req.user!.id,
+        title: (sourceHead.manifest as { title?: string }).title ?? "Untitled project",
       });
       return { kind: "created" as const, share: created };
     });
@@ -256,7 +266,7 @@ export function shareRoutes(app: FastifyInstance): void {
         .update(shares)
         .set({ status: "accepted", resolvedAt: new Date(), copyProjectId: checked.data.id })
         .where(eq(shares.id, share.id));
-      await logEvent(tx, "project.share_accepted", req.user!.id, {
+      const eid = await logEvent(tx, "project.share_accepted", req.user!.id, {
         shareId: share.id,
         classId: share.classId,
         sharerId: share.sharerId,
@@ -264,6 +274,13 @@ export function shareRoutes(app: FastifyInstance): void {
         sourceProjectId: share.sourceProjectId,
         sourceClientUpdatedAt: share.sourceClientUpdatedAt,
         copyProjectId: checked.data.id,
+      });
+      // Task 5, site 11: the original sharer only.
+      await notify(tx, [share.sharerId], eid, "project.share_accepted", {
+        shareId: share.id,
+        classId: share.classId,
+        recipientId: req.user!.id,
+        title: (checked.data as { title?: string }).title ?? "Untitled project",
       });
       return { kind: "accepted" as const, share, manifest: checked.data };
     });

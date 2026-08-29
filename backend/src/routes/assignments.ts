@@ -35,6 +35,7 @@ import {
   sendClassAuthError,
 } from "../classes/guards.js";
 import { logEvent } from "../db/events.js";
+import { notify } from "../notifications/notify.js";
 import type { Db } from "../db/types.js";
 import { pgErrorCode, toEpoch, visibleToStudent } from "../lib/util.js";
 import { stableStringify } from "./projects.js";
@@ -862,7 +863,24 @@ export function assignmentRoutes(app: FastifyInstance): void {
         .set({ status: "published", publishedAt: new Date(), updatedAt: new Date() })
         .where(eq(assignments.id, id))
         .returning();
-      await logEvent(tx, "assignment.published", req.user!.id, { assignmentId: id });
+      const eid = await logEvent(tx, "assignment.published", req.user!.id, { assignmentId: id });
+      // Task 5, site 1: active students of the class — one select in the
+      // publish transaction, the inboxEntriesFor/studentsWithoutSubmission
+      // roster idiom this file already uses.
+      const roster = await tx
+        .select({ userId: classMembers.userId })
+        .from(classMembers)
+        .where(
+          and(
+            eq(classMembers.classId, a.classId),
+            eq(classMembers.status, "active"),
+            eq(classMembers.role, "student"),
+          ),
+        );
+      await notify(tx, roster.map((r) => r.userId), eid, "assignment.published", {
+        assignmentId: id,
+        classId: a.classId,
+      });
       return row;
     });
     return { assignment: toAssignmentSummary(updated) };
@@ -1295,12 +1313,19 @@ export function assignmentRoutes(app: FastifyInstance): void {
           attempt: maxAttempt + 1,
         })
         .returning();
-      await logEvent(tx, "assignment.submitted", req.user!.id, {
+      const eid = await logEvent(tx, "assignment.submitted", req.user!.id, {
         assignmentId: id,
         submissionId: row.id,
         attempt: row.attempt,
         late,
         groupId: group ? group.id : null,
+      });
+      // Task 5, site 6: every credited id — the group's whole roster for
+      // group work, just the submitter for individual work.
+      await notify(tx, row.creditedIds as string[], eid, "assignment.submitted", {
+        assignmentId: id,
+        classId: a.classId,
+        attempt: row.attempt,
       });
       return { kind: "submitted" as const, row, members };
     });
@@ -1556,9 +1581,15 @@ export function assignmentRoutes(app: FastifyInstance): void {
     // (publish/close/etc). Email is best-effort ON TOP of that fact, so it
     // runs AFTER the tx commits — same ordering submit's own receipt uses.
     await app.db.transaction(async (tx) => {
-      await logEvent(tx, "assignment.reminded", req.user!.id, {
+      const eid = await logEvent(tx, "assignment.reminded", req.user!.id, {
         assignmentId: id,
         remindedCount: recipients.length,
+      });
+      // Task 5, site 5: the same `recipients` list (missing students) the
+      // reminder email fan-out below already uses.
+      await notify(tx, recipients.map((r) => r.id), eid, "assignment.reminded", {
+        assignmentId: id,
+        classId: a.classId,
       });
     });
 
@@ -2181,10 +2212,16 @@ export function assignmentRoutes(app: FastifyInstance): void {
             },
           });
       }
-      await logEvent(tx, "assignment.group_mark_returned", req.user!.id, {
+      const eid = await logEvent(tx, "assignment.group_mark_returned", req.user!.id, {
         assignmentId: id,
         groupId: gid,
         memberCount: markable.length,
+      });
+      // Task 5, site 4: the group's member ids — the same `markable` list
+      // the route's own email fan-out below already uses.
+      await notify(tx, markable.map((mm) => mm.userId), eid, "assignment.group_mark_returned", {
+        assignmentId: id,
+        classId: a.classId,
       });
       return marksForStudents(tx, id, markable.map((mm) => mm.userId));
     });
@@ -2287,11 +2324,16 @@ export function assignmentRoutes(app: FastifyInstance): void {
           .set({ status: "marks_released", marksReleasedAt: releasedAt, updatedAt: releasedAt })
           .where(eq(assignments.id, id));
       }
-      await logEvent(tx, "assignment.marks_released", req.user!.id, {
+      const eid = await logEvent(tx, "assignment.marks_released", req.user!.id, {
         assignmentId: id,
         releasedCount: releasable.length,
         refusedCount: refused.length,
         all: releaseAll,
+      });
+      // Task 5, site 2: the release route's own `releasable` list.
+      await notify(tx, releasable.map((r) => r.studentId), eid, "assignment.marks_released", {
+        assignmentId: id,
+        classId: a.classId,
       });
     });
 
@@ -2381,7 +2423,9 @@ export function assignmentRoutes(app: FastifyInstance): void {
           },
         })
         .returning();
-      await logEvent(tx, "assignment.mark_returned", req.user!.id, { assignmentId: id, studentId });
+      const eid = await logEvent(tx, "assignment.mark_returned", req.user!.id, { assignmentId: id, studentId });
+      // Task 5, site 3: the mark's own target.
+      await notify(tx, [studentId], eid, "assignment.mark_returned", { assignmentId: id, classId: a.classId });
       return row;
     });
 
