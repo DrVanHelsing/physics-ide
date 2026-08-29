@@ -45,7 +45,14 @@ export function inviteRoutes(app: FastifyInstance): void {
       .where(inArray(users.email, parsed.data.emails));
     const memberEmails = new Set(existingUsers.map((r) => r.user.email));
 
-    const sent: string[] = [];
+    // `invited` records what this loop actually does — an invite row and a
+    // token created, and a send attempted — NOT that delivery succeeded.
+    // Once neverThrow (guards.ts) sits outermost on app.mailer, a driver
+    // rejection never surfaces here, so a field named "sent" would silently
+    // start lying: every address would land in it regardless of how many
+    // rows the driver actually delivered. Delivery is a separate fact,
+    // tracked in the emails table — the admin email log is where it lives.
+    const invited: string[] = [];
     const skipped: string[] = [];
     for (const email of parsed.data.emails) {
       if (memberEmails.has(email)) {
@@ -70,9 +77,9 @@ export function inviteRoutes(app: FastifyInstance): void {
         role: parsed.data.role,
       });
       await app.mailer.send({ to: email, template: "class-invite", ...mail });
-      sent.push(email);
+      invited.push(email);
     }
-    return { sent, skipped };
+    return { invited, skipped };
   });
 
   app.get("/api/classes/:id/invites", async (req, reply) => {

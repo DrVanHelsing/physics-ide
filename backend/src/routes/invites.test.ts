@@ -77,7 +77,7 @@ describe("sending invites", () => {
       payload: { emails: ["invitee@example.com"], role: "student" },
     });
     expect(res.statusCode).toBe(200);
-    expect(res.json().sent).toEqual(["invitee@example.com"]);
+    expect(res.json().invited).toEqual(["invitee@example.com"]);
 
     const ta = await app.inject({
       method: "POST",
@@ -120,7 +120,7 @@ describe("sending invites", () => {
     });
     expect(res.statusCode).toBe(200);
     expect(res.json().skipped).toEqual(["outsider@example.com"]);
-    expect(res.json().sent).toEqual([]);
+    expect(res.json().invited).toEqual([]);
   });
 
   test("inviting a WAITING member sends (not skips); accepting upgrades them to active with the invited role", async () => {
@@ -138,7 +138,7 @@ describe("sending invites", () => {
       payload: { emails: ["waiter@example.com"], role: "ta" },
     });
     expect(res.statusCode).toBe(200);
-    expect(res.json().sent).toEqual(["waiter@example.com"]);
+    expect(res.json().invited).toEqual(["waiter@example.com"]);
     expect(res.json().skipped).toEqual([]);
 
     const [mail] = await testDb
@@ -378,7 +378,7 @@ describe("accepting and revoking", () => {
       payload: { emails: ["mpromoted@example.com"], role: "teacher" },
     });
     expect(inviteRes.statusCode).toBe(200);
-    expect(inviteRes.json().sent).toEqual(["mpromoted@example.com"]);
+    expect(inviteRes.json().invited).toEqual(["mpromoted@example.com"]);
     const [mail] = await testDb
       .select()
       .from(emails)
