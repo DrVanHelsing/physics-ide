@@ -479,4 +479,75 @@ describe("notification fan-out for invite.accepted (Task 5, site 9)", () => {
     // Negative: the accepting user is not notified about their own acceptance.
     expect(await notificationsFor(accepter.id)).toHaveLength(0);
   });
+
+  // Review finding: a teacher-role invite commits the acceptor as an ACTIVE
+  // TEACHER in the same transaction, before the recipient select runs — so
+  // without filtering the actor out, the acceptor would land in their own
+  // recipient list and self-notify. A role: "student" fixture (as above)
+  // can never exercise this: the acceptor never enters the teacher select
+  // regardless of whether the actor-filter exists, so that test alone could
+  // not have caught the bug.
+  test("a teacher-role invite never notifies the accepting user about their own acceptance, even though it makes them an active teacher; the class's other teacher still gets one", async () => {
+    const notifyTeacherClassRes = await app.inject({
+      method: "POST",
+      url: "/api/classes",
+      cookies: { pide_session: teacherCookie },
+      payload: { name: "Notify Teacher Invite Class" },
+    });
+    const notifyTeacherClassId = notifyTeacherClassRes.json().class.id as string;
+
+    const inviteRes = await app.inject({
+      method: "POST",
+      url: `/api/classes/${notifyTeacherClassId}/invites`,
+      cookies: { pide_session: teacherCookie },
+      payload: { emails: ["inaccept-teacher-notify@example.com"], role: "teacher" },
+    });
+    expect(inviteRes.statusCode).toBe(200);
+    const [mail] = await testDb
+      .select()
+      .from(emails)
+      .where(
+        and(
+          eq(emails.template, "class-invite"),
+          eq(emails.toEmail, "inaccept-teacher-notify@example.com"),
+        ),
+      );
+    const token = /token=([A-Za-z0-9_-]+)/.exec(mail.bodyText)![1];
+
+    // No prior membership at all — the accept route's `existing.length === 0`
+    // branch inserts them directly as an active teacher.
+    const accepter = await makeUser("inaccept-teacher-notify@example.com");
+    const accepterCookie = await signin("inaccept-teacher-notify@example.com");
+
+    const acceptRes = await app.inject({
+      method: "POST",
+      url: "/api/invites/accept",
+      cookies: { pide_session: accepterCookie },
+      payload: { token },
+    });
+    expect(acceptRes.statusCode).toBe(200);
+
+    const [membershipRow] = await testDb
+      .select()
+      .from(classMembers)
+      .where(
+        and(eq(classMembers.classId, notifyTeacherClassId), eq(classMembers.userId, accepter.id)),
+      );
+    expect(membershipRow.status).toBe("active");
+    expect(membershipRow.role).toBe("teacher");
+
+    const [teacherRow] = await testDb.select().from(users).where(eq(users.email, "iteach@example.com"));
+    const teacherNotifs = await notificationsFor(teacherRow.id);
+    const matching = teacherNotifs.filter(
+      (n) =>
+        n.type === "invite.accepted" &&
+        (n.payload as { classId?: string }).classId === notifyTeacherClassId,
+    );
+    expect(matching).toHaveLength(1);
+    expect(matching[0].payload).toEqual({ classId: notifyTeacherClassId, joinerId: accepter.id });
+
+    // The bug this test exists to catch: the newly-promoted teacher must not
+    // land in their own recipient list.
+    expect(await notificationsFor(accepter.id)).toHaveLength(0);
+  });
 });
