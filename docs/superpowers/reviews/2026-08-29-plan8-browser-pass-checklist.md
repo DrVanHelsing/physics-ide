@@ -250,16 +250,28 @@ files record theirs. A harness earns its keep by what it catches.
    of its own it fell back to `.tb-btn`'s *label* padding and drew **34×26**
    next to the toggle's **28×24** — two adjacent icon-only buttons in the same
    right cluster, visibly different boxes, at **both** headers. Exactly the
-   shape of Plan 7's `.attribution-chip` finding. **FIXED**
-   (`styles/platform.css`): `.bell-trigger { padding: var(--space-1) 5px; }` —
-   `.tb-btn--icon`'s own padding, named on the class the component actually
-   carries rather than bolted on at the call site, and carrying the
-   metricLint's documented `metric-exempt` note because the 5px is that rule's
-   literal, mirrored, not a new number. The two triggers are now the same
-   **width**; a 2px height difference remains because the bell's icon is 16px
-   and the toggle's is 14px. **Item 1 is the human half of that evidence**:
-   read the three controls side by side and say whether they now sit as one
-   cluster, and whether that 2px is worth closing.
+   shape of Plan 7's `.attribution-chip` finding. **FIXED** by composing
+   `.tb-btn--icon` onto the trigger in `NotificationBell.js` — the same
+   utility `ThemeToggleButton` uses — so the icon padding keeps exactly one
+   owner in `chrome.css`; `platform.css` names the block only as the scope of
+   the rule that belongs inside it. The two triggers are now the same
+   **width** (28px); a 2px height difference remains because the bell's icon
+   is 16px and the toggle's is 14px. **Item 1 is the human half of that
+   evidence**: read the three controls side by side and say whether they now
+   sit as one cluster, and whether that 2px is worth closing.
+
+2. **The account zone had no spacing for a second control.** Measuring the fix
+   above at *both* headers exposed a defect the sweep cannot see, because it is
+   a collision rather than an absence: Plan 8 dropped the bell into
+   `.app-header__account`, which had held **one** control and had no internal
+   gap. Its two children sat flush — bell trigger right edge `1322.1`, account
+   button left edge `1322.1` — and the unread badge, which overhangs its
+   trigger by 2px, landed **2px inside the account button's box**. Only at the
+   IDE header; the portal header's flex `gap` had always spaced them. **FIXED**
+   (`styles/chrome.css`): the zone now spaces its controls like every other
+   zone. Badge-to-account gap is `+6px` at both headers. **Item 1 covers this
+   too** — with an unread badge showing, check it clears the account control at
+   the IDE header, in both themes.
 
 Everything else in the Plan 8 flow passed on its first run: the badge count,
 the renderer's sentence character for character, mark-all surviving a reload,

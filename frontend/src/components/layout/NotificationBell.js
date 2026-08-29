@@ -37,7 +37,11 @@ export default function NotificationBell() {
       align="right"
       chevron={false}
       triggerAriaLabel={label}
-      triggerClassName="tb-btn bell-trigger"
+      /* Icon-only, like the theme toggle beside it — so it composes
+         `.tb-btn--icon` (chrome.css) rather than restating that rule's
+         padding under its own name. `bell-trigger` is the block hook the
+         stylesheet scopes by and portal-e2e selects on. */
+      triggerClassName="tb-btn tb-btn--icon bell-trigger"
       onOpenChange={(open) => {
         if (open && unread > 0 && !markAll.isPending) markAll.mutate();
       }}
