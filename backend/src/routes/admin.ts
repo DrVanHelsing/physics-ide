@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { and, desc, eq, ilike, inArray, isNotNull, ne, notInArray, or, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, isNotNull, lte, ne, notInArray, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import {
   users,
@@ -35,6 +35,15 @@ import { toAuthUser, CONFIRM_TTL_MS, RESET_TTL_MS } from "./auth.js";
 import { toMyMark } from "./assignments.js";
 
 const CapSchema = z.object({ cap: z.number().int().min(1).max(10000) });
+/** §11's retention clock (Task 8) — its own schema, not the cap's reused:
+ *  a year count is a different shape with a different range than an
+ *  account cap, and the two settings should never be able to drift into
+ *  sharing validation by accident. */
+const RetentionSchema = z.object({ retentionYears: z.number().int().min(1).max(50) });
+/** classes.ts's own CLASS_CREATE_WINDOW_MS idiom, reused: an "N years ago"
+ *  cutoff is a JS Date computed here and compared in SQL, not an interval
+ *  built inside the query — the tree's one way of doing this arithmetic. */
+const YEAR_MS = 365 * 24 * 60 * 60 * 1000;
 /** The erase confirmation is the account's CURRENT email typed back — the
  *  reversible neighbour (Deactivate) is one button away, and email is the
  *  UNIQUE column (design D§5). */
@@ -46,6 +55,7 @@ const NO_SUCH_ACCOUNT = "No such account.";
 const ALREADY_ERASED = "They have already been erased.";
 const SELF_ERASE = "You can't erase your own account.";
 const CONFIRM_MISMATCH = "The confirmation doesn't match this account's email.";
+const RETENTION_INVALID = "Retention period must be a whole number of years, 1–50.";
 
 export function adminRoutes(app: FastifyInstance): void {
   app.addHook("preHandler", requireAdmin);
@@ -418,6 +428,49 @@ export function adminRoutes(app: FastifyInstance): void {
     await setSetting(app.db, "account_cap", parsed.data.cap);
     await logEvent(app.db, "settings.cap_changed", req.user!.id, { cap: parsed.data.cap });
     return { ok: true, cap: parsed.data.cap };
+  });
+
+  /* §11's retention clock (Task 8): the count is a PREVIEW, not a promise —
+   * nothing is deleted here or by the sweep this task builds toward yet
+   * (Task 9). `getSetting` returns `unknown` (db/settings.ts:8), so the
+   * stored value is guarded through the same `typeof … === "number"`
+   * pattern auth.ts already uses for the signup cap (auth.ts:101) — a row
+   * holding `0`, `null` or `"3"` must never reach the cutoff arithmetic
+   * below. */
+  app.get("/api/admin/retention", async (req) => {
+    const stored = await getSetting(app.db, "retention_years");
+    const current = typeof stored === "number" ? stored : 3;
+    // An optional candidate preview (Ruling 3): ?years=N previews what N
+    // would delete right now, without touching the stored setting. Anything
+    // that isn't a valid 1–50 integer falls back to the stored value —
+    // this route only ever reads, so there is no wrong input to refuse.
+    const rawYears = (req.query as { years?: string }).years;
+    const candidate = rawYears !== undefined ? Number(rawYears) : NaN;
+    const retentionYears =
+      rawYears !== undefined && Number.isInteger(candidate) && candidate >= 1 && candidate <= 50
+        ? candidate
+        : current;
+    const cutoff = new Date(Date.now() - retentionYears * YEAR_MS);
+    const [{ count: wouldDelete }] = await app.db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(classes)
+      .where(and(eq(classes.archived, true), lte(classes.archivedAt, cutoff)));
+    return { retentionYears, wouldDelete };
+  });
+
+  app.put("/api/admin/retention", async (req, reply) => {
+    const parsed = RetentionSchema.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: RETENTION_INVALID });
+    // Same transaction, unlike the cap route above: this setting drives an
+    // irreversible mass delete (Task 9's sweep), so its change event must
+    // never land without the setting it describes, or vice versa.
+    await app.db.transaction(async (tx) => {
+      await setSetting(tx, "retention_years", parsed.data.retentionYears);
+      await logEvent(tx, "settings.retention_changed", req.user!.id, {
+        retentionYears: parsed.data.retentionYears,
+      });
+    });
+    return { ok: true, retentionYears: parsed.data.retentionYears };
   });
 
   app.get("/api/admin/emails", async (req) => {

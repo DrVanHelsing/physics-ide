@@ -104,6 +104,13 @@ export const classes = pgTable("classes", {
    *  class, OFF by default. Flipping it off lapses pending shares (D§8). */
   peerSharing: boolean("peer_sharing").notNull().default(false),
   archived: boolean("archived").notNull().default(false),
+  /** Set the moment `archived` flips true, cleared on unarchive (Task 8,
+   *  spec §11's retention clock). The sweep (Task 9) reads this to decide
+   *  which archived classes are old enough to delete; NULL means either
+   *  "never archived" or "archived before this column existed and the
+   *  0010 backfill found no ledger event" (that fallback is `now()`, so in
+   *  practice only a never-archived class carries NULL here). */
+  archivedAt: timestamp("archived_at", { withTimezone: true }),
   createdBy: uuid("created_by")
     .notNull()
     .references(() => users.id),

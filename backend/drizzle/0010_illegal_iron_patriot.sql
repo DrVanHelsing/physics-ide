@@ -1,0 +1,2 @@
+ALTER TABLE "classes" ADD COLUMN "archived_at" timestamp with time zone;--> statement-breakpoint
+UPDATE "classes" SET "archived_at" = COALESCE((SELECT MAX(e.created_at) FROM "events" e WHERE e.type = 'class.archived' AND e.payload->>'classId' = "classes".id::text), now()) WHERE "archived" = true AND "archived_at" IS NULL;

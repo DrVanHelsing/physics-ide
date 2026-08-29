@@ -31,9 +31,9 @@ import { classMembers, invites, marks, projects, projectVersions, shares, users 
  * ── The enumeration (grep of app.post|put|patch|delete over
  *    backend/src/routes/*.ts, cross-checked at runtime by the coverage
  *    test at the bottom of this file, which walks fastify's own router):
- *    62 mutating routes = 52 rows + 10 named skips.
+ *    63 mutating routes = 53 rows + 10 named skips.
  *
- *      assignments.ts 17 · auth.ts 8 (all skipped) · admin.ts 6 ·
+ *      assignments.ts 17 · auth.ts 8 (all skipped) · admin.ts 7 ·
  *      classes.ts 5 · groups.ts 5 · guides.ts 4 · invites.ts 4 ·
  *      members.ts 4 · projects.ts 3 · shares.ts 3 · notifications.ts 1 ·
  *      tick.ts 1 (skipped) · mailEvents.ts 1 (skipped)
@@ -501,6 +501,16 @@ const MATRIX: Array<{ file: string; rows: Row[] }> = [
         method: "PUT",
         path: () => "/api/admin/cap",
         body: () => ({ cap: 500 }),
+        expect: ADMIN_ONLY_SEATS,
+      },
+      {
+        // Task 8's retention clock: same shape as the cap row above, one
+        // MUTATING admin route, refused the same way for every non-admin
+        // seat.
+        name: "PUT /api/admin/retention",
+        method: "PUT",
+        path: () => "/api/admin/retention",
+        body: () => ({ retentionYears: 5 }),
         expect: ADMIN_ONLY_SEATS,
       },
     ],
@@ -1104,11 +1114,11 @@ describe("the authority matrix — coverage", () => {
     }
   });
 
-  test("the enumeration adds up: 62 mutating routes = 52 rows + 10 skips", async () => {
+  test("the enumeration adds up: 63 mutating routes = 53 rows + 10 skips", async () => {
     await app.ready();
-    expect(MATRIX.flatMap((s) => s.rows)).toHaveLength(52);
+    expect(MATRIX.flatMap((s) => s.rows)).toHaveLength(53);
     expect(SKIPPED).toHaveLength(10);
-    expect(new Set(registeredMutating).size).toBe(62);
+    expect(new Set(registeredMutating).size).toBe(63);
   });
 });
 
