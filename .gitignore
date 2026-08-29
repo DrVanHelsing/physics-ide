@@ -30,3 +30,6 @@ backend/.env
 
 # SDD lane worktrees
 .worktrees/
+
+# Generated UX audit report (frontend/scripts/ux-audit.mjs) - regenerated, not committed
+frontend/docs/
