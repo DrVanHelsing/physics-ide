@@ -393,44 +393,41 @@ describe("Subpage shell — the shared closing footer (About, Contact, Teachers)
    All four public pages now describe the classroom assignments build in the
    present tense, on the premise that the site publishes only once Plan 6 is
    complete. That premise has a hard edge: Plan 6 §9 ("Deliberately NOT in
-   Plan 6") names features that stay out of scope even at launch — the
-   notification bell, rubric marking, real email delivery and admin data
-   requests among them. This guard is mechanized, not a one-time read, so a
-   future present-tense edit to any of the four pages cannot silently
-   smuggle an excluded feature back in.
+   Plan 6") names features that stay out of scope even at launch. This guard
+   is mechanized, not a one-time read, so a future present-tense edit to any
+   of the swept pages cannot silently smuggle an excluded feature back in.
 
    Honesty pass (2026-08-28): peer sharing shipped in Stage C of Plan 7 and
    left this list — the exclusion it named is no longer true, so banning it
-   would forbid the product's own copy from saying so. The other four
-   exclusions are unchanged.
+   would forbid the product's own copy from saying so.
 
    Consistency-audit hardening: two exclusions from the same §9 list — real
    email delivery and admin data requests — had no ban here at all, and
    ContactPage was missing from the page set entirely (the other three were
-   checked, it never was). Both closed below. The two new patterns are
-   phrase-level on purpose, not single words: the shipped copy legitimately
-   says "email invite" (About, Teachers — a real join method) and "Emails"
-   (Teachers' admin-console tab, the pretend-inbox log) already, and neither
-   of those is the excluded claim. What's actually excluded is a claim that
-   the platform *delivers* real email, or that admin can issue a *data
-   request* (export/erase) — so the bans target those phrases, not the word
-   "email" or "data" alone.
+   checked, it never was). Both closed below (data requests since lifted —
+   see the next paragraph). The real-email pattern is phrase-level on
+   purpose, not a single word: the shipped copy legitimately says "email
+   invite" (About, Teachers — a real join method) and "Emails" (Teachers'
+   admin-console tab, the pretend-inbox log) already, and neither of those is
+   the excluded claim. What's actually excluded is a claim that the platform
+   *delivers* real email — so the ban targets that phrase, not the word
+   "email" alone.
 
-   Task 13 (D§9 ordering note): PrivacyPage joins the swept `pages` array
-   below, written to clear all six EXCLUDED patterns at birth — it never
-   says "data request" (D§7 says "a complete copy … or its removal"
-   instead), never the bare word "bell", and never claims mail is
-   delivered. The bell/data-request bans are lifted from EXCLUDED by Task
-   14, not this one; until then they police this page too. */
-describe("Launch-truth scope guard — Plan 6 §9 exclusions appear on none of the four public pages", () => {
-  test("no page names the notification bell, rubric marking, real email delivery or admin data requests", () => {
+   Task 13 (D§9 ordering note): PrivacyPage joined the swept `pages` array
+   below, written to clear all six patterns EXCLUDED then held at birth.
+
+   Honesty pass (2026-08-29, Task 14): the notification bell and admin data
+   requests shipped — Task 14's contract amendment lifts both — so their
+   three patterns come out of EXCLUDED the same way peer sharing's did
+   above; a test may not forbid a truth. Rubric marking and real email
+   delivery are what remain of Plan 6 §9's original list, and the three
+   surviving patterns below keep policing all five swept pages. */
+describe("Launch-truth scope guard — Plan 6 §9 exclusions appear on none of the five public pages", () => {
+  test("no page names rubric marking or real email delivery", () => {
     const EXCLUDED = [
       /rubric/i,
-      /notification bell/i,
-      /\bbell\b/i,
       /real email/i,
       /email delivery/i,
-      /data request/i,
     ];
     const pages = [
       <AboutPage />,

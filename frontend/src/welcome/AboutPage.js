@@ -14,8 +14,8 @@ import WelcomeSubpage from "./WelcomeSubpage";
  * so the teacher paragraph below describes the finished class — roster,
  * settings, people, assignments, submissions, marking and the gradebook —
  * in the present tense. It still claims nothing past Plan 6 §1's stage
- * table; §9's exclusions (the notification bell, rubric marking, peer
- * sharing, real email delivery, admin data requests) are not named here.
+ * table; §9's exclusions (rubric marking, real email delivery) are not
+ * named here.
  *
  * Honesty pass (2026-08-28): Plan 6 is complete, so every claim on this
  * page was re-read against the shipped code rather than against that stage

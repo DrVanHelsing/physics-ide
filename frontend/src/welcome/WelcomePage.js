@@ -19,15 +19,15 @@
  * feature absent either: assignments, submissions, marking, feedback, the
  * gradebook, History and group work all ship, and §5 says so in the
  * present tense. Every one of those claims was re-read against the tree on
- * 2026-08-28 and traced to a file. The absences that remain (the
- * notification bell, real email delivery, admin data
- * requests — Plan 6 §9) are kept out of the copy by two mechanisms rather
- * than by memory: welcomePage.test.js's non-claims list greps this SOURCE
- * (comments included), and welcomeSubpages.test.js's launch-truth scope
- * guard sweeps this page's RENDERED text alongside /about, /contact and
- * /teachers. The dated record of what shipped when lives where a changelog
- * belongs — docs/classroom-platform.md §18 and docs/product-contract.md's
- * 28 August 2026 amendment — not in marketing copy on the front page.
+ * 2026-08-28 and traced to a file. The absences that remain (rubric
+ * marking, real email delivery — Plan 6 §9) are kept out of the copy by two
+ * mechanisms rather than by memory: welcomePage.test.js's non-claims list
+ * greps this SOURCE (comments included), and welcomeSubpages.test.js's
+ * launch-truth scope guard sweeps this page's RENDERED text alongside
+ * /about, /contact, /teachers and /privacy. The dated record of what
+ * shipped when lives where a changelog belongs — docs/classroom-platform.md
+ * §18 and docs/product-contract.md's 28 August 2026 amendment — not in
+ * marketing copy on the front page.
  *
  * ── THE NUMBERS LEDGER ───────────────────────────────────────────────────
  * Every numeral on the page (now the closing ribbon, RIBBON below), and
@@ -131,6 +131,7 @@ import {
   AtomIcon,
   GlobeIcon,
   TableIcon,
+  PrivacyIcon,
 } from "../components/Icons";
 import { WELCOME_PASSED_SESSION_KEY } from "../constants";
 import demoRunWebm from "../assets/welcome/demo-run.webm";
@@ -659,6 +660,15 @@ export default function WelcomePage() {
           Open the IDE
         </button>
         <div className="welcome-foot__links">
+          {/* Task 14: a plain Link, not go() — /privacy is gate-free (App.js
+              mounts it with no <WelcomeGate>), the same idiom as its sibling
+              in WelcomeSubpage.js's own footer (Task 13, D§7), so /privacy
+              is zero-hop from the landing page too. Doesn't count toward
+              "the footer's three doors" lock below: that test scopes to
+              `.welcome-foot button`, and this is an <a>. */}
+          <Link className="btn btn--ghost" to="/privacy">
+            <PrivacyIcon size={13} /> Privacy
+          </Link>
           <button className="btn btn--ghost" type="button" onClick={() => go("/auth/signup")}>
             Create an account
           </button>

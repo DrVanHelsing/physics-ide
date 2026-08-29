@@ -45,10 +45,10 @@ import WelcomeSubpage from "./WelcomeSubpage";
  *
  * Everything else verified as it stands. Nothing here reaches past the
  * stage table — §9 of the same document lists what launch deliberately
- * excludes (the notification bell, rubric marking, peer sharing, real email
- * delivery, admin data requests), none of those are claimed here or
- * anywhere else on the public pages, and welcomeSubpages.test.js's
- * launch-truth scope guard sweeps all four pages for them on every run.
+ * excludes (rubric marking, real email delivery), neither of those is
+ * claimed here or anywhere else on the public pages, and
+ * welcomeSubpages.test.js's launch-truth scope guard sweeps all five pages
+ * for them on every run.
  */
 export default function TeachersPage() {
   return (
