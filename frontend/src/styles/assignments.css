@@ -501,6 +501,8 @@
 .share-row { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4); }
 .share-row__title { font-weight: var(--fw-medium); }
 .share-row__from { color: var(--text-dim); font-size: var(--fs-sm); margin-inline-end: auto; }
+.waiting-on-them { margin-block-end: var(--space-6); }
+.waiting-row__to { color: var(--text-dim); font-size: var(--fs-sm); margin-inline-end: auto; }
 /* The credit chip takes the same .sync-chip pill as .rules-chip beside it,
    and needs the same restraint: "Based on work shared by <name>" grows with
    the name, and an unbounded chip pushes the run status out of a 26px status

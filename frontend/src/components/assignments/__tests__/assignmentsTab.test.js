@@ -40,6 +40,12 @@ vi.mock("../../classes/ClassChrome", () => ({
    its own behaviour is sharedWithYou.test.js's business. */
 vi.mock("../../sharing/SharedWithYou", () => ({ default: () => null }));
 
+/* WaitingOnThem (Plan 8 D§8) is the same shape of heavy neighbour — its own
+   query and useQueryClient() (which this file's bare react-query mock does
+   not export) — stubbed out the same way; its own behaviour is
+   waitingOnThem.test.js's business. */
+vi.mock("../../sharing/WaitingOnThem", () => ({ default: () => null }));
+
 let mounted = null;
 afterEach(() => {
   mounted?.unmount();
