@@ -14,6 +14,7 @@ import {
   groupMembers,
   submissions,
   notifications,
+  notificationPrefs,
 } from "../db/schema.js";
 
 const app = buildApp({ db: testDb });
@@ -409,5 +410,44 @@ describe("POST /api/tick — notification fan-out (Task 5, site 7)", () => {
     expect(mine).toHaveLength(1);
     expect(mine[0].type).toBe("assignment.due_reminder_sent");
     expect(mine[0].payload).toEqual({ assignmentId, classId });
+  });
+});
+
+/* Task 7 (design D§4): the withPreferences seam gates due-tomorrow EMAIL
+ * only — this app instance never injects a fake mailer (see `buildApp` at
+ * the top of this file), so its sends run through the real dev-mailer path
+ * app.ts wraps in withPreferences. The bell must never be preference-gated,
+ * so the events row and the notification row are pinned to still land. */
+describe("POST /api/tick — a due-tomorrow: false preference gates the email only", () => {
+  test("no emails row for the student; the events row and the notification still land", async () => {
+    const classId = await makeClass("Tick Prefs Class");
+    const student = await makeUser("tick-prefs-student@example.com");
+    await testDb.insert(classMembers).values({ classId, userId: student.id, role: "student", status: "active" });
+    await testDb.insert(notificationPrefs).values({ userId: student.id, key: "due-tomorrow", enabled: false });
+    const assignmentId = await createPublished(classId, {
+      title: "Tick Prefs Assignment",
+      submissionMode: "individual",
+      dueAt: Date.now() + 24 * HOUR,
+    });
+
+    const res = await tick(config.tickSecret);
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ sent: 1 });
+
+    const sent = await allDueTomorrowEmails();
+    expect(emailsWithSubjectContaining(sent, "Tick Prefs Assignment")).toHaveLength(0);
+
+    const logged = await dueReminderEvents();
+    const ev = logged.find(
+      (e) =>
+        (e.payload as { assignmentId?: string; userId?: string }).assignmentId === assignmentId &&
+        (e.payload as { assignmentId?: string; userId?: string }).userId === student.id,
+    );
+    expect(ev).toBeDefined();
+
+    const studentNotifs = await notificationsFor(student.id);
+    const mine = studentNotifs.filter((n) => n.eventId === ev!.id);
+    expect(mine).toHaveLength(1);
+    expect(mine[0].type).toBe("assignment.due_reminder_sent");
   });
 });
