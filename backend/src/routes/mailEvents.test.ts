@@ -215,11 +215,12 @@ describe("POST /api/mail/events — unknown message-id", () => {
   });
 });
 
-/* app.ts:54-57's own note: a route registered directly on the root instance
- * has a SILENTLY INERT `config.rateLimit` — the rate-limit plugin hasn't
- * booted yet when that route registers. Proving the 429 actually fires is
- * the only way to know mailEventsRoutes was registered as a plugin scope,
- * not directly on root the way the bare health-check route is. */
+/* app.ts's own NOTE (beginning "routes added directly on this root
+ * instance"): a route registered directly on the root instance has a
+ * SILENTLY INERT `config.rateLimit` — the rate-limit plugin hasn't booted
+ * yet when that route registers. Proving the 429 actually fires is the only
+ * way to know mailEventsRoutes was registered as a plugin scope, not
+ * directly on root the way the bare health-check route is. */
 describe("POST /api/mail/events — rate limit (its own gate; Task 7 throttles everything else)", () => {
   test("allows 120 requests per minute then returns 429", async () => {
     // Fresh instance: the limiter's in-memory store is per-app, so this

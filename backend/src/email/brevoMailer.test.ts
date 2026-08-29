@@ -250,11 +250,13 @@ describe("createBrevoMailer — the one deadline", () => {
   }, 5_000);
 });
 
-/** Pinned once through the real composition (app.ts:44-46). The driver
- *  REJECTS; never-throw is the thing that swallows. If the driver were
- *  changed to resolve on failure, the failed row would still be written and
- *  this test would keep passing — so it also asserts the log.error call
- *  that only a real rejection produces. */
+/** Pinned once through the real composition — app.ts's
+ *  `neverThrow(app.log, withPreferences(deps.db, suppressErased(...)))`
+ *  wiring on `app.decorate("mailer", ...)`. The driver REJECTS; never-throw
+ *  is the thing that swallows. If the driver were changed to resolve on
+ *  failure, the failed row would still be written and this test would keep
+ *  passing — so it also asserts the log.error call that only a real
+ *  rejection produces. */
 describe("through the composed seam — neverThrow(log, withPreferences(db, suppressErased(driver)))", () => {
   test("a driver failure is swallowed at the top, and the failed row still lands", async () => {
     const log: MinimalLogger = { error: vi.fn() };
