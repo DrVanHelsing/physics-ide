@@ -16,16 +16,23 @@ import WelcomeSubpage from "./WelcomeSubpage";
  * carries D§7's export-scope sentence verbatim.
  *
  * CRITICAL ORDERING CONSTRAINT (Task 13 brief, plan self-review note 8):
- * this page lands while `/data request/i` and the two bell patterns are
+ * this page landed while `/data request/i` and the two bell patterns were
  * STILL banned phrases in welcomeSubpages.test.js's EXCLUDED sweep, and
- * this page joins that swept `pages` array in the very same task. So the
- * wording below is written to clear all six EXCLUDED patterns from birth,
- * not just the three Task 14 leaves standing: it never uses the literal
- * phrase "data request" (saying "a complete copy … or its removal"
- * instead, exactly as D§7's About sentence does), never uses the bare
- * word "bell", never says "rubric", and never claims "real email" is
- * "delivered" — the pretend inbox is Plan 9's postman's job, not this
- * page's to promise.
+ * this page joined that swept `pages` array in that same task. So the
+ * wording at birth was written to clear all six EXCLUDED patterns on day
+ * one, not just the three Task 14 leaves standing: it did not use the
+ * literal phrase "data request" (saying "a complete copy … or its removal"
+ * instead, exactly as D§7's About sentence does), the bare word "bell",
+ * "rubric", or a claim that "real email" is "delivered" — the pretend
+ * inbox is Plan 9's postman's job, not this page's to promise.
+ *
+ * Honesty pass (2026-08-29, Task 14): `/data request/i` and the two bell
+ * patterns are lifted from EXCLUDED (the contract amendment above lifts the
+ * bell and admin data requests), so the ordering constraint above is now
+ * historical — the "who sees what" section says "act on a data request"
+ * in the spec's own plain words rather than the birth-day euphemism
+ * "leaving request". Rubric and real-email-delivered stay unclaimed; they
+ * are still banned and this page still clears them.
  *
  * CONTROLLER WORDING CONSTRAINT (Task 9's ruling, binding): the erasure
  * scrub deliberately does not remove every trace — the events ledger,
@@ -64,7 +71,7 @@ export default function PrivacyPage() {
         their own. Guests see nothing of anyone &mdash; a guest has no
         account for anyone to see. Said honestly rather than left
         unsaid: an admin can technically see anything, because someone has
-        to be able to fix a stuck account or act on a leaving request; the
+        to be able to fix a stuck account or act on a data request; the
         admin console is built for a once-a-week glance, not for reading
         marks for its own sake.
       </p>

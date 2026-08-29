@@ -154,21 +154,11 @@ describe("the front page", () => {
   const COPY = SRC.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/^[ \t]*\/\/.*$/gm, " ");
 
   const NON_CLAIMS = {
-    "the notification bell": [
-      /notification bell/i,
-      /\bbell\b/i,
-      /in-?app notifications?/i,
-    ],
     "real email delivery": [
       /we('| ha)?ve sent/i,
       /check your inbox/i,
       /real email/i,
       /email delivery/i,
-    ],
-    "admin data requests": [
-      /data requests?/i,
-      /export everything about/i,
-      /erased? completely/i,
     ],
     "capabilities the product simply does not have": [
       /exam mode/i, /lockdown/i, /collision/i, /cloud/i,
@@ -198,17 +188,24 @@ describe("the front page", () => {
     expect(COPY).toContain("Use the IDE — no account needed");
   });
 
-  test("the non-claims list still names every STILL-EXCLUDED feature, and each pattern bites", () => {
+  test("the non-claims list still names the one launch exclusion left, and its pattern bites", () => {
     /* The mechanism, not today's strings. Deleting a group from NON_CLAIMS is
        the cheap way to make this file green while the page starts overclaiming,
-       so the three exclusions are asserted by name — and each is fed a sentence
-       that makes the claim, to prove the regex is not decoration. Plan 7 §12's
-       exclusion list (bell, real email delivery, admin data requests) is what
-       remains; peer sharing shipped in Stage C and left this list. */
+       so the remaining exclusion is asserted by name — and fed a sentence
+       that makes the claim, to prove the regex is not decoration.
+
+       Honesty pass (2026-08-29): the notification bell and admin data
+       requests shipped and left this list, the same way peer sharing left it
+       in Stage C before them — real email delivery is what remains of Plan
+       6 §9's original three, so it is the only entry sentence-fed here. The
+       other two groups still in NON_CLAIMS — "capabilities the product
+       simply does not have" and the History naming fiat — are a different
+       kind of ban (things that will never ship, and a vocabulary rule, not
+       a §9 launch exclusion that a future release could lift) and are
+       covered by the list-wide sweep in the test above, not by this
+       feature-by-feature proof. */
     const sentences = {
-      "the notification bell": "A notification bell collects everything for you.",
       "real email delivery": "We've sent you a link — check your inbox.",
-      "admin data requests": "An admin can raise a data request for any person.",
     };
     for (const [key, sentence] of Object.entries(sentences)) {
       expect(Object.keys(NON_CLAIMS)).toContain(key);
