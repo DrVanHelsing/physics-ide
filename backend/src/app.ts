@@ -33,8 +33,9 @@ export interface AppDeps {
  *  frontend's api client surfaces `data.error` straight through, and this
  *  project holds a high bar on product copy. One `errorResponseBuilder` on
  *  the plugin registration below fixes every limiter that shares it — the
- *  join-code throttle (members.ts) and the five inherited auth-route
- *  limiters (auth.ts x4, mailEvents.ts x1) alike. */
+ *  join-code throttle (members.ts) and the six inherited auth-route
+ *  limiters (auth.ts x5 — signup, signin, forgot, reset, change-password —
+ *  plus mailEvents.ts x1) alike. */
 export const RATE_LIMIT_MESSAGE = "You're doing that too fast. Wait a moment and try again.";
 
 declare module "fastify" {

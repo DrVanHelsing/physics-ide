@@ -528,11 +528,13 @@ describe("notification fan-out for class join (Task 5, site 8)", () => {
 });
 
 /* DEPLOY.md box 8 — join-code guessing. Plain per-IP throttle (no DB
- * counting, no lock): app.ts:54-57's own note says a route registered
- * directly on the root instance has a SILENTLY INERT `config.rateLimit` —
- * memberRoutes is `app.register`ed (app.ts:63), so proving the 429 fires is
- * the only way to know this route's config actually took effect, the
- * auth.signup.test.ts / mailEvents.test.ts idiom. */
+ * counting, no lock): app.ts's own NOTE (beginning "routes added directly
+ * on this root instance") says a route registered directly on the root
+ * instance has a SILENTLY INERT `config.rateLimit` — memberRoutes is
+ * `app.register`ed (where `app.register(memberRoutes)` runs, in app.ts's
+ * buildApp), so proving the 429 fires is the only way to know this route's
+ * config actually took effect, the auth.signup.test.ts / mailEvents.test.ts
+ * idiom. */
 describe("join rate limit (60/min per IP, DEPLOY.md box 8)", () => {
   test("allows 60 requests per minute then returns 429", async () => {
     // Fresh instance: the limiter's in-memory store is per-app, so this
