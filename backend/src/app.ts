@@ -3,6 +3,7 @@ import cookie from "@fastify/cookie";
 import rateLimit from "@fastify/rate-limit";
 import type { Db } from "./db/types.js";
 import { createDevMailer, type Mailer } from "./email/mailer.js";
+import { withPreferences } from "./email/withPreferences.js";
 import { authRoutes } from "./routes/auth.js";
 import { adminRoutes } from "./routes/admin.js";
 import { classRoutes } from "./routes/classes.js";
@@ -32,7 +33,7 @@ export function buildApp(deps: AppDeps): FastifyInstance {
   const app = Fastify({ logger: process.env.NODE_ENV !== "test" });
 
   app.decorate("db", deps.db);
-  app.decorate("mailer", deps.mailer ?? createDevMailer(deps.db));
+  app.decorate("mailer", deps.mailer ?? withPreferences(deps.db, createDevMailer(deps.db)));
 
   app.register(cookie);
   app.register(rateLimit, { global: false });
