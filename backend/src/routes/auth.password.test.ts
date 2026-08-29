@@ -346,6 +346,15 @@ describe("forgot — per-address cap", () => {
 
   test("unknown, capped, and known-under-cap addresses all answer the identical 200 body", async () => {
     const shapeApp = buildApp({ db: testDb });
+    // This route also carries a 5/min PER-IP limit (`config.rateLimit` on the
+    // route above) — a different control from the per-address cap under
+    // test here. This test fires more than 5 requests against one app
+    // instance, so each call gets its own `remoteAddress` to keep it clear
+    // of that budget entirely; without the override, one more assertion
+    // here could start failing on a 429 instead of the cap this test means
+    // to pin.
+    let shapeIp = 0;
+    const nextIp = () => `10.95.0.${++shapeIp}`;
     try {
       await testDb.insert(users).values({
         name: "Shape Person",
@@ -359,12 +368,14 @@ describe("forgot — per-address cap", () => {
         method: "POST",
         url: "/api/auth/forgot",
         payload: { email: "nobody-shape@example.com" },
+        remoteAddress: nextIp(),
       });
 
       const known = await shapeApp.inject({
         method: "POST",
         url: "/api/auth/forgot",
         payload: { email: "shapecheck@example.com" },
+        remoteAddress: nextIp(),
       });
 
       for (let i = 0; i < RESET_REQUEST_CAP - 1; i++) {
@@ -372,12 +383,14 @@ describe("forgot — per-address cap", () => {
           method: "POST",
           url: "/api/auth/forgot",
           payload: { email: "shapecheck@example.com" },
+          remoteAddress: nextIp(),
         });
       }
       const capped = await shapeApp.inject({
         method: "POST",
         url: "/api/auth/forgot",
         payload: { email: "shapecheck@example.com" },
+        remoteAddress: nextIp(),
       });
 
       expect(unknown.statusCode).toBe(200);
@@ -390,6 +403,171 @@ describe("forgot — per-address cap", () => {
       expect(known.json()).toEqual(capped.json());
     } finally {
       await shapeApp.close();
+    }
+  });
+
+  test("a reset token older than the window doesn't consume the address's budget", async () => {
+    // Regression for the `createdAt > now() - 1 hour` clause: a stale reset
+    // token (past RESET_REQUEST_WINDOW_MS) must not count, or an address
+    // that legitimately used its budget an hour+ ago would stay throttled
+    // forever.
+    const staleApp = buildApp({ db: testDb });
+    try {
+      await testDb.insert(users).values({
+        name: "Stale Window Person",
+        email: "stalewindow@example.com",
+        passwordHash: await argon2.hash("stale-pw-1", { type: argon2.argon2id }),
+        emailConfirmedAt: new Date(),
+        consentAt: new Date(),
+      });
+      const [u] = await testDb
+        .select()
+        .from(users)
+        .where(eq(users.email, "stalewindow@example.com"));
+
+      const stale = newToken();
+      await testDb.insert(emailTokens).values({
+        userId: u.id,
+        type: "reset",
+        tokenHash: stale.hash,
+        expiresAt: new Date(Date.now() + RESET_TTL_MS),
+        createdAt: new Date(Date.now() - (RESET_REQUEST_WINDOW_MS + 60_000)),
+      });
+
+      // The stale row above must not count: all RESET_REQUEST_CAP requests
+      // here still succeed, and only THEN does the cap bite.
+      for (let i = 0; i < RESET_REQUEST_CAP; i++) {
+        const res = await staleApp.inject({
+          method: "POST",
+          url: "/api/auth/forgot",
+          payload: { email: "stalewindow@example.com" },
+        });
+        expect(res.statusCode).toBe(200);
+      }
+
+      const resetTokens = await testDb
+        .select()
+        .from(emailTokens)
+        .where(and(eq(emailTokens.userId, u.id), eq(emailTokens.type, "reset")));
+      // The stale row plus RESET_REQUEST_CAP fresh ones.
+      expect(resetTokens).toHaveLength(RESET_REQUEST_CAP + 1);
+
+      const capped = await staleApp.inject({
+        method: "POST",
+        url: "/api/auth/forgot",
+        payload: { email: "stalewindow@example.com" },
+      });
+      expect(capped.statusCode).toBe(200);
+      const afterCap = await testDb
+        .select()
+        .from(emailTokens)
+        .where(and(eq(emailTokens.userId, u.id), eq(emailTokens.type, "reset")));
+      expect(afterCap).toHaveLength(RESET_REQUEST_CAP + 1);
+    } finally {
+      await staleApp.close();
+    }
+  });
+
+  test("another user's reset tokens don't count toward this address's budget", async () => {
+    // Regression for the `eq(users.email, ...)` join predicate: without it
+    // (or with a plain userId-less count), a global reset-token count would
+    // throttle every address off of a handful of unrelated users' activity.
+    const otherApp = buildApp({ db: testDb });
+    try {
+      await testDb.insert(users).values([
+        {
+          name: "Busy Neighbour",
+          email: "busyneighbour@example.com",
+          passwordHash: await argon2.hash("busy-pw-1", { type: argon2.argon2id }),
+          emailConfirmedAt: new Date(),
+          consentAt: new Date(),
+        },
+        {
+          name: "Quiet Person",
+          email: "quietperson@example.com",
+          passwordHash: await argon2.hash("quiet-pw-1", { type: argon2.argon2id }),
+          emailConfirmedAt: new Date(),
+          consentAt: new Date(),
+        },
+      ]);
+      const [neighbour] = await testDb
+        .select()
+        .from(users)
+        .where(eq(users.email, "busyneighbour@example.com"));
+
+      // Exhaust — and go past — the neighbour's own budget.
+      for (let i = 0; i < RESET_REQUEST_CAP + 1; i++) {
+        const t = newToken();
+        await testDb.insert(emailTokens).values({
+          userId: neighbour.id,
+          type: "reset",
+          tokenHash: t.hash,
+          expiresAt: new Date(Date.now() + RESET_TTL_MS),
+        });
+      }
+
+      const res = await otherApp.inject({
+        method: "POST",
+        url: "/api/auth/forgot",
+        payload: { email: "quietperson@example.com" },
+      });
+      expect(res.statusCode).toBe(200);
+
+      const [quiet] = await testDb.select().from(users).where(eq(users.email, "quietperson@example.com"));
+      const resetTokens = await testDb
+        .select()
+        .from(emailTokens)
+        .where(and(eq(emailTokens.userId, quiet.id), eq(emailTokens.type, "reset")));
+      expect(resetTokens).toHaveLength(1);
+    } finally {
+      await otherApp.close();
+    }
+  });
+
+  test("concurrent requests for the same address cannot blow past the cap", async () => {
+    // Proves the advisory-lock serialisation, not just the cap's arithmetic:
+    // fires RESET_REQUEST_CAP + 2 requests at once. A plain check-then-act
+    // (no lock) lets several of them read the same under-cap count and all
+    // insert — this test fails against that shape and holds against the
+    // lock.
+    const raceApp = buildApp({ db: testDb });
+    try {
+      await testDb.insert(users).values({
+        name: "Race Person",
+        email: "race@example.com",
+        passwordHash: await argon2.hash("race-pw-1", { type: argon2.argon2id }),
+        emailConfirmedAt: new Date(),
+        consentAt: new Date(),
+      });
+
+      const results = await Promise.all(
+        Array.from({ length: RESET_REQUEST_CAP + 2 }, () =>
+          raceApp.inject({
+            method: "POST",
+            url: "/api/auth/forgot",
+            payload: { email: "race@example.com" },
+          }),
+        ),
+      );
+      for (const res of results) {
+        expect(res.statusCode).toBe(200);
+        expect(res.json()).toEqual({ ok: true });
+      }
+
+      const [u] = await testDb.select().from(users).where(eq(users.email, "race@example.com"));
+      const resetTokens = await testDb
+        .select()
+        .from(emailTokens)
+        .where(and(eq(emailTokens.userId, u.id), eq(emailTokens.type, "reset")));
+      expect(resetTokens.length).toBeLessThanOrEqual(RESET_REQUEST_CAP);
+
+      const mails = await testDb
+        .select()
+        .from(emails)
+        .where(and(eq(emails.toEmail, "race@example.com"), eq(emails.template, "reset")));
+      expect(mails.length).toBeLessThanOrEqual(RESET_REQUEST_CAP);
+    } finally {
+      await raceApp.close();
     }
   });
 });
