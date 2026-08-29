@@ -231,6 +231,13 @@ export function inviteRoutes(app: FastifyInstance): void {
         // Task 5, site 9: the class's active teachers — the quiet joined
         // event's second door (an invited member lands ACTIVE without
         // passing the join route), same select as site 8.
+        //
+        // Fix (review finding): when the invite confers `teacher`, the role
+        // update above already committed the acceptor as an active teacher
+        // in THIS transaction, so this select would otherwise include them —
+        // self-notifying them about their own acceptance. Site 8's mandated
+        // joiner exclusion shows the design never wants the actor notified
+        // about their own action, so the actor is filtered out here too.
         const teachers = await tx
           .select({ userId: classMembers.userId })
           .from(classMembers)
@@ -241,10 +248,13 @@ export function inviteRoutes(app: FastifyInstance): void {
               eq(classMembers.status, "active"),
             ),
           );
-        await notify(tx, teachers.map((t) => t.userId), eid, "invite.accepted", {
-          classId: inv.classId,
-          joinerId: req.user!.id,
-        });
+        await notify(
+          tx,
+          teachers.map((t) => t.userId).filter((uid) => uid !== req.user!.id),
+          eid,
+          "invite.accepted",
+          { classId: inv.classId, joinerId: req.user!.id },
+        );
         return inv;
       });
     } catch (err) {
