@@ -31,14 +31,14 @@ import { classMembers, invites, marks, projects, projectVersions, shares, users 
  * ── The enumeration (grep of app.post|put|patch|delete over
  *    backend/src/routes/*.ts, cross-checked at runtime by the coverage
  *    test at the bottom of this file, which walks fastify's own router):
- *    61 mutating routes = 52 rows + 9 named skips.
+ *    62 mutating routes = 52 rows + 10 named skips.
  *
  *      assignments.ts 17 · auth.ts 8 (all skipped) · admin.ts 6 ·
  *      classes.ts 5 · groups.ts 5 · guides.ts 4 · invites.ts 4 ·
  *      members.ts 4 · projects.ts 3 · shares.ts 3 · notifications.ts 1 ·
- *      tick.ts 1 (skipped)
+ *      tick.ts 1 (skipped) · mailEvents.ts 1 (skipped)
  *
- * ── The nine skips, each named in SKIPPED below:
+ * ── The ten skips, each named in SKIPPED below:
  *    · six anonymous-by-design auth doors (signup, confirm, signin,
  *      signout, forgot, reset) — they have no actor to refuse; being
  *      reachable without a session IS their contract.
@@ -47,6 +47,9 @@ import { classMembers, invites, marks, projects, projectVersions, shares, users 
  *      nobody else's, so there is no cross-actor authority to test.
  *    · POST /api/tick — guarded by a shared secret header, not by a
  *      session at all (tick.test.ts owns that door).
+ *    · POST /api/mail/events — same shape: a shared secret header
+ *      (`x-mail-secret`), no session actor at all (mailEvents.test.ts owns
+ *      that door).
  * ═══════════════════════════════════════════════════════════════════════ */
 
 const app = buildApp({ db: testDb });
@@ -1029,7 +1032,7 @@ const MATRIX: Array<{ file: string; rows: Row[] }> = [
   },
 ];
 
-/** The nine mutating routes deliberately outside the matrix, by name. */
+/** The ten mutating routes deliberately outside the matrix, by name. */
 const SKIPPED = [
   // Anonymous by design — the doors into the product. No session to refuse.
   "POST /api/auth/signup",
@@ -1043,6 +1046,8 @@ const SKIPPED = [
   "POST /api/auth/change-password",
   // Guarded by a shared secret header, not a session (tick.test.ts).
   "POST /api/tick",
+  // Same shape — a shared secret header (mailEvents.test.ts).
+  "POST /api/mail/events",
 ];
 
 /* ── The runner ── */
@@ -1099,11 +1104,11 @@ describe("the authority matrix — coverage", () => {
     }
   });
 
-  test("the enumeration adds up: 61 mutating routes = 52 rows + 9 skips", async () => {
+  test("the enumeration adds up: 62 mutating routes = 52 rows + 10 skips", async () => {
     await app.ready();
     expect(MATRIX.flatMap((s) => s.rows)).toHaveLength(52);
-    expect(SKIPPED).toHaveLength(9);
-    expect(new Set(registeredMutating).size).toBe(61);
+    expect(SKIPPED).toHaveLength(10);
+    expect(new Set(registeredMutating).size).toBe(62);
   });
 });
 

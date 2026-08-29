@@ -200,7 +200,14 @@ describe("AdminConsole Emails tab — the mail row is not click-only", () => {
         ? {
             data: {
               emails: [
-                { id: "m1", createdAt: "2026-01-01T00:00:00Z", toEmail: "a@b.com", subject: "Hi", bodyText: "Body" },
+                {
+                  id: "m1",
+                  createdAt: "2026-01-01T00:00:00Z",
+                  toEmail: "a@b.com",
+                  subject: "Hi",
+                  bodyText: "Body",
+                  status: "delivered",
+                },
               ],
             },
           }
@@ -239,6 +246,32 @@ describe("AdminConsole Emails tab — the mail row is not click-only", () => {
     });
     expect(defaultPrevented).toBe(true);
     expect(container.querySelector(".admin-mail-row").getAttribute("aria-expanded")).toBe("true");
+  });
+
+  /* Task 4 / D13 ("classroom-platform.md:546", repeated at ":339"): a
+     status readout resolves through the semantic tokens AND carries the
+     word — colour is never the only channel, so both the class and the
+     text are asserted, not the word alone. */
+  test("the Status column renders the word 'delivered' and the success token class", () => {
+    const container = renderEmails();
+    const headers = [...container.querySelectorAll(".admin-table thead th")].map((th) => th.textContent);
+    expect(headers).toEqual(["When", "To", "Subject", "Status"]);
+
+    const badge = container.querySelector(".admin-mail-row .badge");
+    expect(badge).not.toBeNull();
+    expect(badge.textContent).toBe("delivered");
+    expect(badge.classList.contains("badge--success")).toBe(true);
+    expect(badge.classList.contains("badge--danger")).toBe(false);
+  });
+
+  // The expander row's colSpan must track the Status column's arrival, or
+  // the opened body sits one column short of the four-column header.
+  test("the opened row's body cell spans all four columns", () => {
+    const container = renderEmails();
+    const row = container.querySelector(".admin-mail-row");
+    keyDown(row, { key: "Enter" });
+    const bodyCell = container.querySelector(".admin-mail-body").closest("td");
+    expect(bodyCell.getAttribute("colspan")).toBe("4");
   });
 });
 

@@ -450,7 +450,14 @@ export function adminRoutes(app: FastifyInstance): void {
       .select({ count: sql<number>`count(*)::int` })
       .from(emails);
     const cap = (await getSetting(app.db, "account_cap")) ?? 200;
-    return { ok: true, db: "ok", users: userCount, cap, emailsLogged: emailCount };
+    // §10's second promise for this panel: "storage used". Node-postgres
+    // returns a bigint column as a string, not a number — Number() is safe
+    // at this project's 200-user scale (well under Number.MAX_SAFE_INTEGER).
+    const sizeResult = await app.db.execute<{ bytes: string }>(
+      sql`SELECT pg_database_size(current_database()) AS bytes`,
+    );
+    const storageBytes = Number(sizeResult.rows[0]?.bytes ?? 0);
+    return { ok: true, db: "ok", users: userCount, cap, emailsLogged: emailCount, storageBytes };
   });
 
   app.get("/api/admin/classes", async () => {

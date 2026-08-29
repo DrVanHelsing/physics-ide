@@ -56,3 +56,22 @@ describe("AdminConsole HealthTab — semantic status with a second channel (D13)
     expect(card.querySelector(".admin-health")).not.toBeNull();
   });
 });
+
+/* Task 4 / §10's second Health promise: "storage used" — rendered
+   human-readable, not as a raw byte count. */
+describe("AdminConsole HealthTab — storage used (§10)", () => {
+  test("renders a human-readable size for a byte count in the MB range", () => {
+    const container = render({ ok: true, db: "ok", users: 3, cap: 200, emailsLogged: 5, storageBytes: 15_728_640 });
+    expect(container.textContent).toContain("Storage used");
+    expect(container.textContent).toContain("15.0 MB");
+  });
+
+  test("renders bytes verbatim below 1 KB, and a whole-number KB just above it", () => {
+    const bytesOnly = render({ ok: true, db: "ok", users: 3, cap: 200, emailsLogged: 5, storageBytes: 512 });
+    expect(bytesOnly.textContent).toContain("512 B");
+
+    mounted.unmount();
+    const kb = render({ ok: true, db: "ok", users: 3, cap: 200, emailsLogged: 5, storageBytes: 2048 });
+    expect(kb.textContent).toContain("2.0 KB");
+  });
+});
