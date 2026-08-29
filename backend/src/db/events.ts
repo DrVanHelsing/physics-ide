@@ -2,7 +2,7 @@ import type { Db } from "./types.js";
 import { events } from "./schema.js";
 
 /** Accepts the Db or a transaction — both expose the same .insert() surface. */
-type DbLike = Pick<Db, "insert">;
+export type DbLike = Pick<Db, "insert">;
 
 /** Returns the event id so notify() (Plan 8) can reference the ledger row it fans out for. */
 export async function logEvent(
