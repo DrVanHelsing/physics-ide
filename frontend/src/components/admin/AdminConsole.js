@@ -5,8 +5,9 @@ import { api } from "../../utils/api/client";
 import { useMe } from "../../auth/useAuth";
 import { CheckIcon, AlertTriangleIcon, SearchIcon, XIcon } from "../Icons";
 import PortalHeader from "../layout/PortalHeader";
+import DataRequestsTab from "./DataRequestsTab";
 
-const TABS = ["People", "Classes", "Emails", "Health"];
+const TABS = ["People", "Classes", "Emails", "Health", "Data requests"];
 
 /* F2 (2026-08-28 UI audit) — the console's only structural link was the
    wordmark, and it ejects to "/" (the IDE), which is not a portal
@@ -80,6 +81,7 @@ export default function AdminConsole() {
         {tab === "Classes" ? <ClassesTab /> : null}
         {tab === "Emails" ? <EmailsTab /> : null}
         {tab === "Health" ? <HealthTab /> : null}
+        {tab === "Data requests" ? <DataRequestsTab /> : null}
       </div>
     </div>
   );
@@ -173,27 +175,41 @@ function PeopleTab() {
                 <td>{u.email}</td>
                 <td>{u.role === "admin" ? "admin" : u.isTeacher ? "teacher" : "student"}</td>
                 <td>
-                  {u.active ? "active" : "deactivated"}
-                  {!u.emailConfirmed ? " · unconfirmed" : ""}
+                  {u.erased ? (
+                    <span className="status-erased">erased</span>
+                  ) : (
+                    <>
+                      {u.active ? "active" : "deactivated"}
+                      {!u.emailConfirmed ? " · unconfirmed" : ""}
+                    </>
+                  )}
                 </td>
                 <td className="admin-actions">
-                  {u.active ? (
-                    <button className="btn btn--danger" type="button" onClick={() => act.mutate({ id: u.id, action: "deactivate" })}>
-                      Deactivate
-                    </button>
-                  ) : (
-                    <button className="btn" type="button" onClick={() => act.mutate({ id: u.id, action: "reactivate" })}>
-                      Reactivate
-                    </button>
+                  {/* The People tab's third status (D§5): a scrubbed shell
+                      offers none of the four actions — Reactivate on one
+                      would be a lie, and the backend 409s the other three
+                      anyway (Task 10). */}
+                  {u.erased ? null : (
+                    <>
+                      {u.active ? (
+                        <button className="btn btn--danger" type="button" onClick={() => act.mutate({ id: u.id, action: "deactivate" })}>
+                          Deactivate
+                        </button>
+                      ) : (
+                        <button className="btn" type="button" onClick={() => act.mutate({ id: u.id, action: "reactivate" })}>
+                          Reactivate
+                        </button>
+                      )}
+                      {!u.emailConfirmed ? (
+                        <button className="btn" type="button" onClick={() => act.mutate({ id: u.id, action: "resend-confirmation" })}>
+                          Resend confirmation
+                        </button>
+                      ) : null}
+                      <button className="btn" type="button" onClick={() => act.mutate({ id: u.id, action: "send-reset" })}>
+                        Send reset
+                      </button>
+                    </>
                   )}
-                  {!u.emailConfirmed ? (
-                    <button className="btn" type="button" onClick={() => act.mutate({ id: u.id, action: "resend-confirmation" })}>
-                      Resend confirmation
-                    </button>
-                  ) : null}
-                  <button className="btn" type="button" onClick={() => act.mutate({ id: u.id, action: "send-reset" })}>
-                    Send reset
-                  </button>
                 </td>
               </tr>
             ))}

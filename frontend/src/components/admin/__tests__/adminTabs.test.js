@@ -1,7 +1,7 @@
 import { describe, test, expect, vi, afterEach } from "vitest";
 import React, { act } from "react";
 import AdminConsole from "../AdminConsole";
-import { mountComponent, keyDown } from "../../../test/renderHelpers";
+import { mountComponent, keyDown, byText } from "../../../test/renderHelpers";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useMe } from "../../../auth/useAuth";
 
@@ -63,14 +63,20 @@ function selectedTab(container) {
 }
 
 describe("AdminConsole tabs — real ARIA tablist, not attributes alone", () => {
-  test("a tablist wraps four tabs, exactly one selected, panel wired via aria-labelledby", () => {
+  test("a tablist wraps five tabs, exactly one selected, panel wired via aria-labelledby", () => {
     const container = render();
 
     const tablist = container.querySelector('[role="tablist"]');
     expect(tablist).not.toBeNull();
 
     const tabs = [...container.querySelectorAll('[role="tab"]')];
-    expect(tabs.map((t) => t.textContent)).toEqual(["People", "Classes", "Emails", "Health"]);
+    expect(tabs.map((t) => t.textContent)).toEqual([
+      "People",
+      "Classes",
+      "Emails",
+      "Health",
+      "Data requests",
+    ]);
 
     const selected = tabs.filter((t) => t.getAttribute("aria-selected") === "true");
     expect(selected.length).toBe(1);
@@ -86,7 +92,7 @@ describe("AdminConsole tabs — real ARIA tablist, not attributes alone", () => 
     const container = render();
     const tabs = [...container.querySelectorAll('[role="tab"]')];
     const panel = container.querySelector('[role="tabpanel"]');
-    expect(tabs.length).toBe(4);
+    expect(tabs.length).toBe(5);
     tabs.forEach((t) => {
       const controlsId = t.getAttribute("aria-controls");
       expect(controlsId).toBeTruthy();
@@ -124,7 +130,7 @@ describe("AdminConsole tabs — real ARIA tablist, not attributes alone", () => 
     const first = selectedTab(container);
     keyDown(first, { key: "ArrowLeft" });
     const now = selectedTab(container);
-    expect(now.textContent).toBe("Health");
+    expect(now.textContent).toBe("Data requests");
   });
 
   test("End jumps to the last tab, Home jumps back to the first", () => {
@@ -133,7 +139,7 @@ describe("AdminConsole tabs — real ARIA tablist, not attributes alone", () => 
 
     keyDown(first, { key: "End" });
     const last = selectedTab(container);
-    expect(last.textContent).toBe("Health");
+    expect(last.textContent).toBe("Data requests");
     expect(document.activeElement).toBe(last);
 
     keyDown(last, { key: "Home" });
@@ -233,5 +239,71 @@ describe("AdminConsole Emails tab — the mail row is not click-only", () => {
     });
     expect(defaultPrevented).toBe(true);
     expect(container.querySelector(".admin-mail-row").getAttribute("aria-expanded")).toBe("true");
+  });
+});
+
+/* Plan 8 Task 11 — the People tab's THIRD status (D§5): a scrubbed shell is
+   neither "active" nor "deactivated", and none of the four row actions
+   (Deactivate/Reactivate/Resend confirmation/Send reset) may be offered on
+   one — Reactivate on an erased shell is a lie, and the backend 409s the
+   other three anyway (Task 10). */
+describe("AdminConsole People tab — the third state: erased", () => {
+  function renderPeopleWithUsers(users) {
+    useMe.mockReturnValue({ data: { id: "a1", name: "Admin", role: "admin" }, isLoading: false });
+    useQuery.mockImplementation(({ queryKey }) =>
+      queryKey[1] === "users" ? { data: { users } } : { data: undefined },
+    );
+    mounted = mountComponent(<AdminConsole />);
+    return mounted.container;
+  }
+
+  test("an erased row renders the status word 'erased' with the muted token, and none of the four action buttons", () => {
+    const container = renderPeopleWithUsers([
+      {
+        id: "u9",
+        name: "Removed student",
+        email: "erased+u9@erased.invalid",
+        role: "user",
+        isTeacher: false,
+        active: false,
+        emailConfirmed: false,
+        erased: true,
+      },
+    ]);
+
+    const row = container.querySelector(".admin-table tbody tr");
+    expect(row).not.toBeNull();
+
+    const cells = [...row.querySelectorAll("td")];
+    const statusWord = cells[3].querySelector(".status-erased");
+    expect(statusWord).not.toBeNull();
+    expect(statusWord.textContent).toBe("erased");
+
+    const actionsCell = cells[4];
+    expect(actionsCell.querySelectorAll("button").length).toBe(0);
+    ["Deactivate", "Reactivate", "Resend confirmation", "Send reset"].forEach((label) => {
+      expect(byText(container, label)).toBeNull();
+    });
+  });
+
+  test("a non-erased row is unaffected — active/deactivated status and its actions still render", () => {
+    const container = renderPeopleWithUsers([
+      {
+        id: "u1",
+        name: "Ada Lovelace",
+        email: "ada@example.com",
+        role: "user",
+        isTeacher: false,
+        active: true,
+        emailConfirmed: true,
+        erased: false,
+      },
+    ]);
+
+    const row = container.querySelector(".admin-table tbody tr");
+    const cells = [...row.querySelectorAll("td")];
+    expect(cells[3].querySelector(".status-erased")).toBeNull();
+    expect(cells[3].textContent).toBe("active");
+    expect(byText(container, "Deactivate")).not.toBeNull();
   });
 });
