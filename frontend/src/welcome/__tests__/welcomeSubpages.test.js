@@ -5,6 +5,7 @@ import AboutPage from "../AboutPage";
 import ContactPage from "../ContactPage";
 import TeachersPage from "../TeachersPage";
 import WelcomePage from "../WelcomePage";
+import PrivacyPage from "../PrivacyPage";
 import { mountComponent } from "../../test/renderHelpers";
 
 /* /about, /contact and /teachers (polish brief, extended by the public-pages
@@ -101,6 +102,13 @@ describe("AboutPage — /about", () => {
     expect(text).toContain("who shared what, with whom, when");
     // The underclaim ("that is the whole of the monitoring") stays banned.
     expect(text).not.toMatch(/that is the whole of the monitoring/i);
+    // Task 13 (D§7): the About record grows its data-care leg — the same
+    // "complete copy … or its removal" / "Removed student" pair the new
+    // /privacy page pins, appended to this same paragraph.
+    expect(text).toContain(
+      "a complete copy of everything the system holds about them, or its removal",
+    );
+    expect(text).toContain("Removed student");
   });
 
   /* Launch-truth directive, controller-confirmed (2026-08-26): the site
@@ -318,6 +326,42 @@ describe("TeachersPage — /teachers", () => {
   });
 });
 
+describe("PrivacyPage — /privacy — §11's plain statements, pinned", () => {
+  test("renders the shared header and exactly one h1", () => {
+    const container = render(<PrivacyPage />);
+    expect(container.querySelector(".welcome-header")).toBeTruthy();
+    const h1s = container.querySelectorAll("h1");
+    expect(h1s).toHaveLength(1);
+  });
+
+  test("§11's six plain statements, §10's admin sentence and D§7's export-scope sentence are pinned verbatim", () => {
+    const container = render(<PrivacyPage />);
+    const text = container.textContent.replace(/\s+/g, " ");
+    // What we store (§11).
+    expect(text).toContain(
+      "name, email, scrambled password, class memberships, projects and their history, submissions, marks and feedback, the share ledger, and sign-in timestamps",
+    );
+    // What we never collect (§8.2/§11).
+    expect(text).toContain(
+      "no location, no contacts, no browsing habits, no advertising identifiers, no photos, no birthdates",
+    );
+    // Who sees what — §10's honest admin-visibility sentence.
+    expect(text).toContain("an admin can technically see anything");
+    // The right to leave — the erasure consequence.
+    expect(text).toContain(
+      "a complete copy of everything the system holds about them, or its removal",
+    );
+    expect(text).toContain("Removed student");
+    // D§7's export-scope sentence, verbatim.
+    expect(text).toContain("It does not contain other people's");
+    expect(text).toContain(
+      "The copy you get contains the actions you took. It does not contain other people's " +
+        "— including a teacher's record of opening your timeline, which is theirs to be " +
+        "accountable for, not yours to hold.",
+    );
+  });
+});
+
 /* ── Shared closing footer (consistency-audit fix) ─────────────────────────
    About, Contact and Teachers previously ended the instant their prose did
    — no closing rhythm at all, unlike /welcome's own deliberate .welcome-foot.
@@ -370,7 +414,14 @@ describe("Subpage shell — the shared closing footer (About, Contact, Teachers)
    of those is the excluded claim. What's actually excluded is a claim that
    the platform *delivers* real email, or that admin can issue a *data
    request* (export/erase) — so the bans target those phrases, not the word
-   "email" or "data" alone. */
+   "email" or "data" alone.
+
+   Task 13 (D§9 ordering note): PrivacyPage joins the swept `pages` array
+   below, written to clear all six EXCLUDED patterns at birth — it never
+   says "data request" (D§7 says "a complete copy … or its removal"
+   instead), never the bare word "bell", and never claims mail is
+   delivered. The bell/data-request bans are lifted from EXCLUDED by Task
+   14, not this one; until then they police this page too. */
 describe("Launch-truth scope guard — Plan 6 §9 exclusions appear on none of the four public pages", () => {
   test("no page names the notification bell, rubric marking, real email delivery or admin data requests", () => {
     const EXCLUDED = [
@@ -381,7 +432,13 @@ describe("Launch-truth scope guard — Plan 6 §9 exclusions appear on none of t
       /email delivery/i,
       /data request/i,
     ];
-    const pages = [<AboutPage />, <ContactPage />, <TeachersPage />, <WelcomePage />];
+    const pages = [
+      <AboutPage />,
+      <ContactPage />,
+      <TeachersPage />,
+      <WelcomePage />,
+      <PrivacyPage />,
+    ];
     for (const ui of pages) {
       const container = render(ui);
       const text = container.textContent;

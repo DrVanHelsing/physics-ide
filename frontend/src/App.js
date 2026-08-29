@@ -20,6 +20,7 @@ import WelcomePage            from "./welcome/WelcomePage";
 import AboutPage              from "./welcome/AboutPage";
 import ContactPage            from "./welcome/ContactPage";
 import TeachersPage           from "./welcome/TeachersPage";
+import PrivacyPage            from "./welcome/PrivacyPage";
 import SignUpPage             from "./components/auth/SignUpPage";
 import SignInPage             from "./components/auth/SignInPage";
 import CheckEmailPage         from "./components/auth/CheckEmailPage";
@@ -60,6 +61,7 @@ function App() {
                         <Route path="/" element={<WelcomeGate><IDELayout /></WelcomeGate>} />
                         <Route path="/welcome" element={<WelcomePage />} />
                         <Route path="/about" element={<AboutPage />} />
+                        <Route path="/privacy" element={<PrivacyPage />} />
                         <Route path="/contact" element={<ContactPage />} />
                         <Route path="/teachers" element={<TeachersPage />} />
                         <Route path="/auth/signup" element={<SignUpPage />} />
