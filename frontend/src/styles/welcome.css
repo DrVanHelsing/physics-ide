@@ -629,9 +629,12 @@ p.welcome-helpref {
    instant their prose did — no closing rhythm at all, unlike /welcome's own
    deliberate .welcome-foot. This gives all three the same "the page has an
    end" beat, at the same 72ch measure as the prose column above it, reusing
-   .welcome-foot__links' own layout and copy verbatim (Create an account /
-   Sign in — the exact strings WelcomePage.js's footer already ships, not
-   new copy). No primary "Open the IDE" door here: these three routes sit
+   .welcome-foot__links' own layout (Create an account / Sign in — the
+   exact strings WelcomePage.js's footer already ships, not new copy).
+   Task 13 (D§7) adds a third link ahead of those two: Privacy, to /privacy
+   — the one nav/footer link that page needs, placed here rather than in
+   WelcomeHeader.js's own nav, whose three-item order is locked verbatim
+   elsewhere. No primary "Open the IDE" door here: these three routes sit
    outside the gate entirely (this file's own header comment) and carry no
    go(), so a bare Link to "/" would trip WelcomeGate and bounce straight
    back to /welcome — the loop WelcomePage.js's header comment warns

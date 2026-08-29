@@ -22,6 +22,12 @@ import WelcomeHeader from "./WelcomeHeader";
  * void below them. Plain Links only, same reasoning as WelcomeHeader's own
  * Sign in above: these routes carry no go(), so a bare Link to "/" would
  * trip WelcomeGate and bounce straight back to /welcome.
+ *
+ * Task 13 (D§7): this footer is also where /privacy gets its one nav/footer
+ * link, beside the account links every subpage already closes on — not
+ * WelcomeHeader's own nav, whose three-item order (About, For teachers,
+ * Contact) is locked verbatim by welcomeHeader.test.js and welcomePage.test.js,
+ * neither of which this task touches.
  */
 export default function WelcomeSubpage({ title, children }) {
   return (
@@ -33,6 +39,7 @@ export default function WelcomeSubpage({ title, children }) {
       </main>
       <footer className="welcome-subpage__foot">
         <div className="welcome-foot__links">
+          <Link className="btn btn--ghost" to="/privacy">Privacy</Link>
           <Link className="btn btn--ghost" to="/auth/signup">Create an account</Link>
           <Link className="btn btn--ghost" to="/auth/signin">Sign in</Link>
         </div>

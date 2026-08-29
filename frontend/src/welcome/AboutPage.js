@@ -109,7 +109,20 @@ export default function AboutPage() {
           Plan 7's honesty pass (28 August 2026) added one more sentence
           to the same paragraph rather than a new one: the §8.3 peer-sharing
           ledger shipped in Stage C, so a share event now simply joins the
-          record already described here. */}
+          record already described here.
+
+          Task 13 (D§7, 29 August 2026) appends a second sentence to the
+          same paragraph rather than a new one, again: the right to leave
+          that record. Two new positive locks in welcomeSubpages.test.js
+          pin it verbatim ("a complete copy of everything the system holds
+          about them, or its removal" and "Removed student"); all four
+          prior positive locks and the underclaim ban stay untouched. It
+          is worded to match §11's own "Right to leave" statement and the
+          Task 9 erasure ruling: the scrub does not remove every trace (the
+          events ledger, the pretend inbox and outstanding invites can
+          still carry the person's email), so this sentence claims exactly
+          what the scrub does — the class record keeps the work, renamed;
+          the account and the person do not stay. */}
       <p>
         The platform keeps one append-only record of the actions accounts
         take: signing up, joining a class or asking to, publishing an
@@ -120,7 +133,12 @@ export default function AboutPage() {
         work. It does not scan for copied work, does not watch how you type,
         and has no webcam or screen monitoring of any kind. Every share of
         work between classmates joins the same record &mdash; who shared
-        what, with whom, when.
+        what, with whom, when. Every person that record is about can ask
+        for all of it: a complete copy of everything the system holds
+        about them, or its removal &mdash; after which their work in a
+        class record stays, under the name Removed student, and the
+        person does not. The full detail is one screen away, on the{" "}
+        <Link to="/privacy">privacy page</Link>.
       </p>
 
       <h2>Accessibility</h2>
