@@ -43,12 +43,19 @@ export const BREVO_SEND_URL = "https://api.brevo.com/v3/smtp/email";
  *  old age. One deadline, applied to the only outbound call there is. */
 export const SEND_TIMEOUT_MS = 10_000;
 
-/** The three statuses this driver writes (the dev driver's is "dev"). */
+/** Every status a brevo-pipeline row can hold: the three this driver
+ *  writes itself (send-time; the dev driver's own status is "dev", defined
+ *  in its own file), plus the two the inbound webhook (mailEvents.ts)
+ *  resolves delivery/bounce events to. One shared definition so the two
+ *  files can't drift apart on the vocabulary (Task 4 fix round 1, M6). */
 export const brevoStatus = {
   /** Written BEFORE the provider is called. */
   sending: "sending",
   sent: "sent",
   failed: "failed",
+  /** Written by the inbound webhook (mailEvents.ts), not this driver. */
+  delivered: "delivered",
+  bounced: "bounced",
 } as const;
 
 const SEND_REFUSED = "Brevo refused the send";
