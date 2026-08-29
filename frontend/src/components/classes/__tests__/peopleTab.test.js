@@ -61,7 +61,23 @@ describe("PeopleTab — invite note reads `invited`, not `sent`", () => {
     expect(note.textContent).toBe("Invited 2 people");
   });
 
-  test("skipped addresses still append onto the new sentence", () => {
+  test('a single invite is singular: "Invited 1 person", not "1 people"', () => {
+    const mutate = vi.fn((_body, opts) => {
+      opts.onSuccess({ invited: ["a@example.com"], skipped: [] });
+    });
+    useMutation.mockReturnValue({ mutate, isPending: false });
+
+    mounted = mountComponent(<PeopleTab />);
+    const container = mounted.container;
+
+    type(container.querySelector("textarea"), "a@example.com");
+    submit(container.querySelector("form"));
+
+    const note = container.querySelector("form .auth-text--dim");
+    expect(note.textContent).toBe("Invited 1 person");
+  });
+
+  test("skipped addresses still append onto the new sentence, and the singular still applies", () => {
     const mutate = vi.fn((_body, opts) => {
       opts.onSuccess({ invited: ["a@example.com"], skipped: ["already@example.com"] });
     });
@@ -74,6 +90,6 @@ describe("PeopleTab — invite note reads `invited`, not `sent`", () => {
     submit(container.querySelector("form"));
 
     const note = container.querySelector("form .auth-text--dim");
-    expect(note.textContent).toBe("Invited 1 people · already members: already@example.com");
+    expect(note.textContent).toBe("Invited 1 person · already members: already@example.com");
   });
 });
