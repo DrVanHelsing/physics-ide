@@ -19,6 +19,8 @@ And the two standing constraints: **at most 200 people**, and **nothing may cons
 
 **28 August 2026** — Plan 7 (peer sharing, section 8.3): §14 clarified, no new screens — the share control is part of the IDE workspace screen (File menu), and pending shares ("Shared with you") are part of the Class page screen. The §8.1 ledger and label shipped as specified; decisions recorded in product-contract.md's peer-sharing amendment.
 
+**29 August 2026** — Plan 8 (notifications + data care, sections 9–11): §14 gains one row — the privacy page the spec already cited three times (§8.2, §10, §11). The bell, the notification switches and the data-requests tab shipped inside screens §14 already inventoried. Decisions recorded in product-contract.md's notifications-and-data-care amendment.
+
 ---
 
 ## 1. The big picture
@@ -399,6 +401,7 @@ Every screen on this list is built from the shared design system in **section 18
 | Sign in / Sign up / Check your email / Confirm address / Forgot password / Reset password | The doors |
 | The IDE workspace | The existing editor — blocks, code, 3D, data panel, debug drawer — with the light/dark toggle, and (for signed-in users) the sync chip and, inside assignments, the instructions side panel and the switched-off-tools note (section 5.4), and — where a class has sharing on (section 8.3) — the Share control in the File menu |
 | Profile & settings | Name, password, notification switches |
+| Privacy page | §11's plain statements, §8.2's never-collected list, the honest admin-visibility sentence, and what an export contains — public, no sign-in |
 | Notifications panel | The bell |
 
 **Students**
