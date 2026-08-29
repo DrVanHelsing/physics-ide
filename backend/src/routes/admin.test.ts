@@ -672,6 +672,17 @@ describe("erase: the scrub", () => {
   beforeAll(async () => {
     world = await seedStudentWorld("ers");
     [before] = await testDb.select().from(users).where(eq(users.id, world.student.id));
+    // A delivery-log row for them, carrying exactly what the log used to
+    // keep past an erasure: their real address, and a body the `token=`
+    // redaction never touches.
+    await testDb.insert(emails).values({
+      toEmail: world.student.email,
+      toUserId: world.student.id,
+      template: "marks-released",
+      subject: "Feedback released — ers Assignment",
+      bodyText: "Score: 8/10\n\nGood work",
+      status: "sent",
+    });
     const res = await erase(world.student.id, world.student.email);
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual({ ok: true });
@@ -693,6 +704,20 @@ describe("erase: the scrub", () => {
     // record of a decision, not a detail about the person.
     expect(u.consentAt.getTime()).toBe(before.consentAt.getTime());
     expect(u.createdAt.getTime()).toBe(before.createdAt.getTime());
+  });
+
+  test("the email log is GONE for them: no address, and no body carrying their marks or their teacher's words", async () => {
+    // `emails.toUserId` has no FK, so nothing cascades — the erase
+    // transaction deletes these explicitly or they survive forever. This is
+    // the half seam-level suppression cannot reach: suppression stops
+    // FUTURE sends, it does not unwrite what was already logged.
+    const mails = await testDb.select().from(emails).where(eq(emails.toUserId, world.student.id));
+    expect(mails).toHaveLength(0);
+    const byAddress = await testDb
+      .select()
+      .from(emails)
+      .where(eq(emails.toEmail, world.student.email));
+    expect(byAddress).toHaveLength(0);
   });
 
   test("delivery state is GONE: sessions, email tokens, notifications, prefs", async () => {

@@ -1457,9 +1457,16 @@ describe("Task 23: the group mark", () => {
     const bravoMail = (await emailsTo(bravo.id, "marks-released")).filter((e) =>
       e.subject.includes("Group Release"),
     );
-    expect(alphaMail[0].bodyText).toContain("8/10");
-    expect(bravoMail[0].bodyText).toContain("9/10");
-    expect(alphaMail[0].bodyText).toContain("Solid write-up.");
+    // Both members are still emailed, and the per-member adjustment still
+    // lands on the MARK (asserted above via marksOf) — but D§10 fiat 12's
+    // data minimisation means neither score nor comment rides the email.
+    // The differing 8/10 vs 9/10 is exactly the kind of detail that used to
+    // leave the building; it now stays behind the sign-in.
+    expect(alphaMail[0].bodyText).not.toContain("8/10");
+    expect(bravoMail[0].bodyText).not.toContain("9/10");
+    expect(alphaMail[0].bodyText).not.toContain("Solid write-up.");
+    expect(alphaMail[0].bodyText).toContain("Sign in to Physics IDE to see them.");
+    expect(bravoMail[0].bodyText).toContain("Sign in to Physics IDE to see them.");
   });
 
   test("a group draft written against a superseded attempt is refused for every member", async () => {

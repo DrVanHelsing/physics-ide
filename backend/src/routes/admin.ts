@@ -207,6 +207,15 @@ export function adminRoutes(app: FastifyInstance): void {
       // beside the ledger instead of inside it (D§2).
       await tx.delete(notifications).where(eq(notifications.userId, u.id));
       await tx.delete(notificationPrefs).where(eq(notificationPrefs.userId, u.id));
+      // The email log's debt. `emails.toUserId` carries no FK (schema.ts),
+      // so nothing here cascades: without this line an erased person's real
+      // address stays in `to_email`, and `body_text` keeps whatever the
+      // templates interpolated — which the `token=` redaction does not
+      // touch — and the export still hands those rows back. The log is
+      // operational, not a record (D§5 fiat 7), so it has no claim to
+      // survive an erasure. Seam-level suppression closes FUTURE sends;
+      // this is the half suppression cannot reach.
+      await tx.delete(emails).where(eq(emails.toUserId, u.id));
       // class_members and group_members are DELIBERATELY KEPT: the marking
       // inbox and the gradebook build their rosters from membership, so
       // deleting them would make the surviving submissions and marks

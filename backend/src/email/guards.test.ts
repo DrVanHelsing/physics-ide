@@ -7,9 +7,10 @@ import {
   suppressErased,
   neverThrow,
   selectMailDriver,
-  BREVO_DRIVER_NOT_IMPLEMENTED,
+  BREVO_CONFIG_INCOMPLETE,
   type MinimalLogger,
 } from "./guards.js";
+import { createBrevoMailer } from "./brevoMailer.js";
 import type { Db } from "../db/types.js";
 import type { Mailer } from "./mailer.js";
 
@@ -99,10 +100,54 @@ describe("selectMailDriver", () => {
     expect(rows[0].status).toBe("dev");
   });
 
-  test("brevo throws the named sentinel — replaced in Task 3", () => {
-    expect(() => selectMailDriver({ mailDriver: "brevo" }, testDb)).toThrow(
-      BREVO_DRIVER_NOT_IMPLEMENTED,
+  // Task 2's placeholder asserted that `brevo` threw BREVO_DRIVER_NOT_IMPLEMENTED.
+  // Task 3 made it real, so the assertion moves to what the branch does now.
+  test("brevo returns the real driver — asserted by actually sending through an injected fetch, not by shape", async () => {
+    const fetchImpl = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ messageId: "<guards.1@relay.domain.com>" }), {
+          status: 201,
+          headers: { "content-type": "application/json" },
+        }),
     );
+    // selectMailDriver builds the driver with the global fetch, so the seam
+    // is exercised through createBrevoMailer directly for the wire, and
+    // through selectMailDriver for the branch itself.
+    const selected = selectMailDriver(
+      { mailDriver: "brevo", mailFrom: "no-reply@example.com", brevoApiKey: "k" },
+      testDb,
+    );
+    expect(typeof selected.send).toBe("function");
+
+    const driver = createBrevoMailer(
+      testDb,
+      { mailFrom: "no-reply@example.com", brevoApiKey: "k" },
+      fetchImpl as unknown as typeof fetch,
+    );
+    await driver.send({
+      to: "guards-brevo-driver@example.com",
+      template: "confirm",
+      subject: "s",
+      text: "open http://x/confirm?token=liveTOKEN_1",
+    });
+    const rows = await testDb
+      .select()
+      .from(emails)
+      .where(eq(emails.toEmail, "guards-brevo-driver@example.com"));
+    expect(rows).toHaveLength(1);
+    // The two things that separate the real postman from the pretend inbox.
+    expect(rows[0].status).toBe("sent");
+    expect(rows[0].bodyText).toContain("token=REDACTED");
+    expect(rows[0].providerId).toBe("guards.1@relay.domain.com");
+  });
+
+  test("brevo without MAIL_FROM or BREVO_API_KEY refuses loudly rather than posting undefined", () => {
+    expect(() => selectMailDriver({ mailDriver: "brevo", brevoApiKey: "k" }, testDb)).toThrow(
+      BREVO_CONFIG_INCOMPLETE,
+    );
+    expect(() =>
+      selectMailDriver({ mailDriver: "brevo", mailFrom: "a@example.com" }, testDb),
+    ).toThrow(BREVO_CONFIG_INCOMPLETE);
   });
 });
 
