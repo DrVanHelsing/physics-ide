@@ -22,6 +22,17 @@
  *      makes a project of their own, shares it with B through File →
  *      Share…, and B adds it to their projects and lands in the IDE with
  *      the credit chip on it. Three browser contexts, three cookie jars.
+ *   6. Notifications and data care (Plan 8): the teacher publishes a SECOND
+ *      assignment and student A's bell grows an unread badge, whose newest
+ *      row is the renderer's own sentence; opening the bell marks it read
+ *      and the badge stays gone across a reload. A switches Due-tomorrow
+ *      reminders off on /profile and the switch holds across a reload. A
+ *      second, still-pending share gives `Waiting on them` something to
+ *      show, and Revoke takes it off BOTH people's pages. Finally a
+ *      throwaway student — signed up, confirmed and signed in for the
+ *      purpose — is exported and then erased from the admin console's Data
+ *      requests tab, the People tab reads `erased`, and their old email no
+ *      longer opens the door. Four browser contexts, four cookie jars.
  *
  * Alongside the flow it sweeps every screen it lands on for the two things
  * no unit test can see: `.welcome-btn` ghosts (the alias retired in Plan 5's
@@ -105,6 +116,36 @@ const EXPECTED_RULES_SENTENCE = 'Your teacher has turned off: import, export & c
    travels with the copy). Both are asserted character for character. */
 const HANDOFF_SENTENCE = "Once they add it, it's theirs — you can't take it back.";
 const ATTRIBUTION_SENTENCE = `Based on work shared by ${STUDENT_NAME}`;
+
+/* Plan 8 (notifications + data care). The SECOND assignment exists to make
+   one new unread notification land in a bell whose earlier rows the run has
+   already read — a badge that reads exactly "1" is evidence; a badge that
+   merely exists is not. */
+const ASSIGNMENT_TITLE_2 = `Rolling ball ${RUN}`;
+/* notifications.ts's `assignment.published` sentence, character for
+   character — curly quotes and all. The renderer is the one source of these
+   words and this is the assertion that keeps it honest. */
+const BELL_PUBLISHED_SENTENCE = `New assignment in ${CLASS_NAME}: “${ASSIGNMENT_TITLE_2}”`;
+/* SWITCHABLE_EMAIL_KEYS (shared/src/notifications.ts) is the order the five
+   .pref-row switches render in; index 3 is `due-tomorrow`, and ProfilePage's
+   PREF_LABELS gives it this label. Both are asserted, so a reorder or a
+   relabel is a failure here rather than a silent drift. */
+const DUE_TOMORROW_INDEX = 3;
+const DUE_TOMORROW_LABEL = 'Due-tomorrow reminders';
+
+/* The throwaway. A person who exists only to be exported and then erased —
+   never a member of the class, so the erase cannot disturb anything the rest
+   of the flow asserts. */
+const THROWAWAY_NAME = `E2E Throwaway ${RUN}`;
+const THROWAWAY_EMAIL = `e2e.throwaway.${RUN}@example.test`;
+/* DataRequestsTab's resting copy and its consequence sentence, both verbatim
+   (the component exports the second as ERASE_SENTENCE). */
+const DATA_REQUESTS_RESTING = 'Search for a person to export or erase their data.';
+/* auth.ts's signin refusal for an email that does not resolve. After the
+   scrub the account's email is `erased+<id>@erased.invalid`, so the old
+   address hits the UNKNOWN-EMAIL door, not the deactivated one — the
+   account is not disabled, it is gone. */
+const SIGNIN_REFUSED = 'Invalid email or password.';
 
 // ─── Test state ───────────────────────────────────────────────────────────────
 let totalPass = 0, totalFail = 0;
@@ -301,15 +342,23 @@ const studentCtx = await browser.createBrowserContext();
 /* Plan 7: student B receives the share. Same reasoning as the pair above —
    a share that both people drive from one cookie jar proves nothing. */
 const studentBCtx = await browser.createBrowserContext();
+/* Plan 8: the throwaway who gets erased. Its own jar because the erase
+   destroys every session it holds — sharing a jar would sign someone else
+   out mid-flow, and the closed-door check needs a browser that still
+   remembers nothing but the old password. */
+const throwawayCtx = await browser.createBrowserContext();
 const teacher = await teacherCtx.newPage();
 const student = await studentCtx.newPage();
 const studentB = await studentBCtx.newPage();
+const throwaway = await throwawayCtx.newPage();
 await teacher.setViewport({ width: 1440, height: 900 });
 await student.setViewport({ width: 1440, height: 900 });
 await studentB.setViewport({ width: 1440, height: 900 });
+await throwaway.setViewport({ width: 1440, height: 900 });
 attachConsoleCapture(teacher, 'teacher');
 attachConsoleCapture(student, 'student');
 attachConsoleCapture(studentB, 'student B');
+attachConsoleCapture(throwaway, 'throwaway');
 
 let classId = null;
 let assignmentId = null;
@@ -930,15 +979,335 @@ try {
   await delay(1200);
   check('Once accepted, "Shared with you" is gone from student B\'s class page',
     (await studentB.$('.shared-with-you')) === null);
+
+  // ── 15: The bell — a second assignment, an unread badge, mark-all ────────
+  console.log('\n═══ 15: The bell rings for a second assignment ══════════════════════');
+  /* Clear the decks first. Student A already holds unread rows from earlier
+     in this very flow (the mark this run released is one of them), so a
+     badge that merely EXISTS proves nothing about the publish below.
+     Opening the bell is the product's own mark-all gesture (D§3) — this is
+     the same click a student makes, used here to establish a zero. */
+  await student.goto(`${BASE}/classes`, { waitUntil: 'networkidle0', timeout: 30000 });
+  await student.waitForSelector('.bell-trigger', { timeout: 20000 });
+  await delay(1200);
+  await student.click('.bell-trigger');
+  await student.waitForSelector('.tb-dropdown-menu', { timeout: 15000 });
+  await student
+    .waitForFunction(() => document.querySelector('.bell-badge') === null, { timeout: 20000 })
+    .catch(() => {});
+  await student.keyboard.press('Escape');
+  await delay(400);
+
+  /* The fixture: a second published assignment, minted through the teacher's
+     own session with two real requests. The AUTHORING UI is already covered
+     end to end above (segment 3) — what is under test here is the delivery,
+     so this is the shortest honest way to make the bell ring. */
+  const publish2 = await teacher.evaluate(async (cid, title) => {
+    const mk = await fetch(`/api/classes/${cid}/assignments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title }),
+    });
+    const made = await mk.json().catch(() => null);
+    const id = made?.assignment?.id ?? null;
+    if (!id) return { create: mk.status, publish: 0, data: made };
+    const pub = await fetch(`/api/assignments/${id}/publish`, { method: 'POST' });
+    return { create: mk.status, publish: pub.status, id, data: await pub.json().catch(() => null) };
+  }, classId, ASSIGNMENT_TITLE_2);
+  check('The teacher publishes a second assignment into the same class',
+    publish2.create === 201 && publish2.publish === 200,
+    `create ${publish2.create}, publish ${publish2.publish} — ${JSON.stringify(publish2.data)}`);
+
+  await student.goto(`${BASE}/classes`, { waitUntil: 'networkidle0', timeout: 30000 });
+  const badgeOne = await student
+    .waitForFunction(() => document.querySelector('.bell-badge')?.textContent.trim() === '1', { timeout: 30000 })
+    .then(() => true)
+    .catch(() => false);
+  check('Publishing lands exactly one unread notification in the student\'s bell',
+    badgeOne, `badge reads ${JSON.stringify(await textOf(student, '.bell-badge'))}`);
+  await screenshot(student, '13-bell-unread');
+
+  await student.click('.bell-trigger');
+  await student.waitForSelector('.tb-dropdown-menu .bell-item', { timeout: 20000 });
+  const bellRows = await student.$$eval('.bell-item .bell-item__text', (els) =>
+    els.map((e) => e.textContent.trim()),
+  );
+  check('The bell\'s newest row is the published assignment, in the renderer\'s own words',
+    bellRows[0] === BELL_PUBLISHED_SENTENCE, String(bellRows[0]));
+  await sweepScreen(student, 'student /classes with the bell open');
+  await screenshot(student, '14-bell-open');
+  await student.keyboard.press('Escape');
+  await delay(400);
+
+  /* Opening it was the mark-all. The reload is what makes this a server
+     assertion rather than a local one — the badge must not come back. */
+  await student.goto(`${BASE}/classes`, { waitUntil: 'networkidle0', timeout: 30000 });
+  await student.waitForSelector('.bell-trigger', { timeout: 20000 });
+  await delay(2000);
+  check('Opening the bell marked everything read — the badge stays gone across a reload',
+    (await student.$('.bell-badge')) === null,
+    `badge reads ${JSON.stringify(await textOf(student, '.bell-badge'))}`);
+
+  // ── 16: The five switches on /profile ───────────────────────────────────
+  console.log('\n═══ 16: The student switches an email off, and it holds ═════════════');
+  await student.goto(`${BASE}/profile`, { waitUntil: 'networkidle0', timeout: 30000 });
+  await student.waitForSelector('.pref-row', { timeout: 20000 });
+  const prefLabels = await student.$$eval('.pref-row', (els) => els.map((e) => e.textContent.trim()));
+  check('/profile lists the five email switches in the shared key order',
+    prefLabels.length === 5 && prefLabels[DUE_TOMORROW_INDEX] === DUE_TOMORROW_LABEL,
+    prefLabels.join(' | '));
+  const prefsBefore = await student.$$eval('.pref-row input[type="checkbox"]', (els) => els.map((e) => e.checked));
+  await student.evaluate((i) => {
+    document.querySelectorAll('.pref-row input[type="checkbox"]')[i].click();
+  }, DUE_TOMORROW_INDEX);
+  await clickByText(student, '.auth-form button', /save notification settings/);
+  const prefsSaved = await student
+    .waitForFunction(
+      () => (document.querySelector('p.auth-text[role="status"]')?.textContent ?? '').includes('Notification settings saved.'),
+      { timeout: 20000 },
+    )
+    .then(() => true)
+    .catch(() => false);
+  await sweepScreen(student, '/profile with the switches');
+
+  await student.reload({ waitUntil: 'networkidle0', timeout: 30000 });
+  await student.waitForSelector('.pref-row input[type="checkbox"]', { timeout: 20000 });
+  await delay(800);
+  const prefsAfter = await student.$$eval('.pref-row input[type="checkbox"]', (els) => els.map((e) => e.checked));
+  check('Due-tomorrow reminders is off after a reload, and only that one switch moved',
+    prefsSaved &&
+      prefsBefore.every((v) => v === true) &&
+      prefsAfter[DUE_TOMORROW_INDEX] === false &&
+      prefsAfter.filter((v) => v === true).length === 4,
+    `saved ${prefsSaved}, before ${JSON.stringify(prefsBefore)}, after ${JSON.stringify(prefsAfter)}`);
+
+  // ── 17: Waiting on them, and the Revoke that empties both sides ─────────
+  console.log('\n═══ 17: Waiting on them → Revoke ═══════════════════════════════════');
+  /* The sharing segment above ends with the share ACCEPTED, and an accepted
+     share is not pending — `Waiting on them` renders nothing for it, by
+     design. So mint a fresh one: the same project offered to the same
+     classmate a second time, which the route allows precisely because the
+     first is no longer pending (shares.ts's dup check is scoped to
+     `status = 'pending'`). Driven through student A's own session; the
+     Share… dialog that normally does this is asserted in full in segment 14. */
+  const mint = await student.evaluate(async (cid, pid, bName) => {
+    const rr = await fetch(`/api/shares/roster/${cid}`);
+    const roster = rr.ok ? await rr.json() : { members: [] };
+    const b = (roster.members ?? []).find((m) => m.name === bName);
+    if (!b) return { status: 0, data: { error: `no ${bName} on the roster` } };
+    const res = await fetch('/api/shares', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ classId: cid, recipientId: b.userId, projectId: pid }),
+    });
+    return { status: res.status, data: await res.json().catch(() => null) };
+  }, classId, personalId, STUDENT_B_NAME);
+  check('A second hand-off of the same project to the same classmate is accepted',
+    mint.status === 201, `${mint.status} ${JSON.stringify(mint.data)}`);
+
+  await student.goto(`${BASE}/classes/${classId}`, { waitUntil: 'networkidle0', timeout: 30000 });
+  const waitingShown = await student
+    .waitForSelector('.waiting-on-them .share-row', { timeout: 25000 })
+    .then(() => true)
+    .catch(() => false);
+  const waitingHeading = await textOf(student, '.waiting-on-them .section-title');
+  const waitingTo = await textOf(student, '.waiting-on-them .waiting-row__to');
+  const waitingTitle = await textOf(student, '.waiting-on-them .share-row__title');
+  check('The sharer\'s class page grows "Waiting on them", naming the project and who holds it',
+    waitingShown &&
+      waitingHeading === 'Waiting on them' &&
+      waitingTo === `to ${STUDENT_B_NAME}` &&
+      waitingTitle === PERSONAL_TITLE,
+    `"${String(waitingHeading)}" / "${String(waitingTo)}" / "${String(waitingTitle)}"`);
+  await sweepScreen(student, 'student A class page (waiting on them)');
+  await screenshot(student, '15-waiting-on-them');
+
+  await studentB.goto(`${BASE}/classes/${classId}`, { waitUntil: 'networkidle0', timeout: 30000 });
+  const bOfferedAgain = await studentB
+    .waitForSelector('.shared-with-you .share-row', { timeout: 25000 })
+    .then(() => true)
+    .catch(() => false);
+  check('The same pending share is on the recipient\'s page — both sides see it before the revoke',
+    bOfferedAgain);
+
+  await clickByText(student, '.waiting-on-them button', /^revoke$/);
+  const revokedForA = await student
+    .waitForFunction(() => document.querySelector('.waiting-on-them') === null, { timeout: 25000 })
+    .then(() => true)
+    .catch(() => false);
+  check('Revoke empties the sharer\'s own list — the section renders nothing, not an empty heading',
+    revokedForA, String(await textOf(student, '.waiting-on-them')));
+
+  await studentB.goto(`${BASE}/classes/${classId}`, { waitUntil: 'networkidle0', timeout: 30000 });
+  await studentB.waitForSelector('.page-header__title', { timeout: 20000 });
+  await delay(1500);
+  check('The revoked offer is gone from the recipient\'s page too',
+    (await studentB.$('.shared-with-you')) === null);
+
+  // ── 18: Data requests — the export, the erase, the closed door ──────────
+  console.log('\n═══ 18: Admin data requests — export, erase, and the door ═══════════');
+  await throwaway.goto(`${BASE}/auth/signup`, { waitUntil: 'networkidle0', timeout: 30000 });
+  const signupT = await throwaway.evaluate(async (body) => {
+    const res = await fetch('/api/auth/signup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    return { status: res.status, data: await res.json().catch(() => null) };
+  }, { name: THROWAWAY_NAME, email: THROWAWAY_EMAIL, password: STUDENT_PASSWORD, wantsTeacher: false, consent: true });
+  const inboxT = await teacher.evaluate(async () => {
+    const res = await fetch('/api/admin/emails?limit=100');
+    return res.ok ? res.json() : { emails: [] };
+  });
+  const confirmMailT = (inboxT.emails ?? []).find(
+    (e) => e.toEmail === THROWAWAY_EMAIL && e.template === 'confirm',
+  );
+  const confirmLinkT = confirmMailT?.bodyText?.match(/https?:\/\/\S+\/auth\/confirm\?token=[A-Za-z0-9_-]+/)?.[0] ?? null;
+  if (confirmLinkT) {
+    const linkT = new URL(confirmLinkT);
+    await throwaway.goto(BASE + linkT.pathname + linkT.search, { waitUntil: 'networkidle0', timeout: 30000 });
+    await delay(600);
+  }
+  await throwaway.goto(`${BASE}/auth/signin`, { waitUntil: 'networkidle0', timeout: 30000 });
+  await setInput(throwaway, 'input[type="email"]', THROWAWAY_EMAIL);
+  await setInput(throwaway, 'input[type="password"]', STUDENT_PASSWORD);
+  await clickByText(throwaway, 'button', /^sign in$/);
+  const throwawayIn = await throwaway
+    .waitForFunction(() => location.pathname === '/', { timeout: 25000 })
+    .then(() => true)
+    .catch(() => false);
+  check('A throwaway account signs up, confirms and signs in — a real door to close',
+    signupT.status === 201 && !!confirmLinkT && throwawayIn,
+    `signup ${signupT.status}, confirm link ${String(confirmLinkT)}, signed in ${throwawayIn}`);
+  if (!throwawayIn) throw new Error('the throwaway could not sign in — the erase has nothing to prove');
+  await delay(1200);
+  await dismissGuestImport(throwaway);
+
+  await teacher.goto(`${BASE}/admin`, { waitUntil: 'networkidle0', timeout: 30000 });
+  await teacher.waitForSelector('.tabs .tab', { timeout: 20000 });
+  const adminTabs = await teacher.$$eval('.tabs .tab', (els) => els.map((e) => e.textContent.trim()));
+  await clickByText(teacher, '.tabs .tab', /^data requests$/);
+  await teacher.waitForSelector('.page-body .empty', { timeout: 20000 });
+  check('The console\'s fifth tab is Data requests, and it rests on its prompt rather than listing everyone',
+    adminTabs[4] === 'Data requests' &&
+      (await textOf(teacher, '.page-body .empty'))?.includes(DATA_REQUESTS_RESTING),
+    `${adminTabs.join(' | ')} — "${String(await textOf(teacher, '.page-body .empty'))}"`);
+
+  await setInput(teacher, '.admin-search-input', THROWAWAY_EMAIL);
+  const foundThrowaway = await teacher
+    .waitForFunction(
+      (email) => [...document.querySelectorAll('.admin-table tbody tr')].some((tr) => tr.innerText.includes(email)),
+      { timeout: 20000 },
+      THROWAWAY_EMAIL,
+    )
+    .then(() => true)
+    .catch(() => false);
+  check('Searching the Data requests tab finds the one person it was asked for',
+    foundThrowaway, String(await textOf(teacher, '.admin-table tbody tr')));
+
+  /* The download itself is a browser save (a Blob and a discarded <a>) —
+     what the run can honestly assert is the fetch behind it, so it makes
+     the same call the button makes, from the same session. */
+  const exported = await teacher.evaluate(async (email) => {
+    const list = await fetch(`/api/admin/users?q=${encodeURIComponent(email)}`);
+    const users = list.ok ? (await list.json()).users ?? [] : [];
+    const u = users.find((x) => x.email === email);
+    if (!u) return { id: null, status: 0, keys: [] };
+    const res = await fetch(`/api/admin/users/${u.id}/export`);
+    const data = await res.json().catch(() => null);
+    return { id: u.id, status: res.status, keys: data ? Object.keys(data) : [], userEmail: data?.user?.email ?? null };
+  }, THROWAWAY_EMAIL);
+  check('Export answers 200 with the whole record — its own note first, then the person',
+    exported.status === 200 &&
+      exported.keys[0] === 'note' &&
+      exported.keys.includes('user') &&
+      exported.userEmail === THROWAWAY_EMAIL,
+    `${exported.status} keys=${exported.keys.slice(0, 6).join(',')} user.email=${String(exported.userEmail)}`);
+  const throwawayId = exported.id;
+  if (!throwawayId) throw new Error('the admin search could not resolve the throwaway id');
+
+  await clickByText(teacher, '.admin-actions .btn--danger', /erase/);
+  await teacher.waitForSelector('.erase-dialog', { timeout: 20000 });
+  const eraseBtnState = async () =>
+    teacher.$$eval('.erase-dialog__actions button', (els) => {
+      const b = els.find((e) => /erase permanently/i.test(e.textContent));
+      return b ? b.disabled : null;
+    });
+  const disabledEmpty = await eraseBtnState();
+  await setInput(teacher, '.erase-dialog input[type="text"]', `not-${THROWAWAY_EMAIL}`);
+  await delay(300);
+  const disabledWrong = await eraseBtnState();
+  await setInput(teacher, '.erase-dialog input[type="text"]', THROWAWAY_EMAIL);
+  await delay(300);
+  const enabledExact = await eraseBtnState();
+  check('Erase permanently unlocks only on the account\'s own email, typed exactly',
+    disabledEmpty === true && disabledWrong === true && enabledExact === false,
+    `empty ${disabledEmpty}, wrong ${disabledWrong}, exact ${enabledExact}`);
+  await sweepScreen(teacher, 'admin Data requests (erase dialog)');
+  await screenshot(teacher, '16-data-requests');
+
+  await clickByText(teacher, '.erase-dialog__actions button', /erase permanently/);
+  const eraseDone = await teacher
+    .waitForFunction(() => document.querySelector('.erase-dialog') === null, { timeout: 25000 })
+    .then(() => true)
+    .catch(() => false);
+  if (!eraseDone) throw new Error(`the erase dialog stayed open: ${await textOf(teacher, '.erase-dialog .alert--danger')}`);
+
+  /* The scrub rewrote the email to `erased+<id>@erased.invalid`, so the old
+     address no longer finds them — the id does, and it is the only handle
+     that survives an erasure by design. */
+  await clickByText(teacher, '.tabs .tab', /^people$/);
+  await teacher.waitForSelector('.admin-search-input', { timeout: 20000 });
+  await setInput(teacher, '.admin-search-input', throwawayId);
+  const erasedRow = await teacher
+    .waitForFunction(
+      () => {
+        const rows = [...document.querySelectorAll('.admin-table tbody tr')];
+        return rows.length === 1 && rows[0].querySelector('.status-erased') !== null;
+      },
+      { timeout: 25000 },
+    )
+    .then(() => true)
+    .catch(() => false);
+  const erasedCells = erasedRow
+    ? await teacher.$eval('.admin-table tbody tr', (tr) => {
+        const tds = [...tr.querySelectorAll('td')];
+        return {
+          status: tds[3].textContent.trim(),
+          actions: tds[4].querySelectorAll('button').length,
+          name: tds[0].textContent.trim(),
+        };
+      })
+    : null;
+  check('The People tab shows the third status — "erased", under one name, with no action left to offer',
+    erasedRow && erasedCells.status === 'erased' && erasedCells.actions === 0 &&
+      erasedCells.name === 'Removed student',
+    JSON.stringify(erasedCells));
+  await sweepScreen(teacher, 'admin People tab (an erased shell)');
+
+  await throwaway.goto(`${BASE}/auth/signin`, { waitUntil: 'networkidle0', timeout: 30000 });
+  await setInput(throwaway, 'input[type="email"]', THROWAWAY_EMAIL);
+  await setInput(throwaway, 'input[type="password"]', STUDENT_PASSWORD);
+  await clickByText(throwaway, 'button', /^sign in$/);
+  const refusal = await throwaway
+    .waitForSelector('.auth-form .alert--danger', { timeout: 25000 })
+    .then(() => true)
+    .catch(() => false);
+  const refusalText = await textOf(throwaway, '.auth-form .alert--danger');
+  check('The erased account\'s old email no longer opens the door',
+    refusal && refusalText === SIGNIN_REFUSED && throwaway.url().includes('/auth/signin'),
+    `"${String(refusalText)}" at ${throwaway.url()}`);
+  await sweepScreen(throwaway, '/auth/signin refusing an erased address');
 } catch (err) {
   check('The golden flow runs to the end without throwing', false, err.message);
   await screenshot(teacher, 'zz-teacher-at-failure').catch(() => {});
   await screenshot(student, 'zz-student-at-failure').catch(() => {});
   await screenshot(studentB, 'zz-student-b-at-failure').catch(() => {});
+  await screenshot(throwaway, 'zz-throwaway-at-failure').catch(() => {});
 }
 
-// ── 15: The sweeps, summarised ──────────────────────────────────────────────
-console.log('\n═══ 15: Design-system sweeps across every screen visited ════════════');
+// ── 19: The sweeps, summarised ──────────────────────────────────────────────
+console.log('\n═══ 19: Design-system sweeps across every screen visited ════════════');
 const ghosts = sweeps.filter((s) => s.welcomeBtns > 0);
 check('No .welcome-btn ghosts on any screen this run touched',
   ghosts.length === 0,

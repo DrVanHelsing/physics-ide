@@ -410,6 +410,21 @@
 }
 
 /* ── Plan 8 — the bell (design D§1/D§3) ─────────────────────────────── */
+/* Found by the golden flow's stylesheet sweep on its first extended run
+   (2026-08-29): `.bell-trigger` shipped as a hook with NO rule behind it,
+   so the trigger fell back to .tb-btn's LABEL padding (4px 8px) and drew
+   34x26 beside the theme toggle's icon-only 28x24 — two adjacent icon-only
+   buttons in the same right cluster, visibly different boxes, at both
+   headers. Same shape as Plan 7's `.attribution-chip` finding. Named on the
+   class the component actually carries, and kept beside the rest of the
+   bell rather than split across chrome.css. */
+/* The 5px is not a new number — it is `.tb-btn--icon`'s own declaration
+   (chrome.css), matched here on purpose so the bell is the same box as the
+   toggle beside it. Minting a 5px token to say it would be a decision, not a
+   side effect of a substitution pass (D16), so it takes the metricLint's own
+   documented hatch instead:
+   metric-exempt — `.tb-btn--icon`'s literal, deliberately mirrored. */
+.bell-trigger { padding: var(--space-1) 5px; }
 .bell-trigger__inner { position: relative; display: inline-flex; align-items: center; }
 .bell-badge { position: absolute; top: calc(-1 * var(--space-2)); right: calc(-1 * var(--space-2)); font-size: var(--fs-xs); }
 .bell-item { display: flex; align-items: center; gap: var(--space-2); max-width: 44ch; white-space: normal; text-align: left; }
