@@ -672,17 +672,32 @@ describe("erase: the scrub", () => {
   beforeAll(async () => {
     world = await seedStudentWorld("ers");
     [before] = await testDb.select().from(users).where(eq(users.id, world.student.id));
-    // A delivery-log row for them, carrying exactly what the log used to
-    // keep past an erasure: their real address, and a body the `token=`
-    // redaction never touches.
-    await testDb.insert(emails).values({
-      toEmail: world.student.email,
-      toUserId: world.student.id,
-      template: "marks-released",
-      subject: "Feedback released — ers Assignment",
-      bodyText: "Score: 8/10\n\nGood work",
-      status: "sent",
-    });
+    // Two delivery-log rows, one of each shape the log actually contains.
+    await testDb.insert(emails).values([
+      // Keyed by id: what the log used to keep past an erasure - their real
+      // address, and a body the `token=` redaction never touches.
+      {
+        toEmail: world.student.email,
+        toUserId: world.student.id,
+        template: "marks-released",
+        subject: "Feedback released — ers Assignment",
+        bodyText: "Score: 8/10\n\nGood work",
+        status: "sent",
+      },
+      // Keyed by ADDRESS ONLY, `to_user_id` NULL - the exact shape both
+      // invite sends write (invites.ts:79 and :183 pass only `to:`, since an
+      // invitation goes out before the recipient has an account). A delete
+      // matching on `toUserId` alone would leave this row, with their real
+      // address in it, behind forever.
+      {
+        toEmail: world.student.email,
+        toUserId: null,
+        template: "class-invite",
+        subject: "You are invited to ers Class — Physics IDE",
+        bodyText: "Join here: http://x/join/invite?token=REDACTED",
+        status: "sent",
+      },
+    ]);
     const res = await erase(world.student.id, world.student.email);
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual({ ok: true });
@@ -713,6 +728,10 @@ describe("erase: the scrub", () => {
     // FUTURE sends, it does not unwrite what was already logged.
     const mails = await testDb.select().from(emails).where(eq(emails.toUserId, world.student.id));
     expect(mails).toHaveLength(0);
+    // The by-address arm is the load-bearing one: invite mail carries no
+    // `toUserId` at all, so this is the assertion that fails if the erase
+    // matches on the id alone. D§5's promise is that a real address and a
+    // real body do not survive an erasure - not that most of them don't.
     const byAddress = await testDb
       .select()
       .from(emails)
