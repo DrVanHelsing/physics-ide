@@ -42,7 +42,14 @@ describe("MAIL_DRIVER", () => {
   test("must be \"brevo\" in production — boots with everything else production-required set and no MAIL_DRIVER throws", async () => {
     const { MAIL_DRIVER: _omit, ...rest } = PRODUCTION_BASE;
     stubAll(rest);
-    await expect(loadConfig()).rejects.toThrow();
+    // Matched on the specific clause, not just "it threw": a bare
+    // rejects.toThrow() can't tell this apart from some OTHER production
+    // requirement (e.g. MAIL_WEBHOOK_SECRET, still set here) firing
+    // instead — which would let this test keep passing even if the
+    // MAIL_DRIVER-must-be-brevo clause itself were deleted. (No literal `"`
+    // in the pattern: ZodError's message is JSON.stringify'd, so the
+    // message's own quotes around "brevo" arrive backslash-escaped.)
+    await expect(loadConfig()).rejects.toThrow(/MAIL_DRIVER must be .*brevo.* in production/);
   });
 
   test("production with MAIL_DRIVER=brevo (and its required companions) parses cleanly", async () => {
@@ -55,12 +62,12 @@ describe("MAIL_DRIVER", () => {
 describe("MAIL_FROM / BREVO_API_KEY — required iff MAIL_DRIVER=brevo", () => {
   test("brevo without MAIL_FROM throws", async () => {
     stubAll({ MAIL_DRIVER: "brevo", BREVO_API_KEY: "k" });
-    await expect(loadConfig()).rejects.toThrow();
+    await expect(loadConfig()).rejects.toThrow(/MAIL_FROM is required when MAIL_DRIVER=brevo/);
   });
 
   test("brevo without BREVO_API_KEY throws", async () => {
     stubAll({ MAIL_DRIVER: "brevo", MAIL_FROM: "a@example.com" });
-    await expect(loadConfig()).rejects.toThrow();
+    await expect(loadConfig()).rejects.toThrow(/BREVO_API_KEY is required when MAIL_DRIVER=brevo/);
   });
 
   test("brevo with both set parses, and dev never requires either", async () => {
@@ -85,7 +92,10 @@ describe("MAIL_WEBHOOK_SECRET — both halves of the tick idiom, NOT tied to the
   test("required in production even though every other production var (including a valid MAIL_DRIVER=brevo) is set", async () => {
     const { MAIL_WEBHOOK_SECRET: _omit, ...rest } = PRODUCTION_BASE;
     stubAll(rest);
-    await expect(loadConfig()).rejects.toThrow();
+    // Same reasoning as the MAIL_DRIVER test above: matched on the specific
+    // clause so this can't keep passing on some other production
+    // requirement's issue if this one were deleted.
+    await expect(loadConfig()).rejects.toThrow(/MAIL_WEBHOOK_SECRET is required in production/);
   });
 
   test("production with it set parses and carries the real value through, not the dev fallback", async () => {
@@ -115,6 +125,6 @@ describe("TRUST_PROXY — z.enum(['true','false']), not z.coerce.boolean()", () 
 
   test("any other value is rejected by the enum", async () => {
     stubAll({ TRUST_PROXY: "yes" });
-    await expect(loadConfig()).rejects.toThrow();
+    await expect(loadConfig()).rejects.toThrow(/TRUST_PROXY/);
   });
 });

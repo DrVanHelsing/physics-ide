@@ -1,6 +1,7 @@
 import { describe, test, expect, vi, beforeAll, afterAll } from "vitest";
+import { eq } from "drizzle-orm";
 import { testDb, testPool, truncateAuthTables } from "../db/testClient.js";
-import { users, notificationPrefs } from "../db/schema.js";
+import { users, emails } from "../db/schema.js";
 import { withPreferences } from "./withPreferences.js";
 import {
   suppressErased,
@@ -18,6 +19,18 @@ function fakeInner(impl?: () => Promise<void>): Mailer {
 
 function fakeLogger(): MinimalLogger {
   return { error: vi.fn() };
+}
+
+/** A db whose SELECT always rejects — stands in for withPreferences' own
+ *  notification_prefs read failing, without needing a real outage. */
+function poisonDb(): Db {
+  return {
+    select: () => ({
+      from: () => ({
+        where: () => Promise.reject(new Error("db down")),
+      }),
+    }),
+  } as unknown as Db;
 }
 
 const baseMsg = { subject: "s", text: "t" };
@@ -70,9 +83,20 @@ describe("neverThrow", () => {
 });
 
 describe("selectMailDriver", () => {
-  test("dev returns a Mailer that writes to the pretend inbox (createDevMailer)", async () => {
+  test("dev returns a Mailer that writes to the pretend inbox (createDevMailer) — asserted by actually sending, not just shape", async () => {
     const mailer = selectMailDriver({ mailDriver: "dev" }, testDb);
-    expect(mailer).toHaveProperty("send");
+    await mailer.send({
+      to: "guards-dev-driver@example.com",
+      template: "confirm",
+      subject: "s",
+      text: "t",
+    });
+    const rows = await testDb
+      .select()
+      .from(emails)
+      .where(eq(emails.toEmail, "guards-dev-driver@example.com"));
+    expect(rows).toHaveLength(1);
+    expect(rows[0].status).toBe("dev");
   });
 
   test("brevo throws the named sentinel — replaced in Task 3", () => {
@@ -121,20 +145,12 @@ describe("composition order — neverThrow(log, withPreferences(db, suppressEras
   });
 
   test("withPreferences' own pref SELECT rejecting is ALSO swallowed by the outer neverThrow", async () => {
-    await testDb.insert(notificationPrefs).values({ userId: studentId, key: "marks-released", enabled: true });
     const driver = fakeInner();
     const log = fakeLogger();
     // A DB that rejects the SELECT withPreferences runs before ever reaching
     // suppressErased or the driver — proves the outer wrapper must be
     // neverThrow, not something narrower wrapped only around the driver.
-    const poisonDb = {
-      select: () => ({
-        from: () => ({
-          where: () => Promise.reject(new Error("db down")),
-        }),
-      }),
-    } as unknown as Db;
-    const mailer = neverThrow(log, withPreferences(poisonDb, suppressErased(driver)));
+    const mailer = neverThrow(log, withPreferences(poisonDb(), suppressErased(driver)));
     await expect(
       mailer.send({
         ...baseMsg,
@@ -147,18 +163,27 @@ describe("composition order — neverThrow(log, withPreferences(db, suppressEras
     expect(log.error).toHaveBeenCalledTimes(1);
   });
 
-  test("an erased-user send never reaches the driver, and the pref check runs first (suppressErased sits AT the driver, not above withPreferences)", async () => {
+  test("suppressErased sits AT the driver, not hoisted above withPreferences: an erased-user send still lets the (poisoned) pref SELECT run and fail first", async () => {
     const driver = fakeInner();
     const log = fakeLogger();
-    const mailer = neverThrow(log, withPreferences(testDb, suppressErased(driver)));
+    const mailer = neverThrow(log, withPreferences(poisonDb(), suppressErased(driver)));
     await mailer.send({
       ...baseMsg,
       to: "gone@erased.invalid",
       toUserId: studentId,
       template: "marks-released",
     });
+    // If suppressErased were hoisted ABOVE withPreferences (e.g.
+    // suppressErased(withPreferences(...))), the erased check would
+    // short-circuit before the pref SELECT ever touched the (poisoned) db,
+    // and this would resolve silently with no log at all. Because
+    // suppressErased sits innermost, at the driver, withPreferences' SELECT
+    // runs first regardless, hits the poisoned db, and neverThrow catches +
+    // logs it — the same failure signature as the non-erased poisoned-db
+    // case above. A test that only checked driver.send was never called
+    // (true under either order) would not catch a reordering; this one does.
     expect(driver.send).not.toHaveBeenCalled();
-    expect(log.error).not.toHaveBeenCalled();
+    expect(log.error).toHaveBeenCalledTimes(1);
   });
 
   test("a normal switchable send with prefs ON reaches the driver through the full chain", async () => {
