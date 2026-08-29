@@ -530,7 +530,18 @@ describe("forgot — per-address cap", () => {
     // (no lock) lets several of them read the same under-cap count and all
     // insert — this test fails against that shape and holds against the
     // lock.
+    //
+    // Every call targets the SAME address (the per-address lock is what's
+    // under test) but gets its OWN `remoteAddress`: this route also carries
+    // a 5/min per-IP limit (`config.rateLimit` on the route), and firing
+    // RESET_REQUEST_CAP + 2 = 5 requests from one shared default IP would
+    // sit at that limit's exact boundary with zero margin — a future 429
+    // there would read as a broken advisory lock when it's actually an
+    // unrelated rate-limit collision (the same coupling the shape test
+    // above avoids with its own `nextIp()`).
     const raceApp = buildApp({ db: testDb });
+    let raceIp = 0;
+    const nextRaceIp = () => `10.94.0.${++raceIp}`;
     try {
       await testDb.insert(users).values({
         name: "Race Person",
@@ -546,6 +557,7 @@ describe("forgot — per-address cap", () => {
             method: "POST",
             url: "/api/auth/forgot",
             payload: { email: "race@example.com" },
+            remoteAddress: nextRaceIp(),
           }),
         ),
       );
