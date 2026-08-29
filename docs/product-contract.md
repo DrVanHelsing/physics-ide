@@ -185,7 +185,7 @@ Effective for the `feature/classroom-platform` branch onward:
 - **Real email delivery remains excluded** — nothing here connects a postman.
 - **This amendment supersedes one row of the peer-sharing amendment:** its "No notification of any kind (D§10)" clause described Plan 7's shipped state; from this amendment on, `project.shared` and `project.share_accepted` mint bell rows, while revocation and lapse stay silent (the sharing design's pull-based discovery survives for those two).
 
-**Postman, port and retention amendment (29 August 2026).** Real email delivery, the GCP port, and retention machinery are lifted from the exclusions above, exactly as decided in `docs/superpowers/specs/2026-08-29-classroom-platform-09-postman-retention-design.md`. Locked rows:
+**Postman, port and retention amendment (29 August 2026).** Real email delivery and the GCP port are lifted from the exclusions above, and retention ships as adjustable machinery, exactly as decided in `docs/superpowers/specs/2026-08-29-classroom-platform-09-postman-retention-design.md`. Locked rows:
 
 - **Mail selection is explicit config, never `NODE_ENV` magic** (D§3): `MAIL_DRIVER` (`dev` | `brevo`, default `dev`) picks the driver behind the existing one-seam `Mailer` interface. The dev pretend inbox stays byte-identical for dev/test — full bodies, clickable tokens, status `dev`. In production `MAIL_DRIVER` **must** be `brevo`, or boot fails.
 - **A send never throws, is never retried, and carries one ten-second deadline** (D§4): a rejection is caught, logged once, and recorded on the row instead of failing the request; the admin's once-a-week glance at the Emails tab is the recovery path, not a queue.
