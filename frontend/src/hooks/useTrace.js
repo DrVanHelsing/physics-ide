@@ -67,7 +67,7 @@ export function useTrace() {
         const lastBlockId = entries[entries.length - 1][1].b;
         setExecutingBlockId(lastBlockId);
         if (workspaceRef.current) {
-          try { workspaceRef.current.highlightBlock(lastBlockId); } catch (_) {}
+          try { workspaceRef.current.highlightBlock(lastBlockId); } catch { /* highlight is best-effort — the block may already be gone */ }
         }
         if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
         highlightTimerRef.current = setTimeout(() => {
@@ -76,7 +76,7 @@ export function useTrace() {
              after the pause and leave the student stopped at nowhere. */
           if (pauseStateRef.current !== "running") return;
           setExecutingBlockId(null);
-          try { workspaceRef.current?.highlightBlock(null); } catch (_) {}
+          try { workspaceRef.current?.highlightBlock(null); } catch { /* highlight is best-effort — the block may already be gone */ }
         }, HIGHLIGHT_DURATION_MS);
       }
     };

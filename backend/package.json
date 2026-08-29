@@ -7,6 +7,7 @@
     "dev": "tsx watch src/server.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
+    "lint": "eslint src",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:migrate:test": "cross-env DATABASE_URL=postgres://postgres:physics@localhost:5433/physics_ide_test drizzle-kit migrate",

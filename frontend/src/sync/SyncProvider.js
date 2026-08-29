@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useMe } from "../auth/useAuth";
 import { listProjects, saveProject, onProjectSaved, onProjectDeleted } from "../utils/storage/projectStore";
 import { getSyncMeta, listSyncMeta } from "../utils/storage/syncMeta";
@@ -234,7 +234,6 @@ export default function SyncProvider({ children }) {
     const engine = engineRef.current;
     try {
       for (const id of importPrompt.ids) {
-        // eslint-disable-next-line no-await-in-loop
         await engine.adoptLocalProject(id, me.id);
         guestIdsRef.current.delete(id);
       }

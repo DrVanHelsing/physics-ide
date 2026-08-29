@@ -195,7 +195,7 @@ function annotateChart(el, label) {
   try {
     el.setAttribute("role", "img");
     el.setAttribute("aria-label", label);
-  } catch (_) {
+  } catch {
     /* non-element (shouldn't happen) — ignore */
   }
   return el;

@@ -234,7 +234,7 @@ export default function IDELayout() {
   const handleHighlightBlock = useCallback((id) => {
     const ws = workspaceRef.current;
     if (!ws) return;
-    try { ws.highlightBlock(id); } catch (_) { /* disposed mid-frame */ }
+    try { ws.highlightBlock(id); } catch { /* disposed mid-frame */ }
   }, [workspaceRef]);
 
   /* ── Simple UI handlers (defined here to avoid extra hook) */
