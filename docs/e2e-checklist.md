@@ -488,7 +488,7 @@ See `frontend/docs/ux-audit.md` for full findings.
 
 ---
 
-## Not yet covered — the portal (recorded 2026-08-25, Plan 5 wrap-up; widened 2026-08-28, Plan 6; extended 2026-08-28, Plan 7)
+## Not yet covered — the portal (recorded 2026-08-25, Plan 5 wrap-up; widened 2026-08-28, Plan 6; extended 2026-08-28, Plan 7; extended again 2026-08-29, Plan 8)
 
 Five surfaces were recorded here at Plan 5's wrap with **zero e2e coverage**:
 `/welcome`, the auth screens (`/auth/*`, `/profile`), `/classes` (wall, class
@@ -546,15 +546,54 @@ sentence → and the section is gone from B's class page again. Screenshots
 `portal-10-share-dialog`, `portal-11-attribution-chip`,
 `portal-12-library-label`.
 
-57 checks; screenshots land in `frontend/e2e/portal-*.png` and the machine-
-readable result (including the per-screen sweeps) in
-`frontend/e2e/portal-results.json`. The run mints its own class, assignment and
-student accounts each time, so it is safe to re-run against a dev database that
-is never reset.
+**Third repayment — notifications and data care, landed with Plan 8's final
+task (Task 15, 2026-08-29).** A **fourth** browser context joins, and the run
+now carries the bell, the preference switches, the revoke and the admin data
+requests end to end:
 
-**A clean run is 57/57** (41/41 before Plan 7 extended it). That is the
-baseline; anything less is a regression to read by its named failures, never a
-count to be talked down.
+- **The bell.** The run first reads student A's existing notifications through
+  the bell itself (opening it *is* the mark-all gesture) so the badge starts at
+  zero, then the teacher publishes a **second** assignment. A's badge comes back
+  reading exactly `1`, the dropdown's newest row is
+  `New assignment in <class>: “<title>”` **character for character** — the
+  renderer's own sentence, curly quotes included — and after the open that marks
+  it read the badge stays gone across a **reload**, so the mark is the server's,
+  not the tab's. Screenshots `portal-13-bell-unread`, `portal-14-bell-open`.
+- **The switches.** `/profile` lists the five `.pref-row` checkboxes in
+  `SWITCHABLE_EMAIL_KEYS` order (index 3 is `Due-tomorrow reminders`, asserted by
+  its label). A switches that one off, saves, reloads: it is still off and the
+  other four are still on — one switch moved, not five.
+- **Waiting on them, and Revoke.** The sharing segment ends with the share
+  *accepted*, and an accepted share is not pending, so the run mints a fresh one
+  (the same project offered a second time — the dup guard is scoped to pending
+  rows). A's class page then grows `Waiting on them` naming the project and
+  `to <B>`; B's page is offering the same row at the same moment; A presses
+  **Revoke** and it leaves **both** pages — A's section renders nothing rather
+  than an empty heading, and B's offer is gone. Screenshot
+  `portal-15-waiting-on-them`.
+- **Data requests.** A throwaway student signs up, confirms through the pretend
+  inbox and signs in — a real door, so closing it means something. The admin
+  console's fifth tab rests on `Search for a person to export or erase their
+  data.` rather than listing everyone; the search finds the one person asked
+  for; `Export` answers **200** with `note` first and the person's own `user`
+  block (the fetch behind the button is what is asserted — the download itself
+  is a browser save); the erase dialog keeps `Erase permanently` **disabled** on
+  an empty box and on the wrong email and unlocks only on the exact one; after
+  the erase the People tab shows the third status — `erased`, under
+  `Removed student`, with **no action left to offer**; and the throwaway's old
+  address no longer opens the door (`Invalid email or password.` — the scrub
+  rewrote the email, so it is the unknown-email door, not the deactivated one).
+  Screenshot `portal-16-data-requests`.
+
+75 checks; screenshots land in `frontend/e2e/portal-*.png` and the machine-
+readable result (including the per-screen sweeps) in
+`frontend/e2e/portal-results.json`. The run mints its own class, assignments,
+student accounts and throwaway each time, so it is safe to re-run against a dev
+database that is never reset.
+
+**A clean run is 75/75** (57/57 before Plan 8 extended it, 41/41 before Plan 7).
+That is the baseline; anything less is a regression to read by its named
+failures, never a count to be talked down.
 
 It was not always. The flow found three genuine product defects at hand-over —
 recorded here because what a harness catches is worth keeping, and because a
@@ -588,12 +627,22 @@ push the run status out of a 26px strip. Fixed in `styles/assignments.css`
 sentence on the tooltip). Nothing else the sharing flow touched was rule-less,
 and the console-error audit stayed at zero across the new third context.
 
+Plan 8's extension found the third of that exact shape, and this one the sweep
+caught on the **existing** screens before a single new check ran:
+**`.bell-trigger`** carried no stylesheet rule. The bell's trigger is icon-only
+like the theme toggle standing right beside it, but with no rule of its own it
+fell back to `.tb-btn`'s label padding and drew **34×26** next to the toggle's
+**28×24** — two adjacent icon-only buttons in the same right cluster, visibly
+different boxes, at both headers. Fixed in `styles/platform.css`
+(`.bell-trigger { padding: var(--space-1) 5px; }` — `.tb-btn--icon`'s own
+padding, named on the class the component actually carries). Nothing the four
+new screens touched was rule-less, and the console-error audit stayed at zero
+across the new fourth context.
+
 **Still uncovered after that lands**, and the reason spec §18's
 forward-reference item 6 stays open:
 
-- `/admin` — no browser coverage.
 - The invite landing (`/join/invite`) — no browser coverage.
-- `/profile` — no browser coverage.
 - Two-browser group work with the editing baton — no browser coverage.
 - The gradebook CSV opened in a real spreadsheet — needs a human and a
   spreadsheet app.
@@ -603,11 +652,20 @@ forward-reference item 6 stays open:
   attribution runs end to end, both label surfaces asserted. What the script
   does *not* reach, and the Plan 7 human checklist carries instead: the
   dialog's three empty/refusal states, `Share…`'s absence for a guest and on
-  group/individual work, revoking a pending share, flipping the switch back
-  off with a share pending, offline behaviour, and the 1024px floor.
+  group/individual work, flipping the switch back off with a share pending,
+  offline behaviour, and the 1024px floor.
+- **Bell + preferences + data requests + revoke — covered (portal-e2e).**
+  `/admin` and `/profile` both leave the never-covered list above: the flow
+  drives them. What the script does *not* reach, and the Plan 8 human
+  checklist carries instead: the bell read at the **IDE** header as well as the
+  portal one and in both themes, each notification's link landing on the right
+  page, a switched-off email genuinely **absent** from the admin Emails tab
+  while the bell row still arrives, the teacher's widened `Waiting on them`,
+  and `/privacy` read at 1024px and at phone width.
 
-Those are handed to a human browser pass — the Plan 7 checklist
-(`2026-08-28-plan7-browser-pass-checklist.md`) joins the Plan 6, Plan 5
+Those are handed to a human browser pass — the Plan 8 checklist
+(`2026-08-29-plan8-browser-pass-checklist.md`) joins the Plan 7
+(`2026-08-28-plan7-browser-pass-checklist.md`), Plan 6, Plan 5
 (`2026-08-25-plan5-browser-pass-checklist.md`) and Plan 4
 (`2026-08-22-plan4-browser-pass-checklist.md`) files under
 `docs/superpowers/reviews/` — until a script takes them over.
