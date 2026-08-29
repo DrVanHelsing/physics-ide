@@ -504,3 +504,40 @@ describe("notification fan-out for class join (Task 5, site 8)", () => {
     expect(await notificationsFor(joiner.id)).toHaveLength(0);
   });
 });
+
+/* DEPLOY.md box 8 — join-code guessing. Plain per-IP throttle (no DB
+ * counting, no lock): app.ts:41-44's own note says a route registered
+ * directly on the root instance has a SILENTLY INERT `config.rateLimit` —
+ * memberRoutes is `app.register`ed (app.ts:63), so proving the 429 fires is
+ * the only way to know this route's config actually took effect, the
+ * auth.signup.test.ts / mailEvents.test.ts idiom. */
+describe("join rate limit (10/min per IP, DEPLOY.md box 8)", () => {
+  test("allows 10 requests per minute then returns 429", async () => {
+    // Fresh instance: the limiter's in-memory store is per-app, so this
+    // can't interfere with the rest of this file's request count against
+    // the shared `app`.
+    const rlApp = buildApp({ db: testDb });
+    try {
+      // No session cookie: requireConfirmed (a preHandler) would 401 this,
+      // but the rate-limit plugin hooks onRequest, which runs BEFORE any
+      // preHandler — so the limiter counts (and eventually blocks) these
+      // regardless of the 401 the handler chain would otherwise produce.
+      for (let i = 0; i < 10; i++) {
+        const res = await rlApp.inject({
+          method: "POST",
+          url: "/api/classes/join",
+          payload: { code: "AAA-000" },
+        });
+        expect(res.statusCode).toBe(401);
+      }
+      const res11 = await rlApp.inject({
+        method: "POST",
+        url: "/api/classes/join",
+        payload: { code: "AAA-000" },
+      });
+      expect(res11.statusCode).toBe(429);
+    } finally {
+      await rlApp.close();
+    }
+  });
+});

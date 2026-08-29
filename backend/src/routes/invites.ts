@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, gt, inArray, sql } from "drizzle-orm";
 import { InviteInputSchema, AcceptInviteInputSchema } from "@physics-ide/shared";
 import { classes, classMembers, invites, users } from "../db/schema.js";
 import { requireConfirmed } from "../auth/guards.js";
@@ -9,6 +9,25 @@ import { classInvite } from "../email/templates.js";
 import { logEvent } from "../db/events.js";
 import { notify } from "../notifications/notify.js";
 import { config } from "../config.js";
+
+/** DEPLOY.md box 8 — invite pacing. The 50-address zod cap on one batch
+ *  (`InviteInputSchema`, shared/src/classes.ts) stays; this is an
+ *  ADDITIONAL cap, 5x that, on the ROLLING HOUR: `invites` rows with
+ *  `invitedBy = caller` and `createdAt > now() - 1 hour`. "5 batches/hour"
+ *  isn't derivable — an `invites` row is per ADDRESS, not per batch (the
+ *  loop below opens one write per recipient, and the table carries no
+ *  batch id, schema.ts:132-146) — so a row is the only unit this table can
+ *  count. */
+export const INVITE_PACE_CAP = 250;
+export const INVITE_PACE_WINDOW_MS = 60 * 60 * 1000;
+export const INVITE_PACE_MESSAGE = "Too many invites sent recently. Try again in a bit.";
+
+/** classid for the invite-pacing cap's per-teacher advisory lock (two-arg
+ *  form — see classes.ts's CLASS_CREATE_LOCK_CLASSID doc comment for why
+ *  this namespace can't collide with the one-arg locks). Distinct from
+ *  auth.ts's 100025 and classes.ts's 100026 so none of the three
+ *  per-subject locks can contend with each other. */
+const INVITE_PACE_LOCK_CLASSID = 100027;
 
 export function inviteRoutes(app: FastifyInstance): void {
   app.addHook("preHandler", requireConfirmed);
@@ -44,8 +63,10 @@ export function inviteRoutes(app: FastifyInstance): void {
       )
       .where(inArray(users.email, parsed.data.emails));
     const memberEmails = new Set(existingUsers.map((r) => r.user.email));
+    const skipped = parsed.data.emails.filter((email) => memberEmails.has(email));
+    const toInvite = parsed.data.emails.filter((email) => !memberEmails.has(email));
 
-    // `invited` records what this loop actually does — an invite row and a
+    // `invited` records what this route actually does — an invite row and a
     // token created, and a send attempted — NOT that delivery succeeded.
     // Once neverThrow (guards.ts) sits outermost on app.mailer, a driver
     // rejection never surfaces here, so a field named "sent" would silently
@@ -53,31 +74,60 @@ export function inviteRoutes(app: FastifyInstance): void {
     // rows the driver actually delivered. Delivery is a separate fact,
     // tracked in the emails table — the admin email log is where it lives.
     const invited: string[] = [];
-    const skipped: string[] = [];
-    for (const email of parsed.data.emails) {
-      if (memberEmails.has(email)) {
-        skipped.push(email);
-        continue;
-      }
-      const t = newToken();
+    if (toInvite.length > 0) {
+      // DEPLOY.md box 8 — the pacing gate and this batch's row inserts
+      // share ONE transaction under a per-teacher advisory lock: the same
+      // "commits the count+insert" shape auth.ts's reset cap uses (Task
+      // 5's CRITICAL fix), generalised from one row to up to 50. The lock
+      // covers only these fast DB writes — never the mail round-trips
+      // below, which is what "not a lock held across 50 sends" (dispatch)
+      // actually requires: mint every token first (pure, no I/O), then one
+      // transaction gates on the count and, only if under cap, inserts
+      // every row and its event; the mail loop runs strictly after that
+      // transaction has committed.
+      const minted = toInvite.map((email) => ({ email, t: newToken() }));
+      let paced = false;
       await app.db.transaction(async (tx) => {
-        await tx.insert(invites).values({
-          classId: id,
-          email,
+        await tx.execute(
+          sql`SELECT pg_advisory_xact_lock(${INVITE_PACE_LOCK_CLASSID}, hashtext(${req.user!.id}))`,
+        );
+        const [{ count: recentInvites }] = await tx
+          .select({ count: sql<number>`count(*)::int` })
+          .from(invites)
+          .where(
+            and(
+              eq(invites.invitedBy, req.user!.id),
+              gt(invites.createdAt, new Date(Date.now() - INVITE_PACE_WINDOW_MS)),
+            ),
+          );
+        if (recentInvites + minted.length > INVITE_PACE_CAP) {
+          paced = true;
+          return;
+        }
+        for (const { email, t } of minted) {
+          await tx.insert(invites).values({
+            classId: id,
+            email,
+            role: parsed.data.role,
+            tokenHash: t.hash,
+            invitedBy: req.user!.id,
+          });
+          await logEvent(tx, "invite.sent", req.user!.id, { classId: id, email, role: parsed.data.role });
+        }
+      });
+      if (paced) {
+        return reply.code(429).send({ error: INVITE_PACE_MESSAGE });
+      }
+      for (const { email, t } of minted) {
+        const mail = classInvite({
+          className: c.name,
+          inviterName: req.user!.name,
+          joinUrl: `${config.appBaseUrl}/join/invite?token=${t.token}`,
           role: parsed.data.role,
-          tokenHash: t.hash,
-          invitedBy: req.user!.id,
         });
-        await logEvent(tx, "invite.sent", req.user!.id, { classId: id, email, role: parsed.data.role });
-      });
-      const mail = classInvite({
-        className: c.name,
-        inviterName: req.user!.name,
-        joinUrl: `${config.appBaseUrl}/join/invite?token=${t.token}`,
-        role: parsed.data.role,
-      });
-      await app.mailer.send({ to: email, template: "class-invite", ...mail });
-      invited.push(email);
+        await app.mailer.send({ to: email, template: "class-invite", ...mail });
+        invited.push(email);
+      }
     }
     return { invited, skipped };
   });
