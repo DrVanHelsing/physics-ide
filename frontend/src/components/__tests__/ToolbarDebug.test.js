@@ -16,6 +16,9 @@ import { useMe } from "../../auth/useAuth";
    useMe() too, for visibleControls()'s role axis. Same two lines, same
    reasons, as Toolbar.test.js and ToolbarResponsive.test.js. */
 vi.mock("../auth/HeaderAccount", () => ({ default: () => null }));
+// Plan 8 Task 6: the bell calls useQuery() unconditionally too, and no
+// QueryClientProvider is mounted here — same fix, same reason.
+vi.mock("../layout/NotificationBell", () => ({ default: () => null }));
 vi.mock("../../auth/useAuth", () => ({ useMe: vi.fn() }));
 // Task 20: Toolbar now calls useNavigate() directly too (the fileMenu's
 // History item) — same reason, same fix as the two mocks above.

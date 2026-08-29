@@ -12,6 +12,10 @@ import { ChevronDownIcon } from "../Icons";
  * aria-label to title there would break WCAG 2.5.3 Label in Name. Pass
  * `triggerAriaLabel` explicitly on callers (like the icon-only overflow
  * trigger) that have no visible text of their own to fall back on.
+ *
+ * `onOpenChange(open)` is optional — called whenever this menu's own open
+ * state changes (Plan 8 Task 6, the bell's mark-all-on-open). No existing
+ * caller passes it.
  */
 export default function DropdownMenu({
   trigger,
@@ -21,9 +25,21 @@ export default function DropdownMenu({
   triggerAriaLabel,
   triggerClassName = "tb-btn tb-btn--dropdown",
   chevron = true,
+  onOpenChange,
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
+
+  // Optional hook for callers that need to react to the menu's own
+  // open/close transitions (the bell's mark-all-on-open, Plan 8 Task 6) —
+  // an API addition to this one implementation, not a new popover. Keyed on
+  // `open` alone: callers typically pass an inline callback that gets a new
+  // identity every render, and this must fire only on a real open/close
+  // transition, not on every re-render of the caller.
+  useEffect(() => {
+    onOpenChange?.(open);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   useEffect(() => {
     if (!open) return undefined;

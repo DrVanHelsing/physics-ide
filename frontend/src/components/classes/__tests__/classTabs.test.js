@@ -27,6 +27,10 @@ vi.mock("react-router-dom", () => ({
    stub the whole component out the way PortalHeader.test.js does; its own
    behaviour is covered by HeaderAccount.test.js. */
 vi.mock("../../auth/HeaderAccount", () => ({ default: () => null }));
+// Plan 8 Task 6: PortalHeader also mounts NotificationBell now, which calls
+// useQuery() unconditionally — same reason, same fix (its own behaviour is
+// covered by notificationBell.test.js).
+vi.mock("../../layout/NotificationBell", () => ({ default: () => null }));
 
 let mounted = null;
 afterEach(() => {

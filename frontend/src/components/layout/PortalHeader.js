@@ -2,6 +2,7 @@ import React from "react";
 import { Link } from "react-router-dom";
 import ThemeToggleButton from "./ThemeToggleButton";
 import BackLink from "./BackLink";
+import NotificationBell from "./NotificationBell";
 import HeaderAccount from "../auth/HeaderAccount";
 import { useTheme } from "../../contexts/ThemeContext";
 
@@ -42,6 +43,7 @@ export default function PortalHeader({ title, nav, home = "/", back }) {
         {showBack ? <BackLink to={back.to} label={back.label} /> : null}
         <div className="page-header__spacer" />
         <ThemeToggleButton isDark={isDark} onToggle={toggle} />
+        <NotificationBell />
         <HeaderAccount />
       </div>
       {title ? <h1 className="page-header__title">{title}</h1> : null}

@@ -22,6 +22,10 @@ import { LAST_PROJECT_KEY } from "../../../constants";
  */
 vi.mock("../../../auth/useAuth", () => ({ useMe: vi.fn() }));
 vi.mock("../../auth/HeaderAccount", () => ({ default: () => null }));
+// Plan 8 Task 6: PortalHeader also mounts NotificationBell now, which calls
+// useQuery() unconditionally — same reason, same fix (its own behaviour is
+// covered by notificationBell.test.js).
+vi.mock("../../layout/NotificationBell", () => ({ default: () => null }));
 vi.mock("../../../utils/api/client", () => ({ api: vi.fn() }));
 vi.mock("@tanstack/react-query", () => ({ useQuery: vi.fn() }));
 vi.mock("../../../utils/manifest/factory", () => ({ createManifest: vi.fn() }));

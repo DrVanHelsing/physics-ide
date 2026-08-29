@@ -6,6 +6,9 @@ import { useMe } from "../../auth/useAuth";
 import { useAssignmentContext } from "../../contexts/AssignmentContext";
 
 vi.mock("../auth/HeaderAccount", () => ({ default: () => null }));
+// Plan 8 Task 6: the bell calls useQuery() unconditionally too, and no
+// QueryClientProvider is mounted here — same fix, same reason.
+vi.mock("../layout/NotificationBell", () => ({ default: () => null }));
 // Toolbar reads useMe() directly (Task 10) — no QueryClientProvider is
 // mounted in this bare-harness suite, so stub it (same fix as Toolbar.test.js).
 vi.mock("../../auth/useAuth", () => ({ useMe: vi.fn() }));

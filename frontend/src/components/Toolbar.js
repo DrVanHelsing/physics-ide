@@ -26,6 +26,7 @@ import { MOD_LABEL } from "../utils/hotkeys";
 import DropdownMenu from "./common/DropdownMenu";
 import ProjectTitle from "./layout/ProjectTitle";
 import ThemeToggleButton from "./layout/ThemeToggleButton";
+import NotificationBell from "./layout/NotificationBell";
 import HeaderAccount from "./auth/HeaderAccount";
 import ShareDialog from "./sharing/ShareDialog";
 import { useMediaQuery } from "../hooks/useMediaQuery";
@@ -400,6 +401,7 @@ function Toolbar({
 
       {/* ── Account ── */}
       <div className="app-header__account">
+        <NotificationBell />
         <HeaderAccount />
       </div>
     </header>
