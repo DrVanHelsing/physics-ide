@@ -808,6 +808,122 @@ describe("GET /api/shares/incoming", () => {
   });
 });
 
+// Task 12 — the sharer's own pending outgoing shares, and the teacher's
+// class-wide surface over the same pending set (D§8). Run BEFORE the
+// revoke/accept/chain describes below: those mutate the very rows this
+// block's own-rows assertions depend on staying untouched by anyone but
+// alpha (bravo never sharer()s here — the chain test late in this file is
+// the one exception, and it cleans up after itself).
+describe("GET /api/shares/outgoing", () => {
+  test("alpha sees exactly her own pending rows, with recipientName", async () => {
+    const shareId = await freshPendingShare("out-alpha");
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/shares/outgoing?classId=${classId}`,
+      cookies: { pide_session: alpha.cookie },
+    });
+    expect(res.statusCode).toBe(200);
+    const entry = (res.json().shares as Array<{ id: string }>).find((s) => s.id === shareId);
+    expect(entry).toEqual({
+      id: shareId,
+      title: "Fixture out-alpha",
+      recipientName: "shbravo",
+      sharerName: "shalpha",
+      createdAt: expect.any(Number),
+    });
+  });
+
+  test("bravo (never the sharer) gets an empty list, even with alpha's share pending — own-rows scoping", async () => {
+    await freshPendingShare("out-bravo-empty");
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/shares/outgoing?classId=${classId}`,
+      cookies: { pide_session: bravo.cookie },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().shares).toEqual([]);
+  });
+
+  test("the teacher sees every pending share in the class, both names resolved", async () => {
+    const shareId = await freshPendingShare("out-teacher");
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/shares/outgoing?classId=${classId}`,
+      cookies: { pide_session: teacherCookie },
+    });
+    expect(res.statusCode).toBe(200);
+    const entry = (res.json().shares as Array<{ id: string }>).find((s) => s.id === shareId);
+    expect(entry).toEqual({
+      id: shareId,
+      title: "Fixture out-teacher",
+      recipientName: "shbravo",
+      sharerName: "shalpha",
+      createdAt: expect.any(Number),
+    });
+  });
+
+  test("a revoked, lapsed, or accepted share does not show up — for the sharer or the teacher", async () => {
+    const revokedId = await freshPendingShare("out-revoked");
+    const lapsedId = await freshPendingShare("out-lapsed");
+    const acceptedId = await freshPendingShare("out-accepted");
+
+    const revokeRes = await app.inject({
+      method: "POST",
+      url: `/api/shares/${revokedId}/revoke`,
+      cookies: { pide_session: alpha.cookie },
+    });
+    expect(revokeRes.statusCode).toBe(200);
+    await testDb
+      .update(shares)
+      .set({ status: "lapsed", resolvedAt: new Date() })
+      .where(eq(shares.id, lapsedId));
+    await testDb
+      .update(shares)
+      .set({ status: "accepted", resolvedAt: new Date() })
+      .where(eq(shares.id, acceptedId));
+
+    const alphaRes = await app.inject({
+      method: "GET",
+      url: `/api/shares/outgoing?classId=${classId}`,
+      cookies: { pide_session: alpha.cookie },
+    });
+    const alphaIds = (alphaRes.json().shares as Array<{ id: string }>).map((s) => s.id);
+    expect(alphaIds).not.toContain(revokedId);
+    expect(alphaIds).not.toContain(lapsedId);
+    expect(alphaIds).not.toContain(acceptedId);
+
+    const teacherRes = await app.inject({
+      method: "GET",
+      url: `/api/shares/outgoing?classId=${classId}`,
+      cookies: { pide_session: teacherCookie },
+    });
+    const teacherIds = (teacherRes.json().shares as Array<{ id: string }>).map((s) => s.id);
+    expect(teacherIds).not.toContain(revokedId);
+    expect(teacherIds).not.toContain(lapsedId);
+    expect(teacherIds).not.toContain(acceptedId);
+  });
+
+  test("a non-member -> 403 NOT_A_MEMBER", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/shares/outgoing?classId=${classId}`,
+      cookies: { pide_session: outsiderCookie },
+    });
+    expect(res.statusCode).toBe(403);
+    expect(res.json().error).toBe("Not a member of this class.");
+  });
+
+  test("a malformed classId -> 404 No such class. (the Batch A posture)", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/shares/outgoing?classId=not-a-uuid",
+      cookies: { pide_session: alpha.cookie },
+    });
+    expect(res.statusCode).toBe(404);
+    expect(res.json().error).toBe("No such class.");
+  });
+});
+
 describe("GET /api/shares/roster/:classId", () => {
   test("active members minus the caller, name-ordered, names only — never alpha, never an email key", async () => {
     const res = await app.inject({

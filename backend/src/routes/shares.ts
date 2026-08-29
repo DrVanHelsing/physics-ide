@@ -373,6 +373,46 @@ export function shareRoutes(app: FastifyInstance): void {
     return { attributions };
   });
 
+  // Task 12 / D§8: the sharer's own carry-forward promise made operable —
+  // the pending shares they sent, and (D§8's teacher revoke authority) the
+  // class teacher's same view widened to every pending share in the class.
+  // Malformed/unknown classId use the roster route's 404 NO_SUCH_CLASS
+  // posture, not the incoming route's generic 400 (Batch A).
+  app.get("/api/shares/outgoing", async (req, reply) => {
+    const classIdParsed = z.string().uuid().safeParse((req.query as { classId?: string }).classId);
+    if (!classIdParsed.success) return reply.code(404).send({ error: NO_SUCH_CLASS });
+    const classId = classIdParsed.data;
+    const classRows = await app.db.select().from(classes).where(eq(classes.id, classId));
+    if (!classRows[0]) return reply.code(404).send({ error: NO_SUCH_CLASS });
+    const m = await getMembership(app.db, classId, req.user!.id);
+    if (!m || m.status !== "active") return reply.code(403).send({ error: NOT_A_MEMBER });
+
+    const scope =
+      m.role === "teacher"
+        ? and(eq(shares.classId, classId), eq(shares.status, "pending"))
+        : and(eq(shares.classId, classId), eq(shares.status, "pending"), eq(shares.sharerId, req.user!.id));
+    const rows = await app.db.select().from(shares).where(scope).orderBy(desc(shares.createdAt));
+
+    // The renderAll idiom (notifications.ts): one batch lookup over every
+    // person id in the page rather than a second join per row.
+    const personIds = [...new Set(rows.flatMap((r) => [r.sharerId, r.recipientId]))];
+    const named = personIds.length
+      ? await app.db.select({ id: users.id, name: users.name }).from(users).where(inArray(users.id, personIds))
+      : [];
+    const nameById = new Map(named.map((u) => [u.id, u.name]));
+
+    return {
+      shares: rows.map((share) => ({
+        id: share.id,
+        title: (share.frozenManifest as { title?: string }).title ?? "Untitled project",
+        // §11 erasure: resolved at read time, same fallback everywhere.
+        recipientName: nameById.get(share.recipientId) ?? REMOVED_STUDENT,
+        sharerName: nameById.get(share.sharerId) ?? REMOVED_STUDENT,
+        createdAt: share.createdAt.getTime(),
+      })),
+    };
+  });
+
   app.get("/api/shares/roster/:classId", async (req, reply) => {
     // A malformed id cannot exist — same posture as missing, never a 500.
     const classIdParsed = z.string().uuid().safeParse((req.params as { classId: string }).classId);

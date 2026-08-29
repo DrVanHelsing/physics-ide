@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "../../utils/api/client";
 import ClassChrome from "../classes/ClassChrome";
 import SharedWithYou from "../sharing/SharedWithYou";
+import WaitingOnThem from "../sharing/WaitingOnThem";
 
 export function phaseBadge(phase) {
   switch (phase) {
@@ -35,6 +36,7 @@ function AssignmentsBody({ classData }) {
   return (
     <div className="page-body">
       <SharedWithYou classId={id} />
+      <WaitingOnThem classId={id} isTeacher={classData.myRole === "teacher"} />
       {classData.myRole === "teacher" ? (
         <div className="assignments-actions">
           <Link className="btn" to={`/classes/${id}/assignments/new`}>New assignment</Link>
