@@ -206,6 +206,51 @@ describe("settings, code regeneration, archive", () => {
     });
     expect(un.statusCode).toBe(200);
   });
+
+  /* Task 8 — §11's retention clock: `archivedAt` is the sweep's (Task 9)
+   * only signal for a class's age, so it must be set the moment archived
+   * flips true and cleared the moment it flips back, every time, not just
+   * on a class's first archiving. */
+  test("archivedAt is set on archive and cleared on unarchive, every time", async () => {
+    const [beforeArchive] = await testDb.select().from(classes).where(eq(classes.id, classId));
+    expect(beforeArchive.archived).toBe(false);
+    expect(beforeArchive.archivedAt).toBeNull();
+
+    await app.inject({
+      method: "POST",
+      url: `/api/classes/${classId}/archive`,
+      cookies: { pide_session: teacherCookie },
+    });
+    const [afterArchive] = await testDb.select().from(classes).where(eq(classes.id, classId));
+    expect(afterArchive.archived).toBe(true);
+    expect(afterArchive.archivedAt).not.toBeNull();
+    expect(afterArchive.archivedAt!.getTime()).toBeLessThanOrEqual(Date.now());
+    expect(afterArchive.archivedAt!.getTime()).toBeGreaterThan(Date.now() - 60_000);
+
+    await app.inject({
+      method: "POST",
+      url: `/api/classes/${classId}/unarchive`,
+      cookies: { pide_session: teacherCookie },
+    });
+    const [afterUnarchive] = await testDb.select().from(classes).where(eq(classes.id, classId));
+    expect(afterUnarchive.archived).toBe(false);
+    expect(afterUnarchive.archivedAt).toBeNull();
+
+    // A second archiving gets a FRESH date, not the stale first one.
+    await app.inject({
+      method: "POST",
+      url: `/api/classes/${classId}/archive`,
+      cookies: { pide_session: teacherCookie },
+    });
+    const [reArchived] = await testDb.select().from(classes).where(eq(classes.id, classId));
+    expect(reArchived.archivedAt).not.toBeNull();
+
+    await app.inject({
+      method: "POST",
+      url: `/api/classes/${classId}/unarchive`,
+      cookies: { pide_session: teacherCookie },
+    });
+  });
 });
 
 describe("PATCH edge case and join-code visibility by role+status", () => {

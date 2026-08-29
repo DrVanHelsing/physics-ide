@@ -242,6 +242,11 @@
   font-family: var(--mono);
 }
 .admin-health { list-style: none; margin: 0; padding: 0; font-size: var(--fs-lg); display: flex; flex-direction: column; gap: var(--space-2); }
+/* Task 8's retention clock — the .admin-cap layout shape reused (a label
+   sentence, an input, a Save button in one row), separated from the health
+   list above it by the same gap the list's own items use. */
+.admin-retention { display: flex; align-items: center; gap: var(--space-3); font-size: var(--fs-lg); margin-top: var(--space-4); flex-wrap: wrap; }
+.admin-retention-input { width: 70px; }
 /* The .help-search-box shape (pages.css), minus the focus-within border —
    D8 forbids platform.css from writing a focus rule of its own; the real
    <input> and the clear <button> both already sit in tokens.css's global

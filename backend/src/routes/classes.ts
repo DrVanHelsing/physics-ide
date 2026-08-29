@@ -233,7 +233,14 @@ export function classRoutes(app: FastifyInstance): void {
       }
       const archived = action === "archive";
       await app.db.transaction(async (tx) => {
-        await tx.update(classes).set({ archived }).where(eq(classes.id, id));
+        // §11's retention clock (Task 8) starts here and nowhere else: the
+        // sweep (Task 9) ages classes off `archivedAt`, so unarchiving must
+        // clear it — an unarchived-then-rearchived class gets a fresh date,
+        // not the stale one from its first archiving.
+        await tx
+          .update(classes)
+          .set({ archived, archivedAt: archived ? new Date() : null })
+          .where(eq(classes.id, id));
         // Archiving closes the seam the same way the switch-off does:
         // nothing pending survives into an archived class to be accepted.
         if (archived) {

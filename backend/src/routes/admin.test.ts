@@ -215,6 +215,94 @@ describe("cap, emails, health", () => {
     await setSetting(testDb, "account_cap", 200);
   });
 
+  /* Task 8's retention clock. `wouldDelete` is measured as a DELTA from a
+   * baseline taken before the fixtures below exist, so this test is blind
+   * to whatever archived classes earlier describe blocks in this file may
+   * have left behind. */
+  test("GET/PUT retention: default of 3 years, a live wouldDelete count keyed on archivedAt, and a same-transaction event", async () => {
+    const YEAR_MS = 365 * 24 * 60 * 60 * 1000;
+    const DAY_MS = 24 * 60 * 60 * 1000;
+
+    const baseline = await app.inject({
+      method: "GET",
+      url: "/api/admin/retention",
+      cookies: { pide_session: adminCookie },
+    });
+    expect(baseline.statusCode).toBe(200);
+    expect(baseline.json().retentionYears).toBe(3);
+    const baselineCount = baseline.json().wouldDelete as number;
+    expect(typeof baselineCount).toBe("number");
+
+    await testDb.insert(classes).values([
+      {
+        name: "Ancient Archived Class",
+        joinCode: "RETOLD01",
+        createdBy: adminId,
+        archived: true,
+        archivedAt: new Date(Date.now() - 4 * YEAR_MS),
+      },
+      {
+        name: "Recently Archived Class",
+        joinCode: "RETNEW01",
+        createdBy: adminId,
+        archived: true,
+        archivedAt: new Date(Date.now() - 30 * DAY_MS),
+      },
+    ]);
+
+    // At the default 3 years, only the 4-year-old class crosses the line.
+    const at3 = await app.inject({
+      method: "GET",
+      url: "/api/admin/retention",
+      cookies: { pide_session: adminCookie },
+    });
+    expect(at3.json().wouldDelete).toBe(baselineCount + 1);
+
+    // A candidate preview (?years=10) never touches the stored setting and
+    // excludes the same class at a longer horizon.
+    const at10 = await app.inject({
+      method: "GET",
+      url: "/api/admin/retention?years=10",
+      cookies: { pide_session: adminCookie },
+    });
+    expect(at10.json()).toMatchObject({ retentionYears: 10, wouldDelete: baselineCount });
+    expect(await getSetting(testDb, "retention_years")).toBeUndefined();
+
+    const put = await app.inject({
+      method: "PUT",
+      url: "/api/admin/retention",
+      cookies: { pide_session: adminCookie },
+      payload: { retentionYears: 1 },
+    });
+    expect(put.statusCode).toBe(200);
+    expect(put.json()).toMatchObject({ ok: true, retentionYears: 1 });
+    expect(await getSetting(testDb, "retention_years")).toBe(1);
+    const changeEvents = await testDb.select().from(events).where(eq(events.type, "settings.retention_changed"));
+    expect(
+      changeEvents.some((e) => (e.payload as { retentionYears?: number }).retentionYears === 1),
+    ).toBe(true);
+
+    // At the new 1-year setting, the 30-day-old class is still too young —
+    // the count is unchanged from the 3-year baseline delta.
+    const afterPut = await app.inject({
+      method: "GET",
+      url: "/api/admin/retention",
+      cookies: { pide_session: adminCookie },
+    });
+    expect(afterPut.json()).toMatchObject({ retentionYears: 1, wouldDelete: baselineCount + 1 });
+
+    const bad = await app.inject({
+      method: "PUT",
+      url: "/api/admin/retention",
+      cookies: { pide_session: adminCookie },
+      payload: { retentionYears: 0 },
+    });
+    expect(bad.statusCode).toBe(400);
+    expect(bad.json().error).toBe("Retention period must be a whole number of years, 1–50.");
+
+    await setSetting(testDb, "retention_years", 3);
+  });
+
   test("email log returns newest first", async () => {
     const res = await app.inject({
       method: "GET",

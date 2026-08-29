@@ -3,9 +3,10 @@ import { Navigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../utils/api/client";
 import { useMe } from "../../auth/useAuth";
-import { CheckIcon, AlertTriangleIcon, SearchIcon, XIcon } from "../Icons";
+import { CheckIcon, AlertTriangleIcon, SearchIcon, XIcon, TrashIcon } from "../Icons";
 import PortalHeader from "../layout/PortalHeader";
 import DataRequestsTab from "./DataRequestsTab";
+import Overlay from "../common/Overlay";
 
 const TABS = ["People", "Classes", "Emails", "Health", "Data requests"];
 
@@ -375,10 +376,123 @@ export function HealthTab() {
             <li>Emails logged: {h.emailsLogged}</li>
             <li>Storage used: {formatBytes(h.storageBytes)}</li>
           </ul>
+          <RetentionControl />
         </div>
       ) : (
         <p className="auth-text">Loading…</p>
       )}
     </div>
+  );
+}
+
+/* §11's retention clock (Task 8): the setting Task 9's sweep will read.
+   DataRequestsTab's ERASE_SENTENCE idiom, reused — a file-level const,
+   spoken before the request is even sent, asserted verbatim by
+   adminStatus.test.js. */
+export const RETENTION_SENTENCE =
+  "This cannot be undone. Once saved, every archived class older than the " +
+  "new period is deleted automatically on the next daily sweep — the " +
+  "class, its work and its marks go.";
+
+/* The cap editor one scroll up (PeopleTab, above) is a bare number input
+   and one Save button — fine for a setting that only ever grows a limit.
+   This one destroys data with no undo, so Save opens a confirm step naming
+   exactly how many classes the candidate value would delete right now
+   (GET /api/admin/retention?years=N, fetched fresh, never estimated),
+   echoing the tree's own destructive precedent: DataRequestsTab's erase
+   dialog, which makes an admin retype the subject's email before it acts. */
+function RetentionControl() {
+  const qc = useQueryClient();
+  const [draftYears, setDraftYears] = useState(null);
+  const [confirming, setConfirming] = useState(false);
+
+  const retentionQuery = useQuery({
+    queryKey: ["admin", "retention"],
+    queryFn: () => api("/api/admin/retention"),
+  });
+  // getSetting returns `unknown` — the same typeof guard auth.ts uses for
+  // the signup cap, mirrored here on the client side of the same setting.
+  const current =
+    typeof retentionQuery.data?.retentionYears === "number" ? retentionQuery.data.retentionYears : 3;
+  const years = draftYears ?? current;
+
+  const previewQuery = useQuery({
+    queryKey: ["admin", "retention", "preview", years],
+    queryFn: () => api(`/api/admin/retention?years=${years}`),
+    enabled: confirming,
+  });
+  const wouldDelete = previewQuery.data?.wouldDelete;
+
+  const saveRetention = useMutation({
+    mutationFn: (value) => api("/api/admin/retention", { method: "PUT", body: { retentionYears: value } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "retention"] });
+      setConfirming(false);
+      setDraftYears(null);
+    },
+  });
+
+  function closeConfirm() {
+    setConfirming(false);
+  }
+
+  return (
+    <>
+      <div className="admin-retention">
+        <strong>{years}</strong> {years === 1 ? "year" : "years"} — how long an archived class is kept
+        before it's deleted automatically.
+        <input
+          className="input admin-retention-input"
+          type="number"
+          min="1"
+          max="50"
+          value={years}
+          onChange={(e) => setDraftYears(Number(e.target.value))}
+          aria-label="Retention period in years"
+        />
+        <button
+          className="btn"
+          type="button"
+          disabled={draftYears === null || draftYears === current}
+          onClick={() => setConfirming(true)}
+        >
+          Save retention period
+        </button>
+      </div>
+      {confirming ? (
+        <Overlay
+          onClose={closeConfirm}
+          label="Change retention period"
+          panelClassName="erase-dialog"
+          dismissOnBackdrop={false}
+        >
+          <h2 className="erase-dialog__title">Change retention period</h2>
+          <p>{RETENTION_SENTENCE}</p>
+          <p>
+            At <strong>{years}</strong> {years === 1 ? "year" : "years"}, this would delete{" "}
+            <strong>{previewQuery.isLoading ? "…" : (wouldDelete ?? 0)}</strong>{" "}
+            {wouldDelete === 1 ? "class" : "classes"} right now.
+          </p>
+          {saveRetention.error ? (
+            <div className="alert alert--danger" role="alert">
+              {saveRetention.error.message}
+            </div>
+          ) : null}
+          <div className="erase-dialog__actions">
+            <button className="btn" type="button" onClick={closeConfirm}>
+              Cancel
+            </button>
+            <button
+              className="btn btn--danger"
+              type="button"
+              disabled={previewQuery.isLoading || saveRetention.isPending}
+              onClick={() => saveRetention.mutate(years)}
+            >
+              <TrashIcon size={13} /> Confirm change
+            </button>
+          </div>
+        </Overlay>
+      ) : null}
+    </>
   );
 }
