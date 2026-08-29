@@ -16,6 +16,7 @@ import { assignmentRoutes } from "./routes/assignments.js";
 import { groupRoutes } from "./routes/groups.js";
 import { guideRoutes } from "./routes/guides.js";
 import { tickRoutes } from "./routes/tick.js";
+import { mailEventsRoutes } from "./routes/mailEvents.js";
 import { shareRoutes } from "./routes/shares.js";
 import { notificationRoutes } from "./routes/notifications.js";
 
@@ -68,6 +69,7 @@ export function buildApp(deps: AppDeps): FastifyInstance {
   app.register(shareRoutes);
   app.register(notificationRoutes);
   app.register(tickRoutes);
+  app.register(mailEventsRoutes);
 
   return app;
 }

@@ -66,8 +66,13 @@ export function redactTokens(text: string): string {
 
 /** The send response's id arrives angle-bracketed; the webhook's does not.
  *  Strip the brackets so the stored value is the one the webhook will
- *  present. Idempotent, so an unbracketed id passes through unchanged. */
-function normaliseMessageId(raw: unknown): string | null {
+ *  present. Idempotent, so an unbracketed id passes through unchanged.
+ *  Exported (Task 4): the webhook applies this same function to the
+ *  INCOMING id before its lookup, so the correlation key has one canonical
+ *  definition instead of a stored spelling plus an assumed inbound one that
+ *  can drift. A bare id passes through as a no-op today; if any event type
+ *  ever presents the bracketed form, the lookup still matches. */
+export function normaliseMessageId(raw: unknown): string | null {
   if (typeof raw !== "string") return null;
   const id = raw.trim().replace(/^<+/, "").replace(/>+$/, "").trim();
   return id.length > 0 ? id : null;

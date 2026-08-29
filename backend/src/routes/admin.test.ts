@@ -263,6 +263,10 @@ describe("cap, emails, health", () => {
     expect(typeof res.json().users).toBe("number");
     expect(typeof res.json().cap).toBe("number");
     expect(typeof res.json().emailsLogged).toBe("number");
+    // §10's second promise: "storage used" — pg_database_size(current_database())
+    // always returns a positive count for a live, non-empty database.
+    expect(typeof res.json().storageBytes).toBe("number");
+    expect(res.json().storageBytes).toBeGreaterThan(0);
   });
 });
 

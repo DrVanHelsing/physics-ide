@@ -220,6 +220,18 @@ function PeopleTab() {
   );
 }
 
+/* D13: "delivered"/"sent" resolve through the success token, "bounced"/
+   "failed" through the danger token, everything else (the dev driver's
+   "dev", plus the brevo driver's transient "sending") stays neutral — the
+   plain .badge base already defaults --badge-color to --text-dim, so no new
+   token or class is needed for that third bucket. Colour is never the only
+   channel: the badge always carries the status word itself, verbatim. */
+function emailStatusBadgeClass(status) {
+  if (status === "bounced" || status === "failed") return "badge badge--danger";
+  if (status === "delivered" || status === "sent") return "badge badge--success";
+  return "badge";
+}
+
 function EmailsTab() {
   const [openId, setOpenId] = useState(null);
   const emailsQuery = useQuery({
@@ -238,6 +250,7 @@ function EmailsTab() {
               <th>When</th>
               <th>To</th>
               <th>Subject</th>
+              <th>Status</th>
             </tr>
           </thead>
           <tbody>
@@ -259,10 +272,13 @@ function EmailsTab() {
                   <td>{new Date(m.createdAt).toLocaleString()}</td>
                   <td>{m.toEmail}</td>
                   <td>{m.subject}</td>
+                  <td>
+                    <span className={emailStatusBadgeClass(m.status)}>{m.status}</span>
+                  </td>
                 </tr>
                 {openId === m.id ? (
                   <tr>
-                    <td colSpan="3">
+                    <td colSpan="4">
                       <pre className="admin-mail-body">{m.bodyText}</pre>
                     </td>
                   </tr>
@@ -317,6 +333,17 @@ function ClassesTab() {
   );
 }
 
+/* §10's second Health promise: "storage used", rendered human-readable
+   rather than as a raw byte count nobody can read at a glance. */
+function formatBytes(bytes) {
+  if (typeof bytes !== "number" || !Number.isFinite(bytes) || bytes < 0) return "—";
+  if (bytes === 0) return "0 B";
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  const exp = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+  const value = bytes / 1024 ** exp;
+  return `${exp === 0 ? value : value.toFixed(1)} ${units[exp]}`;
+}
+
 export function HealthTab() {
   const healthQuery = useQuery({
     queryKey: ["admin", "health"],
@@ -346,6 +373,7 @@ export function HealthTab() {
               Accounts: {h.users} of {h.cap}
             </li>
             <li>Emails logged: {h.emailsLogged}</li>
+            <li>Storage used: {formatBytes(h.storageBytes)}</li>
           </ul>
         </div>
       ) : (
