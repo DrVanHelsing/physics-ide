@@ -41,6 +41,9 @@ table beneath it.
 - **Revoking a share** has a route (`POST /api/shares/:id/revoke`) but no
   button yet. Item 5 drives it from the devtools console on purpose; the
   half worth your eyes is what B's page does afterwards, not the call.
+  *(Annotated 29 Aug 2026: the button is Plan 8's Task 12 — the sharer's
+  "Waiting on them" list with revoke, plus the teacher's class view. Until
+  that ships, the item 15 console workaround stands as written.)*
 
 ## 0. The dialog's empty and refusal states — do these first
 
@@ -117,6 +120,13 @@ top to bottom each time.
     (e.g. a full first and last name): if the sentence truncates so early that
     the name is unreadable at a glance, that is a finding worth a row. Start
     menu: the same sentence under the project's row in Continue, in full.
+    *(Annotated 29 Aug 2026 — Batch B, `d3ac91a`: a copy accepted on one
+    device now resolves its label on a **second** device the moment the copy
+    is opened there — the chip backfills the sidecar from
+    `GET /api/shares/attributions` when it holds no record — with no Start
+    Menu visit needed first. Since you already have two profiles open, spend
+    one extra look: open the copy in the profile that did NOT press accept
+    and confirm the chip reads right straight from the IDE.)*
 14. **The copy is the recipient's own project.** Rename it, edit it, delete
     something — it behaves like any project of theirs. The label stays. The
     *sharer's* copy is untouched by any of it.
