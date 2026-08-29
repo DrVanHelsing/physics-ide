@@ -25,6 +25,7 @@ import {
   groupMembers,
   submissions,
   marks,
+  ruleSets,
   shares,
 } from "../db/schema.js";
 
@@ -980,5 +981,293 @@ describe("erase: a teacher takes the same path", () => {
     expect(
       await testDb.select().from(emailTokens).where(eq(emailTokens.userId, teacher.id)),
     ).toHaveLength(0);
+  });
+});
+
+/* ═══════════════════════════════════════════════════════════════════════
+ * Plan 8 Task 9 review (binding) — two more doors close behind an erased
+ * account: reactivate and send-reset must both refuse a scrubbed row with
+ * 409 ALREADY_ERASED, the same sentence `erase` itself gives on a repeat.
+ * Without this, an erased shell stays admin-revivable even though D§5
+ * suppresses the People-tab buttons that would normally guard it.
+ * ═══════════════════════════════════════════════════════════════════════ */
+describe("two more doors close behind an erased account", () => {
+  let world: StudentWorld;
+
+  beforeAll(async () => {
+    world = await seedStudentWorld("erg");
+    const res = await erase(world.student.id, world.student.email);
+    expect(res.statusCode).toBe(200);
+  });
+
+  test("reactivate refuses an erased account with 409", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/admin/users/${world.student.id}/reactivate`,
+      cookies: { pide_session: adminCookie },
+    });
+    expect(res.statusCode).toBe(409);
+    expect(res.json().error).toBe(ALREADY_ERASED);
+  });
+
+  test("send-reset refuses an erased account with 409", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/admin/users/${world.student.id}/send-reset`,
+      cookies: { pide_session: adminCookie },
+    });
+    expect(res.statusCode).toBe(409);
+    expect(res.json().error).toBe(ALREADY_ERASED);
+  });
+});
+
+describe("a merely-deactivated account still reactivates (no regression)", () => {
+  test("reactivate succeeds for a deactivated, NOT erased, account", async () => {
+    const seat = await makeSeat("erg-plain-deactivated@example.com");
+    const deactivate = await app.inject({
+      method: "POST",
+      url: `/api/admin/users/${seat.id}/deactivate`,
+      cookies: { pide_session: adminCookie },
+    });
+    expect(deactivate.statusCode).toBe(200);
+
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/admin/users/${seat.id}/reactivate`,
+      cookies: { pide_session: adminCookie },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ ok: true });
+    const [row] = await testDb.select().from(users).where(eq(users.id, seat.id));
+    expect(row.active).toBe(true);
+    expect(row.erasedAt).toBeNull();
+  });
+});
+
+/* ═══════════════════════════════════════════════════════════════════════
+ * Plan 8 Task 10 — GET /api/admin/users/:id/export (design D§6)
+ *
+ * An ordinary JSON body: everything theirs, their own audit trail and
+ * nobody else's. D§5's erase sweep and D§6's export list are the same
+ * table read twice (plan self-review 6), so this world is built with the
+ * SAME `seedStudentWorld` helper Task 9 wrote — extended in-line, here,
+ * with the five buckets the erasure sweep never touches (a student
+ * authoring a class/assignment/guide/invite/rule-set is unrealistic in
+ * the product, but the export's WHERE clauses are generic `createdBy =
+ * :id` / `ownerId = :id`, and Task 9's own "a teacher takes the same
+ * path" block already seeds those four tables by hand for the same
+ * reason) and the one event D§6 says must NEVER come back: a teacher's
+ * `assignment.timeline_viewed`, fired through the REAL route so the
+ * student genuinely is the subject of someone else's action.
+ * ═══════════════════════════════════════════════════════════════════════ */
+const EXPORT_NOTE =
+  "This export contains your account, your work, and the actions you took. " +
+  "It does not contain other people's actions — including a teacher's record of viewing your work.";
+
+type ExportBody = {
+  note: string;
+  user: {
+    id: string;
+    email: string;
+    name: string;
+    role: string;
+    isTeacher: boolean;
+    emailConfirmed: boolean;
+    createdAt: string;
+    consentAt: string;
+    passwordHash?: string;
+  };
+  classMemberships: Array<{ userId: string }>;
+  projects: Array<{ id: string; manifest: unknown }>;
+  projectVersions: Array<Record<string, unknown>>;
+  assignmentWork: Array<{ userId: string | null }>;
+  submissions: Array<{ submitterId: string | null }>;
+  marksReceived: Array<{ studentId: string }>;
+  groups: Array<{ id: string; ownerId: string | null }>;
+  groupMemberships: Array<{ userId: string }>;
+  ruleSets: Array<{ id: string; ownerId: string }>;
+  sharesSent: Array<{ id: string; sharerId: string }>;
+  sharesReceived: Array<{ id: string; recipientId: string }>;
+  authoredClasses: Array<{ id: string; createdBy: string }>;
+  authoredAssignments: Array<{ id: string; createdBy: string }>;
+  authoredGuides: Array<{ id: string; createdBy: string }>;
+  sentInvites: Array<{ id: string; invitedBy: string }>;
+  emails: Array<{ toUserId: string | null; template: string }>;
+  events: Array<{ type: string; actorId: string | null; payload: unknown }>;
+};
+
+const EXPORT_KEYS = [
+  "note",
+  "user",
+  "classMemberships",
+  "projects",
+  "projectVersions",
+  "assignmentWork",
+  "submissions",
+  "marksReceived",
+  "groups",
+  "groupMemberships",
+  "ruleSets",
+  "sharesSent",
+  "sharesReceived",
+  "authoredClasses",
+  "authoredAssignments",
+  "authoredGuides",
+  "sentInvites",
+  "emails",
+  "events",
+];
+
+async function exportOf(userId: string) {
+  return app.inject({
+    method: "GET",
+    url: `/api/admin/users/${userId}/export`,
+    cookies: { pide_session: adminCookie },
+  });
+}
+
+describe("export", () => {
+  let world: StudentWorld;
+
+  beforeAll(async () => {
+    world = await seedStudentWorld("exp");
+
+    // The five buckets seedStudentWorld's erasure-focused world doesn't
+    // populate for a STUDENT — hand-seeded the same way Task 9's "a
+    // teacher takes the same path" block seeds them for a teacher.
+    await testDb.insert(classes).values({
+      name: "exp Authored Class",
+      joinCode: "exp-authored-code",
+      createdBy: world.student.id,
+    });
+    await testDb.insert(assignments).values({
+      classId: world.classId,
+      createdBy: world.student.id,
+      title: "exp Authored Assignment",
+      instructions: { type: "doc", content: [] },
+      projectType: "physics",
+      rules: BUILT_IN_RULE_SETS.open_practice,
+    });
+    await testDb.insert(guides).values({
+      classId: world.classId,
+      createdBy: world.student.id,
+      title: "exp Guide",
+      body: { type: "doc", content: [] },
+    });
+    await testDb.insert(invites).values({
+      classId: world.classId,
+      email: "exp-invitee@example.com",
+      role: "student",
+      tokenHash: "exp-invite-hash",
+      invitedBy: world.student.id,
+    });
+    await testDb.insert(ruleSets).values({
+      ownerId: world.student.id,
+      name: "exp Rule Set",
+      rules: BUILT_IN_RULE_SETS.open_practice,
+    });
+
+    // An email addressed to them: the admin's own send-reset door, through
+    // the real route — the student is active and not yet erased here.
+    const mailRes = await app.inject({
+      method: "POST",
+      url: `/api/admin/users/${world.student.id}/send-reset`,
+      cookies: { pide_session: adminCookie },
+    });
+    expect(mailRes.statusCode).toBe(200);
+
+    // The actorId-only privacy ruling's fixture: a teacher's OWN action,
+    // ABOUT the student, through the real timeline route — never a
+    // hand-seeded events row standing in for it.
+    const timelineRes = await app.inject({
+      method: "GET",
+      url: `/api/assignments/${world.assignmentId}/timeline/${world.student.id}`,
+      cookies: { pide_session: world.teacher.cookie },
+    });
+    expect(timelineRes.statusCode).toBe(200);
+  });
+
+  test("every key is present, the note is verbatim, and the user row carries no secret", async () => {
+    const res = await exportOf(world.student.id);
+    expect(res.statusCode).toBe(200);
+    const body = res.json() as ExportBody;
+    expect(Object.keys(body).sort()).toEqual([...EXPORT_KEYS].sort());
+    expect(body.note).toBe(EXPORT_NOTE);
+    expect(body.user.id).toBe(world.student.id);
+    expect(body.user.email).toBe(world.student.email);
+    expect(body.user).not.toHaveProperty("passwordHash");
+  });
+
+  test("one row lands in every bucket the world seeded", async () => {
+    const res = await exportOf(world.student.id);
+    const body = res.json() as ExportBody;
+    expect(body.classMemberships.some((r) => r.userId === world.student.id)).toBe(true);
+    expect(body.projects.some((p) => p.id === world.personalProjectId)).toBe(true);
+    expect(body.projects.some((p) => p.id === world.groupProjectId)).toBe(true);
+    expect(body.projectVersions.length).toBeGreaterThanOrEqual(2);
+    expect(body.assignmentWork.length).toBeGreaterThanOrEqual(1);
+    expect(body.submissions.some((s) => s.submitterId === world.student.id)).toBe(true);
+    expect(body.marksReceived.some((m) => m.studentId === world.student.id)).toBe(true);
+    expect(body.groups.some((g) => g.id === world.groupId)).toBe(true);
+    expect(body.groupMemberships.some((m) => m.userId === world.student.id)).toBe(true);
+    expect(body.ruleSets.some((r) => r.ownerId === world.student.id)).toBe(true);
+    const sentIds = body.sharesSent.map((s) => s.id);
+    expect(sentIds).toEqual(expect.arrayContaining([world.acceptedShareId, world.pendingOutShareId]));
+    expect(body.sharesReceived.map((s) => s.id)).toEqual(
+      expect.arrayContaining([world.pendingInShareId]),
+    );
+    expect(body.authoredClasses.some((c) => c.createdBy === world.student.id)).toBe(true);
+    expect(body.authoredAssignments.some((a) => a.createdBy === world.student.id)).toBe(true);
+    expect(body.authoredGuides.some((g) => g.createdBy === world.student.id)).toBe(true);
+    expect(body.sentInvites.some((i) => i.invitedBy === world.student.id)).toBe(true);
+    expect(body.emails.some((e) => e.toUserId === world.student.id && e.template === "reset")).toBe(
+      true,
+    );
+  });
+
+  test("projects carry the FULL manifest; projectVersions are metadata only, no manifest key", async () => {
+    const res = await exportOf(world.student.id);
+    const body = res.json() as ExportBody;
+    const personal = body.projects.find((p) => p.id === world.personalProjectId);
+    expect(personal).toBeDefined();
+    expect(personal!.manifest).toEqual(manifestFor(world.personalProjectId, "Their own work"));
+
+    expect(body.projectVersions.length).toBeGreaterThan(0);
+    for (const v of body.projectVersions) {
+      expect(v).not.toHaveProperty("manifest");
+      expect(Object.keys(v).sort()).toEqual(["createdAt", "id", "label"].sort());
+    }
+  });
+
+  test("events: their own action is present; the teacher's timeline_viewed about them is ABSENT", async () => {
+    const res = await exportOf(world.student.id);
+    const body = res.json() as ExportBody;
+    expect(body.events.length).toBeGreaterThan(0);
+    expect(body.events.every((e) => e.actorId === world.student.id)).toBe(true);
+    expect(body.events.some((e) => e.type === "project.shared")).toBe(true);
+    expect(body.events.some((e) => e.type === "assignment.timeline_viewed")).toBe(false);
+  });
+
+  test("an unknown id -> 404, and a malformed one gets the SAME sentence", async () => {
+    const unknown = await exportOf("00000000-0000-4000-8000-000000000000");
+    expect(unknown.statusCode).toBe(404);
+    expect(unknown.json().error).toBe(NO_SUCH_ACCOUNT);
+
+    const malformed = await app.inject({
+      method: "GET",
+      url: "/api/admin/users/not-a-uuid/export",
+      cookies: { pide_session: adminCookie },
+    });
+    expect(malformed.statusCode).toBe(404);
+    expect(malformed.json().error).toBe(NO_SUCH_ACCOUNT);
+  });
+
+  test("a non-admin is refused with 403 (GET has no matrix seat)", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/admin/users/${world.student.id}/export`,
+      cookies: { pide_session: world.student.cookie },
+    });
+    expect(res.statusCode).toBe(403);
   });
 });
