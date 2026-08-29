@@ -51,11 +51,19 @@ afterAll(async () => {
 
 const VALID_BODY = { event: "delivered", email: "student@example.com", "message-id": "some-id@relay.domain.com" };
 
+/* Declared independently here, not imported from mailEvents.ts — the
+ * admin.test.ts idiom for "refusal sentences asserted verbatim" (global
+ * constraint). Importing the const would let the route and the test drift
+ * together silently; re-declaring the literal means a wording change in
+ * the route is a test failure, not a passing no-op. */
+const FORBIDDEN = "Forbidden.";
+const INVALID_EVENT = "Invalid event.";
+
 describe("POST /api/mail/events — secret guard", () => {
   test("no header -> 403, no leak about why", async () => {
     const res = await mailEvent(undefined, VALID_BODY);
     expect(res.statusCode).toBe(403);
-    expect(typeof res.json().error).toBe("string");
+    expect(res.json()).toEqual({ error: FORBIDDEN });
   });
 
   test("wrong secret -> 403 with the exact same refusal as a missing header", async () => {
@@ -63,11 +71,25 @@ describe("POST /api/mail/events — secret guard", () => {
     const wrong = await mailEvent("not-the-secret", VALID_BODY);
     expect(wrong.statusCode).toBe(403);
     expect(wrong.json()).toEqual(noHeader.json());
+    expect(wrong.json()).toEqual({ error: FORBIDDEN });
   });
 
-  test("correct secret and a well-formed body -> not a 403", async () => {
+  // Fix round 1, IMPORTANT 1: proves the guard runs BEFORE the write, not
+  // merely that it returns the right status code. A regression that moved
+  // the secret check below the UPDATE would still 403 here and every other
+  // test in this file would stay green — this is the one that would catch
+  // it, mirroring the unknown-id "no write" test's instinct below.
+  test("no header or wrong secret -> the matching row is never touched", async () => {
+    const row = await seedEmail("some-id@relay.domain.com", "sent");
+    await mailEvent(undefined, VALID_BODY);
+    await mailEvent("not-the-secret", VALID_BODY);
+    expect(await statusOf(row.id)).toBe("sent");
+  });
+
+  test("correct secret and a well-formed body -> 200 { ok: true }, not a 403", async () => {
     const res = await mailEvent(config.mailWebhookSecret, VALID_BODY);
-    expect(res.statusCode).not.toBe(403);
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ ok: true });
   });
 });
 
@@ -75,7 +97,7 @@ describe("POST /api/mail/events — body validation", () => {
   test("missing message-id -> 400", async () => {
     const res = await mailEvent(config.mailWebhookSecret, { event: "delivered", email: "a@b.com" });
     expect(res.statusCode).toBe(400);
-    expect(typeof res.json().error).toBe("string");
+    expect(res.json()).toEqual({ error: INVALID_EVENT });
   });
 
   test("an event outside Brevo's vocabulary -> 400", async () => {
@@ -85,6 +107,7 @@ describe("POST /api/mail/events — body validation", () => {
       "message-id": "x@relay.domain.com",
     });
     expect(res.statusCode).toBe(400);
+    expect(res.json()).toEqual({ error: INVALID_EVENT });
   });
 });
 
@@ -98,6 +121,28 @@ describe("POST /api/mail/events — delivered and bounced", () => {
     });
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual({ ok: true });
+    expect(await statusOf(row.id)).toBe("delivered");
+  });
+
+  // Fix round 1, IMPORTANT 2: the schema is deliberately non-strict — Brevo's
+  // real payload (brevoMailer.ts:23) carries `ts_event`, `tag`, `sending_ip`
+  // and more alongside the three fields this route reads. This test IS the
+  // record of that decision: a later "tighten this up" edit to `.strict()`
+  // would 400 every real webhook (Brevo retries, then gives up, statuses
+  // silently freeze), and this is the test that would catch it.
+  test("a full-shaped Brevo payload (extra fields alongside the three read) still updates the row", async () => {
+    const row = await seedEmail("full-shape@relay.domain.com");
+    const res = await mailEvent(config.mailWebhookSecret, {
+      event: "delivered",
+      email: "student@example.com",
+      "message-id": "full-shape@relay.domain.com",
+      ts_event: 1735689600,
+      tag: "due-tomorrow",
+      sending_ip: "1.2.3.4",
+      subject: "Due tomorrow",
+      "X-Mailin-custom": "custom-tracking-id",
+    });
+    expect(res.statusCode).toBe(200);
     expect(await statusOf(row.id)).toBe("delivered");
   });
 
@@ -151,6 +196,11 @@ describe("POST /api/mail/events — inbound id normalisation", () => {
 describe("POST /api/mail/events — unknown message-id", () => {
   test("200 { ok: true } and no write for a message-id nothing in the table holds", async () => {
     const row = await seedEmail("some-other-id@relay.domain.com", "sent");
+    // Fix round 1, MINOR 7: dev-inbox rows (providerId NULL) are the most
+    // numerous in this table. Correct by SQL semantics (NULL = anything is
+    // never true) and unreachable anyway once messageId !== null above, but
+    // nothing pinned it — this row proves a dev row can't be swept.
+    const devRow = await seedEmail(null, "dev");
     const res = await mailEvent(config.mailWebhookSecret, {
       event: "delivered",
       email: "nobody@example.com",
@@ -161,6 +211,7 @@ describe("POST /api/mail/events — unknown message-id", () => {
     // The unrelated row already in the table proves the write genuinely
     // didn't happen anywhere, not merely that no error was thrown.
     expect(await statusOf(row.id)).toBe("sent");
+    expect(await statusOf(devRow.id)).toBe("dev");
   });
 });
 

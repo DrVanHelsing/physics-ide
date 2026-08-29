@@ -3,7 +3,7 @@ import { z } from "zod";
 import { eq } from "drizzle-orm";
 import { emails } from "../db/schema.js";
 import { config } from "../config.js";
-import { normaliseMessageId } from "../email/brevoMailer.js";
+import { normaliseMessageId, brevoStatus } from "../email/brevoMailer.js";
 
 const MAIL_SECRET_HEADER = "x-mail-secret";
 
@@ -52,10 +52,12 @@ const MailEventSchema = z.object({
   "message-id": z.string(),
 });
 
-/** null = an event this app doesn't track (200s with no write). */
+/** null = an event this app doesn't track (200s with no write). Resolves
+ *  through brevoMailer.ts's shared `brevoStatus` vocabulary rather than a
+ *  free-floating literal here, so the two files can't drift (M6). */
 function statusFor(event: (typeof BREVO_EVENTS)[number]): string | null {
-  if (event === "delivered") return "delivered";
-  if (BOUNCE_EVENTS.has(event)) return "bounced";
+  if (event === "delivered") return brevoStatus.delivered;
+  if (BOUNCE_EVENTS.has(event)) return brevoStatus.bounced;
   return null;
 }
 

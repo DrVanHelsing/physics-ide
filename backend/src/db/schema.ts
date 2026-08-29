@@ -70,8 +70,12 @@ export const emails = pgTable(
     template: text("template").notNull(),
     subject: text("subject").notNull(),
     bodyText: text("body_text").notNull(),
-    /** "dev" (pretend inbox) | "sending" | "sent" | "failed" — the last
-     *  three are the brevo driver's, written row-first then updated. */
+    /** "dev" (pretend inbox) | "sending" | "sent" | "failed" | "delivered"
+     *  | "bounced" — the middle three are the brevo driver's own send-time
+     *  states (written row-first, then updated), and the last two are
+     *  written later by the inbound webhook (mailEvents.ts) once Brevo
+     *  reports what happened to the send. See brevoMailer.ts's
+     *  `brevoStatus` for the shared canonical spellings. */
     status: text("status").notNull().default("dev"),
     /** The provider's message id, angle brackets stripped so it is
      *  byte-comparable with the webhook's own `message-id` (see

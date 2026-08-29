@@ -208,6 +208,14 @@ describe("AdminConsole Emails tab — the mail row is not click-only", () => {
                   bodyText: "Body",
                   status: "delivered",
                 },
+                {
+                  id: "m2",
+                  createdAt: "2026-01-02T00:00:00Z",
+                  toEmail: "c@d.com",
+                  subject: "Bounced one",
+                  bodyText: "Body 2",
+                  status: "bounced",
+                },
               ],
             },
           }
@@ -262,6 +270,22 @@ describe("AdminConsole Emails tab — the mail row is not click-only", () => {
     expect(badge.textContent).toBe("delivered");
     expect(badge.classList.contains("badge--success")).toBe(true);
     expect(badge.classList.contains("badge--danger")).toBe(false);
+  });
+
+  // Fix round 1, IMPORTANT 3: the success-token assertion above only proves
+  // `emailStatusBadgeClass` could return "badge" (or any truthy class) for
+  // "delivered" — a version that always returns plain "badge" regardless of
+  // status would still pass it. This is the row that pins the danger token
+  // to "bounced" specifically, so D13's "what bounced" half is actually
+  // verified, not merely implemented.
+  test("a bounced row renders the word 'bounced' and the danger token class, not the success one", () => {
+    const container = renderEmails();
+    const rows = [...container.querySelectorAll(".admin-mail-row")];
+    const bouncedBadge = rows[1].querySelector(".badge");
+    expect(bouncedBadge).not.toBeNull();
+    expect(bouncedBadge.textContent).toBe("bounced");
+    expect(bouncedBadge.classList.contains("badge--danger")).toBe(true);
+    expect(bouncedBadge.classList.contains("badge--success")).toBe(false);
   });
 
   // The expander row's colSpan must track the Status column's arrival, or
