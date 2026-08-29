@@ -452,19 +452,62 @@ matched to the Cloud Run timeout; static hosting (the existing Vercel path — s
 below); `trustProxy` and `NODE_ENV=production` wiring; DNS/SPF/DKIM for the sending domain;
 and the provider account + sender-identity steps.
 
-**Firebase Hosting leaves the runbook (controller ruling, 2026-08-29).**
-`product-contract.md:25`'s Locked Hosting row reads "Static SPA on Vercel or Cloudflare
-Pages"; only the stack briefing (`:112`) ever named Firebase, as an example inside the GCP
-mapping table. The static site is already deployed and configured on the Vercel path
-(`frontend/vercel.json`, DEPLOY.md §1), so offering a second host would mean shipping and
-maintaining a second config carrying the same three rules (SPA rewrite, `/assets`
-immutable, `/vendor` cacheable) for zero delivered capability — the "never pre-build
-infrastructure ahead of an explicit trigger" constraint, applied literally. Plan 9 therefore
-keeps Vercel, ships no `firebase.json`, amends no Locked row, and drops Firebase from the
-runbook's static-hosting step. **Cost if wrong:** if the user later wants everything under
-one Google bill, adding Firebase Hosting is one config file and one runbook step — the
-backend, the database and the scheduler are on GCP either way, and nothing in this plan
-depends on where the static files sit.
+**~~Firebase Hosting leaves the runbook~~ — REVERSED 2026-08-29 by the user, on evidence.
+The static site moves to Firebase Hosting with a rewrite to Cloud Run.**
+
+The original ruling said: the Locked Hosting row names Vercel, the site is already deployed
+there, and a second host config would carry the same three rules for zero delivered
+capability — "never pre-build infrastructure ahead of an explicit trigger", applied
+literally. **That reasoning was wrong, and it was wrong because it never checked the origin
+model.** A second host was not buying "zero capability"; it was buying the only origin model
+this product can actually run under.
+
+**The defect the reversal fixes.** This frontend is architecturally same-origin, verified
+in the tree:
+- `frontend/src/utils/api/client.js:14` sends `credentials: "same-origin"`, and its own
+  docblock reads "Cookies ride along (same-origin)". Cross-origin, the browser sends **no
+  session cookie at all**.
+- Every call is a RELATIVE path (`fetch(path)` over `/api/...`) — there is no API base URL,
+  no `VITE_API_*`, no absolute origin anywhere in `frontend/src`. Requests go to whatever
+  origin served the page.
+- The session cookie is `sameSite: "lax"` (`auth.ts:235`), which is not sent on cross-site
+  requests.
+- There is **no CORS plugin** — `cors` appears nowhere in `app.ts` or `backend/package.json`.
+
+So the runbook's planned split — static on Vercel, API on Cloud Run, two origins — would not
+have degraded gracefully. Every authenticated request would have failed: the relative `/api`
+path would hit the static host, and even with CORS bolted on, `credentials: "same-origin"`
+plus `SameSite=Lax` means no cookie crosses. The first person to discover it would have been
+the user, mid-provisioning, in the one stage that cannot be rehearsed locally.
+
+**The decision (user, 2026-08-29): Firebase Hosting + rewrite to Cloud Run.** Static assets
+serve from Firebase Hosting's CDN; a `rewrites` rule sends `/api/**` to the Cloud Run
+service in `africa-south1`. The browser sees ONE origin, so:
+- **No backend code changes.** `credentials: "same-origin"` keeps working, `SameSite=Lax`
+  stays (strictly safer than the `SameSite=None` a two-origin split would have forced), and
+  no CORS plugin is ever needed. The same-origin assumption the client was built on becomes
+  true in production instead of accidentally false.
+- `/vendor/**` keeps real CDN caching, which `product-contract.md:106` makes a Locked term
+  conditional on the hosting layer.
+- No standing load-balancer cost, which the LB-and-bucket alternative would have added
+  against the minimal-resource constraint.
+
+Two options were declined, recorded so the choice is legible: serving the SPA from the Cloud
+Run container itself (same-origin by construction and one artifact, but a new dependency,
+coupled deploys, and every asset served by the single pinned instance that also hashes
+passwords — no CDN, which makes the `/vendor` offline promise harder); and keeping Vercel
+with a proxy rewrite to Cloud Run (fixes the auth defect with the least change, but adds an
+edge hop plus Vercel egress and delivers none of the single-cloud coordination asked for).
+
+**Consequences carried into the plan:** the Locked Hosting row at `product-contract.md:25`
+IS amended (Task 10a, contract-before-code); `frontend/firebase.json` ships; the runbook's
+static-hosting step becomes Firebase, including `APP_BASE_URL` pointing at the Hosting
+domain rather than the Cloud Run URL, since that value builds every confirm/reset/invite
+link. `frontend/vercel.json` stays in the repo and keeps its `/vendor` rule — it is the
+currently-live deployment and correcting it costs nothing — but the runbook deploys Firebase.
+Whether to retire Vercel afterwards is a user decision surfaced at Stage E, not assumed here.
+**Cost if wrong:** one config file and one runbook step to unwind, and the backend is
+untouched either way.
 
 **The final stage is the provisioning session and is explicitly USER-GATED**: it needs their
 Google/provider accounts, billing, domain and DNS — the plan text says the controller stops
