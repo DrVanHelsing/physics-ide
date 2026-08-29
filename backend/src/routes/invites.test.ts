@@ -1,10 +1,12 @@
 import { describe, test, expect, beforeAll, afterAll } from "vitest";
 import argon2 from "argon2";
-import { and, eq } from "drizzle-orm";
+import { randomUUID } from "node:crypto";
+import { and, eq, inArray } from "drizzle-orm";
 import { buildApp } from "../app.js";
 import { testDb, testPool, truncateAuthTables } from "../db/testClient.js";
 import { setSetting } from "../db/settings.js";
 import { users, classMembers, invites, emails, notifications, events } from "../db/schema.js";
+import { INVITE_PACE_CAP, INVITE_PACE_WINDOW_MS, INVITE_PACE_MESSAGE } from "./invites.js";
 
 const app = buildApp({ db: testDb });
 let teacherCookie: string;
@@ -43,6 +45,16 @@ async function signin(email: string): Promise<string> {
 
 async function notificationsFor(userId: string) {
   return testDb.select().from(notifications).where(eq(notifications.userId, userId));
+}
+
+async function createClassFor(cookie: string, name: string): Promise<string> {
+  const res = await app.inject({
+    method: "POST",
+    url: "/api/classes",
+    cookies: { pide_session: cookie },
+    payload: { name },
+  });
+  return (res.json().class as { id: string }).id;
 }
 
 beforeAll(async () => {
@@ -549,5 +561,179 @@ describe("notification fan-out for invite.accepted (Task 5, site 9)", () => {
     // The bug this test exists to catch: the newly-promoted teacher must not
     // land in their own recipient list.
     expect(await notificationsFor(accepter.id)).toHaveLength(0);
+  });
+});
+
+/* DEPLOY.md box 8 — invite pacing, 250 rows/teacher/hour (5x the 50-address
+ * zod cap). Each test below gets its OWN teacher account and class so its
+ * hour count can't be polluted by this file's other describes, which invite
+ * through the shared `iteach@example.com` account extensively above. Rows
+ * are seeded directly (not through 50-address-capped real batches — the
+ * fastest way to depth this far is a direct insert, same idiom as
+ * auth.password.test.ts's stale/neighbour reset-cap fixtures). */
+describe("invite pacing cap (250 rows/teacher/hour, DEPLOY.md box 8)", () => {
+  test("INVITE_PACE_CAP is 250 (5x the 50-address batch cap) per INVITE_PACE_WINDOW_MS (1 hour)", () => {
+    expect(INVITE_PACE_CAP).toBe(250);
+    expect(INVITE_PACE_WINDOW_MS).toBe(60 * 60 * 1000);
+  });
+
+  test("a batch that would push the teacher over the cap is refused before any row is inserted or any mail sent", async () => {
+    const t = await makeUser("pace1-teach@example.com", { isTeacher: true });
+    const paceCookie = await signin("pace1-teach@example.com");
+    const clsId = await createClassFor(paceCookie, "Pace Class 1");
+
+    // 248 already-counted rows for this teacher — 2 slots left.
+    await testDb.insert(invites).values(
+      Array.from({ length: INVITE_PACE_CAP - 2 }, (_, i) => ({
+        classId: clsId,
+        email: `pace1-seed-${i}@example.com`,
+        role: "student",
+        tokenHash: `pace1-seed-${randomUUID()}`,
+        invitedBy: t.id,
+      })),
+    );
+
+    // A 3-address batch would land at 251: refused whole, before the loop.
+    const over = await app.inject({
+      method: "POST",
+      url: `/api/classes/${clsId}/invites`,
+      cookies: { pide_session: paceCookie },
+      payload: { emails: ["pace1-a@example.com", "pace1-b@example.com", "pace1-c@example.com"], role: "student" },
+    });
+    expect(over.statusCode).toBe(429);
+    expect(over.json().error).toBe(INVITE_PACE_MESSAGE);
+
+    const rowsAfterRefusal = await testDb
+      .select()
+      .from(invites)
+      .where(and(eq(invites.classId, clsId), eq(invites.invitedBy, t.id)));
+    expect(rowsAfterRefusal).toHaveLength(INVITE_PACE_CAP - 2);
+    const noMails = await testDb
+      .select()
+      .from(emails)
+      .where(
+        inArray(emails.toEmail, ["pace1-a@example.com", "pace1-b@example.com", "pace1-c@example.com"]),
+      );
+    expect(noMails).toHaveLength(0);
+
+    // A 2-address batch lands exactly at the cap: succeeds.
+    const atCap = await app.inject({
+      method: "POST",
+      url: `/api/classes/${clsId}/invites`,
+      cookies: { pide_session: paceCookie },
+      payload: { emails: ["pace1-a@example.com", "pace1-b@example.com"], role: "student" },
+    });
+    expect(atCap.statusCode).toBe(200);
+    expect(atCap.json().invited).toEqual(["pace1-a@example.com", "pace1-b@example.com"]);
+
+    const rowsAtCap = await testDb
+      .select()
+      .from(invites)
+      .where(and(eq(invites.classId, clsId), eq(invites.invitedBy, t.id)));
+    expect(rowsAtCap).toHaveLength(INVITE_PACE_CAP);
+  });
+
+  test("an invite row older than the window doesn't count toward the cap", async () => {
+    const t = await makeUser("pace2-teach@example.com", { isTeacher: true });
+    const paceCookie = await signin("pace2-teach@example.com");
+    const clsId = await createClassFor(paceCookie, "Pace Class 2");
+
+    // A full cap's worth of rows, all OUTSIDE the window — must not count.
+    await testDb.insert(invites).values(
+      Array.from({ length: INVITE_PACE_CAP }, (_, i) => ({
+        classId: clsId,
+        email: `pace2-stale-${i}@example.com`,
+        role: "student",
+        tokenHash: `pace2-stale-${randomUUID()}`,
+        invitedBy: t.id,
+        createdAt: new Date(Date.now() - (INVITE_PACE_WINDOW_MS + 60_000)),
+      })),
+    );
+
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/classes/${clsId}/invites`,
+      cookies: { pide_session: paceCookie },
+      payload: { emails: ["pace2-fresh@example.com"], role: "student" },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().invited).toEqual(["pace2-fresh@example.com"]);
+  });
+
+  test("another teacher's invite rows don't count toward this teacher's cap", async () => {
+    const busy = await makeUser("pace3-busy@example.com", { isTeacher: true });
+    const busyCookie = await signin("pace3-busy@example.com");
+    const busyClsId = await createClassFor(busyCookie, "Pace Busy Class");
+    // Exhaust — and go past — the neighbour's own budget.
+    await testDb.insert(invites).values(
+      Array.from({ length: INVITE_PACE_CAP + 1 }, (_, i) => ({
+        classId: busyClsId,
+        email: `pace3-busy-${i}@example.com`,
+        role: "student",
+        tokenHash: `pace3-busy-${randomUUID()}`,
+        invitedBy: busy.id,
+      })),
+    );
+
+    const quiet = await makeUser("pace3-quiet@example.com", { isTeacher: true });
+    const quietCookie = await signin("pace3-quiet@example.com");
+    const quietClsId = await createClassFor(quietCookie, "Pace Quiet Class");
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/classes/${quietClsId}/invites`,
+      cookies: { pide_session: quietCookie },
+      payload: { emails: ["pace3-fresh@example.com"], role: "student" },
+    });
+    expect(res.statusCode).toBe(200);
+  });
+
+  test("concurrent batches from the same teacher cannot blow past the cap", async () => {
+    // Proves the advisory-lock serialisation, not just the cap's
+    // arithmetic: seeds CAP - 1 rows (exactly one slot left), then fires 5
+    // concurrent single-address requests. A plain check-then-act (no lock)
+    // lets several of them read the same under-cap count and all insert —
+    // this test fails against that shape and holds against the lock (the
+    // check and this batch's row inserts share one transaction, so unlike
+    // a lock that only covered the check, there's no window between "the
+    // gate opened" and "the row landed" for another request to race into).
+    const t = await makeUser("pace4-teach@example.com", { isTeacher: true });
+    const paceCookie = await signin("pace4-teach@example.com");
+    const clsId = await createClassFor(paceCookie, "Pace Race Class");
+    await testDb.insert(invites).values(
+      Array.from({ length: INVITE_PACE_CAP - 1 }, (_, i) => ({
+        classId: clsId,
+        email: `pace4-seed-${i}@example.com`,
+        role: "student",
+        tokenHash: `pace4-seed-${randomUUID()}`,
+        invitedBy: t.id,
+      })),
+    );
+
+    // POST /api/classes/:id/invites carries no per-IP rate limit (only
+    // join-by-code does), so this isn't strictly load-bearing here — but a
+    // distinct remoteAddress per request keeps the intent unambiguous and
+    // matches the auth.password.test.ts idiom for every concurrent-request
+    // test.
+    const results = await Promise.all(
+      Array.from({ length: 5 }, (_, i) =>
+        app.inject({
+          method: "POST",
+          url: `/api/classes/${clsId}/invites`,
+          cookies: { pide_session: paceCookie },
+          remoteAddress: `10.92.0.${i + 1}`,
+          payload: { emails: [`pace4-new-${i}@example.com`], role: "student" },
+        }),
+      ),
+    );
+    const succeeded = results.filter((r) => r.statusCode === 200);
+    const refused = results.filter((r) => r.statusCode === 429);
+    expect(succeeded).toHaveLength(1);
+    expect(refused).toHaveLength(4);
+
+    const rows = await testDb
+      .select()
+      .from(invites)
+      .where(and(eq(invites.classId, clsId), eq(invites.invitedBy, t.id)));
+    expect(rows).toHaveLength(INVITE_PACE_CAP);
   });
 });

@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, gt, inArray, sql } from "drizzle-orm";
 import {
   CreateClassInputSchema,
   UpdateClassSettingsInputSchema,
@@ -16,6 +16,30 @@ import { logEvent } from "../db/events.js";
 import type { Db } from "../db/types.js";
 
 type ClassRow = typeof classes.$inferSelect;
+
+/** DEPLOY.md box 8 — class-creation cap, DB-counted per creator account
+ *  (not per IP: this is a role-checked, authenticated route). Counted as
+ *  `classes` rows with `createdBy = caller` and `createdAt > now() - 1
+ *  hour`, closed against the same check-then-act race Task 5's per-address
+ *  reset cap named a CRITICAL for (auth.ts:36-53): the count and the
+ *  insert below share ONE transaction under a per-account advisory lock,
+ *  so two concurrent creations from the same account can't both read the
+ *  same under-cap count and both proceed. */
+export const CLASS_CREATE_CAP = 10;
+export const CLASS_CREATE_WINDOW_MS = 60 * 60 * 1000;
+export const CLASS_CREATE_CAP_MESSAGE =
+  "You've created a lot of classes recently. Try again in a bit.";
+
+/** classid for the class-creation cap's per-account advisory lock
+ *  (two-argument `pg_advisory_xact_lock(classid, key)` form — a namespace
+ *  entirely separate from the one-argument form, so this can't collide
+ *  with signup's bare `pg_advisory_xact_lock(42)` or tick.ts's
+ *  `pg_advisory_xact_lock(100024)`). Distinct from auth.ts's own two-arg
+ *  classid (100025, the reset cap) so the two per-subject locks can never
+ *  contend with each other either. */
+const CLASS_CREATE_LOCK_CLASSID = 100026;
+
+class ClassCreateCapReached extends Error {}
 
 /** D§8's lapse, reused: pending hand-offs lapse the same way whether the
  *  class switch goes off or the class itself is archived — one row and one
@@ -65,20 +89,41 @@ export function classRoutes(app: FastifyInstance): void {
       return reply.code(400).send({ error: parsed.error.issues[0]?.message ?? "Invalid input." });
     }
     const joinCode = await generateClassCode(app.db);
-    const created = await app.db.transaction(async (tx) => {
-      const [c] = await tx
-        .insert(classes)
-        .values({
-          name: parsed.data.name,
-          subjectLabel: parsed.data.subjectLabel ?? null,
-          joinCode,
-          createdBy: req.user!.id,
-        })
-        .returning();
-      await tx.insert(classMembers).values({ classId: c.id, userId: req.user!.id, role: "teacher" });
-      await logEvent(tx, "class.created", req.user!.id, { classId: c.id, name: c.name });
-      return c;
-    });
+    let created: ClassRow;
+    try {
+      created = await app.db.transaction(async (tx) => {
+        await tx.execute(
+          sql`SELECT pg_advisory_xact_lock(${CLASS_CREATE_LOCK_CLASSID}, hashtext(${req.user!.id}))`,
+        );
+        const [{ count: recentClasses }] = await tx
+          .select({ count: sql<number>`count(*)::int` })
+          .from(classes)
+          .where(
+            and(
+              eq(classes.createdBy, req.user!.id),
+              gt(classes.createdAt, new Date(Date.now() - CLASS_CREATE_WINDOW_MS)),
+            ),
+          );
+        if (recentClasses >= CLASS_CREATE_CAP) throw new ClassCreateCapReached();
+        const [c] = await tx
+          .insert(classes)
+          .values({
+            name: parsed.data.name,
+            subjectLabel: parsed.data.subjectLabel ?? null,
+            joinCode,
+            createdBy: req.user!.id,
+          })
+          .returning();
+        await tx.insert(classMembers).values({ classId: c.id, userId: req.user!.id, role: "teacher" });
+        await logEvent(tx, "class.created", req.user!.id, { classId: c.id, name: c.name });
+        return c;
+      });
+    } catch (err) {
+      if (err instanceof ClassCreateCapReached) {
+        return reply.code(429).send({ error: CLASS_CREATE_CAP_MESSAGE });
+      }
+      throw err;
+    }
     return reply.code(201).send({ class: toClassSummary(created, "teacher", true) });
   });
 

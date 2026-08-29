@@ -11,59 +11,67 @@ import { pgErrorCode } from "../lib/util.js";
 export function memberRoutes(app: FastifyInstance): void {
   app.addHook("preHandler", requireConfirmed);
 
-  app.post("/api/classes/join", async (req, reply) => {
-    const parsed = JoinByCodeInputSchema.safeParse(req.body);
-    if (!parsed.success) {
-      return reply.code(400).send({ error: "That code doesn't look right." });
-    }
-    const rows = await app.db.select().from(classes).where(eq(classes.joinCode, parsed.data.code));
-    const c = rows[0];
-    if (!c) return reply.code(404).send({ error: "No class has that code." });
-    if (c.archived) return reply.code(400).send({ error: "That class is archived." });
-    if (c.joinMode === "paused") {
-      return reply.code(403).send({ error: "Joining this class is paused." });
-    }
-    const existing = await getMembership(app.db, c.id, req.user!.id);
-    if (existing) return reply.code(409).send({ error: "You're already in this class." });
-
-    const status = c.joinMode === "approval" ? "waiting" : "active";
-    try {
-      await app.db.transaction(async (tx) => {
-        await tx.insert(classMembers).values({
-          classId: c.id,
-          userId: req.user!.id,
-          role: "student",
-          status,
-        });
-        const type = status === "active" ? "class.joined" : "class.join_requested";
-        const eid = await logEvent(tx, type, req.user!.id, { classId: c.id });
-        // Task 5, site 8: the class's active teachers — one select, the same
-        // shape site 9 (invite.accepted) reuses.
-        const teachers = await tx
-          .select({ userId: classMembers.userId })
-          .from(classMembers)
-          .where(
-            and(
-              eq(classMembers.classId, c.id),
-              eq(classMembers.role, "teacher"),
-              eq(classMembers.status, "active"),
-            ),
-          );
-        await notify(tx, teachers.map((t) => t.userId), eid, type, {
-          classId: c.id,
-          joinerId: req.user!.id,
-        });
-      });
-    } catch (err) {
-      // check-then-insert is TOCTOU under concurrent joins; the unique
-      // (classId, userId) constraint is the real guard against a double join.
-      if (pgErrorCode(err) === "23505") {
-        return reply.code(409).send({ error: "You're already in this class." });
+  app.post(
+    "/api/classes/join",
+    // DEPLOY.md box 8 — join-code guessing. Plain per-IP throttle: a code
+    // is not an account secret to enumerate against, just a 6-character
+    // string over a 32-symbol alphabet, so no DB counting or lock is
+    // needed here, unlike the class-creation and invite-pacing caps below.
+    { config: { rateLimit: { max: 10, timeWindow: "1 minute" } } },
+    async (req, reply) => {
+      const parsed = JoinByCodeInputSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return reply.code(400).send({ error: "That code doesn't look right." });
       }
-      throw err;
-    }
-    return { ok: true, classId: c.id, className: c.name, status };
-  });
+      const rows = await app.db.select().from(classes).where(eq(classes.joinCode, parsed.data.code));
+      const c = rows[0];
+      if (!c) return reply.code(404).send({ error: "No class has that code." });
+      if (c.archived) return reply.code(400).send({ error: "That class is archived." });
+      if (c.joinMode === "paused") {
+        return reply.code(403).send({ error: "Joining this class is paused." });
+      }
+      const existing = await getMembership(app.db, c.id, req.user!.id);
+      if (existing) return reply.code(409).send({ error: "You're already in this class." });
+
+      const status = c.joinMode === "approval" ? "waiting" : "active";
+      try {
+        await app.db.transaction(async (tx) => {
+          await tx.insert(classMembers).values({
+            classId: c.id,
+            userId: req.user!.id,
+            role: "student",
+            status,
+          });
+          const type = status === "active" ? "class.joined" : "class.join_requested";
+          const eid = await logEvent(tx, type, req.user!.id, { classId: c.id });
+          // Task 5, site 8: the class's active teachers — one select, the same
+          // shape site 9 (invite.accepted) reuses.
+          const teachers = await tx
+            .select({ userId: classMembers.userId })
+            .from(classMembers)
+            .where(
+              and(
+                eq(classMembers.classId, c.id),
+                eq(classMembers.role, "teacher"),
+                eq(classMembers.status, "active"),
+              ),
+            );
+          await notify(tx, teachers.map((t) => t.userId), eid, type, {
+            classId: c.id,
+            joinerId: req.user!.id,
+          });
+        });
+      } catch (err) {
+        // check-then-insert is TOCTOU under concurrent joins; the unique
+        // (classId, userId) constraint is the real guard against a double join.
+        if (pgErrorCode(err) === "23505") {
+          return reply.code(409).send({ error: "You're already in this class." });
+        }
+        throw err;
+      }
+      return { ok: true, classId: c.id, className: c.name, status };
+    },
+  );
 
   app.get("/api/classes/:id/members", async (req, reply) => {
     const { id } = req.params as { id: string };

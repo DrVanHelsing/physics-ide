@@ -1,11 +1,13 @@
 import { describe, test, expect, beforeAll, afterAll } from "vitest";
 import argon2 from "argon2";
+import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { buildApp } from "../app.js";
 import { testDb, testPool, truncateAuthTables } from "../db/testClient.js";
 import { setSetting } from "../db/settings.js";
 import { users, classes, classMembers, events, shares } from "../db/schema.js";
 import { CLASS_CODE_REGEX } from "@physics-ide/shared";
+import { CLASS_CREATE_CAP, CLASS_CREATE_WINDOW_MS, CLASS_CREATE_CAP_MESSAGE } from "./classes.js";
 
 const app = buildApp({ db: testDb });
 let teacherCookie: string;
@@ -30,6 +32,19 @@ async function makeUser(email: string, opts: Record<string, unknown> = {}) {
 
 async function signin(email: string): Promise<string> {
   const res = await app.inject({
+    method: "POST",
+    url: "/api/auth/signin",
+    payload: { email, password: "a-long-password" },
+  });
+  return res.cookies.find((c) => c.name === "pide_session")!.value;
+}
+
+// The class-creation cap tests below each need a fully isolated per-account
+// hour count, so each gets its OWN app instance (the auth.password.test.ts /
+// auth.signup.test.ts idiom) rather than the shared `app` + `teacherCookie`
+// this file's other describes use.
+async function signinTo(targetApp: ReturnType<typeof buildApp>, email: string): Promise<string> {
+  const res = await targetApp.inject({
     method: "POST",
     url: "/api/auth/signin",
     payload: { email, password: "a-long-password" },
@@ -462,5 +477,197 @@ describe("POST /api/classes/:id/archive lapses pending shares", () => {
     });
     expect(acceptRes.statusCode).toBe(409);
     expect(acceptRes.json().error).toBe("That share has already been dealt with.");
+  });
+});
+
+/* DEPLOY.md box 8 — class-creation cap. DB-counted (this is a role-checked,
+ * authenticated route, not an anonymous door), closed against the same
+ * check-then-act race Task 5's per-address reset cap named a CRITICAL for:
+ * every test below gets its OWN account (and, for the concurrency case, its
+ * own app instance too) so its hour count can't be polluted by classes this
+ * file's shared `app`/`teacherCookie` already created above. */
+describe("class creation cap (10/hour per account, DEPLOY.md box 8)", () => {
+  test("CLASS_CREATE_CAP is 10 per CLASS_CREATE_WINDOW_MS (1 hour)", () => {
+    expect(CLASS_CREATE_CAP).toBe(10);
+    expect(CLASS_CREATE_WINDOW_MS).toBe(60 * 60 * 1000);
+  });
+
+  test("10 classes succeed; the 11th is refused with the exact sentence and writes nothing", async () => {
+    const capApp = buildApp({ db: testDb });
+    try {
+      await testDb.insert(users).values({
+        name: "Cap Teacher",
+        email: "capteacher@example.com",
+        passwordHash: await argon2.hash("a-long-password", { type: argon2.argon2id }),
+        emailConfirmedAt: new Date(),
+        consentAt: new Date(),
+        isTeacher: true,
+      });
+      const capCookie = await signinTo(capApp, "capteacher@example.com");
+      for (let i = 0; i < CLASS_CREATE_CAP; i++) {
+        const res = await capApp.inject({
+          method: "POST",
+          url: "/api/classes",
+          cookies: { pide_session: capCookie },
+          payload: { name: `Cap Class ${i}` },
+        });
+        expect(res.statusCode).toBe(201);
+      }
+      const [capTeacher] = await testDb
+        .select()
+        .from(users)
+        .where(eq(users.email, "capteacher@example.com"));
+
+      const over = await capApp.inject({
+        method: "POST",
+        url: "/api/classes",
+        cookies: { pide_session: capCookie },
+        payload: { name: "One Too Many" },
+      });
+      expect(over.statusCode).toBe(429);
+      expect(over.json().error).toBe(CLASS_CREATE_CAP_MESSAGE);
+
+      const after = await testDb.select().from(classes).where(eq(classes.createdBy, capTeacher.id));
+      expect(after).toHaveLength(CLASS_CREATE_CAP);
+    } finally {
+      await capApp.close();
+    }
+  });
+
+  test("a class created outside the window doesn't count toward the cap", async () => {
+    const staleApp = buildApp({ db: testDb });
+    try {
+      const [staleTeacher] = await testDb
+        .insert(users)
+        .values({
+          name: "Stale Cap Teacher",
+          email: "stalecapteacher@example.com",
+          passwordHash: await argon2.hash("a-long-password", { type: argon2.argon2id }),
+          emailConfirmedAt: new Date(),
+          consentAt: new Date(),
+          isTeacher: true,
+        })
+        .returning();
+      // CLASS_CREATE_CAP rows, all OUTSIDE the window — must not count.
+      await testDb.insert(classes).values(
+        Array.from({ length: CLASS_CREATE_CAP }, (_, i) => ({
+          name: `Stale Class ${i}`,
+          joinCode: `stale-${randomUUID()}`,
+          createdBy: staleTeacher.id,
+          createdAt: new Date(Date.now() - (CLASS_CREATE_WINDOW_MS + 60_000)),
+        })),
+      );
+
+      const staleCookie = await signinTo(staleApp, "stalecapteacher@example.com");
+      const res = await staleApp.inject({
+        method: "POST",
+        url: "/api/classes",
+        cookies: { pide_session: staleCookie },
+        payload: { name: "Fresh After Stale" },
+      });
+      expect(res.statusCode).toBe(201);
+    } finally {
+      await staleApp.close();
+    }
+  });
+
+  test("another account's classes don't count toward this account's cap", async () => {
+    const otherApp = buildApp({ db: testDb });
+    try {
+      const [busyTeacher] = await testDb
+        .insert(users)
+        .values({
+          name: "Busy Cap Teacher",
+          email: "busycapteacher@example.com",
+          passwordHash: await argon2.hash("a-long-password", { type: argon2.argon2id }),
+          emailConfirmedAt: new Date(),
+          consentAt: new Date(),
+          isTeacher: true,
+        })
+        .returning();
+      // Exhaust — and go past — the neighbour's own budget.
+      await testDb.insert(classes).values(
+        Array.from({ length: CLASS_CREATE_CAP + 1 }, (_, i) => ({
+          name: `Busy Class ${i}`,
+          joinCode: `busy-${randomUUID()}`,
+          createdBy: busyTeacher.id,
+        })),
+      );
+
+      await testDb.insert(users).values({
+        name: "Quiet Cap Teacher",
+        email: "quietcapteacher@example.com",
+        passwordHash: await argon2.hash("a-long-password", { type: argon2.argon2id }),
+        emailConfirmedAt: new Date(),
+        consentAt: new Date(),
+        isTeacher: true,
+      });
+      const quietCookie = await signinTo(otherApp, "quietcapteacher@example.com");
+      const res = await otherApp.inject({
+        method: "POST",
+        url: "/api/classes",
+        cookies: { pide_session: quietCookie },
+        payload: { name: "Quiet's First Class" },
+      });
+      expect(res.statusCode).toBe(201);
+    } finally {
+      await otherApp.close();
+    }
+  });
+
+  test("concurrent creations from the same account cannot blow past the cap", async () => {
+    // Proves the advisory-lock serialisation, not just the cap's
+    // arithmetic: seeds CAP - 1 already-created classes (exactly one slot
+    // left) then fires 5 concurrent creations. A plain check-then-act (no
+    // lock) lets several of them read the same under-cap count and all
+    // insert — this test fails against that shape and holds against the
+    // lock.
+    const raceApp = buildApp({ db: testDb });
+    try {
+      const [raceTeacher] = await testDb
+        .insert(users)
+        .values({
+          name: "Race Cap Teacher",
+          email: "racecapteacher@example.com",
+          passwordHash: await argon2.hash("a-long-password", { type: argon2.argon2id }),
+          emailConfirmedAt: new Date(),
+          consentAt: new Date(),
+          isTeacher: true,
+        })
+        .returning();
+      await testDb.insert(classes).values(
+        Array.from({ length: CLASS_CREATE_CAP - 1 }, (_, i) => ({
+          name: `Race Seed ${i}`,
+          joinCode: `race-seed-${randomUUID()}`,
+          createdBy: raceTeacher.id,
+        })),
+      );
+
+      const raceCookie = await signinTo(raceApp, "racecapteacher@example.com");
+      // POST /api/classes carries no per-IP rate limit (only join-by-code
+      // does), so this isn't strictly load-bearing here — but a distinct
+      // remoteAddress per request keeps the intent unambiguous and matches
+      // the auth.password.test.ts idiom for every concurrent-request test.
+      const results = await Promise.all(
+        Array.from({ length: 5 }, (_, i) =>
+          raceApp.inject({
+            method: "POST",
+            url: "/api/classes",
+            cookies: { pide_session: raceCookie },
+            remoteAddress: `10.93.0.${i + 1}`,
+            payload: { name: `Race Class ${i}` },
+          }),
+        ),
+      );
+      const created = results.filter((r) => r.statusCode === 201);
+      const refused = results.filter((r) => r.statusCode === 429);
+      expect(created).toHaveLength(1);
+      expect(refused).toHaveLength(4);
+
+      const totalNow = await testDb.select().from(classes).where(eq(classes.createdBy, raceTeacher.id));
+      expect(totalNow).toHaveLength(CLASS_CREATE_CAP);
+    } finally {
+      await raceApp.close();
+    }
   });
 });
