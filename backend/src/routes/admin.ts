@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { and, desc, eq, ilike, isNotNull, ne, notInArray, or, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, isNotNull, ne, notInArray, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import {
   users,
@@ -32,6 +32,7 @@ import { confirmEmail, resetEmail } from "../email/templates.js";
 import { config } from "../config.js";
 import { ERASED_NAME } from "../lib/util.js";
 import { toAuthUser, CONFIRM_TTL_MS, RESET_TTL_MS } from "./auth.js";
+import { toMyMark } from "./assignments.js";
 
 const CapSchema = z.object({ cap: z.number().int().min(1).max(10000) });
 /** The erase confirmation is the account's CURRENT email typed back — the
@@ -283,6 +284,12 @@ export function adminRoutes(app: FastifyInstance): void {
     const [u] = await app.db.select().from(users).where(eq(users.id, id));
     if (!u) return reply.code(404).send({ error: NO_SUCH_ACCOUNT });
 
+    // Fetched ahead of the batch below: `assignmentWork`'s group-mode rows
+    // (review finding 2) are keyed by `groupId`, never `userId`, so the
+    // groups THEY belong to have to be known before that query is built.
+    const groupMembershipRows = await app.db.select().from(groupMembers).where(eq(groupMembers.userId, id));
+    const memberGroupIds = groupMembershipRows.map((g) => g.groupId);
+
     const [
       classMembershipRows,
       projectRows,
@@ -291,7 +298,6 @@ export function adminRoutes(app: FastifyInstance): void {
       submissionRows,
       markRows,
       groupRows,
-      groupMembershipRows,
       ruleSetRows,
       sharesSentRows,
       sharesReceivedRows,
@@ -305,11 +311,31 @@ export function adminRoutes(app: FastifyInstance): void {
       app.db.select().from(classMembers).where(eq(classMembers.userId, id)),
       app.db.select().from(projects).where(eq(projects.ownerId, id)),
       app.db.select().from(projectVersions).where(eq(projectVersions.ownerId, id)),
-      app.db.select().from(assignmentWork).where(eq(assignmentWork.userId, id)),
-      app.db.select().from(submissions).where(eq(submissions.submitterId, id)),
+      // Review finding 2: a group-mode row never carries `userId` — it's
+      // theirs iff it's one of the groups the membership rows above name.
+      app.db
+        .select()
+        .from(assignmentWork)
+        .where(
+          memberGroupIds.length
+            ? or(eq(assignmentWork.userId, id), inArray(assignmentWork.groupId, memberGroupIds))
+            : eq(assignmentWork.userId, id),
+        ),
+      // Review finding 2: the CREDIT authority, not the submitter column —
+      // a group submission's `submitterId` is null, and `creditedIds` is
+      // the record of who is actually credited (a later group joiner who
+      // never got credited must NOT see a submission that isn't theirs).
+      app.db
+        .select()
+        .from(submissions)
+        .where(
+          or(
+            eq(submissions.submitterId, id),
+            sql`${submissions.creditedIds} @> ${JSON.stringify([id])}::jsonb`,
+          ),
+        ),
       app.db.select().from(marks).where(eq(marks.studentId, id)),
       app.db.select().from(groups).where(eq(groups.ownerId, id)),
-      app.db.select().from(groupMembers).where(eq(groupMembers.userId, id)),
       app.db.select().from(ruleSets).where(eq(ruleSets.ownerId, id)),
       app.db.select().from(shares).where(eq(shares.sharerId, id)),
       app.db.select().from(shares).where(eq(shares.recipientId, id)),
@@ -338,7 +364,14 @@ export function adminRoutes(app: FastifyInstance): void {
       })),
       assignmentWork: assignmentWorkRows,
       submissions: submissionRows,
-      marksReceived: markRows,
+      // Review finding 1: shaped to the SAME student-facing boundary the
+      // in-app read uses (`toMyMark`, assignments.ts) — released/returned
+      // rows only, and `privateNote` is never read into the shape at all,
+      // by construction, not by field-level omission after a raw select.
+      marksReceived: markRows.flatMap((m) => {
+        const shaped = toMyMark(m);
+        return shaped ? [{ id: m.id, assignmentId: m.assignmentId, ...shaped }] : [];
+      }),
       groups: groupRows,
       groupMemberships: groupMembershipRows,
       ruleSets: ruleSetRows,
