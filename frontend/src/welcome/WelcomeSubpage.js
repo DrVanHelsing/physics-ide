@@ -1,6 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import WelcomeHeader from "./WelcomeHeader";
+import { PrivacyIcon } from "../components/Icons";
 
 /**
  * WelcomeSubpage — the shared shell for /about, /contact and /teachers: the
@@ -27,7 +28,10 @@ import WelcomeHeader from "./WelcomeHeader";
  * link, beside the account links every subpage already closes on — not
  * WelcomeHeader's own nav, whose three-item order (About, For teachers,
  * Contact) is locked verbatim by welcomeHeader.test.js and welcomePage.test.js,
- * neither of which this task touches.
+ * neither of which this task touches. It carries `PrivacyIcon` (the same
+ * glyph DataRequestsTab.js already pairs with its own privacy-flavoured
+ * copy), the icon+label button shape already established for this design
+ * system rather than a bare text link standing out from its two siblings.
  */
 export default function WelcomeSubpage({ title, children }) {
   return (
@@ -39,7 +43,9 @@ export default function WelcomeSubpage({ title, children }) {
       </main>
       <footer className="welcome-subpage__foot">
         <div className="welcome-foot__links">
-          <Link className="btn btn--ghost" to="/privacy">Privacy</Link>
+          <Link className="btn btn--ghost" to="/privacy">
+            <PrivacyIcon size={13} /> Privacy
+          </Link>
           <Link className="btn btn--ghost" to="/auth/signup">Create an account</Link>
           <Link className="btn btn--ghost" to="/auth/signin">Sign in</Link>
         </div>
