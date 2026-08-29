@@ -116,6 +116,13 @@ describe("createBrevoMailer — the documented wire format", () => {
     expect(url).toBe(BREVO_SEND_URL);
     expect(BREVO_SEND_URL).toBe("https://api.brevo.com/v3/smtp/email");
     expect(init.method).toBe("POST");
+    // The deadline has to be ON the request, not merely constructed. Without
+    // this line the black-hole test below still passes if `signal` is dropped
+    // from the fetch options (its fake throws a TypeError reaching for
+    // init.signal, which rejects and writes the same failed row), so this is
+    // the only assertion standing between the suite and a driver that can
+    // hang forever behind --max-instances=1.
+    expect(init.signal).toBeInstanceOf(AbortSignal);
     expect(init.headers).toMatchObject({
       "api-key": "test-api-key",
       "content-type": "application/json",

@@ -208,14 +208,25 @@ export function adminRoutes(app: FastifyInstance): void {
       await tx.delete(notifications).where(eq(notifications.userId, u.id));
       await tx.delete(notificationPrefs).where(eq(notificationPrefs.userId, u.id));
       // The email log's debt. `emails.toUserId` carries no FK (schema.ts),
-      // so nothing here cascades: without this line an erased person's real
+      // so nothing here cascades: without this an erased person's real
       // address stays in `to_email`, and `body_text` keeps whatever the
       // templates interpolated — which the `token=` redaction does not
       // touch — and the export still hands those rows back. The log is
       // operational, not a record (D§5 fiat 7), so it has no claim to
       // survive an erasure. Seam-level suppression closes FUTURE sends;
       // this is the half suppression cannot reach.
-      await tx.delete(emails).where(eq(emails.toUserId, u.id));
+      //
+      // Matched on the ADDRESS as well as the id, and the address arm is not
+      // redundant: BOTH invite sends (invites.ts:79 and :183) pass only
+      // `to:`, because an invitation is sent before the recipient has an
+      // account — so every invite ever mailed to this person carries a NULL
+      // `to_user_id` and would otherwise survive the erasure with their real
+      // address in it. For a student those are the likeliest rows to exist.
+      // `u` is the snapshot taken by the `for("update")` select at the top of
+      // this transaction, so `u.email` is still the REAL address here even
+      // though the scrub above has already written the sentinel; and
+      // `users.email` is UNIQUE, so the address arm cannot reach anyone else.
+      await tx.delete(emails).where(or(eq(emails.toUserId, u.id), eq(emails.toEmail, u.email)));
       // class_members and group_members are DELIBERATELY KEPT: the marking
       // inbox and the gradebook build their rosters from membership, so
       // deleting them would make the surviving submissions and marks

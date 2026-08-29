@@ -1434,7 +1434,7 @@ describe("Task 23: the group mark", () => {
     expect(await marksOf(aid)).toHaveLength(0);
   });
 
-  test("release fans out: every member's row is released and emailed their OWN total", async () => {
+  test("release fans out: every member's row is released with their OWN total, and every member is emailed (the total itself no longer travels)", async () => {
     const { aid, gid } = await groupFixture("Group Release");
     await putGroupMark(aid, gid, teacherCookie, {
       points: 8,
@@ -1465,6 +1465,7 @@ describe("Task 23: the group mark", () => {
     expect(alphaMail[0].bodyText).not.toContain("8/10");
     expect(bravoMail[0].bodyText).not.toContain("9/10");
     expect(alphaMail[0].bodyText).not.toContain("Solid write-up.");
+    expect(bravoMail[0].bodyText).not.toContain("Solid write-up.");
     expect(alphaMail[0].bodyText).toContain("Sign in to Physics IDE to see them.");
     expect(bravoMail[0].bodyText).toContain("Sign in to Physics IDE to see them.");
   });

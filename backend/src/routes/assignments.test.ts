@@ -2835,6 +2835,10 @@ describe("Task 18: marks — PUT / release / return", () => {
     expect(released!.bodyText).not.toContain("Excellent.");
     expect(released!.bodyText).toContain("are ready");
     expect(released!.bodyText).toContain("Sign in to Physics IDE to see them.");
+    // The switch-off footer, asserted in the STORED body. templates.test.ts
+    // proves the template emits it; this proves it survives the trip through
+    // the mailer into the row — a property the DRIVER could break on its own.
+    expect(released!.bodyText).toContain("switch these emails off");
   });
 
   // Task 5, site 2: recipients are exactly the release route's own
