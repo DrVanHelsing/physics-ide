@@ -35,7 +35,7 @@ export function useExport() {
             return title.trim().replace(/[<>:"/\\|?*\x00-\x1F]/g, "").replace(/\s+/g, "_");
           }
         }
-      } catch (_) {}
+      } catch { /* no usable title on this block/build — fall through to the next strategy */ }
     }
     // 2. Try parsing from pythonCode header comment
     const codeMatch = pythonCode.match(/# === Simulation Start:\s*(.+?)\s*===/);

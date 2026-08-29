@@ -70,11 +70,11 @@ export async function exportBlocksPdf(workspace, fileName) {
   ).filter((el) => !el.closest(".blocklyFlyout, .blocklyZoom"));
   const computedFills = liveTextEls.map((el) => {
     try { return window.getComputedStyle(el).fill || "#ffffff"; }
-    catch (e) { return "#ffffff"; }
+    catch { return "#ffffff"; }
   });
   const computedFontSizes = liveTextEls.map((el) => {
     try { return window.getComputedStyle(el).fontSize || ""; }
-    catch (e) { return ""; }
+    catch { return ""; }
   });
 
   /* ── 3. Define viewBox in workspace-unit coordinates ── */

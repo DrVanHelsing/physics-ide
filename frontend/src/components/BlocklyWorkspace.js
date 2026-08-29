@@ -54,7 +54,7 @@ function BlockSearch({ workspaceRef }) {
         if (toolbox.selectItem_) toolbox.selectItem_(match, true);
         else if (match.setSelected) match.setSelected(true);
       }
-    } catch (e) { /* ignore toolbox API differences */ }
+    } catch { /* ignore toolbox API differences */ }
   }
 
   /**
@@ -90,7 +90,7 @@ function BlockSearch({ workspaceRef }) {
       }
       block.select();
       return true;
-    } catch (e) {
+    } catch {
       return false;
     }
   }

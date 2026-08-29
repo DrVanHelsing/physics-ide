@@ -30,7 +30,8 @@ export const VIEW_KEYS = ["viewport", "trace", "debug", "reset", "clear", "help"
 export const FILE_KEYS = ["save", "fileMenu", "themeToggle", "signIn", "account"];
 
 export function visibleControls({
-  mode, goal, role, isTeacher, runState,
+  mode, goal, role, runState,
+  isTeacher, // eslint-disable-line no-unused-vars -- reserved API slot for classroom teacher controls, see comment below
   /* Their own state keeps these two alive past the end of a run — see the
      view zone below. */
   debugMode = false,

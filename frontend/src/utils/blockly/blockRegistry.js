@@ -42,8 +42,6 @@
  * Communicate) are the real categories.
  */
 
-/* eslint-disable max-lines */
-
 const REGISTRY = [
   /* ── Values (physics-flavoured but used inside loops too) ── */
   { id: "define_const_block", category: "Values", domain: "physics",

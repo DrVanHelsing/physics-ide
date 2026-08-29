@@ -142,7 +142,6 @@ export function createSyncEngine({ api, store, meta, now = () => Date.now() }) {
     const ids = [...pending];
     for (const id of ids) {
       if (stale(myEpoch)) return; // account transition mid-drain: dispatch nothing more
-      // eslint-disable-next-line no-await-in-loop
       await pushProjectAt(id, ownerId, myEpoch);
       if (!online) return;
     }

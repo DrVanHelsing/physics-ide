@@ -73,7 +73,7 @@ export function SimulationProvider({ children }) {
   useEffect(() => {
     const id = window.setInterval(() => saveState(stateRef.current), AUTOSAVE_INTERVAL_MS);
     return () => window.clearInterval(id);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   /* ── Restore persisted state on first mount ──────────── */
   useEffect(() => {
@@ -86,7 +86,7 @@ export function SimulationProvider({ children }) {
     if (typeof saved.workspaceXml === "string") {
       setWorkspaceXml(saved.workspaceXml);
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   /* Every consumer reads this object identity on every render (React context
      has no selector mechanism), so a fresh literal here would invalidate every

@@ -40,7 +40,7 @@ const RULES = [
   [
     /NameError: name '([^']+)' is not defined/i,
     (m) => `There's no variable called “${m[1]}”.`,
-    (m) =>
+    () =>
       `Check the spelling, or create it before you use it — a "set" block above the line that reads it.`,
   ],
   [

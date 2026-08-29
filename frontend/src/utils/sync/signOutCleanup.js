@@ -101,7 +101,6 @@ export async function clearCloudProjectsAfterSignOut() {
 
   for (const [id, meta] of Object.entries(metas)) {
     try {
-      // eslint-disable-next-line no-await-in-loop
       const manifest = await loadProject(id).catch(() => null);
       if (!shouldDropLocalCopy({ meta, manifest, pendingIds })) continue;
       // META FIRST, then the copy. An interruption between the two must not
@@ -109,12 +108,10 @@ export async function clearCloudProjectsAfterSignOut() {
       // would read that as "deleted on this device" and TOMBSTONE the live
       // cloud project. The reverse leftover — a local copy with no meta —
       // simply reads as guest-era work and gets re-offered by §3.2.
-      // eslint-disable-next-line no-await-in-loop
       await deleteSyncMeta(id);
       // `fromSync` marks this as a non-user delete so SyncProvider's delete
       // wiring doesn't echo it to the server as "the student deleted it" —
       // the copy is leaving THIS DEVICE, not the account.
-      // eslint-disable-next-line no-await-in-loop
       await deleteProject(id, { fromSync: true });
     } catch (err) {
       console.warn(`sign-out: kept local copy of ${id} (cleanup failed)`, err);

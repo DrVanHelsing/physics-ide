@@ -163,7 +163,6 @@ export default function RichTextEditor({ value, onChange }) {
     const current = JSON.stringify(editor.getJSON());
     if (incoming !== current) editor.commands.setContent(value, false);
     return undefined;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editor, value]);
 
   if (!editor) return null;

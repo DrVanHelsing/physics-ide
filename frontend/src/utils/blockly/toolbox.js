@@ -465,7 +465,7 @@ export function buildToolboxXml(goal = "physics", hideAdvanced = false) {
   let doc;
   try {
     doc = new DOMParser().parseFromString(MASTER_TOOLBOX_XML, "text/xml");
-  } catch (e) {
+  } catch {
     return MASTER_TOOLBOX_XML;
   }
   if (doc.querySelector("parsererror")) {

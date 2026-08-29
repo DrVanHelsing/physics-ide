@@ -110,7 +110,6 @@ function maxOf(aDesc, bDesc) {
 }
 
 /** a ** b — power block */
-// eslint-disable-next-line no-unused-vars
 function powOf(baseDesc, expDesc) {
   return { type: "math_pow_block", values: { BASE: baseDesc, EXP: expDesc } };
 }

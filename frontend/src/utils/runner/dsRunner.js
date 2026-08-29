@@ -71,7 +71,6 @@ export async function runDsCode(jsCode) {
   if (!jsCode || !jsCode.trim()) return { outputs: [], error: null };
 
   const outputs = [];
-  // eslint-disable-next-line no-new-func
   const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
 
   try {

@@ -17,12 +17,18 @@
     "db:migrate": "npm run db:migrate -w backend && npm run db:migrate:test -w backend",
     "seed": "npm run seed -w backend",
     "check:blocks": "npm run check:blocks -w frontend",
-    "test": "npm run test -ws --if-present"
+    "test": "npm run test -ws --if-present",
+    "lint": "npm run lint -w shared && npm run lint -w backend && npm run lint -w frontend"
   },
   "dependencies": {
     "drizzle-orm": "^0.44.0"
   },
   "devDependencies": {
-    "concurrently": "^9.2.4"
+    "@eslint/js": "^9.39.5",
+    "concurrently": "^9.2.4",
+    "eslint": "^9.39.5",
+    "eslint-plugin-react": "^7.37.5",
+    "globals": "^17.11.0",
+    "typescript-eslint": "^8.68.0"
   }
 }
