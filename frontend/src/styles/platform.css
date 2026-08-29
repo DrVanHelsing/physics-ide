@@ -421,6 +421,18 @@
 .pref-row { display: flex; align-items: center; gap: var(--space-2); font-size: var(--fs-md); color: var(--text); }
 .auth-hint { color: var(--text-dim); font-size: var(--fs-sm); }
 
+/* Plan 8 Task 11 — the Data requests tab's erase dialog (design D§5, spec
+   §10/§11): the product's one Overlay, `dismissOnBackdrop` OFF (the one
+   earned deviation — an accidental backdrop click must never discard a
+   typed confirmation mid-erase). Same shape as .share-dialog (Plan 7). */
+.erase-dialog { display: flex; flex-direction: column; gap: var(--space-4); }
+.erase-dialog__title { font-size: var(--fs-xl); font-weight: var(--fw-semibold); }
+.erase-dialog__actions { display: flex; justify-content: flex-end; gap: var(--space-3); }
+
+/* The People tab's third status (D§5): a WORD plus the muted token —
+   never colour alone (D13's own rule, same as .badge's text-plus-icon). */
+.status-erased { color: var(--text-dim); }
+
 /* ═══════════════════════════════════════════════════════════
    PLATFORM SCREENS — the stated minimum viewport is 1024px.
    These screens (admin, classes, profile, auth) had zero responsive
