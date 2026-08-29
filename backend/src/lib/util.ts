@@ -9,6 +9,16 @@ export function pgErrorCode(err: unknown): string | undefined {
   return e.code ?? e.cause?.code;
 }
 
+/** §11's own word for an erased person — ONE string for the whole tree
+ *  (design D§5, fiat 6). The erase scrub WRITES this into `users.name`
+ *  and every read-time fallback resolves TO it, so a scrubbed row and an
+ *  id that resolves to nothing can never disagree on a surface. It lives
+ *  here rather than in `routes/shares.ts` because `routes/admin.ts` needs
+ *  it too and neither route file should import the other; shares.ts
+ *  re-exports it as `REMOVED_STUDENT` for the Plan 7 call sites that
+ *  already name it that way. */
+export const ERASED_NAME = "Removed student";
+
 /** Dates cross the wire as epoch ms; timestamptz lives only inside Postgres. */
 export function toEpoch(d: Date | null): number | null {
   return d ? d.getTime() : null;

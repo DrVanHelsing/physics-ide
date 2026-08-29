@@ -192,7 +192,17 @@ export function authRoutes(app: FastifyInstance): void {
       }
       const rows = await app.db.select().from(users).where(eq(users.email, parsed.data.email));
       const user = rows[0];
-      const ok = user ? await argon2.verify(user.passwordHash, parsed.data.password) : false;
+      // The empty-hash guard is the D§5 scrub's door: erasure sets
+      // `passwordHash = ""` and mints a PREDICTABLE sentinel address
+      // (`erased+<id>@erased.invalid`) that any classmate holding the id
+      // can type. argon2.verify THROWS on an unparseable digest, so
+      // without this the erased row would answer 500 instead of the
+      // ordinary refusal. No live account can reach it: a real argon2
+      // hash is never the empty string.
+      const ok =
+        user && user.passwordHash !== ""
+          ? await argon2.verify(user.passwordHash, parsed.data.password)
+          : false;
       if (!user || !ok) {
         return reply.code(401).send({ error: "Invalid email or password." });
       }
