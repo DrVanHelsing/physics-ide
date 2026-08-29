@@ -1,20 +1,44 @@
 import React, { useState } from "react";
 import { Navigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
+import { SWITCHABLE_EMAIL_KEYS } from "@physics-ide/shared";
 import AuthLayout from "./AuthLayout";
 import { api } from "../../utils/api/client";
 import { useMe, ME_KEY } from "../../auth/useAuth";
+
+// PREF_LABELS keys the shared array — SWITCHABLE_EMAIL_KEYS stays the ONE
+// source of the key set (decorator, auth route, this UI); only the labels
+// live here.
+const PREF_LABELS = {
+  "submission-receipt": "Submission receipts",
+  "marks-released": "Marks released",
+  "work-returned": "Work returned for changes",
+  "due-tomorrow": "Due-tomorrow reminders",
+  "due-reminder": "Reminders from your teacher",
+};
 
 export default function ProfilePage() {
   const { data: me, isLoading } = useMe();
   const qc = useQueryClient();
   const [name, setName] = useState(null); // null until user edits
   const [pw, setPw] = useState({ currentPassword: "", newPassword: "" });
+  const [prefs, setPrefs] = useState(null); // null until user edits — mirrors `name` above
+  const [savingPrefs, setSavingPrefs] = useState(false);
   const [msg, setMsg] = useState(null);
   const [error, setError] = useState(null);
 
   if (isLoading) return null;
   if (!me) return <Navigate to="/auth/signin" replace />;
+
+  // `prefs` seeds from me.notificationPrefs on every render until the user
+  // edits a switch, same fallback shape as `name ?? me.name` above — a plain
+  // lazy useState initializer would freeze at whatever `me` was on the
+  // component's first mount (possibly still loading), never re-seeding once
+  // the real data lands. The `?? {}` guards the cache window right after
+  // sign-in, whose response isn't one of this task's two resolved
+  // endpoints — an absent key still reads as ON below, same as the server
+  // convention for an absent row.
+  const currentPrefs = prefs ?? me.notificationPrefs ?? {};
 
   async function saveName(e) {
     e.preventDefault();
@@ -39,6 +63,25 @@ export default function ProfilePage() {
       setMsg("Password changed. Other devices were signed out.");
     } catch (err) {
       setError(err.message);
+    }
+  }
+
+  async function savePrefs(e) {
+    e.preventDefault();
+    setError(null);
+    setMsg(null);
+    setSavingPrefs(true);
+    try {
+      const data = await api("/api/auth/me", {
+        method: "PATCH",
+        body: { notificationPrefs: currentPrefs },
+      });
+      qc.setQueryData(ME_KEY, data.user);
+      setMsg("Notification settings saved.");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSavingPrefs(false);
     }
   }
 
@@ -94,6 +137,23 @@ export default function ProfilePage() {
         </label>
         <button className="btn btn--primary btn--lg btn--block" type="submit">
           Change password
+        </button>
+      </form>
+      <h2 className="section-title">Notifications</h2>
+      <form className="auth-form" onSubmit={savePrefs}>
+        {SWITCHABLE_EMAIL_KEYS.map((key) => [key, PREF_LABELS[key]]).map(([key, label]) => (
+          <label key={key} className="pref-row">
+            <input
+              type="checkbox"
+              checked={currentPrefs[key] ?? true}
+              onChange={(e) => setPrefs({ ...currentPrefs, [key]: e.target.checked })}
+            />
+            {label}
+          </label>
+        ))}
+        <p className="auth-hint">These switch the emails off. The bell in the header always shows everything.</p>
+        <button className="btn" type="submit" disabled={savingPrefs}>
+          Save notification settings
         </button>
       </form>
       {msg ? (

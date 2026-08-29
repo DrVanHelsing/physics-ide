@@ -4,6 +4,7 @@ import {
   SigninInputSchema,
   ResetInputSchema,
   AuthUserSchema,
+  UpdateMeInputSchema,
   PASSWORD_MIN_LENGTH,
   ACCOUNT_CAP_MESSAGE,
 } from "./auth.js";
@@ -62,5 +63,24 @@ describe("auth schemas", () => {
     expect(ACCOUNT_CAP_MESSAGE).toBe(
       "This site is at capacity — ask your teacher or the site owner.",
     );
+  });
+
+  test("UpdateMe: name is optional so a prefs-only PATCH is reachable", () => {
+    expect(UpdateMeInputSchema.safeParse({}).success).toBe(true);
+    expect(
+      UpdateMeInputSchema.safeParse({ notificationPrefs: { "due-tomorrow": false } }).success,
+    ).toBe(true);
+    expect(UpdateMeInputSchema.safeParse({ name: "A Name" }).success).toBe(true);
+    expect(UpdateMeInputSchema.safeParse({ name: "" }).success).toBe(false);
+  });
+
+  test("UpdateMe: notificationPrefs strips unknown keys and rejects non-boolean values", () => {
+    const parsed = UpdateMeInputSchema.parse({
+      notificationPrefs: { "due-tomorrow": false, "nonsense-key": true },
+    });
+    expect(parsed.notificationPrefs).toEqual({ "due-tomorrow": false });
+    expect(
+      UpdateMeInputSchema.safeParse({ notificationPrefs: { "due-tomorrow": "false" } }).success,
+    ).toBe(false);
   });
 });

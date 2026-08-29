@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { ACCOUNT_ROLES } from "./roles.js";
+import { NotificationPrefsPatchSchema } from "./notifications.js";
 
 /** Spec §3.1 — minimum password length. */
 export const PASSWORD_MIN_LENGTH = 10;
@@ -36,7 +37,8 @@ export const ChangePasswordInputSchema = z.object({
   newPassword: password,
 });
 export const UpdateMeInputSchema = z.object({
-  name: z.string().trim().min(1).max(100),
+  name: z.string().trim().min(1).max(100).optional(),
+  notificationPrefs: NotificationPrefsPatchSchema.optional(),
 });
 
 export const AuthUserSchema = z.object({

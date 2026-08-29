@@ -1,10 +1,10 @@
 import { describe, test, expect, beforeAll, afterAll } from "vitest";
 import argon2 from "argon2";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { buildApp } from "../app.js";
 import { testDb, testPool, truncateAuthTables } from "../db/testClient.js";
 import { setSetting } from "../db/settings.js";
-import { users, sessions } from "../db/schema.js";
+import { users, sessions, notificationPrefs } from "../db/schema.js";
 import { newToken } from "../auth/tokens.js";
 
 const app = buildApp({ db: testDb });
@@ -161,5 +161,125 @@ describe("session rejection", () => {
     } finally {
       await testDb.update(users).set({ active: true }).where(eq(users.email, "sess@example.com"));
     }
+  });
+});
+
+const ALL_ON = {
+  "submission-receipt": true,
+  "marks-released": true,
+  "work-returned": true,
+  "due-tomorrow": true,
+  "due-reminder": true,
+};
+
+describe("notification prefs (Plan 8 Task 8)", () => {
+  let token: string;
+  let userId: string;
+
+  beforeAll(async () => {
+    await testDb.insert(users).values({
+      name: "Prefs Person",
+      email: "prefs@example.com",
+      passwordHash: await argon2.hash("prefs-password-1", { type: argon2.argon2id }),
+      emailConfirmedAt: new Date(),
+      consentAt: new Date(),
+    });
+    const signin = await app.inject({
+      method: "POST",
+      url: "/api/auth/signin",
+      payload: { email: "prefs@example.com", password: "prefs-password-1" },
+    });
+    token = cookieOf(signin)!;
+    userId = signin.json().user.id;
+  });
+
+  test("GET me resolves all five keys to true when no rows exist", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/auth/me",
+      cookies: { pide_session: token },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().user.notificationPrefs).toEqual(ALL_ON);
+  });
+
+  test("a prefs-only PATCH (no name) succeeds, leaves the name unchanged, one row is written, and the reply carries the resolved map", async () => {
+    const res = await app.inject({
+      method: "PATCH",
+      url: "/api/auth/me",
+      cookies: { pide_session: token },
+      payload: { notificationPrefs: { "due-tomorrow": false } },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().user.name).toBe("Prefs Person");
+    expect(res.json().user.notificationPrefs).toEqual({ ...ALL_ON, "due-tomorrow": false });
+
+    const rows = await testDb
+      .select()
+      .from(notificationPrefs)
+      .where(eq(notificationPrefs.userId, userId));
+    expect(rows).toHaveLength(1);
+
+    const me = await app.inject({
+      method: "GET",
+      url: "/api/auth/me",
+      cookies: { pide_session: token },
+    });
+    expect(me.json().user.notificationPrefs).toEqual({ ...ALL_ON, "due-tomorrow": false });
+  });
+
+  test("PATCHing the same key again upserts — one row, not two", async () => {
+    const res = await app.inject({
+      method: "PATCH",
+      url: "/api/auth/me",
+      cookies: { pide_session: token },
+      payload: { notificationPrefs: { "due-tomorrow": true } },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().user.notificationPrefs).toEqual(ALL_ON);
+
+    const rows = await testDb
+      .select()
+      .from(notificationPrefs)
+      .where(eq(notificationPrefs.userId, userId));
+    expect(rows).toHaveLength(1);
+    expect(rows[0].enabled).toBe(true);
+  });
+
+  test("an unknown key is stripped by the schema — 200, no row written", async () => {
+    const res = await app.inject({
+      method: "PATCH",
+      url: "/api/auth/me",
+      cookies: { pide_session: token },
+      payload: { notificationPrefs: { nonsense: false } },
+    });
+    expect(res.statusCode).toBe(200);
+    const rows = await testDb
+      .select()
+      .from(notificationPrefs)
+      .where(and(eq(notificationPrefs.userId, userId), eq(notificationPrefs.key, "nonsense")));
+    expect(rows).toHaveLength(0);
+  });
+
+  test("a non-boolean pref value is rejected with 400", async () => {
+    const res = await app.inject({
+      method: "PATCH",
+      url: "/api/auth/me",
+      cookies: { pide_session: token },
+      payload: { notificationPrefs: { "due-tomorrow": "false" } },
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
+  test("a name-only PATCH still works exactly as before, and leaves prefs untouched", async () => {
+    const res = await app.inject({
+      method: "PATCH",
+      url: "/api/auth/me",
+      cookies: { pide_session: token },
+      payload: { name: "Prefs Person Renamed" },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().user.name).toBe("Prefs Person Renamed");
+    expect(res.json().user.notificationPrefs).toEqual(ALL_ON);
   });
 });

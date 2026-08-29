@@ -10,9 +10,11 @@ import {
   ResetInputSchema,
   ChangePasswordInputSchema,
   ACCOUNT_CAP_MESSAGE,
+  SWITCHABLE_EMAIL_KEYS,
   type AuthUser,
+  type SwitchableEmailKey,
 } from "@physics-ide/shared";
-import { users, emailTokens, settings, sessions } from "../db/schema.js";
+import { users, emailTokens, settings, sessions, notificationPrefs } from "../db/schema.js";
 import { logEvent } from "../db/events.js";
 import { newToken, hashToken } from "../auth/tokens.js";
 import {
@@ -25,6 +27,7 @@ import { requireUser } from "../auth/guards.js";
 import { confirmEmail, teacherSignupAlert, resetEmail } from "../email/templates.js";
 import { config } from "../config.js";
 import { pgErrorCode } from "../lib/util.js";
+import type { Db } from "../db/types.js";
 
 export const CONFIRM_TTL_MS = 48 * 60 * 60 * 1000;
 export const RESET_TTL_MS = 60 * 60 * 1000;
@@ -38,6 +41,22 @@ export function toAuthUser(row: typeof users.$inferSelect): AuthUser {
     isTeacher: row.isTeacher,
     emailConfirmed: row.emailConfirmedAt !== null,
   };
+}
+
+/** ONE resolver for GET me and the PATCH reply (Plan 8 Task 8) — an absent
+ *  row means the default, ON, matching withPreferences.ts's send-time read. */
+async function resolvePrefs(
+  db: Db,
+  userId: string,
+): Promise<Record<SwitchableEmailKey, boolean>> {
+  const rows = await db
+    .select({ key: notificationPrefs.key, enabled: notificationPrefs.enabled })
+    .from(notificationPrefs)
+    .where(eq(notificationPrefs.userId, userId));
+  const rowsByKey = new Map(rows.map((r) => [r.key, r.enabled]));
+  return Object.fromEntries(
+    SWITCHABLE_EMAIL_KEYS.map((k) => [k, rowsByKey.get(k) ?? true]),
+  ) as Record<SwitchableEmailKey, boolean>;
 }
 
 export function authRoutes(app: FastifyInstance): void {
@@ -201,7 +220,8 @@ export function authRoutes(app: FastifyInstance): void {
   });
 
   app.get("/api/auth/me", { preHandler: requireUser }, async (req) => {
-    return { user: toAuthUser(req.user!) };
+    const prefs = await resolvePrefs(app.db, req.user!.id);
+    return { user: { ...toAuthUser(req.user!), notificationPrefs: prefs } };
   });
 
   app.patch("/api/auth/me", { preHandler: requireUser }, async (req, reply) => {
@@ -209,12 +229,27 @@ export function authRoutes(app: FastifyInstance): void {
     if (!parsed.success) {
       return reply.code(400).send({ error: parsed.error.issues[0]?.message ?? "Invalid input." });
     }
-    const [updated] = await app.db
-      .update(users)
-      .set({ name: parsed.data.name })
-      .where(eq(users.id, req.user!.id))
-      .returning();
-    return { user: toAuthUser(updated) };
+    const { name, notificationPrefs: prefsPatch } = parsed.data;
+    const updated = await app.db.transaction(async (tx) => {
+      let row = req.user!;
+      if (name !== undefined) {
+        [row] = await tx.update(users).set({ name }).where(eq(users.id, req.user!.id)).returning();
+      }
+      if (prefsPatch) {
+        for (const [key, enabled] of Object.entries(prefsPatch)) {
+          await tx
+            .insert(notificationPrefs)
+            .values({ userId: req.user!.id, key, enabled })
+            .onConflictDoUpdate({
+              target: [notificationPrefs.userId, notificationPrefs.key],
+              set: { enabled },
+            });
+        }
+      }
+      return row;
+    });
+    const prefs = await resolvePrefs(app.db, req.user!.id);
+    return { user: { ...toAuthUser(updated), notificationPrefs: prefs } };
   });
 
   app.post(
