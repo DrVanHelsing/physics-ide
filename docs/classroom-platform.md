@@ -21,6 +21,8 @@ And the two standing constraints: **at most 200 people**, and **nothing may cons
 
 **29 August 2026** — Plan 8 (notifications + data care, sections 9–11): §14 gains one row — the privacy page the spec already cited three times (§8.2, §10, §11). The bell, the notification switches and the data-requests tab shipped inside screens §14 already inventoried. Decisions recorded in product-contract.md's notifications-and-data-care amendment.
 
+**29 August 2026, later the same day** — Plan 9 (the postman, the port and the retention clock, sections 9–11 and 15's assumption 10): real email delivery, the GCP port and the retention machinery are lifted from the exclusions, provisioning kept as the one user-gated step. §14 gains no row — no new screens. Decisions recorded in product-contract.md's postman-port-and-retention amendment.
+
 ---
 
 ## 1. The big picture
