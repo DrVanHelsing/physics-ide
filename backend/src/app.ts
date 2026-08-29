@@ -2,8 +2,10 @@ import Fastify, { type FastifyInstance } from "fastify";
 import cookie from "@fastify/cookie";
 import rateLimit from "@fastify/rate-limit";
 import type { Db } from "./db/types.js";
-import { createDevMailer, type Mailer } from "./email/mailer.js";
+import type { Mailer } from "./email/mailer.js";
 import { withPreferences } from "./email/withPreferences.js";
+import { neverThrow, suppressErased, selectMailDriver } from "./email/guards.js";
+import { config } from "./config.js";
 import { authRoutes } from "./routes/auth.js";
 import { adminRoutes } from "./routes/admin.js";
 import { classRoutes } from "./routes/classes.js";
@@ -30,10 +32,20 @@ declare module "fastify" {
 }
 
 export function buildApp(deps: AppDeps): FastifyInstance {
-  const app = Fastify({ logger: process.env.NODE_ENV !== "test" });
+  const app = Fastify({ logger: process.env.NODE_ENV !== "test", trustProxy: config.trustProxy });
 
   app.decorate("db", deps.db);
-  app.decorate("mailer", deps.mailer ?? withPreferences(deps.db, createDevMailer(deps.db)));
+  // The injectable dep moves INSIDE the wrappers (not `deps.mailer ?? <wrapped default>`
+  // as before) so a test can inject a fake driver and still exercise the real guards.
+  // Order is fixed and load-bearing — see guards.ts's neverThrow doc comment for why
+  // never-throw must be outermost.
+  app.decorate(
+    "mailer",
+    neverThrow(
+      app.log,
+      withPreferences(deps.db, suppressErased(deps.mailer ?? selectMailDriver(config, deps.db))),
+    ),
+  );
 
   app.register(cookie);
   app.register(rateLimit, { global: false });

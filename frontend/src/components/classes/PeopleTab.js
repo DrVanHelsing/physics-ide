@@ -55,7 +55,7 @@ function PeopleBody({ classData }) {
         onSuccess: (data) => {
           setEmailsRaw("");
           setInviteNote(
-            `Sent ${data.sent.length} invite${data.sent.length === 1 ? "" : "s"}` +
+            `Invited ${data.invited.length} people` +
               (data.skipped.length ? ` · already members: ${data.skipped.join(", ")}` : ""),
           );
         },
