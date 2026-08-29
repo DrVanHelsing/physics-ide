@@ -8,10 +8,20 @@ import {
   classes,
   classMembers,
   groups,
+  groupMembers,
   notifications,
   notificationPrefs,
   projects,
+  projectVersions,
+  assignments,
+  assignmentWork,
+  submissions,
+  marks,
+  ruleSets,
+  guides,
+  invites,
   shares,
+  events,
 } from "../db/schema.js";
 import { getSetting, setSetting } from "../db/settings.js";
 import { requireAdmin } from "../auth/guards.js";
@@ -73,8 +83,12 @@ export function adminRoutes(app: FastifyInstance): void {
 
   app.post("/api/admin/users/:id/reactivate", async (req, reply) => {
     const { id } = req.params as { id: string };
-    const [u] = await app.db.update(users).set({ active: true }).where(eq(users.id, id)).returning();
-    if (!u) return reply.code(404).send({ error: NO_SUCH_ACCOUNT });
+    // Read before write: flipping `active` first and checking `erasedAt`
+    // after would briefly revive an erased shell (Task 9 review, binding).
+    const [existing] = await app.db.select().from(users).where(eq(users.id, id));
+    if (!existing) return reply.code(404).send({ error: NO_SUCH_ACCOUNT });
+    if (existing.erasedAt) return reply.code(409).send({ error: ALREADY_ERASED });
+    await app.db.update(users).set({ active: true }).where(eq(users.id, id));
     await logEvent(app.db, "account.reactivated", req.user!.id, { subject: id });
     return { ok: true };
   });
@@ -107,6 +121,9 @@ export function adminRoutes(app: FastifyInstance): void {
     const rows = await app.db.select().from(users).where(eq(users.id, id));
     const u = rows[0];
     if (!u) return reply.code(404).send({ error: NO_SUCH_ACCOUNT });
+    // Task 9 review (binding): an erased shell must not be handed a live
+    // reset link — the same refusal `erase` itself gives a second attempt.
+    if (u.erasedAt) return reply.code(409).send({ error: ALREADY_ERASED });
     const t = newToken();
     await app.db.insert(emailTokens).values({
       userId: u.id,
@@ -241,6 +258,99 @@ export function adminRoutes(app: FastifyInstance): void {
     if (outcome === "mismatch") return reply.code(400).send({ error: CONFIRM_MISMATCH });
     if (outcome === "already") return reply.code(409).send({ error: ALREADY_ERASED });
     return { ok: true };
+  });
+
+  /* ═══ Export — D§6: an ordinary JSON body, everything theirs, their own
+   * audit trail and nobody else's. The admin console turns this into a
+   * download with the existing Blob + a.download idiom (the gradebook CSV
+   * precedent) — no `Content-Disposition`, no zip, no streaming, no file
+   * infrastructure (the contract's clause stays intact). GET is
+   * deliberate: it adds no authority-matrix row.
+   *
+   * `events` is filtered on `actorId = :id` ONLY — rows *about* them
+   * (overwhelmingly a teacher's `timeline_viewed`) are someone else's
+   * action, not theirs, and the export's own header text says so. ═══ */
+  const EXPORT_NOTE =
+    "This export contains your account, your work, and the actions you took. " +
+    "It does not contain other people's actions — including a teacher's record of viewing your work.";
+
+  app.get("/api/admin/users/:id/export", async (req, reply) => {
+    // Same posture as erase: a malformed id cannot exist — never a 500.
+    const idParsed = z.string().uuid().safeParse((req.params as { id: string }).id);
+    if (!idParsed.success) return reply.code(404).send({ error: NO_SUCH_ACCOUNT });
+    const id = idParsed.data;
+
+    const [u] = await app.db.select().from(users).where(eq(users.id, id));
+    if (!u) return reply.code(404).send({ error: NO_SUCH_ACCOUNT });
+
+    const [
+      classMembershipRows,
+      projectRows,
+      projectVersionRows,
+      assignmentWorkRows,
+      submissionRows,
+      markRows,
+      groupRows,
+      groupMembershipRows,
+      ruleSetRows,
+      sharesSentRows,
+      sharesReceivedRows,
+      authoredClassRows,
+      authoredAssignmentRows,
+      authoredGuideRows,
+      sentInviteRows,
+      emailRows,
+      eventRows,
+    ] = await Promise.all([
+      app.db.select().from(classMembers).where(eq(classMembers.userId, id)),
+      app.db.select().from(projects).where(eq(projects.ownerId, id)),
+      app.db.select().from(projectVersions).where(eq(projectVersions.ownerId, id)),
+      app.db.select().from(assignmentWork).where(eq(assignmentWork.userId, id)),
+      app.db.select().from(submissions).where(eq(submissions.submitterId, id)),
+      app.db.select().from(marks).where(eq(marks.studentId, id)),
+      app.db.select().from(groups).where(eq(groups.ownerId, id)),
+      app.db.select().from(groupMembers).where(eq(groupMembers.userId, id)),
+      app.db.select().from(ruleSets).where(eq(ruleSets.ownerId, id)),
+      app.db.select().from(shares).where(eq(shares.sharerId, id)),
+      app.db.select().from(shares).where(eq(shares.recipientId, id)),
+      app.db.select().from(classes).where(eq(classes.createdBy, id)),
+      app.db.select().from(assignments).where(eq(assignments.createdBy, id)),
+      app.db.select().from(guides).where(eq(guides.createdBy, id)),
+      app.db.select().from(invites).where(eq(invites.invitedBy, id)),
+      app.db.select().from(emails).where(eq(emails.toUserId, id)),
+      app.db.select().from(events).where(eq(events.actorId, id)),
+    ]);
+
+    return {
+      note: EXPORT_NOTE,
+      user: {
+        ...toAuthUser(u),
+        createdAt: u.createdAt.toISOString(),
+        consentAt: u.consentAt.toISOString(),
+      },
+      classMemberships: classMembershipRows,
+      projects: projectRows,
+      // Metadata only (D§6's bounded-size fiat) — never the manifest.
+      projectVersions: projectVersionRows.map((v) => ({
+        id: v.id,
+        label: v.reason,
+        createdAt: v.createdAt.toISOString(),
+      })),
+      assignmentWork: assignmentWorkRows,
+      submissions: submissionRows,
+      marksReceived: markRows,
+      groups: groupRows,
+      groupMemberships: groupMembershipRows,
+      ruleSets: ruleSetRows,
+      sharesSent: sharesSentRows,
+      sharesReceived: sharesReceivedRows,
+      authoredClasses: authoredClassRows,
+      authoredAssignments: authoredAssignmentRows,
+      authoredGuides: authoredGuideRows,
+      sentInvites: sentInviteRows,
+      emails: emailRows,
+      events: eventRows,
+    };
   });
 
   app.get("/api/admin/cap", async () => {
