@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { and, eq, gte, lte, sql } from "drizzle-orm";
+import { and, eq, gte, isNull, lte, sql } from "drizzle-orm";
 import { assignments, classes, classMembers, events, users } from "../db/schema.js";
 import { logEvent } from "../db/events.js";
 import { notify } from "../notifications/notify.js";
@@ -49,7 +49,15 @@ async function assignmentsDueTomorrow(db: Pick<Db, "select">, now: Date): Promis
  *  submission — resolved through rosterSubmissionStatus (assignments.ts),
  *  the one shared "has this student submitted" derivation GET /inbox also
  *  reads through (fix round 1, review finding: this used to be a third,
- *  independently-drifting copy of that rule). */
+ *  independently-drifting copy of that rule).
+ *
+ *  Final review I3: an erased account can never sign in again, so it can
+ *  never act on a reminder — `isNull(users.erasedAt)` keeps this whole
+ *  pipeline (event, bell row, email to the erased+<id>@erased.invalid
+ *  sentinel) from ever firing for one. This is the delivery-facing roster
+ *  (nobody renders it), unlike inboxEntriesFor's `members`/`name`, which
+ *  stays unfiltered so the teacher-facing inbox and gradebook keep showing
+ *  "Removed student" with their marks (D§5). */
 async function studentsWithoutSubmission(
   db: Pick<Db, "select">,
   a: AssignmentRow,
@@ -63,6 +71,7 @@ async function studentsWithoutSubmission(
         eq(classMembers.classId, a.classId),
         eq(classMembers.status, "active"),
         eq(classMembers.role, "student"),
+        isNull(users.erasedAt),
       ),
     );
   if (roster.length === 0) return [];

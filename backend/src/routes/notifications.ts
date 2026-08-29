@@ -92,17 +92,22 @@ async function renderAll(db: FastifyInstance["db"], rows: NotificationRow[]) {
         text = `${person(d.recipientId)} added “${d.title ?? "a project"}” to their projects`;
         break;
     }
-    /* href: exactly two shapes, matching App.js's route table — assignments
+    /* href: exactly three shapes, matching App.js's route table — assignments
        are NESTED UNDER THE CLASS (/classes/:id/assignments/:aid; there is
        no /assignments/:id route, and the catch-all would bounce to the
        IDE). Every assignment payload in the Task 5 site table carries both
-       ids for exactly this reason. */
+       ids for exactly this reason. Final review M4: a join REQUEST's
+       approval control lives on the People tab, not the (default)
+       Assignments tab a bare /classes/:id lands on — so that one type
+       routes to /classes/:id/people instead. */
     const href =
       d.assignmentId && d.classId
         ? `/classes/${d.classId}/assignments/${d.assignmentId}`
-        : d.classId
-          ? `/classes/${d.classId}`
-          : "/classes";
+        : d.classId && r.type === "class.join_requested"
+          ? `/classes/${d.classId}/people`
+          : d.classId
+            ? `/classes/${d.classId}`
+            : "/classes";
     return {
       id: r.id,
       type: r.type,
@@ -118,7 +123,15 @@ export function notificationRoutes(app: FastifyInstance): void {
   app.addHook("preHandler", requireConfirmed);
 
   app.get("/api/notifications", async (req) => {
-    const limit = Math.min(Number((req.query as { limit?: string }).limit) || 30, 100);
+    // Final review I2: `Number("-1") || 30` is -1 (truthy), which used to
+    // reach the DB as `LIMIT -1` (500) — and a fractional limit ("1.5")
+    // reached it as an invalid bigint literal (also a 500). Only a positive
+    // INTEGER is accepted; anything else (negative, zero, fractional,
+    // missing, non-numeric) falls back to the default page size — never a
+    // 500 (the posture this same plan states verbatim at shares.ts:396 and
+    // admin.ts:171/301).
+    const limitRaw = Number((req.query as { limit?: string }).limit);
+    const limit = Number.isInteger(limitRaw) && limitRaw > 0 ? Math.min(limitRaw, 100) : 30;
     const rows = await app.db
       .select()
       .from(notifications)
@@ -133,7 +146,17 @@ export function notificationRoutes(app: FastifyInstance): void {
   });
 
   app.post("/api/notifications/read", async (req) => {
-    const parsed = z.object({ ids: z.array(z.number().int()).optional() }).safeParse(req.body ?? {});
+    // Final review M5: unbounded before — a confirmed user could post
+    // ~100k ids into one IN clause. `.max(200)` rejects an over-long array
+    // the same way `parsed.success` already handles any other malformed
+    // body below: it falls back to `ids = undefined`, i.e. this route's
+    // existing no-`ids` behaviour (mark every one of the caller's own
+    // unread rows read). This route has never returned 400 for a bad body,
+    // and the write stays scoped to `req.user!.id` either way, so the
+    // fallback is safe, not just convenient.
+    const parsed = z
+      .object({ ids: z.array(z.number().int()).max(200).optional() })
+      .safeParse(req.body ?? {});
     const ids = parsed.success ? parsed.data.ids : undefined;
     await app.db
       .update(notifications)

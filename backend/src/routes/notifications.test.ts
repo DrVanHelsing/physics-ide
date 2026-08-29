@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { buildApp } from "../app.js";
 import { testDb, testPool, truncateAuthTables } from "../db/testClient.js";
 import { setSetting } from "../db/settings.js";
-import { users, assignments, notifications } from "../db/schema.js";
+import { users, assignments, notifications, events } from "../db/schema.js";
 import { logEvent } from "../db/events.js";
 import { notify } from "../notifications/notify.js";
 
@@ -220,6 +220,23 @@ describe("GET /api/notifications", () => {
     expect(row.text).toBe("A new assignment was published");
   });
 
+  test("class.join_requested hrefs to the class's People tab, where approval actually lives — final review M4", async () => {
+    const joiner = await makeUser("njoinreq@example.com");
+    await testDb.transaction(async (tx) => {
+      const eid = await logEvent(tx, "class.join_requested", joiner.id, { classId, joinerId: joiner.id });
+      await notify(tx, [teacher.id], eid, "class.join_requested", { classId, joinerId: joiner.id });
+    });
+
+    const res = await getNotifications(teacher.cookie);
+    expect(res.statusCode).toBe(200);
+    const row = res
+      .json()
+      .notifications.find((n: { type: string }) => n.type === "class.join_requested");
+    expect(row).toBeDefined();
+    expect(row.text).toBe(`${joiner.name} asked to join ${className}`);
+    expect(row.href).toBe(`/classes/${classId}/people`);
+  });
+
   describe("ordering and the limit query param", () => {
     const gamma = {} as Member;
 
@@ -250,6 +267,77 @@ describe("GET /api/notifications", () => {
       expect(limited.json().notifications).toHaveLength(1);
       expect(limited.json().notifications[0].id).toBe(rows[0].id);
       expect(limited.json().unreadCount).toBe(2);
+    });
+  });
+
+  /* Final review I2: `Number("-1") || 30` used to reach Postgres as
+   * `LIMIT -1` ("ERROR: LIMIT must not be negative", a 500), and
+   * `Number("1.5")` reached it as `LIMIT 1.5` ("invalid input syntax for
+   * type bigint", also a 500) — verified against this same test DB. Every
+   * one of these must come back 200, matching the "never a 500" posture
+   * this plan states verbatim elsewhere (shares.ts, admin.ts). */
+  describe("the limit query param clamps instead of ever reaching Postgres malformed", () => {
+    const delta = {} as Member;
+    let deltaAssignmentId: string;
+
+    beforeAll(async () => {
+      const d = await makeUser("ndelta@example.com");
+      delta.id = d.id;
+      delta.cookie = await signin("ndelta@example.com");
+      deltaAssignmentId = await makeAssignment("Delta Limit Assignment");
+
+      // Three rows: enough to distinguish "the default page size" (30, so
+      // all three come back) from "?limit=1" (exactly one).
+      for (let i = 0; i < 3; i++) {
+        await testDb.transaction(async (tx) => {
+          const eid = await logEvent(tx, "assignment.published", teacher.id, {
+            assignmentId: deltaAssignmentId,
+          });
+          await notify(tx, [delta.id], eid, "assignment.published", {
+            assignmentId: deltaAssignmentId,
+            classId,
+          });
+        });
+      }
+    });
+
+    test.each(["-1", "1.5", "0", "abc"])(
+      "?limit=%s -> 200, falls back to the default page size (never a 500)",
+      async (bad) => {
+        const res = await getNotifications(delta.cookie, `?limit=${bad}`);
+        expect(res.statusCode).toBe(200);
+        expect(res.json().notifications).toHaveLength(3);
+      },
+    );
+
+    test("?limit=1 still returns exactly one row", async () => {
+      const res = await getNotifications(delta.cookie, "?limit=1");
+      expect(res.statusCode).toBe(200);
+      expect(res.json().notifications).toHaveLength(1);
+    });
+
+    test("?limit=99999 caps at 100", async () => {
+      const [ev] = await testDb
+        .insert(events)
+        .values({
+          type: "assignment.published",
+          actorId: teacher.id,
+          payload: { assignmentId: deltaAssignmentId },
+        })
+        .returning();
+      // Past the 3 already seeded, well past the 100 cap.
+      await testDb.insert(notifications).values(
+        Array.from({ length: 105 }, () => ({
+          userId: delta.id,
+          eventId: ev.id,
+          type: "assignment.published",
+          payload: { assignmentId: deltaAssignmentId, classId },
+        })),
+      );
+
+      const res = await getNotifications(delta.cookie, "?limit=99999");
+      expect(res.statusCode).toBe(200);
+      expect(res.json().notifications).toHaveLength(100);
     });
   });
 });
@@ -310,5 +398,32 @@ describe("POST /api/notifications/read", () => {
     expect(afterNewest.readAt).not.toBeNull();
     expect(afterOlder.readAt).toBeNull();
     expect(after.json().unreadCount).toBe(1);
+  });
+
+  /* Final review M5: `z.array(z.number().int())` had no upper bound, so a
+   * confirmed user could post ~100k ids into one IN clause. `.max(200)`
+   * closes it — chosen shape: an over-long `ids` array fails the schema
+   * the SAME way any other malformed body already does on this route (see
+   * `const ids = parsed.success ? parsed.data.ids : undefined` above), so
+   * it silently falls back to this route's existing no-`ids` behaviour
+   * (mark every one of the caller's own unread rows read) rather than a
+   * 400 — this route has never returned 400 for a bad body, and scoping
+   * stays on `req.user!.id` either way, so there is nothing unsafe about
+   * the fallback. */
+  test("{ ids } with more than 200 entries is refused by the schema and falls back to marking every unread row read (final review M5)", async () => {
+    await testDb.transaction(async (tx) => {
+      const eid = await logEvent(tx, "class.joined", teacher.id, { classId, joinerId: bravo.id });
+      await notify(tx, [alpha.id], eid, "class.joined", { classId, joinerId: bravo.id });
+    });
+    const before = await getNotifications(alpha.cookie);
+    expect(before.json().unreadCount).toBeGreaterThan(0);
+
+    const oversized = Array.from({ length: 201 }, (_, i) => i + 1);
+    const res = await postRead(alpha.cookie, { ids: oversized });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ ok: true });
+
+    const after = await getNotifications(alpha.cookie);
+    expect(after.json().unreadCount).toBe(0);
   });
 });
