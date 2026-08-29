@@ -32,6 +32,17 @@ import type { Db } from "../db/types.js";
 export const CONFIRM_TTL_MS = 48 * 60 * 60 * 1000;
 export const RESET_TTL_MS = 60 * 60 * 1000;
 
+/** DEPLOY.md box 7, first half — per-address reset throttle. Counted in the
+ *  database (not in memory: this process is one of N on Cloud Run), by
+ *  joining `email_tokens` to `users` on the submitted address. `email_tokens`
+ *  carries no email column (schema.ts:50-59) — it is keyed by `userId` and
+ *  shared by both flows, signup inserting `type: "confirm"` and this route
+ *  inserting `type: "reset"` below — so the `type` filter is load-bearing:
+ *  without it, a fresh signup's confirm token would consume a stranger's
+ *  reset budget. */
+export const RESET_REQUEST_CAP = 3;
+export const RESET_REQUEST_WINDOW_MS = 60 * 60 * 1000;
+
 export function toAuthUser(row: typeof users.$inferSelect): AuthUser {
   return {
     id: row.id,
@@ -270,19 +281,46 @@ export function authRoutes(app: FastifyInstance): void {
       if (!parsed.success) return { ok: true };
       const rows = await app.db.select().from(users).where(eq(users.email, parsed.data.email));
       const user = rows[0];
+      // Unknown addresses mint no row below and so cannot be counted at all
+      // — they never reach this block. Their only throttle is the 5/min
+      // per-IP limit this route already carries (`config.rateLimit` above),
+      // a DIFFERENT control from the per-address cap this block adds; both
+      // stay.
       if (user && user.active) {
-        const reset = newToken();
-        await app.db.insert(emailTokens).values({
-          userId: user.id,
-          type: "reset",
-          tokenHash: reset.hash,
-          expiresAt: new Date(Date.now() + RESET_TTL_MS),
-        });
-        const mail = resetEmail({
-          name: user.name,
-          resetUrl: `${config.appBaseUrl}/auth/reset?token=${reset.token}`,
-        });
-        await app.mailer.send({ to: user.email, toUserId: user.id, template: "reset", ...mail });
+        const [{ count: recentResets }] = await app.db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(emailTokens)
+          .innerJoin(users, eq(emailTokens.userId, users.id))
+          .where(
+            and(
+              eq(users.email, parsed.data.email),
+              eq(emailTokens.type, "reset"),
+              gt(emailTokens.createdAt, new Date(Date.now() - RESET_REQUEST_WINDOW_MS)),
+            ),
+          );
+        if (recentResets < RESET_REQUEST_CAP) {
+          const reset = newToken();
+          await app.db.insert(emailTokens).values({
+            userId: user.id,
+            type: "reset",
+            tokenHash: reset.hash,
+            expiresAt: new Date(Date.now() + RESET_TTL_MS),
+          });
+          const mail = resetEmail({
+            name: user.name,
+            resetUrl: `${config.appBaseUrl}/auth/reset?token=${reset.token}`,
+          });
+          // Accepted residual (D§10 fiat 13): this await is a real provider
+          // round-trip that an unknown address's single indexed SELECT above
+          // never pays — a measurable timing channel, NOT closed here. Not by
+          // dropping the await (Cloud Run throttles CPU after the response,
+          // so a fire-and-forget send would simply never run), and not by
+          // padding to a fixed floor either (that taxes every user on a
+          // rarely-used door). Accepted as-is at the 200-user cap.
+          await app.mailer.send({ to: user.email, toUserId: user.id, template: "reset", ...mail });
+        }
+        // Over the cap: no token minted, no mail row — falls through to the
+        // SAME 200 body as every other case (the anti-oracle posture).
       }
       return reply.code(200).send({ ok: true });
     },

@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeAll, afterAll } from "vitest";
+import { describe, test, expect, beforeAll, afterAll, vi } from "vitest";
 import argon2 from "argon2";
 import { eq, and } from "drizzle-orm";
 import { buildApp } from "../app.js";
@@ -6,7 +6,8 @@ import { testDb, testPool, truncateAuthTables } from "../db/testClient.js";
 import { setSetting } from "../db/settings.js";
 import { users, emails, sessions, emailTokens, events } from "../db/schema.js";
 import { newToken } from "../auth/tokens.js";
-import { RESET_TTL_MS } from "./auth.js";
+import type { Mailer } from "../email/mailer.js";
+import { RESET_TTL_MS, RESET_REQUEST_CAP, RESET_REQUEST_WINDOW_MS } from "./auth.js";
 
 const app = buildApp({ db: testDb });
 
@@ -243,6 +244,194 @@ describe("reset hardening", () => {
     });
     expect(stale.statusCode).toBe(400);
     expect(stale.json().error).toBe("That link is invalid or has expired.");
+  });
+});
+
+describe("forgot — per-address cap", () => {
+  test("RESET_REQUEST_CAP is 3 per RESET_REQUEST_WINDOW_MS (1 hour)", () => {
+    expect(RESET_REQUEST_CAP).toBe(3);
+    expect(RESET_REQUEST_WINDOW_MS).toBe(60 * 60 * 1000);
+  });
+
+  test("the 4th request within the window gets the same 200 body, mints no token, sends no mail", async () => {
+    const capApp = buildApp({ db: testDb });
+    try {
+      await testDb.insert(users).values({
+        name: "Capped Person",
+        email: "capped@example.com",
+        passwordHash: await argon2.hash("capped-pw-1", { type: argon2.argon2id }),
+        emailConfirmedAt: new Date(),
+        consentAt: new Date(),
+      });
+
+      for (let i = 0; i < RESET_REQUEST_CAP; i++) {
+        const res = await capApp.inject({
+          method: "POST",
+          url: "/api/auth/forgot",
+          payload: { email: "capped@example.com" },
+        });
+        expect(res.statusCode).toBe(200);
+        expect(res.json()).toEqual({ ok: true });
+      }
+
+      const fourth = await capApp.inject({
+        method: "POST",
+        url: "/api/auth/forgot",
+        payload: { email: "capped@example.com" },
+      });
+      // Same body as every under-cap and unknown-address response — the
+      // anti-oracle posture (DEPLOY.md box 7).
+      expect(fourth.statusCode).toBe(200);
+      expect(fourth.json()).toEqual({ ok: true });
+
+      const [u] = await testDb.select().from(users).where(eq(users.email, "capped@example.com"));
+      const resetTokens = await testDb
+        .select()
+        .from(emailTokens)
+        .where(and(eq(emailTokens.userId, u.id), eq(emailTokens.type, "reset")));
+      expect(resetTokens).toHaveLength(RESET_REQUEST_CAP);
+
+      const mails = await testDb
+        .select()
+        .from(emails)
+        .where(and(eq(emails.toEmail, "capped@example.com"), eq(emails.template, "reset")));
+      expect(mails).toHaveLength(RESET_REQUEST_CAP);
+    } finally {
+      await capApp.close();
+    }
+  });
+
+  test("a same-address confirm token (signup's, not reset's) doesn't consume the reset budget", async () => {
+    // Regression for the join+type-filter requirement: email_tokens has no
+    // email column and is shared by both flows (schema.ts:50-59), so a
+    // count that forgot only `type` OR forgot the join would let a fresh
+    // signup confirm token count against a stranger's reset budget.
+    const joinApp = buildApp({ db: testDb });
+    try {
+      await testDb.insert(users).values({
+        name: "Join Person",
+        email: "joincheck@example.com",
+        passwordHash: await argon2.hash("join-pw-1", { type: argon2.argon2id }),
+        emailConfirmedAt: new Date(),
+        consentAt: new Date(),
+      });
+      const [u] = await testDb.select().from(users).where(eq(users.email, "joincheck@example.com"));
+
+      for (let i = 0; i < RESET_REQUEST_CAP; i++) {
+        const t = newToken();
+        await testDb.insert(emailTokens).values({
+          userId: u.id,
+          type: "confirm",
+          tokenHash: t.hash,
+          expiresAt: new Date(Date.now() + 48 * 60 * 60 * 1000),
+        });
+      }
+
+      const res = await joinApp.inject({
+        method: "POST",
+        url: "/api/auth/forgot",
+        payload: { email: "joincheck@example.com" },
+      });
+      expect(res.statusCode).toBe(200);
+
+      const resetTokens = await testDb
+        .select()
+        .from(emailTokens)
+        .where(and(eq(emailTokens.userId, u.id), eq(emailTokens.type, "reset")));
+      expect(resetTokens).toHaveLength(1);
+    } finally {
+      await joinApp.close();
+    }
+  });
+
+  test("unknown, capped, and known-under-cap addresses all answer the identical 200 body", async () => {
+    const shapeApp = buildApp({ db: testDb });
+    try {
+      await testDb.insert(users).values({
+        name: "Shape Person",
+        email: "shapecheck@example.com",
+        passwordHash: await argon2.hash("shape-pw-1", { type: argon2.argon2id }),
+        emailConfirmedAt: new Date(),
+        consentAt: new Date(),
+      });
+
+      const unknown = await shapeApp.inject({
+        method: "POST",
+        url: "/api/auth/forgot",
+        payload: { email: "nobody-shape@example.com" },
+      });
+
+      const known = await shapeApp.inject({
+        method: "POST",
+        url: "/api/auth/forgot",
+        payload: { email: "shapecheck@example.com" },
+      });
+
+      for (let i = 0; i < RESET_REQUEST_CAP - 1; i++) {
+        await shapeApp.inject({
+          method: "POST",
+          url: "/api/auth/forgot",
+          payload: { email: "shapecheck@example.com" },
+        });
+      }
+      const capped = await shapeApp.inject({
+        method: "POST",
+        url: "/api/auth/forgot",
+        payload: { email: "shapecheck@example.com" },
+      });
+
+      expect(unknown.statusCode).toBe(200);
+      expect(known.statusCode).toBe(200);
+      expect(capped.statusCode).toBe(200);
+      expect(unknown.json()).toEqual({ ok: true });
+      expect(known.json()).toEqual({ ok: true });
+      expect(capped.json()).toEqual({ ok: true });
+      expect(unknown.json()).toEqual(known.json());
+      expect(known.json()).toEqual(capped.json());
+    } finally {
+      await shapeApp.close();
+    }
+  });
+});
+
+describe("forgot — mail failure is swallowed by neverThrow, not surfaced", () => {
+  test("a rejecting mailer still answers 200 with the standard body, and the failure is recorded", async () => {
+    // Task 2 moved the injectable mailer INSIDE the seam wrappers (app.ts):
+    // buildApp({ db, mailer }) puts this fake in the driver position with
+    // neverThrow wrapping it, so this is a real drive of the route, not a
+    // grep-level or eyeball assertion.
+    const rejecting: Mailer = {
+      send: vi.fn(async () => {
+        throw new Error("provider unreachable");
+      }),
+    };
+    const failApp = buildApp({ db: testDb, mailer: rejecting });
+    const errorSpy = vi.spyOn(failApp.log, "error");
+    try {
+      await testDb.insert(users).values({
+        name: "Oracle Person",
+        email: "oracle@example.com",
+        passwordHash: await argon2.hash("oracle-pw-1", { type: argon2.argon2id }),
+        emailConfirmedAt: new Date(),
+        consentAt: new Date(),
+      });
+
+      const res = await failApp.inject({
+        method: "POST",
+        url: "/api/auth/forgot",
+        payload: { email: "oracle@example.com" },
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({ ok: true });
+      expect(rejecting.send).toHaveBeenCalledTimes(1);
+      // The failure is recorded: neverThrow logs once instead of letting the
+      // rejection reach this handler (which would otherwise 500 a request
+      // whose real work — the token row — already committed).
+      expect(errorSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      await failApp.close();
+    }
   });
 });
 
