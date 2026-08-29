@@ -1,7 +1,7 @@
 import { describe, test, expect, beforeAll, afterAll } from "vitest";
 import argon2 from "argon2";
 import { and, eq } from "drizzle-orm";
-import { buildApp } from "../app.js";
+import { buildApp, RATE_LIMIT_MESSAGE } from "../app.js";
 import { testDb, testPool, truncateAuthTables } from "../db/testClient.js";
 import { setSetting } from "../db/settings.js";
 import { users, classes, classMembers, emails, invites, notifications, events } from "../db/schema.js";
@@ -49,6 +49,18 @@ async function notificationsFor(userId: string) {
   return testDb.select().from(notifications).where(eq(notifications.userId, userId));
 }
 
+// Same idiom as signin's own IP rotation above: every real join-by-code call
+// below gets its own source IP so it can never brush against the route's
+// per-IP throttle, whatever that limit is set to or however many join calls
+// this file grows to. (The dedicated rate-limit test further down deliberately
+// keeps ONE shared IP across its own app instance — that's the limiter itself
+// under test.)
+let joinIpCounter = 0;
+function nextJoinIp(): string {
+  joinIpCounter += 1;
+  return `10.97.${Math.floor(joinIpCounter / 250)}.${(joinIpCounter % 250) + 1}`;
+}
+
 async function createClass(cookie: string, name: string) {
   const res = await app.inject({
     method: "POST",
@@ -84,6 +96,7 @@ describe("POST /api/classes/join", () => {
     const res = await app.inject({
       method: "POST",
       url: "/api/classes/join",
+      remoteAddress: nextJoinIp(),
       cookies: { pide_session: kidCookie },
       payload: { code: ` ${openClass.joinCode.toLowerCase().replace("-", " ")} ` },
     });
@@ -95,6 +108,7 @@ describe("POST /api/classes/join", () => {
     const res = await app.inject({
       method: "POST",
       url: "/api/classes/join",
+      remoteAddress: nextJoinIp(),
       cookies: { pide_session: kidCookie },
       payload: { code: openClass.joinCode },
     });
@@ -106,6 +120,7 @@ describe("POST /api/classes/join", () => {
     const res = await app.inject({
       method: "POST",
       url: "/api/classes/join",
+      remoteAddress: nextJoinIp(),
       cookies: { pide_session: kid2Cookie },
       payload: { code: "ZZZ-ZZZ" },
     });
@@ -123,6 +138,7 @@ describe("POST /api/classes/join", () => {
     const res = await app.inject({
       method: "POST",
       url: "/api/classes/join",
+      remoteAddress: nextJoinIp(),
       cookies: { pide_session: kid2Cookie },
       payload: { code: openClass.joinCode },
     });
@@ -154,6 +170,7 @@ describe("POST /api/classes/join", () => {
     const res = await app.inject({
       method: "POST",
       url: "/api/classes/join",
+      remoteAddress: nextJoinIp(),
       cookies: { pide_session: cookie3 },
       payload: { code: openClass.joinCode },
     });
@@ -172,6 +189,7 @@ describe("POST /api/classes/join", () => {
     const res = await app.inject({
       method: "POST",
       url: "/api/classes/join",
+      remoteAddress: nextJoinIp(),
       cookies: { pide_session: kid2Cookie },
       payload: { code: second.joinCode },
     });
@@ -210,6 +228,7 @@ describe("roster", () => {
     await app.inject({
       method: "POST",
       url: "/api/classes/join",
+      remoteAddress: nextJoinIp(),
       cookies: { pide_session: (await signin("mkid3@example.com")) },
       payload: { code: openClass.joinCode },
     });
@@ -402,6 +421,7 @@ describe("removing a member revokes their outstanding pending invites", () => {
     const join = await app.inject({
       method: "POST",
       url: "/api/classes/join",
+      remoteAddress: nextJoinIp(),
       cookies: { pide_session: targetCookie },
       payload: { code: revokeClass.joinCode },
     });
@@ -453,6 +473,7 @@ describe("notification fan-out for class join (Task 5, site 8)", () => {
     const res = await app.inject({
       method: "POST",
       url: "/api/classes/join",
+      remoteAddress: nextJoinIp(),
       cookies: { pide_session: joinerCookie },
       payload: { code: cls.joinCode },
     });
@@ -489,6 +510,7 @@ describe("notification fan-out for class join (Task 5, site 8)", () => {
     const res = await app.inject({
       method: "POST",
       url: "/api/classes/join",
+      remoteAddress: nextJoinIp(),
       cookies: { pide_session: joinerCookie },
       payload: { code: cls.joinCode },
     });
@@ -506,13 +528,13 @@ describe("notification fan-out for class join (Task 5, site 8)", () => {
 });
 
 /* DEPLOY.md box 8 — join-code guessing. Plain per-IP throttle (no DB
- * counting, no lock): app.ts:41-44's own note says a route registered
+ * counting, no lock): app.ts:54-57's own note says a route registered
  * directly on the root instance has a SILENTLY INERT `config.rateLimit` —
  * memberRoutes is `app.register`ed (app.ts:63), so proving the 429 fires is
  * the only way to know this route's config actually took effect, the
  * auth.signup.test.ts / mailEvents.test.ts idiom. */
-describe("join rate limit (10/min per IP, DEPLOY.md box 8)", () => {
-  test("allows 10 requests per minute then returns 429", async () => {
+describe("join rate limit (60/min per IP, DEPLOY.md box 8)", () => {
+  test("allows 60 requests per minute then returns 429", async () => {
     // Fresh instance: the limiter's in-memory store is per-app, so this
     // can't interfere with the rest of this file's request count against
     // the shared `app`.
@@ -522,7 +544,7 @@ describe("join rate limit (10/min per IP, DEPLOY.md box 8)", () => {
       // but the rate-limit plugin hooks onRequest, which runs BEFORE any
       // preHandler — so the limiter counts (and eventually blocks) these
       // regardless of the 401 the handler chain would otherwise produce.
-      for (let i = 0; i < 10; i++) {
+      for (let i = 0; i < 60; i++) {
         const res = await rlApp.inject({
           method: "POST",
           url: "/api/classes/join",
@@ -530,12 +552,15 @@ describe("join rate limit (10/min per IP, DEPLOY.md box 8)", () => {
         });
         expect(res.statusCode).toBe(401);
       }
-      const res11 = await rlApp.inject({
+      const res61 = await rlApp.inject({
         method: "POST",
         url: "/api/classes/join",
         payload: { code: "AAA-000" },
       });
-      expect(res11.statusCode).toBe(429);
+      expect(res61.statusCode).toBe(429);
+      // DEPLOY.md box 8 — house copy, not the plugin's own default body,
+      // via app.ts's shared errorResponseBuilder.
+      expect(res61.json().error).toBe(RATE_LIMIT_MESSAGE);
     } finally {
       await rlApp.close();
     }

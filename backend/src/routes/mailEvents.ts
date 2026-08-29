@@ -67,7 +67,7 @@ export function mailEventsRoutes(app: FastifyInstance): void {
     // The only public door Plan 9 opens — Task 7 throttles everything else.
     // This must live inside a plugin scope (this function, registered via
     // `app.register` in app.ts AFTER the rate-limit plugin) or the config
-    // below is silently inert (app.ts:41-44's own note).
+    // below is silently inert (app.ts:54-57's own note).
     { config: { rateLimit: { max: 120, timeWindow: "1 minute" } } },
     async (req, reply) => {
       // Guard first, and the exact same reply either way.
