@@ -43,6 +43,14 @@ export const RESET_TTL_MS = 60 * 60 * 1000;
 export const RESET_REQUEST_CAP = 3;
 export const RESET_REQUEST_WINDOW_MS = 60 * 60 * 1000;
 
+/** classid for the forgot route's per-address advisory lock (below). The
+ *  two-argument `pg_advisory_xact_lock(classid, key)` form occupies a lock
+ *  space entirely separate from the one-argument form — this cannot collide
+ *  with signup's `pg_advisory_xact_lock(42)` or tick.ts's
+ *  `pg_advisory_xact_lock(TICK_LOCK_KEY)` regardless of the number chosen,
+ *  but a distinct, documented value keeps that obvious on read. */
+const RESET_LOCK_CLASSID = 100025;
+
 export function toAuthUser(row: typeof users.$inferSelect): AuthUser {
   return {
     id: row.id,
@@ -287,28 +295,48 @@ export function authRoutes(app: FastifyInstance): void {
       // a DIFFERENT control from the per-address cap this block adds; both
       // stay.
       if (user && user.active) {
-        const [{ count: recentResets }] = await app.db
-          .select({ count: sql<number>`count(*)::int` })
-          .from(emailTokens)
-          .innerJoin(users, eq(emailTokens.userId, users.id))
-          .where(
-            and(
-              eq(users.email, parsed.data.email),
-              eq(emailTokens.type, "reset"),
-              gt(emailTokens.createdAt, new Date(Date.now() - RESET_REQUEST_WINDOW_MS)),
-            ),
+        // The count-then-insert below is a check-then-act: without
+        // serialising it, concurrent requests for the same address can each
+        // read a count under RESET_REQUEST_CAP and all insert — the exact
+        // mail-bomb burst DEPLOY.md box 7 names, and easily reachable since
+        // several concurrent POSTs still fit under the 5/min per-IP limit
+        // above. `pg_advisory_xact_lock` keyed per-address (not the bare
+        // `pg_advisory_xact_lock(42)` signup uses above, which would
+        // serialise every reset request in the system behind one lock)
+        // closes it the same way signup's account-cap check is closed.
+        // The transaction covers ONLY the count and the insert; it commits
+        // before the mail send below runs, so a lock is never held across a
+        // provider round-trip (tick.ts's own shape: commit the dedupe rows,
+        // fan mail out after).
+        const mintedToken = await app.db.transaction(async (tx) => {
+          await tx.execute(
+            sql`SELECT pg_advisory_xact_lock(${RESET_LOCK_CLASSID}, hashtext(${parsed.data.email}))`,
           );
-        if (recentResets < RESET_REQUEST_CAP) {
+          const [{ count: recentResets }] = await tx
+            .select({ count: sql<number>`count(*)::int` })
+            .from(emailTokens)
+            .innerJoin(users, eq(emailTokens.userId, users.id))
+            .where(
+              and(
+                eq(users.email, parsed.data.email),
+                eq(emailTokens.type, "reset"),
+                gt(emailTokens.createdAt, new Date(Date.now() - RESET_REQUEST_WINDOW_MS)),
+              ),
+            );
+          if (recentResets >= RESET_REQUEST_CAP) return null;
           const reset = newToken();
-          await app.db.insert(emailTokens).values({
+          await tx.insert(emailTokens).values({
             userId: user.id,
             type: "reset",
             tokenHash: reset.hash,
             expiresAt: new Date(Date.now() + RESET_TTL_MS),
           });
+          return reset.token;
+        });
+        if (mintedToken) {
           const mail = resetEmail({
             name: user.name,
-            resetUrl: `${config.appBaseUrl}/auth/reset?token=${reset.token}`,
+            resetUrl: `${config.appBaseUrl}/auth/reset?token=${mintedToken}`,
           });
           // Accepted residual (D§10 fiat 13): this await is a real provider
           // round-trip that an unknown address's single indexed SELECT above
