@@ -31,7 +31,14 @@
 /* The primary zone takes the slack, so Run sits near the optical centre. */
 .app-header__zone--primary { flex: 1 1 auto; justify-content: center; }
 .app-header__zone--view    { margin-left: auto; }
-.app-header__account       { flex: 0 0 auto; margin-left: var(--space-1, 4px); }
+/* The account zone held ONE control until Plan 8 put the bell beside it, and
+   it had no internal spacing to give the pair — its two children laid out as
+   inline boxes with the JSX whitespace stripped, so they sat flush (measured
+   2026-08-29: bell trigger right edge 1322.1, account button left edge
+   1322.1) and the bell's unread badge, which overhangs its trigger, landed
+   2px INSIDE the account button's box. A zone with two controls spaces them
+   the way every other zone does. */
+.app-header__account       { flex: 0 0 auto; margin-left: var(--space-1, 4px); display: flex; align-items: center; gap: var(--space-2, 8px); }
 .app-header__sep {
   width: 1px;
   height: 18px;

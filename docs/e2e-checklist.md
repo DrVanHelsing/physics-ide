@@ -633,11 +633,27 @@ caught on the **existing** screens before a single new check ran:
 like the theme toggle standing right beside it, but with no rule of its own it
 fell back to `.tb-btn`'s label padding and drew **34×26** next to the toggle's
 **28×24** — two adjacent icon-only buttons in the same right cluster, visibly
-different boxes, at both headers. Fixed in `styles/platform.css`
-(`.bell-trigger { padding: var(--space-1) 5px; }` — `.tb-btn--icon`'s own
-padding, named on the class the component actually carries). Nothing the four
-new screens touched was rule-less, and the console-error audit stayed at zero
-across the new fourth context.
+different boxes, at both headers. **Fixed** by composing `.tb-btn--icon` onto
+the trigger at the call site (`NotificationBell.js`), the same utility
+`ThemeToggleButton` uses, so the icon padding keeps exactly **one** owner
+(`chrome.css`); `platform.css` carries the block name as the *scope* of the
+rule that only means anything inside it
+(`.bell-trigger .bell-trigger__inner`) rather than restating a literal the
+utility already owns. Both triggers now measure **28px wide**; the bell stays
+2px taller because its icon is 16px to the toggle's 14px.
+
+Measuring that fix at **both** headers turned up a second, separate defect the
+sweep cannot see, because it is a collision rather than an absence: Plan 8 put
+the bell into `.app-header__account`, a zone that had held **one** control and
+therefore had no internal spacing. Its two children sat flush (bell trigger
+right edge `1322.1`, account button left edge `1322.1`) and the bell's unread
+badge — which overhangs its trigger by 2px — landed **2px inside the account
+button's box**. **Fixed** in `styles/chrome.css`: the zone spaces its controls
+the way every other zone does. The badge-to-account gap is now `+6px` at both
+headers, identical.
+
+Nothing the four new screens touched was rule-less, and the console-error audit
+stayed at zero across the new fourth context.
 
 **Still uncovered after that lands**, and the reason spec §18's
 forward-reference item 6 stays open:
