@@ -4,19 +4,25 @@ import PortalHeader from "../PortalHeader";
 import { mountComponent, click } from "../../../test/renderHelpers";
 import { useTheme } from "../../../contexts/ThemeContext";
 
-/* PortalHeader renders <Link> (react-router-dom), <HeaderAccount> (which
+/* PortalHeader renders <Link> (react-router-dom), <NotificationBell> (which
+   itself calls useMe()/useQuery()/useMutation()/useQueryClient()/
+   useNavigate() — see notificationBell.test.js), <HeaderAccount> (which
    itself calls useMe()/useSignout()/useNavigate() — see HeaderAccount.test.js)
    and useTheme() directly. Stub Link the way adminTabs.test.js / classTabs.
-   test.js do, replace HeaderAccount with an identifiable marker (same mock
-   target the brief calls for — a marker instead of null so this suite can
-   assert its position in the right cluster), and stub useTheme so this suite
-   mounts with no Router, no QueryClientProvider and no ThemeProvider. */
+   test.js do, replace NotificationBell and HeaderAccount with identifiable
+   markers (same mock target the brief calls for — a marker instead of null
+   so this suite can assert their position in the right cluster), and stub
+   useTheme so this suite mounts with no Router, no QueryClientProvider and
+   no ThemeProvider. */
 vi.mock("react-router-dom", () => ({
   Link: ({ to, children, ...rest }) => (
     <a href={to} {...rest}>
       {children}
     </a>
   ),
+}));
+vi.mock("../NotificationBell", () => ({
+  default: () => <div data-testid="notification-bell" />,
 }));
 vi.mock("../../auth/HeaderAccount", () => ({
   default: () => <div data-testid="header-account" />,
@@ -127,19 +133,24 @@ describe("PortalHeader — the one portal header (spec §18 D9)", () => {
     expect(withoutTitle.querySelector(".page-header__title")).toBeNull();
   });
 
-  test("the right cluster carries ThemeToggleButton then HeaderAccount, inside the bar", () => {
+  test("the right cluster carries ThemeToggleButton, NotificationBell, then HeaderAccount, inside the bar", () => {
     useTheme.mockReturnValue({ isDark: true, toggle: vi.fn() });
     const container = render({});
     const bar = container.querySelector(".page-header__bar");
     expect(bar).not.toBeNull();
 
     const theme = bar.querySelector(".tb-btn--theme");
+    const bell = bar.querySelector('[data-testid="notification-bell"]');
     const account = bar.querySelector('[data-testid="header-account"]');
     expect(theme).not.toBeNull();
+    expect(bell).not.toBeNull();
     expect(account).not.toBeNull();
-    // Theme toggle precedes the account control in the cluster.
+    // Theme toggle precedes the bell, which precedes the account control.
     expect(
-      theme.compareDocumentPosition(account) & Node.DOCUMENT_POSITION_FOLLOWING,
+      theme.compareDocumentPosition(bell) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      bell.compareDocumentPosition(account) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
   });
 

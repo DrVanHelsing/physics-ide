@@ -31,6 +31,10 @@ vi.mock("../../../auth/useAuth", () => ({ useMe: vi.fn() }));
 // useSignout()/useNavigate() too — same stub-it-out idiom guides.test.js /
 // assignmentPage.test.js use, since only useMe is mocked above.
 vi.mock("../../auth/HeaderAccount", () => ({ default: () => null }));
+// Plan 8 Task 6: PortalHeader also mounts NotificationBell now, which calls
+// useQuery() unconditionally — same reason, same fix (its own behaviour is
+// covered by notificationBell.test.js).
+vi.mock("../../layout/NotificationBell", () => ({ default: () => null }));
 vi.mock("../../../utils/sync/syncEngine", () => ({ getGlobalSyncEngine: vi.fn() }));
 vi.mock("../../../utils/api/client", () => ({ api: vi.fn() }));
 

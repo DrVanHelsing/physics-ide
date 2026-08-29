@@ -18,6 +18,11 @@ vi.mock("../sharing/ShareDialog", () => ({
 // behaviour is covered by components/auth/__tests__/HeaderAccount.test.js.
 vi.mock("../auth/HeaderAccount", () => ({ default: () => null }));
 
+// Plan 8 Task 6: the bell calls useQuery() unconditionally too, and no
+// QueryClientProvider is mounted here — same fix, same reason as
+// HeaderAccount above. Its own behaviour is covered by notificationBell.test.js.
+vi.mock("../layout/NotificationBell", () => ({ default: () => null }));
+
 // Toolbar itself now calls useMe() directly to resolve visibleControls()'s
 // `role`/`isTeacher` axes (Task 10) — same reason, same fix: no
 // QueryClientProvider is mounted in this bare-harness suite, so stub the

@@ -409,6 +409,14 @@
   box-shadow: none;
 }
 
+/* ── Plan 8 — the bell (design D§1/D§3) ─────────────────────────────── */
+.bell-trigger__inner { position: relative; display: inline-flex; align-items: center; }
+.bell-badge { position: absolute; top: calc(-1 * var(--space-2)); right: calc(-1 * var(--space-2)); font-size: var(--fs-xs); }
+.bell-item { display: flex; align-items: center; gap: var(--space-2); max-width: 44ch; white-space: normal; text-align: left; }
+.bell-item--unread .bell-item__text { font-weight: var(--fw-medium); }
+.bell-item__dot { inline-size: 6px; block-size: 6px; border-radius: 50%; background: var(--accent); flex: none; }
+.bell-empty { margin: var(--space-2); }
+
 /* ═══════════════════════════════════════════════════════════
    PLATFORM SCREENS — the stated minimum viewport is 1024px.
    These screens (admin, classes, profile, auth) had zero responsive
