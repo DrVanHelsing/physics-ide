@@ -31,11 +31,12 @@ import { classMembers, invites, marks, projects, projectVersions, shares, users 
  * ── The enumeration (grep of app.post|put|patch|delete over
  *    backend/src/routes/*.ts, cross-checked at runtime by the coverage
  *    test at the bottom of this file, which walks fastify's own router):
- *    59 mutating routes = 50 rows + 9 named skips.
+ *    60 mutating routes = 51 rows + 9 named skips.
  *
  *      assignments.ts 17 · auth.ts 8 (all skipped) · classes.ts 5 ·
  *      admin.ts 5 · groups.ts 5 · guides.ts 4 · invites.ts 4 ·
- *      members.ts 4 · projects.ts 3 · shares.ts 3 · tick.ts 1 (skipped)
+ *      members.ts 4 · projects.ts 3 · shares.ts 3 · notifications.ts 1 ·
+ *      tick.ts 1 (skipped)
  *
  * ── The nine skips, each named in SKIPPED below:
  *    · six anonymous-by-design auth doors (signup, confirm, signin,
@@ -893,6 +894,23 @@ const MATRIX: Array<{ file: string; rows: Row[] }> = [
     ],
   },
 
+  /* ═══ notifications.ts (Plan 8) — self-scoped: the route acts on the
+   *     caller's own rows and nobody else's, so there is no cross-actor
+   *     authority to test — only the two session gates. The blessed
+   *     self-scoped single-shape members.ts's /api/classes/join and
+   *     invites.ts's /api/invites/accept already use above. ═══ */
+  {
+    file: "notifications.ts",
+    rows: [
+      {
+        name: "POST /api/notifications/read",
+        method: "POST",
+        path: () => "/api/notifications/read",
+        expect: { anon: ANON, unconfirmed: UNCONFIRMED },
+      },
+    ],
+  },
+
   /* ═══ projects.ts — the IDE core, and the ONE route family gated by
    *     requireUser rather than requireConfirmed: an unconfirmed account
    *     may still sync its own work (spec §3.1 lets them look around and
@@ -1070,11 +1088,11 @@ describe("the authority matrix — coverage", () => {
     }
   });
 
-  test("the enumeration adds up: 59 mutating routes = 50 rows + 9 skips", async () => {
+  test("the enumeration adds up: 60 mutating routes = 51 rows + 9 skips", async () => {
     await app.ready();
-    expect(MATRIX.flatMap((s) => s.rows)).toHaveLength(50);
+    expect(MATRIX.flatMap((s) => s.rows)).toHaveLength(51);
     expect(SKIPPED).toHaveLength(9);
-    expect(new Set(registeredMutating).size).toBe(59);
+    expect(new Set(registeredMutating).size).toBe(60);
   });
 });
 
