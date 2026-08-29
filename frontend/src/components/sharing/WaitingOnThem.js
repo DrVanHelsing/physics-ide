@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../utils/api/client";
+import { relativeTime } from "../../utils/relativeTime";
 
 /** The sender-side half of Plan 7's carry-forward promise, made operable
  *  (design D§8): the caller's own PENDING outgoing shares in this class,
@@ -48,6 +49,7 @@ export default function WaitingOnThem({ classId, isTeacher = false }) {
             <span className="waiting-row__to">
               {isTeacher ? `${s.sharerName} to ${s.recipientName}` : `to ${s.recipientName}`}
             </span>
+            <span className="waiting-row__meta">{relativeTime(s.createdAt)}</span>
             <button className="btn" type="button" disabled={busyId === s.id} onClick={() => revoke(s)}>
               Revoke
             </button>

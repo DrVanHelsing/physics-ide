@@ -503,6 +503,11 @@
 .share-row__from { color: var(--text-dim); font-size: var(--fs-sm); margin-inline-end: auto; }
 .waiting-on-them { margin-block-end: var(--space-6); }
 .waiting-row__to { color: var(--text-dim); font-size: var(--fs-sm); margin-inline-end: auto; }
+/* The share's age (final review M1: design D§8's "recipient name, project
+   title, sent-at" — the sent-at was never rendered). Sits after
+   .waiting-row__to's auto margin, so it rides along with the Revoke
+   button at the row's end. */
+.waiting-row__meta { color: var(--text-dim); font-size: var(--fs-sm); }
 /* The credit chip takes the same .sync-chip pill as .rules-chip beside it,
    and needs the same restraint: "Based on work shared by <name>" grows with
    the name, and an unbounded chip pushes the run status out of a 26px status

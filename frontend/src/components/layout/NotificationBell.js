@@ -12,21 +12,27 @@ import { useMe } from "../../auth/useAuth";
  *  poll; the bell has none, and mark-as-read wants invalidateQueries). */
 export const BELL_POLL_MS = 60 * 1000;
 export const BELL_EMPTY = "Nothing yet — marks, reminders and shares will land here.";
-export const NOTIFICATIONS_KEY = ["notifications"];
+/** Final review I1: the query key MUST carry the user id. The QueryClient
+ *  is a module-level singleton (App.js) and useSignout (useAuth.js) only
+ *  nulls ME_KEY — it never clears the cache — so on a shared computer a
+ *  global ["notifications"] key would let user B's first paint render user
+ *  A's cached rows (other students' names, class names, assignment
+ *  titles). Keyed per-user, B's query is simply a fresh cache entry. */
+export const NOTIFICATIONS_KEY = (userId) => ["notifications", userId];
 
 export default function NotificationBell() {
   const { data: me } = useMe();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const q = useQuery({
-    queryKey: NOTIFICATIONS_KEY,
+    queryKey: NOTIFICATIONS_KEY(me?.id),
     queryFn: () => api("/api/notifications"),
     refetchInterval: BELL_POLL_MS,
     enabled: !!me,
   });
   const markAll = useMutation({
     mutationFn: () => api("/api/notifications/read", { method: "POST", body: {} }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: NOTIFICATIONS_KEY }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: NOTIFICATIONS_KEY(me?.id) }),
   });
   if (!me) return null;
   const unread = q.data?.unreadCount ?? 0;

@@ -401,8 +401,13 @@ export function adminRoutes(app: FastifyInstance): void {
   });
 
   app.get("/api/admin/emails", async (req) => {
+    // Final review I2 (mirrored, admin-only): the same fractional hole as
+    // notifications.ts's limit — a non-integer (e.g. "1.5") reached the DB
+    // as an invalid bigint literal. Only a positive integer clamps in;
+    // anything else (negative, zero, fractional, missing, non-numeric)
+    // falls back to the default page size.
     const limitRaw = Number((req.query as { limit?: string }).limit ?? 100);
-    const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(1, limitRaw), 500) : 100;
+    const limit = Number.isInteger(limitRaw) && limitRaw > 0 ? Math.min(limitRaw, 500) : 100;
     const rows = await app.db.select().from(emails).orderBy(desc(emails.id)).limit(limit);
     return {
       emails: rows.map((e) => ({

@@ -4,6 +4,7 @@ import WaitingOnThem from "../WaitingOnThem";
 import { mountComponent, byText, click } from "../../../test/renderHelpers";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../../utils/api/client";
+import { relativeTime } from "../../../utils/relativeTime";
 
 /* Same idiom as sharedWithYou.test.js: stub react-query's hooks and the api
    client directly rather than mounting a real provider. */
@@ -13,12 +14,18 @@ vi.mock("@tanstack/react-query", () => ({
 }));
 vi.mock("../../../utils/api/client", () => ({ api: vi.fn() }));
 
+// Fixed, well-in-the-past timestamps (not "now"-relative) so relativeTime's
+// output is deterministic regardless of when the suite runs.
+const SHARE_1_CREATED_AT = new Date("2024-01-15T10:00:00Z").getTime();
+const SHARE_2_CREATED_AT = new Date("2024-03-02T10:00:00Z").getTime();
+const SHARE_3_CREATED_AT = new Date("2024-05-20T10:00:00Z").getTime();
+
 const SHARES = [
-  { id: "s-1", title: "Pendulum lab", recipientName: "Naledi", sharerName: "Me" },
-  { id: "s-2", title: "Free fall", recipientName: "Thabo", sharerName: "Me" },
+  { id: "s-1", title: "Pendulum lab", recipientName: "Naledi", sharerName: "Me", createdAt: SHARE_1_CREATED_AT },
+  { id: "s-2", title: "Free fall", recipientName: "Thabo", sharerName: "Me", createdAt: SHARE_2_CREATED_AT },
 ];
 const TEACHER_SHARES = [
-  { id: "s-3", title: "Orbit sim", recipientName: "Naledi", sharerName: "Zanele" },
+  { id: "s-3", title: "Orbit sim", recipientName: "Naledi", sharerName: "Zanele", createdAt: SHARE_3_CREATED_AT },
 ];
 
 /** Flushes the microtask queue past the click handler's chain of awaits —
@@ -73,11 +80,24 @@ describe("WaitingOnThem (Plan 8 D§8)", () => {
     buttons.forEach((b) => expect(b.textContent.trim()).toBe("Revoke"));
   });
 
-  test("teacher rows render '<sharerName> to <recipientName>'", () => {
+  // Final review M1 (design D§8: "recipient name, project title, sent-at"):
+  // the route already returns createdAt — the component just never rendered
+  // it, so a pending share had no visible age.
+  test("each row renders its sent-at age, via the tree's relativeTime idiom", () => {
+    setup();
+
+    const container = render();
+    const metas = [...container.querySelectorAll(".waiting-row__meta")].map((el) => el.textContent);
+    expect(metas).toEqual([relativeTime(SHARE_1_CREATED_AT), relativeTime(SHARE_2_CREATED_AT)]);
+  });
+
+  test("teacher rows render '<sharerName> to <recipientName>' and their sent-at age", () => {
     setup({ shares: TEACHER_SHARES });
 
     const container = render({ isTeacher: true });
     expect(container.textContent).toContain("Zanele to Naledi");
+    const meta = container.querySelector(".waiting-row__meta");
+    expect(meta.textContent).toBe(relativeTime(SHARE_3_CREATED_AT));
   });
 
   test("clicking Revoke calls the mocked revoke mutation and invalidates the outgoing query", async () => {

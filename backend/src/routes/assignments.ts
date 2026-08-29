@@ -1448,6 +1448,12 @@ export function assignmentRoutes(app: FastifyInstance): void {
     // Task 24 fix round 1: the one shared "has this student submitted"
     // derivation — also consumed by the daily tick (tick.ts).
     const status = await rosterSubmissionStatus(db, a, studentIds);
+    // Final review I3: an erased account can never sign in again and must
+    // never be reminded/emailed — but `roster` itself stays UNFILTERED, on
+    // purpose: `members`/`name` below still render "Removed student" (the
+    // scrubbed row) for the marking inbox and gradebook (D§5). Only the
+    // `recipients` a reminder actually reaches are narrowed, below.
+    const erasedIds = new Set(roster.filter((r) => r.user.erasedAt).map((r) => r.user.id));
 
     const groupEntries: InboxEntry[] = [];
     const groupedStudentIds = new Set<string>();
@@ -1484,10 +1490,11 @@ export function assignmentRoutes(app: FastifyInstance): void {
           groupId: g.id,
           name: g.name,
           members: members.map((mm) => ({ userId: mm.userId, name: mm.name })),
-          // A member who has since left the class is still named on the row
-          // (they are in the credit list) but is never emailed by it.
+          // A member who has since left the class, OR who has been erased
+          // (final review I3), is still named on the row (they are in the
+          // credit list) but is never emailed by it.
           recipients: members
-            .filter((mm) => rosterIds.has(mm.userId))
+            .filter((mm) => rosterIds.has(mm.userId) && !erasedIds.has(mm.userId))
             .map((mm) => ({ id: mm.userId, name: mm.name, email: mm.email })),
           state: sub ? "submitted" : "missing",
           late: sub ? sub.late : false,
@@ -1511,7 +1518,9 @@ export function assignmentRoutes(app: FastifyInstance): void {
           groupId: null,
           name: user.name,
           members: [],
-          recipients: [{ id: user.id, name: user.name, email: user.email }],
+          // Final review I3: an erased account is never a recipient — but
+          // still gets its own row above, "Removed student", missing.
+          recipients: user.erasedAt ? [] : [{ id: user.id, name: user.name, email: user.email }],
           state: sub ? "submitted" : "missing",
           late: sub ? sub.late : false,
           submittedAt: sub ? sub.createdAt.getTime() : null,

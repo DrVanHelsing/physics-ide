@@ -1,9 +1,9 @@
 import { describe, test, expect, vi, afterEach } from "vitest";
 import React from "react";
-import NotificationBell, { BELL_EMPTY } from "../NotificationBell";
+import NotificationBell, { BELL_EMPTY, NOTIFICATIONS_KEY } from "../NotificationBell";
 import DropdownMenu from "../../common/DropdownMenu";
 import { mountComponent, click } from "../../../test/renderHelpers";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useMe } from "../../../auth/useAuth";
 
 /* Same idiom as homeStrip.test.js / shareDialog.test.js / submitFlow.test.js:
@@ -63,6 +63,66 @@ describe("NotificationBell — guest", () => {
     const container = render();
     expect(container.firstChild).toBeNull();
     expect(useQuery).toHaveBeenCalledWith(expect.objectContaining({ enabled: false }));
+  });
+});
+
+// Final review I1: the cache must not survive a sign-out/sign-in swap on a
+// shared computer. NOTIFICATIONS_KEY is a function of the user id — asserted
+// both directly and through the hook, so a regression back to a bare
+// ["notifications"] constant fails here first.
+describe("NotificationBell — the query key is user-scoped", () => {
+  test("NOTIFICATIONS_KEY(id) — two different users produce two different keys", () => {
+    const keyA = NOTIFICATIONS_KEY("user-a");
+    const keyB = NOTIFICATIONS_KEY("user-b");
+    expect(keyA).toEqual(["notifications", "user-a"]);
+    expect(keyB).toEqual(["notifications", "user-b"]);
+    expect(keyA).not.toEqual(keyB);
+  });
+
+  test("useQuery is called with a queryKey containing the current user's id", () => {
+    useMe.mockReturnValue({ data: { id: "user-a" } });
+    useQuery.mockReturnValue({ data: { notifications: [], unreadCount: 0 } });
+    useMutation.mockReturnValue({ mutate: vi.fn(), isPending: false });
+    render();
+
+    expect(useQuery).toHaveBeenCalledWith(
+      expect.objectContaining({ queryKey: ["notifications", "user-a"] }),
+    );
+  });
+
+  test("re-rendering for a different signed-in user queries under a different key (no stale-cache leak on the shared-computer sign-out/sign-in swap)", () => {
+    useMe.mockReturnValue({ data: { id: "user-a" } });
+    useQuery.mockReturnValue({ data: { notifications: [], unreadCount: 0 } });
+    useMutation.mockReturnValue({ mutate: vi.fn(), isPending: false });
+    render();
+    const keyForA = useQuery.mock.calls.at(-1)[0].queryKey;
+
+    vi.clearAllMocks();
+    useMe.mockReturnValue({ data: { id: "user-b" } });
+    useQuery.mockReturnValue({ data: { notifications: [], unreadCount: 0 } });
+    useMutation.mockReturnValue({ mutate: vi.fn(), isPending: false });
+    render();
+    const keyForB = useQuery.mock.calls.at(-1)[0].queryKey;
+
+    expect(keyForA).toEqual(["notifications", "user-a"]);
+    expect(keyForB).toEqual(["notifications", "user-b"]);
+    expect(keyForA).not.toEqual(keyForB);
+  });
+
+  test("mark-all invalidates the SAME per-user key it queried", () => {
+    useMe.mockReturnValue({ data: { id: "user-a" } });
+    useQuery.mockReturnValue({ data: { notifications: ROWS, unreadCount: 3 } });
+    const invalidateQueries = vi.fn();
+    useMutation.mockImplementation(({ onSuccess }) => ({
+      mutate: () => onSuccess?.(),
+      isPending: false,
+    }));
+    useQueryClient.mockReturnValue({ invalidateQueries });
+    const container = render();
+
+    click(trigger(container)); // opens with unread > 0 -> fires markAll.mutate()
+
+    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ["notifications", "user-a"] });
   });
 });
 

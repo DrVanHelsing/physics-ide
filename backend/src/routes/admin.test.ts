@@ -3,6 +3,7 @@ import argon2 from "argon2";
 import { and, eq } from "drizzle-orm";
 import { BUILT_IN_RULE_SETS } from "@physics-ide/shared";
 import { buildApp } from "../app.js";
+import { config } from "../config.js";
 import { testDb, testPool, truncateAuthTables } from "../db/testClient.js";
 import { getSetting, setSetting } from "../db/settings.js";
 import {
@@ -227,6 +228,28 @@ describe("cap, emails, health", () => {
     expect(new Date(list[0].createdAt).getTime()).toBeGreaterThanOrEqual(
       new Date(list[list.length - 1].createdAt).getTime(),
     );
+  });
+
+  /* Final review I2 (mirrored, admin-only): `Math.max(1, 1.5)` is still
+   * 1.5 — a fractional or negative `limit` used to reach Postgres as an
+   * invalid bigint literal / a negative LIMIT (both 500s, verified against
+   * this same test DB via the notifications.ts sibling of this bug). */
+  test("a fractional or negative limit never reaches Postgres malformed", async () => {
+    const badFrac = await app.inject({
+      method: "GET",
+      url: "/api/admin/emails?limit=1.5",
+      cookies: { pide_session: adminCookie },
+    });
+    expect(badFrac.statusCode).toBe(200);
+    expect(Array.isArray(badFrac.json().emails)).toBe(true);
+
+    const badNeg = await app.inject({
+      method: "GET",
+      url: "/api/admin/emails?limit=-1",
+      cookies: { pide_session: adminCookie },
+    });
+    expect(badNeg.statusCode).toBe(200);
+    expect(Array.isArray(badNeg.json().emails)).toBe(true);
   });
 
   test("health reports counts", async () => {
@@ -1041,6 +1064,117 @@ describe("a merely-deactivated account still reactivates (no regression)", () =>
     const [row] = await testDb.select().from(users).where(eq(users.id, seat.id));
     expect(row.active).toBe(true);
     expect(row.erasedAt).toBeNull();
+  });
+});
+
+/* ═══════════════════════════════════════════════════════════════════════
+ * Final review finding I3 — an erased student must leave the ACTIVE
+ * reminder surfaces (the daily tick, the teacher's Remind button) while
+ * staying on the record-facing gradebook. `seedStudentWorld`'s own
+ * assignment is already submitted, so it can never surface in a "missing"
+ * list — a second, deliberately UNSUBMITTED assignment is added here to
+ * exercise the actual bug (nobody can sign into a scrubbed account, so it
+ * must never be reminded, notified, or emailed about one).
+ * ═══════════════════════════════════════════════════════════════════════ */
+describe("erase: an erased student leaves the reminder surfaces, not the gradebook", () => {
+  let world: StudentWorld;
+  let unsubmittedAssignmentId: string;
+  const HOUR = 60 * 60 * 1000;
+
+  beforeAll(async () => {
+    world = await seedStudentWorld("erm");
+
+    const draft = await app.inject({
+      method: "POST",
+      url: `/api/classes/${world.classId}/assignments`,
+      cookies: { pide_session: world.teacher.cookie },
+      payload: {
+        title: "erm Reminder Assignment",
+        submissionMode: "individual",
+        dueAt: Date.now() + 24 * HOUR,
+      },
+    });
+    expect(draft.statusCode).toBe(201);
+    unsubmittedAssignmentId = draft.json().assignment.id;
+    const published = await app.inject({
+      method: "POST",
+      url: `/api/assignments/${unsubmittedAssignmentId}/publish`,
+      cookies: { pide_session: world.teacher.cookie },
+    });
+    expect(published.statusCode).toBe(200);
+
+    const res = await erase(world.student.id, world.student.email);
+    expect(res.statusCode).toBe(200);
+  });
+
+  test("the daily tick reminds the non-erased classmate but sends nothing — no event, no bell row, no email — for the erased student", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/tick",
+      headers: { "x-tick-secret": config.tickSecret },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().sent).toBe(1); // the classmate only
+
+    const logged = await testDb.select().from(events).where(eq(events.type, "assignment.due_reminder_sent"));
+    const forThisAssignment = logged.filter(
+      (e) => (e.payload as { assignmentId?: string }).assignmentId === unsubmittedAssignmentId,
+    );
+    expect(forThisAssignment).toHaveLength(1);
+    expect((forThisAssignment[0].payload as { userId?: string }).userId).toBe(world.classmate.id);
+
+    const studentNotifs = await testDb
+      .select()
+      .from(notifications)
+      .where(eq(notifications.userId, world.student.id));
+    expect(studentNotifs).toHaveLength(0);
+
+    const studentMails = await testDb.select().from(emails).where(eq(emails.toUserId, world.student.id));
+    expect(studentMails).toHaveLength(0);
+  });
+
+  test("the teacher's Remind button excludes the erased student from the count and sends them no notification", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: `/api/assignments/${unsubmittedAssignmentId}/remind`,
+      cookies: { pide_session: world.teacher.cookie },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().reminded).toBe(1); // the classmate only
+
+    const studentNotifs = await testDb
+      .select()
+      .from(notifications)
+      .where(eq(notifications.userId, world.student.id));
+    expect(studentNotifs).toHaveLength(0);
+
+    const classmateNotifs = await testDb
+      .select()
+      .from(notifications)
+      .where(eq(notifications.userId, world.classmate.id));
+    expect(classmateNotifs.some((n) => n.type === "assignment.reminded")).toBe(true);
+  });
+
+  test("the gradebook still lists the erased student as Removed student, with their (unrelated, already-released) mark intact — the D§5 guarantee holds under this scenario too", async () => {
+    const gradebook = await app.inject({
+      method: "GET",
+      url: `/api/classes/${world.classId}/gradebook`,
+      cookies: { pide_session: world.teacher.cookie },
+    });
+    expect(gradebook.statusCode).toBe(200);
+    const body = gradebook.json() as {
+      students: Array<{ id: string; name: string }>;
+      cells: Array<{ studentId: string; assignmentId: string; points: number | null; released: boolean }>;
+    };
+    const studentRow = body.students.find((s) => s.id === world.student.id);
+    expect(studentRow).toBeDefined();
+    expect(studentRow!.name).toBe(ERASED_NAME);
+    const cell = body.cells.find(
+      (c) => c.studentId === world.student.id && c.assignmentId === world.assignmentId,
+    );
+    expect(cell).toBeDefined();
+    expect(cell!.points).toBe(8);
+    expect(cell!.released).toBe(true);
   });
 });
 
