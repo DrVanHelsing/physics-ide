@@ -2362,13 +2362,11 @@ export function assignmentRoutes(app: FastifyInstance): void {
       for (const row of releasable) {
         const student = studentById.get(row.studentId);
         if (!student) continue;
-        const mail = marksReleased({
-          title: a.title,
-          className,
-          points: row.points,
-          outOf: a.points,
-          comment: row.comment,
-        });
+        // Title and class only — the score and the teacher's comment no
+        // longer travel by email (D§10 fiat 12's data-minimisation
+        // condition; see templates.ts's marksReleased). They stay on the
+        // marking screen, in the bell, and in the data export.
+        const mail = marksReleased({ title: a.title, className });
         await app.mailer.send({ to: student.email, toUserId: student.id, template: "marks-released", ...mail });
       }
     }

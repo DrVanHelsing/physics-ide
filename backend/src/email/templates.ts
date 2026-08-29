@@ -1,5 +1,14 @@
 /** All templates return plain text — spec §9: short, plain, about one thing. */
 
+/** The five switchable templates (shared's SWITCHABLE_EMAIL_KEYS) close with
+ *  this line. It lives HERE, not in a driver, because spec §9 promises the
+ *  dev pretend inbox shows every email "exactly as it would look" — a
+ *  footer the real postman appended and the preview did not would make that
+ *  promise false and bake the divergence into a test. None of the five
+ *  carries a token URL (confirm/reset/invite do, and are not switchable), so
+ *  the suites that regex a live `token=` out of a stored body are untouched. */
+export const SWITCH_OFF_FOOTER = "You can switch these emails off on your profile page.";
+
 export function confirmEmail(p: { name: string; confirmUrl: string }) {
   return {
     subject: "Confirm your address — Physics IDE",
@@ -106,7 +115,9 @@ Submitted: ${p.submittedAt}
 Attempt:   ${p.attempt}
 Fingerprint: ${p.fingerprint}${creditedLine}
 
-Keep this fingerprint — it's the record of exactly what was submitted, and the answer if there's ever a dispute about what was turned in.`,
+Keep this fingerprint — it's the record of exactly what was submitted, and the answer if there's ever a dispute about what was turned in.
+
+${SWITCH_OFF_FOOTER}`,
   };
 }
 
@@ -130,7 +141,9 @@ export function dueReminder(p: {
 
 Your teacher noticed you haven't submitted "${title}" (${className}) yet.${dueLine}
 
-Log in to Physics IDE and submit when you're ready.`,
+Log in to Physics IDE and submit when you're ready.
+
+${SWITCH_OFF_FOOTER}`,
   };
 }
 
@@ -155,38 +168,37 @@ export function dueTomorrow(p: {
 
 "${title}" (${className}) is due soon and you haven't submitted yet.${dueLine}
 
-Log in to Physics IDE and submit when you're ready.`,
+Log in to Physics IDE and submit when you're ready.
+
+${SWITCH_OFF_FOOTER}`,
   };
 }
 
 /* ── Task 18: marks ── */
-/** Released feedback (spec §7.3) — the score (or a plain complete line for
- *  a points-less assignment) and the teacher's comment. privateNote never
- *  reaches this template — the route only ever passes it the public
- *  points/comment pair. */
-export function marksReleased(p: {
-  title: string;
-  className: string;
-  points: number | null;
-  outOf: number | null;
-  comment: string;
-}) {
+/** Released feedback (spec §7.3) — a NOTIFICATION, not a copy of the mark.
+ *  It carries neither the score nor the teacher's comment (design D§10 fiat
+ *  12's data-minimisation condition): behind a real postman this template
+ *  exported a school-aged user's mark and their teacher's words verbatim to
+ *  a sub-processor outside the country, and the delivery log then kept both
+ *  in `body_text` — which the `token=` redaction does not touch. Score and
+ *  comment stay fully visible where they belong: the marking screen, the
+ *  bell, and the data export.
+ *
+ *  The signature is narrowed to match. points/outOf/comment are not merely
+ *  unused here, they are no longer accepted, so no later edit can quietly
+ *  reintroduce them. privateNote never reached this template either. */
+export function marksReleased(p: { title: string; className: string }) {
   const title = p.title.replace(/[\r\n]+/g, " ");
   const className = p.className.replace(/[\r\n]+/g, " ");
-  const scoreLine =
-    p.outOf != null
-      ? p.points != null
-        ? `Score: ${p.points}/${p.outOf}`
-        : "Reviewed — no score recorded."
-      : "Marked complete.";
-  const commentBlock = p.comment ? `\n\n${p.comment}` : "";
   return {
     subject: `Feedback released — ${title}`,
     text: `Hi,
 
-Your marks for "${title}" (${className}) have been released.
+Your marks for "${title}" (${className}) are ready.
 
-${scoreLine}${commentBlock}`,
+Sign in to Physics IDE to see them.
+
+${SWITCH_OFF_FOOTER}`,
   };
 }
 
@@ -204,6 +216,8 @@ Your teacher has sent "${title}" (${className}) back for changes.
 
 ${p.comment}
 
-You can resubmit when you're ready.`,
+You can resubmit when you're ready.
+
+${SWITCH_OFF_FOOTER}`,
   };
 }

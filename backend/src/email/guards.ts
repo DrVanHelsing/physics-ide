@@ -1,5 +1,6 @@
 import type { Db } from "../db/types.js";
 import { createDevMailer, type Mailer, type MailMessage } from "./mailer.js";
+import { createBrevoMailer } from "./brevoMailer.js";
 
 /** Retention's erased-user rewrite (D§3) points a departed user's stored
  *  `to` at this sentinel domain so any address a stale send still carries —
@@ -48,14 +49,25 @@ export function neverThrow(log: MinimalLogger, inner: Mailer): Mailer {
   };
 }
 
-/** Replaced in Task 3 once the real Brevo driver exists. */
-export const BREVO_DRIVER_NOT_IMPLEMENTED = "MAIL_DRIVER=brevo has no driver yet — Task 3 adds it.";
+/** config.ts's superRefine already refuses to parse a `brevo` environment
+ *  without both of these, so reaching this is a programming error rather
+ *  than a misconfiguration — but the driver takes them as required strings,
+ *  and a boot that silently posted `undefined` as its api-key would fail
+ *  once per send instead of once, loudly, at startup. */
+export const BREVO_CONFIG_INCOMPLETE =
+  "MAIL_DRIVER=brevo requires MAIL_FROM and BREVO_API_KEY.";
 
 /** Picks the Mailer implementation named by config.mailDriver. `dev` is the
- *  pretend inbox (byte-identical to today); `brevo` throws until Task 3
- *  lands the real driver, so a production boot that reaches this branch
- *  fails loudly instead of quietly writing live mail into the dev table. */
-export function selectMailDriver(config: { mailDriver: "dev" | "brevo" }, db: Db): Mailer {
-  if (config.mailDriver === "brevo") throw new Error(BREVO_DRIVER_NOT_IMPLEMENTED);
+ *  pretend inbox (byte-identical to before this task: full bodies,
+ *  clickable tokens, status `dev`); `brevo` is the real postman, which
+ *  writes its own rows with redacted bodies and honest statuses. */
+export function selectMailDriver(
+  config: { mailDriver: "dev" | "brevo"; mailFrom?: string; brevoApiKey?: string },
+  db: Db,
+): Mailer {
+  if (config.mailDriver === "brevo") {
+    if (!config.mailFrom || !config.brevoApiKey) throw new Error(BREVO_CONFIG_INCOMPLETE);
+    return createBrevoMailer(db, { mailFrom: config.mailFrom, brevoApiKey: config.brevoApiKey });
+  }
   return createDevMailer(db);
 }

@@ -64,6 +64,13 @@
       "when": 1787992288730,
       "tag": "0008_material_magus",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1788024492961,
+      "tag": "0009_boring_luckman",
+      "breakpoints": true
     }
   ]
 }

@@ -59,17 +59,35 @@ export const emailTokens = pgTable("email_tokens", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-/** Every email the system "sends" — the dev pretend inbox and the future email log (spec §9). */
-export const emails = pgTable("emails", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  toEmail: text("to_email").notNull(),
-  toUserId: uuid("to_user_id"),
-  template: text("template").notNull(),
-  subject: text("subject").notNull(),
-  bodyText: text("body_text").notNull(),
-  status: text("status").notNull().default("dev"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+/** Every email the system "sends" — the dev pretend inbox (spec §9) and,
+ *  behind MAIL_DRIVER=brevo, the real delivery log. */
+export const emails = pgTable(
+  "emails",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    toEmail: text("to_email").notNull(),
+    toUserId: uuid("to_user_id"),
+    template: text("template").notNull(),
+    subject: text("subject").notNull(),
+    bodyText: text("body_text").notNull(),
+    /** "dev" (pretend inbox) | "sending" | "sent" | "failed" — the last
+     *  three are the brevo driver's, written row-first then updated. */
+    status: text("status").notNull().default("dev"),
+    /** The provider's message id, angle brackets stripped so it is
+     *  byte-comparable with the webhook's own `message-id` (see
+     *  brevoMailer.ts). Nullable: the dev driver never sets it, and
+     *  neither does a send that failed before the provider answered. */
+    providerId: text("provider_id"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    // `emails` carried no index at all through 0000-0008. The delivery
+    // webhook looks a row up by provider id on every event, and the
+    // retention prune scans by age — both were seq scans over the whole log.
+    index("emails_provider_id_idx").on(t.providerId),
+    index("emails_created_at_idx").on(t.createdAt),
+  ],
+);
 
 /** Classrooms (spec §4). joinMode: "open" | "approval" | "paused". */
 export const classes = pgTable("classes", {

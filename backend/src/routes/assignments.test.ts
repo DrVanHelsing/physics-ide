@@ -2826,8 +2826,15 @@ describe("Task 18: marks — PUT / release / return", () => {
     const emailRows = await testDb.select().from(emails).where(eq(emails.toUserId, studentId));
     const released = emailRows.find((e) => e.template === "marks-released" && e.subject.includes("Teacher Releases One"));
     expect(released).toBeDefined();
-    expect(released!.bodyText).toContain("9/10");
-    expect(released!.bodyText).toContain("Excellent.");
+    // D§10 fiat 12's data minimisation: the release email is a NOTIFICATION,
+    // not a copy of the mark. Neither the score nor the teacher's comment
+    // travels by email any more (both stay on the marking screen, in the
+    // bell and in the export) — so this asserts their ABSENCE, which is the
+    // property the fiat actually bought.
+    expect(released!.bodyText).not.toContain("9/10");
+    expect(released!.bodyText).not.toContain("Excellent.");
+    expect(released!.bodyText).toContain("are ready");
+    expect(released!.bodyText).toContain("Sign in to Physics IDE to see them.");
   });
 
   // Task 5, site 2: recipients are exactly the release route's own
