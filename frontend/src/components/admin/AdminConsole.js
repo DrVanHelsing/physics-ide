@@ -391,7 +391,7 @@ export function HealthTab() {
    adminStatus.test.js. */
 export const RETENTION_SENTENCE =
   "This cannot be undone. Once saved, every archived class older than the " +
-  "new period is deleted automatically on the next daily sweep — the " +
+  "new period is deleted automatically by the daily sweep — the " +
   "class, its work and its marks go.";
 
 /* The cap editor one scroll up (PeopleTab, above) is a bare number input
