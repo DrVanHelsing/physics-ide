@@ -160,11 +160,11 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  // truncateAuthTables deliberately never touches `settings` (it is not an
-  // auth-domain table), and the retention blocks below pin `retention_years`
-  // so their partition is measured against a known clock. Put the key back
-  // the way this file found it: admin.test.ts asserts the row is ABSENT
-  // before its own PUT, and vitest's file order is not this file's to assume.
+  // `settings` IS in truncateAuthTables' list now (review round 1), so the
+  // next file starts clean structurally. This delete stays as this file's
+  // own cleanup of the key it wrote: a `retention_years` this file leaves
+  // behind is a `retention_years` it is responsible for, whatever the next
+  // file does first.
   await testDb.delete(settings).where(eq(settings.key, "retention_years"));
   await app.close();
   await testPool.end();
@@ -645,6 +645,7 @@ describe("POST /api/tick — the retention sweep (design D§7)", () => {
   let keptUnarchived: SeededClass;
   let keptRecent: SeededClass;
   let sweptNotificationIds: number[];
+  let keptRecentNotificationIds: number[];
   let sweptMemberCount: number;
   let firstTickBody: { reminders: number; retentionClasses: number; emailsPruned: number };
 
@@ -671,6 +672,7 @@ describe("POST /api/tick — the retention sweep (design D§7)", () => {
     await archiveBackdated(keptRecent.classId, teacher.cookie, 1 * YEAR);
 
     sweptNotificationIds = (await notificationsForClass(swept.classId)).map((n) => n.id);
+    keptRecentNotificationIds = (await notificationsForClass(keptRecent.classId)).map((n) => n.id);
     const memberRows = await testDb
       .select()
       .from(classMembers)
@@ -721,6 +723,19 @@ describe("POST /api/tick — the retention sweep (design D§7)", () => {
       await testDb.select().from(notifications).where(inArray(notifications.id, sweptNotificationIds)),
     ).toHaveLength(0);
     expect(await notificationsForClass(swept.classId)).toHaveLength(0);
+  });
+
+  test("the SURVIVING classes keep their bell rows — the payload-keyed delete is scoped, not global", async () => {
+    // Pinned by pre-tick ids, not a bare count: the reminder pass writes
+    // NEW bell rows for the kept classes in this same tick, so a count
+    // alone would stay green through a delete-every-notification bug.
+    expect(keptRecentNotificationIds.length).toBeGreaterThanOrEqual(1);
+    expect(
+      await testDb
+        .select()
+        .from(notifications)
+        .where(inArray(notifications.id, keptRecentNotificationIds)),
+    ).toHaveLength(keptRecentNotificationIds.length);
   });
 
   test("NO projects row is touched — the group's shared workspace and the individual assignment project both survive (fiat 11)", async () => {
@@ -872,5 +887,41 @@ describe("POST /api/tick — the sweep is capped at five classes per tick (D§7)
     // One ledger row per class, never one per tick.
     const rows = await testDb.select().from(events).where(eq(events.type, "class.retention_deleted"));
     expect(rows.filter((e) => ids.includes((e.payload as { classId?: string }).classId ?? ""))).toHaveLength(7);
+  });
+});
+
+describe("POST /api/tick — a retention failure cannot stop the reminder pass (isolate-and-log)", () => {
+  test("sweep failure -> 200, retentionFailed: true, reminders still go out", async () => {
+    // A fresh class with one unsubmitted student, so the reminder pass has
+    // exactly one thing to prove it ran — every earlier (assignment,
+    // student) pair in this file is already deduped by its own tick.
+    const t = await makeUser("retention-failure-teacher@example.com", { isTeacher: true });
+    const teacher = { id: t.id, cookie: await signin("retention-failure-teacher@example.com") };
+    await seedFullClass("retention-failure", teacher);
+
+    // Real fault injection at the integration level: with `settings` gone,
+    // the sweep's period read throws before it can select a single class.
+    // D§7's named harm is reminders stopping indefinitely behind a broken
+    // sweep — this pins the isolation that prevents it.
+    await testPool.query('ALTER TABLE "settings" RENAME TO "settings_broken"');
+    try {
+      const res = await tick(config.tickSecret);
+      expect(res.statusCode).toBe(200);
+      const body = res.json();
+      expect(body.retentionFailed).toBe(true);
+      expect(body.retentionClasses).toBe(0);
+      expect(body.emailsPruned).toBe(0);
+      expect(body.reminders).toBe(1);
+      // The failure key appears ONLY on failure — the happy-path shape
+      // test above pins its absence.
+      expect(Object.keys(body).sort()).toEqual([
+        "emailsPruned",
+        "reminders",
+        "retentionClasses",
+        "retentionFailed",
+      ]);
+    } finally {
+      await testPool.query('ALTER TABLE "settings_broken" RENAME TO "settings"');
+    }
   });
 });

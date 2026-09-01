@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { and, desc, eq, ilike, inArray, isNotNull, lte, ne, notInArray, or, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, isNotNull, ne, notInArray, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import {
   users,
@@ -24,6 +24,7 @@ import {
   events,
 } from "../db/schema.js";
 import { getSetting, setSetting } from "../db/settings.js";
+import { eligibleForRetention, readRetentionYears, YEAR_MS } from "../db/retention.js";
 import { requireAdmin } from "../auth/guards.js";
 import { destroyAllUserSessions } from "../auth/session.js";
 import { logEvent } from "../db/events.js";
@@ -40,10 +41,6 @@ const CapSchema = z.object({ cap: z.number().int().min(1).max(10000) });
  *  account cap, and the two settings should never be able to drift into
  *  sharing validation by accident. */
 const RetentionSchema = z.object({ retentionYears: z.number().int().min(1).max(50) });
-/** classes.ts's own CLASS_CREATE_WINDOW_MS idiom, reused: an "N years ago"
- *  cutoff is a JS Date computed here and compared in SQL, not an interval
- *  built inside the query — the tree's one way of doing this arithmetic. */
-const YEAR_MS = 365 * 24 * 60 * 60 * 1000;
 /** The erase confirmation is the account's CURRENT email typed back — the
  *  reversible neighbour (Deactivate) is one button away, and email is the
  *  UNIQUE column (design D§5). */
@@ -430,16 +427,14 @@ export function adminRoutes(app: FastifyInstance): void {
     return { ok: true, cap: parsed.data.cap };
   });
 
-  /* §11's retention clock (Task 8): the count is a PREVIEW, not a promise —
-   * nothing is deleted here or by the sweep this task builds toward yet
-   * (Task 9). `getSetting` returns `unknown` (db/settings.ts:8), so the
-   * stored value is guarded through the same `typeof … === "number"`
-   * pattern auth.ts already uses for the signup cap (auth.ts:101) — a row
-   * holding `0`, `null` or `"3"` must never reach the cutoff arithmetic
-   * below. */
+  /* §11's retention clock (Task 8): the count is a PREVIEW of what the
+   * daily tick's sweep (tick.ts, Task 9) deletes — nothing is deleted
+   * HERE. The period read, the `YEAR_MS` clock and the eligibility
+   * predicate are the same db/retention.ts symbols the sweep itself uses,
+   * which is what makes this count a promise the sweep keeps rather than
+   * a copy it could drift from. */
   app.get("/api/admin/retention", async (req) => {
-    const stored = await getSetting(app.db, "retention_years");
-    const current = typeof stored === "number" ? stored : 3;
+    const current = await readRetentionYears(app.db);
     // An optional candidate preview (Ruling 3): ?years=N previews what N
     // would delete right now, without touching the stored setting. Anything
     // that isn't a valid 1–50 integer falls back to the stored value —
@@ -454,7 +449,7 @@ export function adminRoutes(app: FastifyInstance): void {
     const [{ count: wouldDelete }] = await app.db
       .select({ count: sql<number>`count(*)::int` })
       .from(classes)
-      .where(and(eq(classes.archived, true), lte(classes.archivedAt, cutoff)));
+      .where(eligibleForRetention(cutoff));
     return { retentionYears, wouldDelete };
   });
 

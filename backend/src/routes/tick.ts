@@ -18,7 +18,7 @@ import {
   users,
 } from "../db/schema.js";
 import { logEvent } from "../db/events.js";
-import { getSetting } from "../db/settings.js";
+import { eligibleForRetention, readRetentionYears, YEAR_MS } from "../db/retention.js";
 import { notify } from "../notifications/notify.js";
 import { config } from "../config.js";
 import { dueTomorrow } from "../email/templates.js";
@@ -54,11 +54,6 @@ const RETENTION_LOCK_KEY = 100028;
 /** One event per swept class, never one per tick — `events` rows are NEVER
  *  deleted (D§7), so this ledger row is what outlives the class. */
 const CLASS_RETENTION_DELETED = "class.retention_deleted";
-
-/** classes.ts's CLASS_CREATE_WINDOW_MS idiom, and byte-for-byte the constant
- *  admin.ts's retention PREVIEW uses: an "N ago" cutoff is a JS Date computed
- *  here and compared in SQL, never an interval built inside the query. */
-const YEAR_MS = 365 * DAY_MS;
 
 /** D§7 / fiat 7: the emails log is an operational surface (§10's
  *  "once-a-week glance"), not a §11 record — §11's "What we store" list
@@ -138,15 +133,15 @@ async function countClassScoped(tx: SweepTx, classId: string): Promise<Record<st
  *  after the reminder transaction had already queued its mail would have a
  *  real postman deliver a reminder for a class that no longer exists.
  *
- *  The eligibility predicate is COPIED, not re-derived, from the admin
- *  preview at `GET /api/admin/retention` (admin.ts, "the count is a PREVIEW"
- *  comment): the same `retention_years` setting behind the same
- *  `typeof … === "number" ? … : 3` guard, the same `Date.now() - years *
- *  YEAR_MS` cutoff and the same inclusive
- *  `and(eq(classes.archived, true), lte(classes.archivedAt, cutoff))`.
- *  The preview is a promise about what this function will delete; the two
- *  must never be able to disagree. `lte` on a NULL `archivedAt` is NULL, so
- *  a never-archived class is spared by the column as well as by the flag.
+ *  The eligibility predicate is SHARED, not copied: `eligibleForRetention`,
+ *  the `retention_years` read and the `YEAR_MS` clock live in
+ *  db/retention.ts, imported by both this sweep and the admin preview at
+ *  `GET /api/admin/retention`. The preview is a promise about what this
+ *  function will delete, and one symbol is what makes disagreement
+ *  structurally impossible — copy-discipline is the exact class of drift
+ *  task 24's review already caught once (see rosterSubmissionStatus).
+ *  `lte` on a NULL `archivedAt` is NULL, so a never-archived class is
+ *  spared by the column as well as by the flag.
  *
  *  Select-and-delete happen inside the SAME locked transaction, so two
  *  overlapping ticks can never both claim the same class and write two
@@ -154,29 +149,27 @@ async function countClassScoped(tx: SweepTx, classId: string): Promise<Record<st
  *  order it aged. */
 async function sweepRetiredClasses(db: Db, cutoff: Date): Promise<number> {
   let swept = 0;
-  while (swept < RETENTION_MAX_CLASSES_PER_TICK) {
-    const didOne = await db.transaction(async (tx) => {
+  // Bounded attempts, not `while (true)`: a "raced" outcome below retries
+  // with a fresh select, and the bound keeps even a pathological
+  // archive/unarchive flip-flop from holding the tick open.
+  for (
+    let attempts = 0;
+    swept < RETENTION_MAX_CLASSES_PER_TICK && attempts < RETENTION_MAX_CLASSES_PER_TICK * 2;
+    attempts += 1
+  ) {
+    const outcome = await db.transaction(async (tx): Promise<"deleted" | "raced" | "none"> => {
       await tx.execute(sql`SELECT pg_advisory_xact_lock(${RETENTION_LOCK_KEY})`);
       const [c] = await tx
         .select({ id: classes.id, name: classes.name })
         .from(classes)
-        .where(and(eq(classes.archived, true), lte(classes.archivedAt, cutoff)))
+        .where(eligibleForRetention(cutoff))
         .orderBy(classes.archivedAt)
         .limit(1);
-      if (!c) return false;
+      if (!c) return "none";
 
       const counts = await countClassScoped(tx, c.id);
 
-      // 1. The class's bell rows. `notifications` has NO FK to `classes` —
-      //    it is keyed on `users.id` and `events.id` only — and its link to
-      //    the class is the denormalised `classId` every class-scoped
-      //    notify() call site writes into the payload. Without this, every
-      //    swept class leaves live bell rows pointing at 404s. Same
-      //    "delivery state, not history" category the erase route deletes
-      //    explicitly (admin.ts).
-      await tx.delete(notifications).where(sql`${notifications.payload}->>'classId' = ${c.id}`);
-
-      // 2. The class itself, and the FK cascade carries the rest:
+      // 1. The class itself, and the FK cascade carries the rest:
       //    class_members, invites, assignments, guides, shares, and
       //    transitively submissions, marks, groups, group_members and
       //    assignment_work. Enumerating manual deletes for tables that
@@ -186,14 +179,35 @@ async function sweepRetiredClasses(db: Db, cutoff: Date): Promise<number> {
       //    owned sync meta, so syncEngine.js would push it straight back on
       //    the next reconcile — a deletion that undoes itself is worse than
       //    no deletion, and individual assignment work was always kept.
-      await tx.delete(classes).where(eq(classes.id, c.id));
+      //    The predicate is RE-ASSERTED on the delete, not just the id:
+      //    under READ COMMITTED a teacher's unarchive can commit between
+      //    the select above and this statement, and the product's one
+      //    irreversible statement does not get to win that race on a stale
+      //    read (review round 1).
+      const gone = await tx
+        .delete(classes)
+        .where(and(eq(classes.id, c.id), eligibleForRetention(cutoff)))
+        .returning({ id: classes.id });
+      if (gone.length === 0) return "raced";
+
+      // 2. The class's bell rows. `notifications` has NO FK to `classes` —
+      //    it is keyed on `users.id` and `events.id` only — and its link to
+      //    the class is the denormalised `classId` every class-scoped
+      //    notify() call site writes into the payload. Without this, every
+      //    swept class leaves live bell rows pointing at 404s. Same
+      //    "delivery state, not history" category the erase route deletes
+      //    explicitly (admin.ts).
+      await tx.delete(notifications).where(sql`${notifications.payload}->>'classId' = ${c.id}`);
 
       // 3. The ledger row that outlives it, in this same transaction.
       await logEvent(tx, CLASS_RETENTION_DELETED, null, { classId: c.id, name: c.name, counts });
-      return true;
+      return "deleted";
     });
-    if (!didOne) break;
-    swept += 1;
+    if (outcome === "none") break;
+    if (outcome === "deleted") swept += 1;
+    // "raced": the class stopped being eligible mid-flight — nothing was
+    // written for it, no ledger row exists, and the next select cannot
+    // pick it again.
   }
   return swept;
 }
@@ -305,16 +319,30 @@ export function tickRoutes(app: FastifyInstance): void {
     // ── Retention FIRST (design D§7) ──────────────────────────────────────
     // Before the reminder transaction, in transactions of its own, under a
     // lock key of its own. See sweepRetiredClasses for why both halves of
-    // that matter. The period is a SETTING, read through the same
-    // `typeof … === "number"` guard the admin preview uses, because
-    // `getSetting` returns `unknown` (db/settings.ts) and a row holding `0`,
-    // `null` or `"3"` must never reach this arithmetic — this is the
-    // trigger of an irreversible mass delete, not a display default.
-    const stored = await getSetting(app.db, "retention_years");
-    const retentionYears = typeof stored === "number" ? stored : 3;
-    const cutoff = new Date(Date.now() - retentionYears * YEAR_MS);
-    const retentionClasses = await sweepRetiredClasses(app.db, cutoff);
-    const emailsPruned = await pruneEmailLog(app.db, new Date(now.getTime() - EMAIL_LOG_MAX_AGE_MS));
+    // that matter. The period read, the clock and the eligibility predicate
+    // are the SAME symbols the admin preview uses (db/retention.ts), so the
+    // count an admin confirmed is the set this sweep deletes.
+    //
+    // Isolated, not load-bearing (review round 1): D§7's named harm is
+    // "due-tomorrow reminders stop indefinitely" behind a broken sweep, and
+    // the per-class transactions already make half-deleted state
+    // unreachable — aborting the tick would protect nothing. So a sweep
+    // failure is logged at error level, surfaced in the body, and the
+    // reminder pass runs regardless: the chore cannot hold the promise
+    // hostage. One catch around BOTH halves, never per class — a per-class
+    // catch would skip a poison head-of-queue class silently forever.
+    let retentionClasses = 0;
+    let emailsPruned = 0;
+    let retentionFailed = false;
+    try {
+      const retentionYears = await readRetentionYears(app.db);
+      const cutoff = new Date(Date.now() - retentionYears * YEAR_MS);
+      retentionClasses = await sweepRetiredClasses(app.db, cutoff);
+      emailsPruned = await pruneEmailLog(app.db, new Date(now.getTime() - EMAIL_LOG_MAX_AGE_MS));
+    } catch (err) {
+      req.log.error(err, "retention sweep failed");
+      retentionFailed = true;
+    }
 
     // Cloud Scheduler's at-least-once/retry semantics (and, in dev, a slow
     // interval call overlapping the next hour's) make two overlapping ticks
@@ -382,7 +410,12 @@ export function tickRoutes(app: FastifyInstance): void {
     // Honest names (D§7): `sent` was a lie the moment the tick did more than
     // one thing — and it never counted sends anyway, only reminders decided
     // on (a preference-gated recipient still counts here, and no email
-    // leaves for them). Three numbers, each naming the pass that produced it.
-    return { reminders: toSend.length, retentionClasses, emailsPruned };
+    // leaves for them). Three numbers, each naming the pass that produced it
+    // — plus `retentionFailed: true` ONLY when the sweep threw, because the
+    // response an operator curls is the one place a failure is actually
+    // seen, where a Scheduler error log is not.
+    return retentionFailed
+      ? { reminders: toSend.length, retentionClasses, emailsPruned, retentionFailed: true }
+      : { reminders: toSend.length, retentionClasses, emailsPruned };
   });
 }

@@ -397,7 +397,8 @@ export const RETENTION_SENTENCE =
 /* The cap editor one scroll up (PeopleTab, above) is a bare number input
    and one Save button — fine for a setting that only ever grows a limit.
    This one destroys data with no undo, so Save opens a confirm step naming
-   exactly how many classes the candidate value would delete right now
+   exactly how many classes the candidate value makes eligible for the
+   daily sweep, which drains them in small batches
    (GET /api/admin/retention?years=N, fetched fresh, never estimated),
    echoing the tree's own destructive precedent: DataRequestsTab's erase
    dialog, which makes an admin retype the subject's email before it acts. */
@@ -469,9 +470,10 @@ function RetentionControl() {
           <h2 className="erase-dialog__title">Change retention period</h2>
           <p>{RETENTION_SENTENCE}</p>
           <p>
-            At <strong>{years}</strong> {years === 1 ? "year" : "years"}, this would delete{" "}
+            At <strong>{years}</strong> {years === 1 ? "year" : "years"},{" "}
             <strong>{previewQuery.isLoading ? "…" : (wouldDelete ?? 0)}</strong>{" "}
-            {wouldDelete === 1 ? "class" : "classes"} right now.
+            {wouldDelete === 1 ? "class qualifies" : "classes qualify"} for deletion — removed in
+            small batches by the daily cleanup, not all at once.
           </p>
           {saveRetention.error ? (
             <div className="alert alert--danger" role="alert">
