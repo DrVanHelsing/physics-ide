@@ -229,6 +229,64 @@ export function useProject() {
     [captureWorkingStateInto, proj],
   );
 
+  /* ── Hybrid analyse stash / restore (data-loss hotfix, 2026-09-01) ──
+     "Analyse this run →" used to hard-replace the simulation workspace
+     with the analysis template: no confirmation, no way back, and the
+     debounced autosave above made the loss permanent within seconds.
+     These two ops make the SAME autosave carry the recovery instead —
+     the outgoing simulation state is stashed in the manifest itself
+     (`hybridStash`), so it survives reload and sync like any other
+     project field, and the presence of the stash is what tells the
+     header to offer the way back. The confirms live here beside the ops
+     they guard, handleClearWorkspace's idiom (useSimulation.js). */
+  const analyseStash = useCallback(async () => {
+    if (!proj.activeManifest) return null;
+    const { confirm } = await import("../utils/export/dialogService");
+    const ok = await confirm(
+      "Open the analysis workspace? Your simulation blocks are saved with this project — Back to Simulation brings them back.",
+    );
+    if (!ok) return null;
+    /* Capture first (renameProject's idiom), so the stash and the manifest
+       both carry what the student typed since the last autosave. Latest
+       wins: re-entering analysis re-stashes the CURRENT blocks. */
+    const base = captureWorkingStateInto(proj.activeManifest);
+    return proj.persistActive({
+      ...base,
+      hybridStash: {
+        xml: sim.workspaceXml || "",
+        python: sim.pythonCode || "",
+        projectType: sim.projectType || "custom",
+      },
+      updatedAt: Date.now(),
+    });
+  }, [captureWorkingStateInto, proj, sim]);
+
+  const analyseRestore = useCallback(async () => {
+    const stash = proj.activeManifest?.hybridStash;
+    if (!stash) return null;
+    const { confirm } = await import("../utils/export/dialogService");
+    const ok = await confirm(
+      "Return to your simulation blocks? The analysis blocks will be discarded — Analyse this run starts a fresh analysis.",
+    );
+    if (!ok) return null;
+    /* Deliberately NOT captureWorkingStateInto: discarding the analysis
+       working state is the confirmed action. The stash's fields are
+       promoted back and the stash itself is removed — its absence is what
+       returns the header's reset slot to its ordinary job. */
+    const rest = { ...proj.activeManifest };
+    delete rest.hybridStash;
+    const saved = await proj.persistActive({
+      ...rest,
+      projectType: stash.projectType || "block_template",
+      preferredEditor: "blocks",
+      workspace: { ...(rest.workspace || {}), xml: typeof stash.xml === "string" ? stash.xml : "" },
+      source: { ...(rest.source || {}), python: typeof stash.python === "string" ? stash.python : "" },
+      updatedAt: Date.now(),
+    });
+    applyManifestToWorkingState(saved);
+    return saved;
+  }, [applyManifestToWorkingState, proj]);
+
   return {
     /* state passthrough */
     activeProjectId: proj.activeProjectId,
@@ -248,5 +306,7 @@ export function useProject() {
     applyManifestToWorkingState,
     captureWorkingStateInto,
     addRunAndDataset,
+    analyseStash,
+    analyseRestore,
   };
 }
