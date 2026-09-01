@@ -373,13 +373,18 @@ export default function IDELayout() {
   const [workspaceReloadKey, setWorkspaceReloadKey] = useState(0);
 
   const handleAnalyseRun = useCallback(
-    (label) => {
+    async (label) => {
       const pairing = proj.activeManifest?.hybridPairing;
       if (!pairing?.analysisId) return;
       const tpl = DS_TEMPLATES.find((t) => t.id === pairing.analysisId);
       if (!tpl?.xml) return;
       // Auto-fill the placeholder with the just-promoted run label.
       const xml = tpl.xml.split("paste-trace-label-here").join(label || "");
+      // Ask first, stash second (the manifest keeps the outgoing blocks),
+      // replace last — cancel leaves the workspace untouched. Both the
+      // confirm and the stash live in useProject.analyseStash.
+      const stashed = await proj.analyseStash();
+      if (!stashed) return;
       if (dbg.debugMode) dbg.handleExitDebug();
       sim.loadWorkspaceXml(xml);
       setWorkspaceReloadKey((k) => k + 1);
@@ -387,6 +392,18 @@ export default function IDELayout() {
     },
     [proj, sim, dbg]
   );
+
+  /* The way back: restore the stashed simulation blocks. While a stash
+     exists the header's reset slot offers this instead of the text-mode
+     "Back to Blocks" (Toolbar relabels it "Back to Simulation"). */
+  const handleReturnToSim = useCallback(async () => {
+    const restored = await proj.analyseRestore();
+    if (!restored) return;
+    if (dbg.debugMode) dbg.handleExitDebug();
+    sim.handleStop();
+    setWorkspaceReloadKey((k) => k + 1);
+    setChartDataset(null);
+  }, [proj, sim, dbg]);
 
   /* ── Trace promote dialog ─────────────────────────────────── */
   const [showTraceDialog, setShowTraceDialog] = useState(false);
@@ -623,7 +640,8 @@ export default function IDELayout() {
         onImport={sim.handleImport}
         onExportProject={handleExportProject}
         onImportProject={handleImportProject}
-        onReset={sim.handleResetToBlocks}
+        onReset={proj.activeManifest?.hybridStash ? handleReturnToSim : sim.handleResetToBlocks}
+        analysisReturn={Boolean(proj.activeManifest?.hybridStash)}
         onClearWorkspace={sim.handleClearWorkspace}
         onToggleTheme={toggleTheme}
         onHome={handleGoHome}

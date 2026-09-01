@@ -51,6 +51,7 @@ function Toolbar({
   onExportProject,
   onImportProject,
   onReset,
+  analysisReturn = false,
   onClearWorkspace,
   onToggleTheme,
   onHome,
@@ -316,8 +317,11 @@ function Toolbar({
     },
     reset: onReset && {
       key: "reset",
-      label: "Return to the block editor",
-      short: "Back to Blocks",
+      /* While a hybrid analyse stash exists, this slot IS the way back to
+         the stashed simulation blocks (IDELayout passes the restore
+         handler); otherwise it is the ordinary text→blocks return. */
+      label: analysisReturn ? "Return to the simulation blocks" : "Return to the block editor",
+      short: analysisReturn ? "Back to Simulation" : "Back to Blocks",
       icon: RefreshIcon,
       onClick: onReset,
     },
