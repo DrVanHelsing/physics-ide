@@ -359,6 +359,25 @@ describe("PrivacyPage — /privacy — §11's plain statements, pinned", () => {
         "— including a teacher's record of opening your timeline, which is theirs to be " +
         "accountable for, not yours to hold.",
     );
+    /* §11's retention statement (Task 9, design D§7). This section had NO
+     * lock at all until the sweep shipped — grepping this file for
+     * retention/three years/proposal/"How long" returned nothing — so the
+     * one paragraph on the page that describes an IRREVERSIBLE delete was
+     * the only one that could drift silently. Three pins, because the copy
+     * makes three separate promises the running code has to keep: what the
+     * rule IS, what SURVIVES it (fiat 11 — no `projects` row is touched),
+     * and that the period is a setting rather than a law. */
+    expect(text).toContain(
+      "An archived class is kept for three years and then deleted automatically",
+    );
+    expect(text).toContain("the class, its assignments, its submissions and its marks all go");
+    expect(text).toContain("Students keep their own project libraries");
+    expect(text).toContain("An administrator can change the period");
+    // The honesty clause that stood while the sweep did not exist. It leaves
+    // the moment the promise starts running, and is banned so a copy edit
+    // cannot reinstate a hedge the code no longer needs.
+    expect(text).not.toMatch(/not yet a running promise/i);
+    expect(text).not.toMatch(/the current proposal/i);
   });
 });
 
