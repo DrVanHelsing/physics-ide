@@ -21,10 +21,29 @@
  */
 const listeners = new Set();
 
+/* The announcement fires on the PORTAL page, before navigate("/") mounts the
+   IDE — so the half of the handshake that must hide the start menu and push
+   the manifest into the working state (useProject, mounted only inside the
+   IDE) is not there to hear it. ProjectContext (always mounted) opens the
+   project; this pending id is how the IDE-side consumer learns, once it
+   mounts, that the open it sees was an explicit portal hand-off rather than
+   background state. Consumed on match, overwritten by the next request. */
+let pendingOpenId = null;
+
 /** @param {(projectId: string) => void} fn @returns {() => void} unsubscribe */
 export function onProjectOpenRequested(fn) {
   listeners.add(fn);
   return () => listeners.delete(fn);
+}
+
+/** The id of the most recent request nobody has consumed yet (null if none). */
+export function peekRequestedOpen() {
+  return pendingOpenId;
+}
+
+/** Mark the pending request handled so it cannot re-fire on a later match. */
+export function consumeRequestedOpen() {
+  pendingOpenId = null;
 }
 
 /** Ask whoever owns the active project to switch to `projectId`. With nobody
@@ -32,6 +51,7 @@ export function onProjectOpenRequested(fn) {
  *  every call site is what covers that case. */
 export function requestProjectOpen(projectId) {
   if (!projectId) return;
+  pendingOpenId = projectId;
   for (const fn of listeners) {
     try {
       fn(projectId);
