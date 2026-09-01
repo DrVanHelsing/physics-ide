@@ -585,13 +585,14 @@ requests end to end:
   rewrote the email, so it is the unknown-email door, not the deactivated one).
   Screenshot `portal-16-data-requests`.
 
-75 checks; screenshots land in `frontend/e2e/portal-*.png` and the machine-
+80 checks; screenshots land in `frontend/e2e/portal-*.png` and the machine-
 readable result (including the per-screen sweeps) in
 `frontend/e2e/portal-results.json`. The run mints its own class, assignments,
 student accounts and throwaway each time, so it is safe to re-run against a dev
 database that is never reset.
 
-**A clean run is 75/75** (57/57 before Plan 8 extended it, 41/41 before Plan 7).
+**A clean run is 80/80** (75/75 before Plan 9's Emails-tab extension, 57/57
+before Plan 8 extended it, 41/41 before Plan 7).
 That is the baseline; anything less is a regression to read by its named
 failures, never a count to be talked down.
 
@@ -678,6 +679,16 @@ forward-reference item 6 stays open:
   page, a switched-off email genuinely **absent** from the admin Emails tab
   while the bell row still arrives, the teacher's widened `Waiting on them`,
   and `/privacy` read at 1024px and at phone width.
+- **Emails tab + webhook door — covered (portal-e2e).** The admin opens the
+  Emails tab: the pretend inbox lists the run's own mail (the student's
+  confirm at minimum), the Status column reads `dev`, and Enter expands a
+  focused row into the full body. The script then knocks on
+  `POST /api/mail/events` twice from inside the page — a missing secret is
+  refused 403, an unknown message-id with the correct secret is
+  200-and-no-write. Screenshot `portal-17-emails-tab`. The `bounced` render
+  stays a Task 4 unit test (the dev driver can never produce a bounced row —
+  the script says why in a comment), and the switched-off-email absence
+  above stays with the human pass.
 
 Those are handed to a human browser pass — the Plan 8 checklist
 (`2026-08-29-plan8-browser-pass-checklist.md`) joins the Plan 7
