@@ -110,4 +110,20 @@ describe("manifest schema guards", () => {
     expect(explainManifest({ ...m, datasets: null })).toMatch(/datasets/);
     expect(explainManifest(null)).toMatch(/not an object/);
   });
+
+  test("hybridStash: absent is valid, the written shape is valid, malformed is refused", () => {
+    // The analyse stash rides the manifest; a malformed one arriving via
+    // import or sync must fail validation rather than silently restore an
+    // empty workspace later.
+    const m = createManifest({ goal: "hybrid", title: "T1" });
+    expect(isManifest(m)).toBe(true); // absent
+    const good = { xml: "<xml/>", python: "", projectType: "block_template", preferredEditor: "blocks" };
+    expect(isManifest({ ...m, hybridStash: good })).toBe(true);
+    // preferredEditor optional — stashes written before it was captured.
+    expect(isManifest({ ...m, hybridStash: { xml: "<xml/>", python: "", projectType: "custom" } })).toBe(true);
+    expect(isManifest({ ...m, hybridStash: { ...good, xml: 7 } })).toBe(false);
+    expect(isManifest({ ...m, hybridStash: { ...good, projectType: "nope" } })).toBe(false);
+    expect(isManifest({ ...m, hybridStash: "yes" })).toBe(false);
+    expect(explainManifest({ ...m, hybridStash: "yes" })).toMatch(/hybridStash/);
+  });
 });
