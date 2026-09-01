@@ -9,6 +9,6 @@ export const testDb = drizzle(testPool, { schema });
 /** Wipe every auth-domain table between test files. */
 export async function truncateAuthTables(): Promise<void> {
   await testPool.query(
-    'TRUNCATE TABLE "notifications", "notification_prefs", "shares", "guides", "rule_sets", "marks", "submissions", "group_members", "groups", "assignment_work", "assignments", "project_versions", "projects", "invites", "class_members", "classes", "sessions", "email_tokens", "emails", "events", "users" CASCADE',
+    'TRUNCATE TABLE "notifications", "notification_prefs", "shares", "guides", "rule_sets", "marks", "submissions", "group_members", "groups", "assignment_work", "assignments", "project_versions", "projects", "invites", "class_members", "classes", "sessions", "email_tokens", "emails", "events", "settings", "users" CASCADE',
   );
 }
