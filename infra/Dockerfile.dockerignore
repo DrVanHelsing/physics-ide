@@ -1,0 +1,16 @@
+# Read by BuildKit for builds using -f infra/Dockerfile (the per-Dockerfile
+# ignore rule — a context-root .dockerignore would belong to the repo root,
+# and infra/.dockerignore alone would be inert).
+.git
+.worktrees
+node_modules
+**/node_modules
+docs
+e2e
+infra
+frontend/**
+!frontend/package.json
+backend/src/**/*.test.ts
+backend/drizzle
+**/.env
+**/.env.*
