@@ -1,20 +1,29 @@
 import { describe, test, expect, beforeAll, afterAll } from "vitest";
 import argon2 from "argon2";
-import { eq } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { buildApp } from "../app.js";
 import { config } from "../config.js";
 import { testDb, testPool, truncateAuthTables } from "../db/testClient.js";
 import { setSetting } from "../db/settings.js";
 import {
   users,
+  classes,
   classMembers,
+  assignments,
+  assignmentWork,
   emails,
   events,
   groups,
   groupMembers,
+  guides,
+  invites,
+  marks,
+  projects,
+  shares,
   submissions,
   notifications,
   notificationPrefs,
+  settings,
 } from "../db/schema.js";
 
 const app = buildApp({ db: testDb });
@@ -51,28 +60,36 @@ async function signin(email: string): Promise<string> {
   return res.cookies.find((c) => c.name === "pide_session")!.value;
 }
 
-async function makeClass(name: string): Promise<string> {
+/* `cookie` defaults to the file's own teacher. The retention blocks at the
+ * bottom pass their OWN teachers: classes.ts caps class creation at 10 per
+ * teacher per hour (CLASS_CREATE_CAP), and this file already spends 7 of
+ * this teacher's 10 above. */
+async function makeClass(name: string, cookie: string = teacherCookie): Promise<string> {
   const res = await app.inject({
     method: "POST",
     url: "/api/classes",
-    cookies: { pide_session: teacherCookie },
+    cookies: { pide_session: cookie },
     payload: { name },
   });
   return res.json().class.id;
 }
 
-async function createPublished(classId: string, payload: Record<string, unknown>): Promise<string> {
+async function createPublished(
+  classId: string,
+  payload: Record<string, unknown>,
+  cookie: string = teacherCookie,
+): Promise<string> {
   const draftRes = await app.inject({
     method: "POST",
     url: `/api/classes/${classId}/assignments`,
-    cookies: { pide_session: teacherCookie },
+    cookies: { pide_session: cookie },
     payload,
   });
   const id = draftRes.json().assignment.id;
   await app.inject({
     method: "POST",
     url: `/api/assignments/${id}/publish`,
-    cookies: { pide_session: teacherCookie },
+    cookies: { pide_session: cookie },
   });
   return id;
 }
@@ -143,6 +160,12 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  // truncateAuthTables deliberately never touches `settings` (it is not an
+  // auth-domain table), and the retention blocks below pin `retention_years`
+  // so their partition is measured against a known clock. Put the key back
+  // the way this file found it: admin.test.ts asserts the row is ABSENT
+  // before its own PUT, and vitest's file order is not this file's to assume.
+  await testDb.delete(settings).where(eq(settings.key, "retention_years"));
   await app.close();
   await testPool.end();
 });
@@ -161,10 +184,10 @@ describe("POST /api/tick — secret guard", () => {
     expect(wrong.json()).toEqual(noHeader.json());
   });
 
-  test("correct secret, nothing due yet -> 200 { sent: 0 }", async () => {
+  test("correct secret, nothing due yet -> 200 { reminders: 0, retentionClasses: 0, emailsPruned: 0 }", async () => {
     const res = await tick(config.tickSecret);
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual({ sent: 0 });
+    expect(res.json()).toEqual({ reminders: 0, retentionClasses: 0, emailsPruned: 0 });
   });
 });
 
@@ -206,7 +229,7 @@ describe("POST /api/tick — window edges (individual work)", () => {
 
     const res = await tick(config.tickSecret);
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual({ sent: 2 });
+    expect(res.json()).toEqual({ reminders: 2, retentionClasses: 0, emailsPruned: 0 });
 
     const sent = await allDueTomorrowEmails();
     expect(emailsWithSubjectContaining(sent, "Edge Inside Lower")).toHaveLength(1);
@@ -230,7 +253,7 @@ describe("POST /api/tick — window edges (individual work)", () => {
     const before = await allDueTomorrowEmails();
     const res = await tick(config.tickSecret);
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual({ sent: 0 });
+    expect(res.json()).toEqual({ reminders: 0, retentionClasses: 0, emailsPruned: 0 });
     const after = await allDueTomorrowEmails();
     expect(after).toHaveLength(before.length);
   });
@@ -253,7 +276,7 @@ describe("POST /api/tick — a submitted student is skipped", () => {
     await seedSubmission(assignmentId, submitted.id);
 
     const res = await tick(config.tickSecret);
-    expect(res.json()).toEqual({ sent: 1 });
+    expect(res.json()).toEqual({ reminders: 1, retentionClasses: 0, emailsPruned: 0 });
 
     const sent = await allDueTomorrowEmails();
     const mine = emailsWithSubjectContaining(sent, "Tick Submitted Assignment");
@@ -286,7 +309,7 @@ describe("POST /api/tick — a group-submission member is skipped", () => {
     void groupBId;
 
     const res = await tick(config.tickSecret);
-    expect(res.json()).toEqual({ sent: 2 });
+    expect(res.json()).toEqual({ reminders: 2, retentionClasses: 0, emailsPruned: 0 });
 
     const sent = await allDueTomorrowEmails();
     const mine = emailsWithSubjectContaining(sent, "Tick Group Assignment");
@@ -319,7 +342,7 @@ describe("POST /api/tick — a manually closed assignment stays quiet", () => {
 
     const res = await tick(config.tickSecret);
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual({ sent: 0 });
+    expect(res.json()).toEqual({ reminders: 0, retentionClasses: 0, emailsPruned: 0 });
 
     const sent = await allDueTomorrowEmails();
     expect(emailsWithSubjectContaining(sent, "Tick Closed Assignment")).toHaveLength(0);
@@ -363,7 +386,7 @@ describe("POST /api/tick — overlapping ticks send at most once", () => {
     // other blocks, then re-reads and finds every dedupe row already
     // there. Exactly one send per pair between the two calls, however the
     // race falls — never `2 * expectedPairs`.
-    expect(res1.json().sent + res2.json().sent).toBe(expectedPairs);
+    expect(res1.json().reminders + res2.json().reminders).toBe(expectedPairs);
 
     const sent = await allDueTomorrowEmails();
     const mine = sent.filter((e) => e.subject.startsWith("Due tomorrow — Tick Concurrency Assignment"));
@@ -432,7 +455,7 @@ describe("POST /api/tick — a due-tomorrow: false preference gates the email on
 
     const res = await tick(config.tickSecret);
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual({ sent: 1 });
+    expect(res.json()).toEqual({ reminders: 1, retentionClasses: 0, emailsPruned: 0 });
 
     const sent = await allDueTomorrowEmails();
     expect(emailsWithSubjectContaining(sent, "Tick Prefs Assignment")).toHaveLength(0);
@@ -449,5 +472,405 @@ describe("POST /api/tick — a due-tomorrow: false preference gates the email on
     const mine = studentNotifs.filter((n) => n.eventId === ev!.id);
     expect(mine).toHaveLength(1);
     expect(mine[0].type).toBe("assignment.due_reminder_sent");
+  });
+});
+
+/* ══ Task 9 (design D§7): retention — the sweep, its keep/delete partition,
+ *  its cap, its idempotency, and the emails log's own 180-day prune.
+ *
+ *  These blocks sit LAST in this file ON PURPOSE. Every tick above them runs
+ *  before a single archived class or an aged email row exists, so their
+ *  `{ reminders, retentionClasses, emailsPruned }` assertions stay honest
+ *  zeros in the two new fields — put these blocks higher and the file's own
+ *  seed data would start being swept out from under the reminder tests. ══ */
+
+const DAY = 24 * HOUR;
+const YEAR = 365 * DAY;
+
+type SeededClass = {
+  classId: string;
+  name: string;
+  assignmentId: string;
+  submitterId: string;
+  slackerId: string;
+  groupId: string;
+  groupProjectId: string;
+  individualProjectId: string;
+};
+
+async function seedProjectRow(ownerId: string, id: string) {
+  await testDb.insert(projects).values({
+    id,
+    ownerId,
+    title: `Project ${id}`,
+    goal: "physics",
+    projectType: "custom",
+    manifest: { schemaVersion: 2, id, title: `Project ${id}` },
+    clientUpdatedAt: Date.now(),
+  });
+}
+
+/** Everything one class owns, in one helper: the rows that cascade off
+ *  `classes.id` (members, invites, assignments and, transitively,
+ *  submissions/marks/groups/group_members/assignment_work), the two rows
+ *  that DON'T cascade — a `guides` and a `shares` row — a bell row whose
+ *  only link to the class is a denormalised payload id, and the two
+ *  `projects` rows D§10 fiat 11 says must SURVIVE the sweep (a group's
+ *  shared workspace and one student's individual assignment work).
+ *
+ *  The assignment is due TOMORROW and `slacker` has not submitted: that is
+ *  D§7's ordering proof in seed form — a swept class must never have a
+ *  reminder queued for it, which only holds if the sweep runs BEFORE the
+ *  reminder transaction. */
+async function seedFullClass(label: string, teacher: { id: string; cookie: string }): Promise<SeededClass> {
+  const name = `Retention ${label}`;
+  const classId = await makeClass(name, teacher.cookie);
+  const submitter = await makeUser(`retention-${label}-submitter@example.com`);
+  const slacker = await makeUser(`retention-${label}-slacker@example.com`);
+  await testDb.insert(classMembers).values([
+    { classId, userId: submitter.id, role: "student", status: "active" },
+    { classId, userId: slacker.id, role: "student", status: "active" },
+  ]);
+
+  const assignmentId = await createPublished(
+    classId,
+    {
+      title: `${name} Assignment`,
+      submissionMode: "individual",
+      dueAt: Date.now() + 24 * HOUR,
+    },
+    teacher.cookie,
+  );
+  await seedSubmission(assignmentId, submitter.id);
+  await testDb.insert(marks).values({
+    assignmentId,
+    studentId: submitter.id,
+    points: 7,
+    markedBy: teacher.id,
+    status: "released",
+    releasedAt: new Date(),
+  });
+
+  const groupProjectId = `retention-${label}-group-project`;
+  await seedProjectRow(submitter.id, groupProjectId);
+  const [group] = await testDb
+    .insert(groups)
+    .values({ assignmentId, name: `${name} Group`, ownerId: submitter.id, projectId: groupProjectId })
+    .returning();
+  await testDb.insert(groupMembers).values([
+    { groupId: group.id, userId: submitter.id },
+    { groupId: group.id, userId: slacker.id },
+  ]);
+
+  const individualProjectId = `retention-${label}-individual-project`;
+  await seedProjectRow(slacker.id, individualProjectId);
+  await testDb.insert(assignmentWork).values({
+    assignmentId,
+    userId: slacker.id,
+    ownerId: slacker.id,
+    projectId: individualProjectId,
+  });
+
+  await testDb.insert(guides).values({
+    classId,
+    createdBy: teacher.id,
+    title: `${name} Guide`,
+    body: { type: "doc", content: [] },
+  });
+  await testDb.insert(invites).values({
+    classId,
+    email: `retention-${label}-invitee@example.com`,
+    role: "student",
+    tokenHash: `retention-${label}-token-hash`,
+    invitedBy: teacher.id,
+  });
+  await testDb.insert(shares).values({
+    classId,
+    sharerId: submitter.id,
+    recipientId: slacker.id,
+    sourceOwnerId: submitter.id,
+    sourceProjectId: groupProjectId,
+    frozenManifest: { schemaVersion: 2 },
+    sourceClientUpdatedAt: Date.now(),
+  });
+
+  // A bell row for this class, hand-seeded ON TOP of the ones publish
+  // already fanned out. `notifications` has NO FK to `classes` — the only
+  // link is this denormalised payload id — so nothing cascades it away.
+  const [ev] = await testDb
+    .insert(events)
+    .values({ type: "assignment.published", actorId: teacher.id, payload: { assignmentId, classId } })
+    .returning();
+  await testDb.insert(notifications).values([
+    { userId: submitter.id, eventId: ev.id, type: "assignment.published", payload: { assignmentId, classId } },
+    { userId: slacker.id, eventId: ev.id, type: "assignment.published", payload: { assignmentId, classId } },
+  ]);
+
+  return {
+    classId,
+    name,
+    assignmentId,
+    submitterId: submitter.id,
+    slackerId: slacker.id,
+    groupId: group.id,
+    groupProjectId,
+    individualProjectId,
+  };
+}
+
+/** Archive through the REAL route (Task 8's clock starts there and nowhere
+ *  else), then backdate `archivedAt` directly — the brief's own seeding. */
+async function archiveBackdated(classId: string, cookie: string, ageMs: number) {
+  const res = await app.inject({
+    method: "POST",
+    url: `/api/classes/${classId}/archive`,
+    cookies: { pide_session: cookie },
+  });
+  expect(res.statusCode).toBe(200);
+  await testDb
+    .update(classes)
+    .set({ archivedAt: new Date(Date.now() - ageMs) })
+    .where(eq(classes.id, classId));
+}
+
+async function notificationsForClass(classId: string) {
+  return testDb
+    .select()
+    .from(notifications)
+    .where(sql`${notifications.payload}->>'classId' = ${classId}`);
+}
+
+describe("POST /api/tick — the retention sweep (design D§7)", () => {
+  let swept: SeededClass;
+  let keptUnarchived: SeededClass;
+  let keptRecent: SeededClass;
+  let sweptNotificationIds: number[];
+  let sweptMemberCount: number;
+  let firstTickBody: { reminders: number; retentionClasses: number; emailsPruned: number };
+
+  beforeAll(async () => {
+    // The period is a SETTING, never a constant — pinned here so the
+    // partition below is measured against a known three-year clock whatever
+    // an earlier test file left in `settings`.
+    await setSetting(testDb, "retention_years", 3);
+
+    const t = await makeUser("retention-teacher@example.com", { isTeacher: true });
+    const teacher = { id: t.id, cookie: await signin("retention-teacher@example.com") };
+
+    swept = await seedFullClass("swept", teacher);
+    keptUnarchived = await seedFullClass("kept-unarchived", teacher);
+    keptRecent = await seedFullClass("kept-recent", teacher);
+
+    await archiveBackdated(swept.classId, teacher.cookie, 4 * YEAR);
+    // Old enough by date, but NEVER archived: the `archived = true` half of
+    // the predicate is the only thing sparing it.
+    await testDb
+      .update(classes)
+      .set({ archived: false, archivedAt: new Date(Date.now() - 4 * YEAR) })
+      .where(eq(classes.id, keptUnarchived.classId));
+    await archiveBackdated(keptRecent.classId, teacher.cookie, 1 * YEAR);
+
+    sweptNotificationIds = (await notificationsForClass(swept.classId)).map((n) => n.id);
+    const memberRows = await testDb
+      .select()
+      .from(classMembers)
+      .where(eq(classMembers.classId, swept.classId));
+    sweptMemberCount = memberRows.length;
+
+    const res = await tick(config.tickSecret);
+    expect(res.statusCode).toBe(200);
+    firstTickBody = res.json();
+  });
+
+  test("the response carries the honest names — { reminders, retentionClasses, emailsPruned }", () => {
+    // reminders: 2 — one unsubmitted student in each SURVIVING class. The
+    // swept class's own unsubmitted student contributes nothing, which is
+    // exactly D§7's ordering rule: sweep first, then remind, so a reminder
+    // is never queued for a class that stops existing in the same tick.
+    expect(firstTickBody).toEqual({ reminders: 2, retentionClasses: 1, emailsPruned: 0 });
+    expect(Object.keys(firstTickBody).sort()).toEqual(["emailsPruned", "reminders", "retentionClasses"]);
+  });
+
+  test("the class row and every class-scoped table for it are empty", async () => {
+    expect(await testDb.select().from(classes).where(eq(classes.id, swept.classId))).toHaveLength(0);
+    expect(
+      await testDb.select().from(classMembers).where(eq(classMembers.classId, swept.classId)),
+    ).toHaveLength(0);
+    expect(await testDb.select().from(invites).where(eq(invites.classId, swept.classId))).toHaveLength(0);
+    expect(await testDb.select().from(guides).where(eq(guides.classId, swept.classId))).toHaveLength(0);
+    expect(await testDb.select().from(shares).where(eq(shares.classId, swept.classId))).toHaveLength(0);
+    expect(
+      await testDb.select().from(assignments).where(eq(assignments.classId, swept.classId)),
+    ).toHaveLength(0);
+    expect(
+      await testDb.select().from(submissions).where(eq(submissions.assignmentId, swept.assignmentId)),
+    ).toHaveLength(0);
+    expect(await testDb.select().from(marks).where(eq(marks.assignmentId, swept.assignmentId))).toHaveLength(0);
+    expect(await testDb.select().from(groups).where(eq(groups.id, swept.groupId))).toHaveLength(0);
+    expect(
+      await testDb.select().from(groupMembers).where(eq(groupMembers.groupId, swept.groupId)),
+    ).toHaveLength(0);
+    expect(
+      await testDb.select().from(assignmentWork).where(eq(assignmentWork.assignmentId, swept.assignmentId)),
+    ).toHaveLength(0);
+  });
+
+  test("the class's bell rows go too — `notifications` has no FK for a cascade to follow", async () => {
+    expect(sweptNotificationIds.length).toBeGreaterThanOrEqual(2);
+    expect(
+      await testDb.select().from(notifications).where(inArray(notifications.id, sweptNotificationIds)),
+    ).toHaveLength(0);
+    expect(await notificationsForClass(swept.classId)).toHaveLength(0);
+  });
+
+  test("NO projects row is touched — the group's shared workspace and the individual assignment project both survive (fiat 11)", async () => {
+    expect(
+      await testDb
+        .select()
+        .from(projects)
+        .where(and(eq(projects.ownerId, swept.submitterId), eq(projects.id, swept.groupProjectId))),
+    ).toHaveLength(1);
+    expect(
+      await testDb
+        .select()
+        .from(projects)
+        .where(and(eq(projects.ownerId, swept.slackerId), eq(projects.id, swept.individualProjectId))),
+    ).toHaveLength(1);
+  });
+
+  test("one class.retention_deleted event records the class, its name and its counts", async () => {
+    const rows = await testDb.select().from(events).where(eq(events.type, "class.retention_deleted"));
+    const mine = rows.filter((e) => (e.payload as { classId?: string }).classId === swept.classId);
+    expect(mine).toHaveLength(1);
+    const payload = mine[0].payload as {
+      classId: string;
+      name: string;
+      counts: Record<string, number>;
+    };
+    expect(payload.name).toBe(swept.name);
+    expect(payload.counts).toEqual({
+      // The teacher's own membership row plus the two students.
+      members: sweptMemberCount,
+      invites: 1,
+      assignments: 1,
+      assignmentWork: 1,
+      submissions: 1,
+      marks: 1,
+      groups: 1,
+      groupMembers: 2,
+      guides: 1,
+      shares: 1,
+      notifications: sweptNotificationIds.length,
+    });
+  });
+
+  test("the events ledger is never pruned — the swept class's own history survives it", async () => {
+    const created = await testDb.select().from(events).where(eq(events.type, "class.created"));
+    expect(created.some((e) => (e.payload as { classId?: string }).classId === swept.classId)).toBe(true);
+    const archived = await testDb.select().from(events).where(eq(events.type, "class.archived"));
+    expect(archived.some((e) => (e.payload as { classId?: string }).classId === swept.classId)).toBe(true);
+  });
+
+  test("no reminder was ever queued or mailed for the class the sweep was about to delete", async () => {
+    const logged = await dueReminderEvents();
+    expect(
+      logged.some((e) => (e.payload as { assignmentId?: string }).assignmentId === swept.assignmentId),
+    ).toBe(false);
+    const sent = await allDueTomorrowEmails();
+    expect(emailsWithSubjectContaining(sent, "Retention swept Assignment")).toHaveLength(0);
+  });
+
+  test("an UNARCHIVED old class and a recently-archived one both survive", async () => {
+    expect(await testDb.select().from(classes).where(eq(classes.id, keptUnarchived.classId))).toHaveLength(1);
+    expect(await testDb.select().from(classes).where(eq(classes.id, keptRecent.classId))).toHaveLength(1);
+    // And their work with them.
+    expect(
+      await testDb.select().from(assignments).where(eq(assignments.classId, keptRecent.classId)),
+    ).toHaveLength(1);
+  });
+
+  test("idempotent: a second tick sweeps nothing and writes no second event", async () => {
+    const res = await tick(config.tickSecret);
+    expect(res.statusCode).toBe(200);
+    expect(res.json().retentionClasses).toBe(0);
+    expect(await testDb.select().from(events).where(eq(events.type, "class.retention_deleted"))).toHaveLength(1);
+  });
+});
+
+describe("POST /api/tick — the emails log prunes at 180 days (D§7 / fiat 7)", () => {
+  let oldId: number;
+  let recentId: number;
+
+  beforeAll(async () => {
+    const [oldRow] = await testDb
+      .insert(emails)
+      .values({
+        toEmail: "retention-old@example.com",
+        template: "confirm-email",
+        subject: "Two hundred days old",
+        bodyText: "old",
+        createdAt: new Date(Date.now() - 200 * DAY),
+      })
+      .returning();
+    const [recentRow] = await testDb
+      .insert(emails)
+      .values({
+        toEmail: "retention-recent@example.com",
+        template: "confirm-email",
+        subject: "One hundred days old",
+        bodyText: "recent",
+        createdAt: new Date(Date.now() - 100 * DAY),
+      })
+      .returning();
+    oldId = oldRow.id;
+    recentId = recentRow.id;
+  });
+
+  test("a 200-day-old row goes, a 100-day-old row stays, and the tick reports the count", async () => {
+    const res = await tick(config.tickSecret);
+    expect(res.statusCode).toBe(200);
+    expect(res.json().emailsPruned).toBe(1);
+    expect(await testDb.select().from(emails).where(eq(emails.id, oldId))).toHaveLength(0);
+    expect(await testDb.select().from(emails).where(eq(emails.id, recentId))).toHaveLength(1);
+  });
+
+  test("idempotent: the next tick prunes nothing", async () => {
+    const res = await tick(config.tickSecret);
+    expect(res.json().emailsPruned).toBe(0);
+    expect(await testDb.select().from(emails).where(eq(emails.id, recentId))).toHaveLength(1);
+  });
+});
+
+describe("POST /api/tick — the sweep is capped at five classes per tick (D§7)", () => {
+  const ids: string[] = [];
+
+  beforeAll(async () => {
+    // Its own teacher: classes.ts's CLASS_CREATE_CAP is 10 per teacher per
+    // hour, and seven more on the retention teacher would run it over.
+    await makeUser("retention-cap-teacher@example.com", { isTeacher: true });
+    const cookie = await signin("retention-cap-teacher@example.com");
+    for (let i = 0; i < 7; i += 1) {
+      const id = await makeClass(`Retention Cap ${i}`, cookie);
+      ids.push(id);
+      await archiveBackdated(id, cookie, 4 * YEAR);
+    }
+  });
+
+  test("seven eligible classes: one tick sweeps five, the next sweeps the remaining two, the third sweeps none", async () => {
+    const first = await tick(config.tickSecret);
+    expect(first.statusCode).toBe(200);
+    expect(first.json().retentionClasses).toBe(5);
+    expect(await testDb.select().from(classes).where(inArray(classes.id, ids))).toHaveLength(2);
+
+    const second = await tick(config.tickSecret);
+    expect(second.json().retentionClasses).toBe(2);
+    expect(await testDb.select().from(classes).where(inArray(classes.id, ids))).toHaveLength(0);
+
+    const third = await tick(config.tickSecret);
+    expect(third.json().retentionClasses).toBe(0);
+
+    // One ledger row per class, never one per tick.
+    const rows = await testDb.select().from(events).where(eq(events.type, "class.retention_deleted"));
+    expect(rows.filter((e) => ids.includes((e.payload as { classId?: string }).classId ?? ""))).toHaveLength(7);
   });
 });

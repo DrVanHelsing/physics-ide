@@ -41,6 +41,17 @@ import WelcomeSubpage from "./WelcomeSubpage";
  * with it. So the right-to-leave section claims exactly what the scrub
  * does (the class record keeps the work, under "Removed student"; the
  * account and personal details go) and never claims total removal.
+ *
+ * RETENTION, REWRITTEN (Plan 9 Task 9, design D§7): "How long things are
+ * kept" said the three-year rule was "a proposal, not yet a running
+ * promise" for as long as that was true. The sweep ships in the same
+ * commit as this edit, so the hedge leaves and the section states the
+ * running rule — including the half a reader would otherwise assume wrong:
+ * the sweep touches NO `projects` row (D§10 fiat 11), so a student's own
+ * library survives their class being deleted, and the period is a setting
+ * an admin can change rather than a number written into the product. Those
+ * three claims are pinned verbatim in welcomeSubpages.test.js beside §11's
+ * six, and the retired clause is banned there so it cannot come back.
  */
 export default function PrivacyPage() {
   return (
@@ -109,11 +120,14 @@ export default function PrivacyPage() {
 
       <h2>How long things are kept</h2>
       <p>
-        The current proposal is to keep an archived class and its
-        submissions for three years, then delete them on a schedule, so
-        the system never turns into a data museum. That is a proposal, not
-        yet a running promise &mdash; stated honestly as one, because the
-        automatic side of it has not been built yet.
+        An archived class is kept for three years and then deleted
+        automatically, so the system never turns into a data museum. When
+        the clock runs out, the class, its assignments, its submissions and
+        its marks all go. Students keep their own project libraries, including
+        the work they started for that class &mdash; those projects are
+        theirs, not the class&rsquo;s. An administrator can change the
+        period, so three years is the setting this system runs on, not a
+        limit written into it.
       </p>
     </WelcomeSubpage>
   );

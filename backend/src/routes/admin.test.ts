@@ -1250,7 +1250,7 @@ describe("erase: an erased student leaves the reminder surfaces, not the gradebo
       headers: { "x-tick-secret": config.tickSecret },
     });
     expect(res.statusCode).toBe(200);
-    expect(res.json().sent).toBe(1); // the classmate only
+    expect(res.json().reminders).toBe(1); // the classmate only
 
     const logged = await testDb.select().from(events).where(eq(events.type, "assignment.due_reminder_sent"));
     const forThisAssignment = logged.filter(

@@ -1,7 +1,24 @@
 import type { FastifyInstance } from "fastify";
-import { and, eq, gte, isNull, lte, sql } from "drizzle-orm";
-import { assignments, classes, classMembers, events, users } from "../db/schema.js";
+import { and, eq, gte, isNull, lt, lte, sql } from "drizzle-orm";
+import {
+  assignments,
+  assignmentWork,
+  classes,
+  classMembers,
+  emails,
+  events,
+  groupMembers,
+  groups,
+  guides,
+  invites,
+  marks,
+  notifications,
+  shares,
+  submissions,
+  users,
+} from "../db/schema.js";
 import { logEvent } from "../db/events.js";
+import { getSetting } from "../db/settings.js";
 import { notify } from "../notifications/notify.js";
 import { config } from "../config.js";
 import { dueTomorrow } from "../email/templates.js";
@@ -14,11 +31,182 @@ const TICK_SECRET_HEADER = "x-tick-secret";
 const FORBIDDEN = "Forbidden.";
 const DUE_REMINDER_SENT = "assignment.due_reminder_sent";
 const HOUR_MS = 60 * 60 * 1000;
+const DAY_MS = 24 * HOUR_MS;
 
 /** A key private to this route's advisory lock (see below) — distinct from
  *  auth.ts's signup-cap lock (42): the two must never collide, or an
  *  unrelated signup would block behind a tick and vice versa. */
 const TICK_LOCK_KEY = 100024;
+
+/* ═══ Retention (Task 9, design D§7) ═══════════════════════════════════════ */
+
+/** The sweep's OWN key, deliberately not TICK_LOCK_KEY. D§7 puts the sweep
+ *  in a separate transaction from the reminder pass precisely so a sweep
+ *  failure cannot roll the reminder dedupe rows back with it — sharing one
+ *  key would re-couple the two through the lock that split exists to break,
+ *  because a blocking `pg_advisory_xact_lock` serialises every holder of the
+ *  same key. Free by inspection against the tree's other ONE-argument keys
+ *  (auth.ts's 42 and TICK_LOCK_KEY above); the two-argument form used at
+ *  100025/100026/100027 is a separate key namespace in Postgres and cannot
+ *  collide with this. */
+const RETENTION_LOCK_KEY = 100028;
+
+/** One event per swept class, never one per tick — `events` rows are NEVER
+ *  deleted (D§7), so this ledger row is what outlives the class. */
+const CLASS_RETENTION_DELETED = "class.retention_deleted";
+
+/** classes.ts's CLASS_CREATE_WINDOW_MS idiom, and byte-for-byte the constant
+ *  admin.ts's retention PREVIEW uses: an "N ago" cutoff is a JS Date computed
+ *  here and compared in SQL, never an interval built inside the query. */
+const YEAR_MS = 365 * DAY_MS;
+
+/** D§7 / fiat 7: the emails log is an operational surface (§10's
+ *  "once-a-week glance"), not a §11 record — §11's "What we store" list
+ *  never names it — so it self-prunes. The `emails_created_at_idx` index
+ *  from Task 3 is what makes this cheap. */
+const EMAIL_LOG_MAX_AGE_MS = 180 * DAY_MS;
+
+/** D§7: one class per transaction, five per tick, so a backlog drains over
+ *  days instead of in one long statement. */
+const RETENTION_MAX_CLASSES_PER_TICK = 5;
+
+/** The surface the sweep's transaction actually uses — the same structural
+ *  `Pick<Db, …>` shape this file's other helpers take a `tx` through. */
+type SweepTx = Pick<Db, "select" | "insert" | "delete" | "execute">;
+
+/** Everything the sweep is about to destroy, counted BEFORE it is destroyed
+ *  — the `class.retention_deleted` payload is the only record left once the
+ *  rows are gone, so a count taken afterwards would be a row of zeros. The
+ *  rows reached through `assignments` are counted through exactly the join
+ *  the FK cascade will follow, so the record and the deletion agree. */
+async function countClassScoped(tx: SweepTx, classId: string): Promise<Record<string, number>> {
+  const one = async (rows: Promise<Array<{ count: number }>>): Promise<number> =>
+    (await rows)[0]?.count ?? 0;
+  const n = { count: sql<number>`count(*)::int` };
+  return {
+    members: await one(tx.select(n).from(classMembers).where(eq(classMembers.classId, classId))),
+    invites: await one(tx.select(n).from(invites).where(eq(invites.classId, classId))),
+    assignments: await one(tx.select(n).from(assignments).where(eq(assignments.classId, classId))),
+    assignmentWork: await one(
+      tx
+        .select(n)
+        .from(assignmentWork)
+        .innerJoin(assignments, eq(assignmentWork.assignmentId, assignments.id))
+        .where(eq(assignments.classId, classId)),
+    ),
+    submissions: await one(
+      tx
+        .select(n)
+        .from(submissions)
+        .innerJoin(assignments, eq(submissions.assignmentId, assignments.id))
+        .where(eq(assignments.classId, classId)),
+    ),
+    marks: await one(
+      tx
+        .select(n)
+        .from(marks)
+        .innerJoin(assignments, eq(marks.assignmentId, assignments.id))
+        .where(eq(assignments.classId, classId)),
+    ),
+    groups: await one(
+      tx
+        .select(n)
+        .from(groups)
+        .innerJoin(assignments, eq(groups.assignmentId, assignments.id))
+        .where(eq(assignments.classId, classId)),
+    ),
+    groupMembers: await one(
+      tx
+        .select(n)
+        .from(groupMembers)
+        .innerJoin(groups, eq(groupMembers.groupId, groups.id))
+        .innerJoin(assignments, eq(groups.assignmentId, assignments.id))
+        .where(eq(assignments.classId, classId)),
+    ),
+    guides: await one(tx.select(n).from(guides).where(eq(guides.classId, classId))),
+    shares: await one(tx.select(n).from(shares).where(eq(shares.classId, classId))),
+    notifications: await one(
+      tx.select(n).from(notifications).where(sql`${notifications.payload}->>'classId' = ${classId}`),
+    ),
+  };
+}
+
+/** D§7's sweep. Its own transaction PER CLASS, its own lock key, and it runs
+ *  BEFORE the reminder pass — both halves of that matter, and the ordering is
+ *  not cosmetic: `assignmentsDueTomorrow` below filters on status/dueAt/
+ *  closedAt only and never excludes an archived class, so a class swept
+ *  after the reminder transaction had already queued its mail would have a
+ *  real postman deliver a reminder for a class that no longer exists.
+ *
+ *  The eligibility predicate is COPIED, not re-derived, from the admin
+ *  preview at `GET /api/admin/retention` (admin.ts, "the count is a PREVIEW"
+ *  comment): the same `retention_years` setting behind the same
+ *  `typeof … === "number" ? … : 3` guard, the same `Date.now() - years *
+ *  YEAR_MS` cutoff and the same inclusive
+ *  `and(eq(classes.archived, true), lte(classes.archivedAt, cutoff))`.
+ *  The preview is a promise about what this function will delete; the two
+ *  must never be able to disagree. `lte` on a NULL `archivedAt` is NULL, so
+ *  a never-archived class is spared by the column as well as by the flag.
+ *
+ *  Select-and-delete happen inside the SAME locked transaction, so two
+ *  overlapping ticks can never both claim the same class and write two
+ *  ledger rows for one deletion. Oldest first, so a backlog drains in the
+ *  order it aged. */
+async function sweepRetiredClasses(db: Db, cutoff: Date): Promise<number> {
+  let swept = 0;
+  while (swept < RETENTION_MAX_CLASSES_PER_TICK) {
+    const didOne = await db.transaction(async (tx) => {
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(${RETENTION_LOCK_KEY})`);
+      const [c] = await tx
+        .select({ id: classes.id, name: classes.name })
+        .from(classes)
+        .where(and(eq(classes.archived, true), lte(classes.archivedAt, cutoff)))
+        .orderBy(classes.archivedAt)
+        .limit(1);
+      if (!c) return false;
+
+      const counts = await countClassScoped(tx, c.id);
+
+      // 1. The class's bell rows. `notifications` has NO FK to `classes` —
+      //    it is keyed on `users.id` and `events.id` only — and its link to
+      //    the class is the denormalised `classId` every class-scoped
+      //    notify() call site writes into the payload. Without this, every
+      //    swept class leaves live bell rows pointing at 404s. Same
+      //    "delivery state, not history" category the erase route deletes
+      //    explicitly (admin.ts).
+      await tx.delete(notifications).where(sql`${notifications.payload}->>'classId' = ${c.id}`);
+
+      // 2. The class itself, and the FK cascade carries the rest:
+      //    class_members, invites, assignments, guides, shares, and
+      //    transitively submissions, marks, groups, group_members and
+      //    assignment_work. Enumerating manual deletes for tables that
+      //    already cascade would duplicate the schema and drift from it.
+      //    NOTHING here touches `projects` (D§10 fiat 11): the group's
+      //    founding member is LIVE and still holds the project locally with
+      //    owned sync meta, so syncEngine.js would push it straight back on
+      //    the next reconcile — a deletion that undoes itself is worse than
+      //    no deletion, and individual assignment work was always kept.
+      await tx.delete(classes).where(eq(classes.id, c.id));
+
+      // 3. The ledger row that outlives it, in this same transaction.
+      await logEvent(tx, CLASS_RETENTION_DELETED, null, { classId: c.id, name: c.name, counts });
+      return true;
+    });
+    if (!didOne) break;
+    swept += 1;
+  }
+  return swept;
+}
+
+/** The email log's own half of the sweep (D§7 / fiat 7) — its own
+ *  transaction under the sweep's lock, for the same isolation reason. */
+async function pruneEmailLog(db: Db, cutoff: Date): Promise<number> {
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(${RETENTION_LOCK_KEY})`);
+    const gone = await tx.delete(emails).where(lt(emails.createdAt, cutoff)).returning({ id: emails.id });
+    return gone.length;
+  });
+}
 
 /** Design D§6 / task 24: the one scheduled surface — Cloud Scheduler calls
  *  this once a day in production; dev gets an hourly setInterval in
@@ -114,6 +302,20 @@ export function tickRoutes(app: FastifyInstance): void {
 
     const now = new Date();
 
+    // ── Retention FIRST (design D§7) ──────────────────────────────────────
+    // Before the reminder transaction, in transactions of its own, under a
+    // lock key of its own. See sweepRetiredClasses for why both halves of
+    // that matter. The period is a SETTING, read through the same
+    // `typeof … === "number"` guard the admin preview uses, because
+    // `getSetting` returns `unknown` (db/settings.ts) and a row holding `0`,
+    // `null` or `"3"` must never reach this arithmetic — this is the
+    // trigger of an irreversible mass delete, not a display default.
+    const stored = await getSetting(app.db, "retention_years");
+    const retentionYears = typeof stored === "number" ? stored : 3;
+    const cutoff = new Date(Date.now() - retentionYears * YEAR_MS);
+    const retentionClasses = await sweepRetiredClasses(app.db, cutoff);
+    const emailsPruned = await pruneEmailLog(app.db, new Date(now.getTime() - EMAIL_LOG_MAX_AGE_MS));
+
     // Cloud Scheduler's at-least-once/retry semantics (and, in dev, a slow
     // interval call overlapping the next hour's) make two overlapping ticks
     // a real possibility, not a hypothetical — design D§6 calls this "one
@@ -177,6 +379,10 @@ export function tickRoutes(app: FastifyInstance): void {
       await app.mailer.send({ to: item.student.email, toUserId: item.student.id, template: "due-tomorrow", ...mail });
     }
 
-    return { sent: toSend.length };
+    // Honest names (D§7): `sent` was a lie the moment the tick did more than
+    // one thing — and it never counted sends anyway, only reminders decided
+    // on (a preference-gated recipient still counts here, and no email
+    // leaves for them). Three numbers, each naming the pass that produced it.
+    return { reminders: toSend.length, retentionClasses, emailsPruned };
   });
 }
