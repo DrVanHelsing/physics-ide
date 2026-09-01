@@ -27,6 +27,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import Blockly from "../../utils/blockly/blocklyLib";
 
 import BlocklyWorkspace, { ReadOnlyBlockly, appendToSetup } from "../BlocklyWorkspace";
+import { performAnalyseSwap, performAnalyseReturn } from "../../utils/hybrid/analyseFlow";
 import BlocklyEmptyState from "../BlocklyEmptyState";
 import WorkspaceZoom from "../WorkspaceZoom";
 import CodeEditor   from "../CodeEditor";
@@ -372,38 +373,55 @@ export default function IDELayout() {
      loads as `initialXml` (the workspace only reads initialXml on mount). */
   const [workspaceReloadKey, setWorkspaceReloadKey] = useState(0);
 
+  /* Ask first, stash second (the manifest keeps the outgoing blocks),
+     replace last — cancel leaves the workspace untouched. The confirm and
+     the stash live in useProject.analyseStash; the ORDER lives in
+     performAnalyseSwap, where it is a tested contract (analyseFlow.test.js)
+     rather than a convention here. */
   const handleAnalyseRun = useCallback(
-    async (label) => {
+    (label) => {
       const pairing = proj.activeManifest?.hybridPairing;
       if (!pairing?.analysisId) return;
       const tpl = DS_TEMPLATES.find((t) => t.id === pairing.analysisId);
       if (!tpl?.xml) return;
       // Auto-fill the placeholder with the just-promoted run label.
       const xml = tpl.xml.split("paste-trace-label-here").join(label || "");
-      // Ask first, stash second (the manifest keeps the outgoing blocks),
-      // replace last — cancel leaves the workspace untouched. Both the
-      // confirm and the stash live in useProject.analyseStash.
-      const stashed = await proj.analyseStash();
-      if (!stashed) return;
-      if (dbg.debugMode) dbg.handleExitDebug();
-      sim.loadWorkspaceXml(xml);
-      setWorkspaceReloadKey((k) => k + 1);
-      setChartDataset(null);
+      return performAnalyseSwap(
+        {
+          analyseStash: proj.analyseStash,
+          exitDebug: dbg.debugMode ? dbg.handleExitDebug : undefined,
+          loadWorkspaceXml: sim.loadWorkspaceXml,
+          bumpReloadKey: () => setWorkspaceReloadKey((k) => k + 1),
+          closeChart: () => setChartDataset(null),
+          onError: (err) => {
+            console.warn("Analyse swap failed:", err);
+            setStatus({ text: "Could not open the analysis workspace — your blocks are unchanged", type: "error" });
+          },
+        },
+        xml,
+      );
     },
-    [proj, sim, dbg]
+    [proj, sim, dbg, setStatus]
   );
 
   /* The way back: restore the stashed simulation blocks. While a stash
      exists the header's reset slot offers this instead of the text-mode
      "Back to Blocks" (Toolbar relabels it "Back to Simulation"). */
-  const handleReturnToSim = useCallback(async () => {
-    const restored = await proj.analyseRestore();
-    if (!restored) return;
-    if (dbg.debugMode) dbg.handleExitDebug();
-    sim.handleStop();
-    setWorkspaceReloadKey((k) => k + 1);
-    setChartDataset(null);
-  }, [proj, sim, dbg]);
+  const handleReturnToSim = useCallback(
+    () =>
+      performAnalyseReturn({
+        analyseRestore: proj.analyseRestore,
+        exitDebug: dbg.debugMode ? dbg.handleExitDebug : undefined,
+        stopRun: sim.handleStop,
+        bumpReloadKey: () => setWorkspaceReloadKey((k) => k + 1),
+        closeChart: () => setChartDataset(null),
+        onError: (err) => {
+          console.warn("Analyse restore failed:", err);
+          setStatus({ text: "Could not restore the simulation blocks — the analysis workspace is unchanged", type: "error" });
+        },
+      }),
+    [proj, sim, dbg, setStatus]
+  );
 
   /* ── Trace promote dialog ─────────────────────────────────── */
   const [showTraceDialog, setShowTraceDialog] = useState(false);
@@ -546,6 +564,9 @@ export default function IDELayout() {
       : {};
 
   /* ── Derived presentation values ─────────────────────── */
+  /* A stash present = the analysis template occupies the workspace, so the
+     header's reset slot is the way back (see handleReturnToSim above). */
+  const hasAnalysisStash = Boolean(proj.activeManifest?.hybridStash);
   const statusClass =
     status.type === "error"   ? "console-bar console-bar--error"   :
     status.type === "success" ? "console-bar console-bar--success" :
@@ -640,8 +661,8 @@ export default function IDELayout() {
         onImport={sim.handleImport}
         onExportProject={handleExportProject}
         onImportProject={handleImportProject}
-        onReset={proj.activeManifest?.hybridStash ? handleReturnToSim : sim.handleResetToBlocks}
-        analysisReturn={Boolean(proj.activeManifest?.hybridStash)}
+        onReset={hasAnalysisStash ? handleReturnToSim : sim.handleResetToBlocks}
+        analysisReturn={hasAnalysisStash}
         onClearWorkspace={sim.handleClearWorkspace}
         onToggleTheme={toggleTheme}
         onHome={handleGoHome}

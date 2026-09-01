@@ -12,6 +12,14 @@ import React, { useEffect, useRef } from "react";
  * every dialog here is short. Moving focus in and restoring it out is the part
  * that matters for a keyboard user; trapping is a Tranche 3 refinement.
  */
+/* Stacked overlays: Escape must close only the TOPMOST dialog. Every mounted
+   Overlay registers here; the keydown handler acts only when it owns the top
+   of the stack. Until the hybrid analyse confirm (which opens the house
+   confirm dialog OVER ChartOverlay) nothing ever stacked two overlays, so
+   one document listener per overlay was harmless — stacked, one Escape
+   closed both at once (review round 1 of the data-loss hotfix). */
+const overlayStack = [];
+
 export default function Overlay({
   onClose,
   label,
@@ -27,6 +35,8 @@ export default function Overlay({
 
   useEffect(() => {
     openerRef.current = document.activeElement;
+    const stackEntry = {};
+    overlayStack.push(stackEntry);
     const panel = panelRef.current;
     // A child with `autoFocus` has already claimed focus by the time this
     // (passive) effect runs — React applies autoFocus synchronously during
@@ -40,13 +50,15 @@ export default function Overlay({
     }
 
     const onKey = (e) => {
-      if (e.key === "Escape") {
-        e.stopPropagation();
-        onCloseRef.current?.();
-      }
+      if (e.key !== "Escape") return;
+      if (overlayStack[overlayStack.length - 1] !== stackEntry) return;
+      e.stopPropagation();
+      onCloseRef.current?.();
     };
     document.addEventListener("keydown", onKey);
     return () => {
+      const i = overlayStack.indexOf(stackEntry);
+      if (i !== -1) overlayStack.splice(i, 1);
       document.removeEventListener("keydown", onKey);
       const opener = openerRef.current;
       if (opener && typeof opener.focus === "function" && document.contains(opener)) opener.focus();

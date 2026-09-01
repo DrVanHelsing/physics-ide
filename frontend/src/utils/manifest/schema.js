@@ -76,6 +76,25 @@ export function isHybridPairing(v) {
   return true;
 }
 
+/**
+ * Optional hybrid analyse stash (the data-loss hotfix): the simulation
+ * workspace parked in the manifest while the analysis template occupies the
+ * live workspace. Present only between "Analyse this run" and "Back to
+ * Simulation". Validated so a malformed stash arriving via import or sync is
+ * refused at the door rather than silently restoring an empty workspace —
+ * the exact failure the stash exists to prevent. `preferredEditor` is
+ * optional (stashes written before it was captured stay valid).
+ */
+export function isHybridStash(v) {
+  if (v == null) return true; // optional — absent is valid
+  if (typeof v !== "object") return false;
+  if (typeof v.xml !== "string") return false;
+  if (typeof v.python !== "string") return false;
+  if (!PROJECT_TYPES.includes(v.projectType)) return false;
+  if (v.preferredEditor != null && !EDITOR_MODES.includes(v.preferredEditor)) return false;
+  return true;
+}
+
 export function isChartSpec(v) {
   if (!v || typeof v !== "object") return false;
   if (!isNonEmptyString(v.id)) return false;
@@ -108,6 +127,7 @@ export function isManifest(v) {
   if (!Array.isArray(v.notes)) return false;
   if (!v.checkpointState || typeof v.checkpointState !== "object") return false;
   if (!isHybridPairing(v.hybridPairing)) return false;
+  if (!isHybridStash(v.hybridStash)) return false;
   return true;
 }
 
@@ -137,5 +157,6 @@ export function explainManifest(v) {
   if (!Array.isArray(v.notes)) return "notes must be an array";
   if (!v.checkpointState || typeof v.checkpointState !== "object") return "checkpointState must be an object";
   if (!isHybridPairing(v.hybridPairing)) return "hybridPairing must be { simId, analysisId } or absent";
+  if (!isHybridStash(v.hybridStash)) return "hybridStash must be { xml, python, projectType, preferredEditor? } or absent";
   return null;
 }

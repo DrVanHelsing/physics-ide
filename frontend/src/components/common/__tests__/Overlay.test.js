@@ -21,6 +21,25 @@ describe("Overlay", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  test("stacked overlays: Escape closes ONLY the topmost, then the one beneath", () => {
+    // The hybrid analyse confirm opens the house dialog OVER ChartOverlay —
+    // the first stacking in the product. One Escape used to fire both
+    // document listeners and close chart + confirm together.
+    const closeBottom = vi.fn();
+    const closeTop = vi.fn();
+    mounted = mountComponent(<Overlay onClose={closeBottom} label="chart"><p>chart</p></Overlay>);
+    const top = mountComponent(<Overlay onClose={closeTop} label="confirm"><p>confirm</p></Overlay>);
+
+    keyDown(document, { key: "Escape" });
+    expect(closeTop).toHaveBeenCalledTimes(1);
+    expect(closeBottom).not.toHaveBeenCalled();
+
+    top.unmount();
+    keyDown(document, { key: "Escape" });
+    expect(closeBottom).toHaveBeenCalledTimes(1);
+    expect(closeTop).toHaveBeenCalledTimes(1);
+  });
+
   test("a backdrop click closes but a click inside does not", () => {
     const onClose = vi.fn();
     mounted = mountComponent(

@@ -154,6 +154,7 @@ describe("useProject.analyseStash — consent, capture, latest-wins", () => {
       xml: "<xml>sim-blocks-v2</xml>",
       python: "print('sim')",
       projectType: "block_template",
+      preferredEditor: "blocks",
     });
     // Persisted, not just in memory — the reload path reads this.
     expect(store.get(result.id).hybridStash.xml).toBe("<xml>sim-blocks-v2</xml>");

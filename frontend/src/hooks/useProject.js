@@ -243,9 +243,14 @@ export function useProject() {
     if (!proj.activeManifest) return null;
     const { confirm } = await import("../utils/export/dialogService");
     const ok = await confirm(
-      "Open the analysis workspace? Your simulation blocks are saved with this project — Back to Simulation brings them back.",
+      "Replace the workspace with the analysis template? Your simulation blocks are saved with this project — Back to Simulation brings them back.",
     );
     if (!ok) return null;
+    /* An autosave timer armed BEFORE this ran was built on the pre-stash
+       manifest; letting it fire mid-persist would write a manifest with no
+       stash right before the swap — the original loss. Same hazard, same
+       one-liner as the sync-pull path above. */
+    debouncedSaveRef.current.cancel();
     /* Capture first (renameProject's idiom), so the stash and the manifest
        both carry what the student typed since the last autosave. Latest
        wins: re-entering analysis re-stashes the CURRENT blocks. */
@@ -256,6 +261,7 @@ export function useProject() {
         xml: sim.workspaceXml || "",
         python: sim.pythonCode || "",
         projectType: sim.projectType || "custom",
+        preferredEditor: sim.mode === "text" ? "code" : "blocks",
       },
       updatedAt: Date.now(),
     });
@@ -266,9 +272,10 @@ export function useProject() {
     if (!stash) return null;
     const { confirm } = await import("../utils/export/dialogService");
     const ok = await confirm(
-      "Return to your simulation blocks? The analysis blocks will be discarded — Analyse this run starts a fresh analysis.",
+      "Return to your simulation blocks? The analysis blocks and their generated code will be discarded.",
     );
     if (!ok) return null;
+    debouncedSaveRef.current.cancel(); // same fence as analyseStash above
     /* Deliberately NOT captureWorkingStateInto: discarding the analysis
        working state is the confirmed action. The stash's fields are
        promoted back and the stash itself is removed — its absence is what
@@ -278,12 +285,18 @@ export function useProject() {
     const saved = await proj.persistActive({
       ...rest,
       projectType: stash.projectType || "block_template",
-      preferredEditor: "blocks",
+      preferredEditor: stash.preferredEditor === "code" ? "code" : "blocks",
       workspace: { ...(rest.workspace || {}), xml: typeof stash.xml === "string" ? stash.xml : "" },
       source: { ...(rest.source || {}), python: typeof stash.python === "string" ? stash.python : "" },
       updatedAt: Date.now(),
     });
     applyManifestToWorkingState(saved);
+    /* The render between persistActive's setActiveManifest and the apply
+       above can arm the dirty-check debounce (manifest holds sim XML, sim
+       still holds analysis XML for that one frame); the "unchanged" pass
+       afterwards never disarms it. Cancel so a content-identical restamp
+       doesn't push ~3s after every restore. */
+    debouncedSaveRef.current.cancel();
     return saved;
   }, [applyManifestToWorkingState, proj]);
 
