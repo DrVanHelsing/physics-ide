@@ -18,6 +18,7 @@ import { useProjectContext } from "../contexts/ProjectContext";
 import { useSimulationContext } from "../contexts/SimulationContext";
 import { createManifest } from "../utils/manifest/factory";
 import { onProjectSaved } from "../utils/storage/projectStore";
+import { peekRequestedOpen, consumeRequestedOpen } from "../utils/projectOpenRequest";
 import { debounce } from "../utils/debounce";
 import { MANIFEST_AUTOSAVE_MS } from "../constants";
 
@@ -185,6 +186,25 @@ export function useProject() {
     // Run once when bootstrap finishes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [proj.loaded]);
+
+  /* The IDE-side half of the portal hand-off (Start work, Open a test copy,
+     accept-share): the announcement fires on the PORTAL page, before
+     navigate("/") mounts this hook, so a subscription here would miss it.
+     ProjectContext (always mounted) has already opened the project; what is
+     left — pushing the manifest into the working state and dismissing the
+     start menu — keys off the pending id the request bus kept for us. This
+     used to happen only by timing accident, and the portal e2e's "Start
+     work lands IN the work" check flickered with it. Consumed on match, so
+     a bootstrap restore or an ordinary open can never trip it. */
+  useEffect(() => {
+    const m = proj.activeManifest;
+    if (!m) return;
+    if (peekRequestedOpen() !== m.id) return;
+    consumeRequestedOpen();
+    applyManifestToWorkingState(m);
+    sim.setShowStart(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [proj.activeManifest]);
 
   /* A bootstrap-restored project should open straight into the IDE — the
      start menu is for choosing, not for re-choosing what was already open.
