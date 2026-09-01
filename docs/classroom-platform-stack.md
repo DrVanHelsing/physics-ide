@@ -117,7 +117,7 @@ The mapping is one-to-one because the interfaces above were designed for it:
 | Secrets (DB password, cookie key) | Secret Manager | ~R0 |
 | Email | Provider chosen then (e.g., Brevo free tier ≈ 300 emails/day) | R0 at this scale |
 
-- **Region: `africa-south1` (Johannesburg)** — Google's South African region, keeping student data in-country, which strengthens the POPIA story from spec §11.
+- **Region: `africa-south1` (Johannesburg)** — Google's South African region, keeping student data in-country, which strengthens the POPIA story from spec §11. *(Amended, Plan 9 Task 11 / D§10 fiat 12: mail — and only mail — leaves the region. Outbound email is delivered by Brevo, whose infrastructure is not in-country; recipient addresses and message content transit it. Everything else stays in `africa-south1`.)*
 - **Total expectation: roughly R250–400/month**, dominated by the database — in line with everything you've budgeted before.
 - Lessons carried over from the Azure costing exercise: keep log ingestion minimal from day one (it's the classic silent bill), never attach networking extras that break scale-to-zero, and scale down between terms.
 - The backend gets its Dockerfile only at this step (`infra/`); local development stays plain Node — no Docker-except-Postgres on your machine.
