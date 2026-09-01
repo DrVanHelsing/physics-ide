@@ -1,5 +1,29 @@
 # Deploying to GCP — the runbook
 
+> **⛔ DECISION NEEDED BEFORE STEP 9 (found in review, 2026-09-02 overnight — verified
+> against Google's live docs twice).** Firebase Hosting's rewrite-to-Cloud-Run supports
+> only an enumerated region list, and **`africa-south1` is not in it** — `firebase deploy`
+> fails hard on the rewrite. So the shipped `frontend/firebase.json` cannot front a
+> Johannesburg Cloud Run service, and one of these is chosen at the session (the user
+> owns it — each trades something):
+>
+> 1. **Serve the SPA from the Cloud Run container itself** *(recommended, and the
+>    container gained this ability overnight — see step 9B)*: single origin by
+>    construction, single-cloud GCP as originally asked, data and serving in-country,
+>    zero standing cost. Trade: no CDN in front of static assets (fine at the 200-user
+>    ceiling), coupled frontend/backend deploys.
+> 2. **Keep Vercel (already live) and add a `/api/**` proxy rewrite to the Cloud Run
+>    URL**: least change, free at this scale, student data still in-country (only static
+>    assets serve from Vercel's edge). Trade: not single-cloud, an edge hop on every API
+>    call, Vercel egress on the proxy.
+> 3. **Move Cloud Run to a supported region** (e.g. `europe-west1`): keeps
+>    firebase.json as shipped. Trade: student data leaves South Africa — weakens the
+>    POPIA story `classroom-platform-stack.md` and spec §11 lean on. Probably no.
+>
+> `frontend/firebase.json` stays in the tree either way (it becomes correct the day
+> Google adds the region). The steps below are written for option 1; deltas for the
+> others are marked inline.
+
 This is the numbered, copy-pasteable path from a green local tree to a running deployment.
 It is executed **with the user at the keyboard** (Plan 9 Stage E / Task 14a): it needs their
 Google account, billing, domain and DNS. Nothing here is optional; the order is load-bearing
@@ -86,9 +110,14 @@ gcloud run deploy physics-ide-api \
 
 Two things here are load-bearing:
 
-- **The DSN must be the unix-socket form**:
-  `postgres://USER:PASS@/physics_ide?host=/cloudsql/PROJECT:africa-south1:INSTANCE`.
-  A plain TCP `DATABASE_URL` cannot reach Cloud SQL from Cloud Run.
+- **The DSN must be the unix-socket form, written with a literal `localhost` authority**:
+  `postgres://USER:PASS@localhost/physics_ide?host=/cloudsql/PROJECT:africa-south1:INSTANCE`.
+  A plain TCP `DATABASE_URL` cannot reach Cloud SQL from Cloud Run — and the
+  empty-authority spelling (`...:PASS@/physics_ide?...`) fails `config.ts`'s
+  `z.string().url()` validation before the app even starts (`new URL()` rejects it), so
+  the first revision would die at boot. `pg`'s connection-string parser prefers the
+  `host=` query parameter and ignores the `localhost`, so the socket is still what is
+  dialled (verified against this repo's own installed `pg`).
 - **The resource numbers answer to argon2, not to taste.** Task 6 set
   `memoryCost 19456` (~19 MiB RSS per concurrent hash). Cloud Run's default
   512 MiB at concurrency 80 on the single pinned instance means a class of 30

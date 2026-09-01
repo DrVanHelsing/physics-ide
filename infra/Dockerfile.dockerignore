@@ -3,6 +3,10 @@
 # and infra/.dockerignore alone would be inert).
 .git
 .worktrees
+.claude
+.superpowers
+.vercel
+.vscode
 node_modules
 **/node_modules
 docs
