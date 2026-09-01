@@ -1298,6 +1298,66 @@ try {
     refusal && refusalText === SIGNIN_REFUSED && throwaway.url().includes('/auth/signin'),
     `"${String(refusalText)}" at ${throwaway.url()}`);
   await sweepScreen(throwaway, '/auth/signin refusing an erased address');
+
+  // ── 18b: The pretend inbox on camera — Emails tab + webhook door ─────────
+  console.log('\n═══ 18b: The pretend inbox on camera — Emails tab + webhook door ════');
+  /* The `bounced` render stays a Task 4 unit test, deliberately: the sole
+   * writer of `emails` rows is a mail driver (backend/src/email/mailer.ts —
+   * `grep insert(emails)` returns exactly that one non-test site), the dev
+   * driver never sets providerId, and no admin route creates an emails row.
+   * So this flow can never produce a bounced row to photograph, and it does
+   * not try — the webhook checks below prove the DOOR, not the badge. */
+  await teacher.goto(`${BASE}/admin`, { waitUntil: 'networkidle0', timeout: 30000 });
+  await clickByText(teacher, 'button[role="tab"]', /^Emails$/);
+  await teacher.waitForSelector('.admin-mail-row', { timeout: 20000 });
+  const mailRows = await teacher.$$eval('.admin-mail-row', (rows) =>
+    rows.map((r) => r.innerText.replace(/\s+/g, ' ')));
+  const studentConfirmRow = mailRows.find((t) => t.includes(STUDENT_EMAIL) && /confirm/i.test(t));
+  check('The Emails tab lists the run\'s own mail — the student\'s confirm at minimum',
+    !!studentConfirmRow, `rows: ${mailRows.length}`);
+  check('The Status column reads "dev" — the pretend inbox names its driver',
+    !!studentConfirmRow && / dev( |$)/.test(studentConfirmRow), String(studentConfirmRow));
+  /* Keyboard: Enter on a focused row expands it (AdminConsole's own
+   * onKeyDown handler; spec §9's keyboard row). */
+  await teacher.focus('.admin-mail-row');
+  await teacher.keyboard.press('Enter');
+  const mailExpanded = await teacher
+    .waitForSelector('.admin-mail-body', { timeout: 10000 })
+    .then(() => true)
+    .catch(() => false);
+  check('Enter expands a focused row into the full message body', mailExpanded);
+  await screenshot(teacher, '17-emails-tab');
+  await sweepScreen(teacher, 'admin Emails tab');
+
+  // The webhook door, from inside the page (same-origin fetch, real route).
+  const WEBHOOK_SECRET = process.env.MAIL_WEBHOOK_SECRET ?? 'dev-mail-hook';
+  const noSecretStatus = await teacher.evaluate(async () => {
+    const res = await fetch('/api/mail/events', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event: 'hard_bounce', email: 'e2e@example.test', 'message-id': 'e2e-no-secret' }),
+    });
+    return res.status;
+  });
+  check('The webhook door refuses a missing secret with 403', noSecretStatus === 403,
+    `status ${noSecretStatus}`);
+  const unknownIdResult = await teacher.evaluate(async (secret) => {
+    const res = await fetch('/api/mail/events', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-mail-secret': secret },
+      body: JSON.stringify({ event: 'hard_bounce', email: 'e2e@example.test', 'message-id': 'e2e-unknown-id' }),
+    });
+    const data = await res.json().catch(() => null);
+    const after = await fetch('/api/admin/emails?limit=200').then((r) => r.json()).catch(() => ({ emails: [] }));
+    return {
+      status: res.status,
+      ok: data?.ok === true,
+      bounced: (after.emails ?? []).filter((e) => e.status === 'bounced').length,
+    };
+  }, WEBHOOK_SECRET);
+  check('An unknown message-id with the correct secret is 200-and-no-write',
+    unknownIdResult.status === 200 && unknownIdResult.ok && unknownIdResult.bounced === 0,
+    JSON.stringify(unknownIdResult));
 } catch (err) {
   check('The golden flow runs to the end without throwing', false, err.message);
   await screenshot(teacher, 'zz-teacher-at-failure').catch(() => {});
