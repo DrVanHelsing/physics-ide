@@ -4,7 +4,10 @@ import { db } from "./db/client.js";
 
 const app = buildApp({ db });
 
-app.listen({ port: config.port, host: "127.0.0.1" }).catch((err) => {
+// 0.0.0.0 because Cloud Run requires it (a loopback-bound revision never
+// starts, and a `docker run -p` publish cannot reach 127.0.0.1 either);
+// HOST stays overridable for anyone who wants the old loopback bind in dev.
+app.listen({ port: config.port, host: process.env.HOST ?? "0.0.0.0" }).catch((err) => {
   app.log.error(err);
   process.exit(1);
 });
