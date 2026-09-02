@@ -43,7 +43,7 @@ Constants used throughout — decided in Plan 9, do not improvise new ones mid-s
 | Region | `africa-south1` (Johannesburg) | stack doc — data stays in-country (POPIA, spec §11) |
 | Cloud Run service | `physics-ide-api` | `/api/health`'s own `service` field |
 | Container resources | `--memory=1Gi --cpu=1 --concurrency=20 --max-instances=1 --timeout=600s` | step 8 — sized against argon2, not guessed |
-| Proxy trust | `TRUST_PROXY=1` (a hop count, not `true`) | step 8 — the spoof-proof setting, see there |
+| Proxy trust | `TRUST_PROXY=1` (a hop count, not `true`) — **option 1 only**; option 2 needs its own value, see step 8's delta | step 8 — the spoof-proof setting, see there |
 
 ## The steps
 
@@ -73,15 +73,21 @@ DATABASE_URL="postgres://USER:PASS@127.0.0.1:5432/physics_ide" npm run db:migrat
 ### 4. Seed — immediately after the migration, same proxy, IN PRODUCTION MODE
 
 ```
-NODE_ENV=production DATABASE_URL="postgres://USER:PASS@127.0.0.1:5432/physics_ide" ADMIN_PASSWORD="<real password>" ADMIN_EMAIL="<admin email>" npm run seed -w backend
+NODE_ENV=production TICK_SECRET=seed-only MAIL_DRIVER=brevo MAIL_FROM=seed@invalid.local BREVO_API_KEY=seed-only MAIL_WEBHOOK_SECRET=seed-only DATABASE_URL="postgres://USER:PASS@127.0.0.1:5432/physics_ide" ADMIN_PASSWORD="<real password>" ADMIN_EMAIL="<admin email>" npm run seed -w backend
 ```
 
 **`NODE_ENV=production` is load-bearing here, not decoration**: the abort-without-
 `ADMIN_PASSWORD` guard (Task 6) is conditioned on it. Without it, a dropped
 `ADMIN_PASSWORD` falls back to the committed dev default with only a warning — a
 production admin account with a password that is in the repo. With it, the seed refuses.
-Skipping this step entirely leaves no admin account, and the admin console is the only
-place a failed send is visible.
+
+**The five `seed-only` values are shape, not secrets** (review round 2): `config.ts`
+validates the WHOLE production env shape at module load, before the seed's own guard can
+run, and demands the mail/tick values — which do not exist until steps 5–6. The seed never
+mails and never ticks, so throwaways satisfy the shape; the only two values that matter
+here are `DATABASE_URL` and `ADMIN_PASSWORD`. The same spelling applies to any future
+re-seed. Skipping this step entirely leaves no admin account, and the admin console is the
+only place a failed send is visible.
 
 ### 5. The postman — Brevo, BEFORE the secrets that hold its key
 
@@ -155,8 +161,13 @@ Four things here are load-bearing:
   confirm/reset/invite link, and its true value (the public origin) does not exist until
   this deploy returns the service URL. Do not skip step 9's re-deploy.
 
-*Option 2 delta:* same command, but the SPA is not the origin — skip step 9's option-1
-half and use the Vercel domain wherever "public origin" appears below.
+*Option 2 delta — NOT "same command" (review round 2):* behind Vercel's proxy the header
+arrives `<client>, <vercel-egress>` and Cloud Run appends its peer, so `TRUST_PROXY=1`
+reads the Vercel egress IP — every user in ONE rate-limit bucket — while `TRUST_PROXY=2`
+reads the client but is directly spoofable on the still-public `run.app` origin. Option 2
+is only safe with `TRUST_PROXY=2` **plus** an ingress restriction (or an accepted,
+recorded exposure) — a decision of its own, taken at the session if option 2 is chosen.
+Use the Vercel domain wherever "public origin" appears below.
 
 ### 9. The origin, settled — and APP_BASE_URL made true
 
@@ -196,6 +207,11 @@ Already set in step 8, verified here: `NODE_ENV=production` (Secure cookie, seed
 brevo-required), `TRUST_PROXY=1`, `MAIL_DRIVER=brevo`, real `MAIL_FROM`, true
 `APP_BASE_URL` (step 9). `curl https://<public origin>/api/health` answers
 `{"ok":true,"service":"physics-ide-api"}`.
+
+**And verify the spoof is actually closed** (DEPLOY.md box 2's second half): hit
+`POST /api/auth/forgot` more than its per-IP limit with a DIFFERENT forged
+`X-Forwarded-For` on each request — the 429 must still arrive. If forging the header
+resets the limiter, the trust setting is wrong; stop and fix it before going further.
 
 ### 13. The /vendor header
 
