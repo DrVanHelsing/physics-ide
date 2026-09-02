@@ -136,9 +136,8 @@ export function useProject() {
       onProjectSaved((manifest, opts) => {
         if (!opts?.preserveTimestamp) return; // only sync-applied writes
         if (!manifest || manifest.id !== activeProjectIdRef.current) return;
-        // An autosave already in flight would land on top of the pull with a
-        // stale base — drop it before swapping the content in.
-        debouncedSaveRef.current.cancel();
+        // No cancel here: applyManifestToWorkingState disarms the autosave
+        // itself — ONE mechanism for every adopt-persisted-state site.
         setActiveManifestRef.current?.(manifest);
         applyRef.current?.(manifest);
       }),

@@ -393,9 +393,17 @@ export default function IDELayout() {
           loadWorkspaceXml: sim.loadWorkspaceXml,
           bumpReloadKey: () => setWorkspaceReloadKey((k) => k + 1),
           closeChart: () => setChartDataset(null),
-          onError: (err) => {
+          onError: (err, phase) => {
             console.warn("Analyse swap failed:", err);
-            setStatus({ text: "Could not open the analysis workspace — your blocks are unchanged", type: "error" });
+            // State-honest per phase (review M3): an "op" throw means the
+            // stash never persisted but nothing was replaced either; a
+            // "teardown" throw means the stash IS persisted and the
+            // replacement half-ran — recoverable via Back to Simulation.
+            setStatus(
+              phase === "teardown"
+                ? { text: "Could not finish opening the analysis workspace — your simulation blocks are saved with this project", type: "error" }
+                : { text: "Could not open the analysis workspace — your blocks are unchanged", type: "error" },
+            );
           },
         },
         xml,
@@ -415,9 +423,16 @@ export default function IDELayout() {
         stopRun: sim.handleStop,
         bumpReloadKey: () => setWorkspaceReloadKey((k) => k + 1),
         closeChart: () => setChartDataset(null),
-        onError: (err) => {
+        onError: (err, phase) => {
           console.warn("Analyse restore failed:", err);
-          setStatus({ text: "Could not restore the simulation blocks — the analysis workspace is unchanged", type: "error" });
+          // State-honest per phase (review M3): an "op" throw means nothing
+          // was restored; a "teardown" throw lands AFTER the restore
+          // persisted and applied — the blocks are back, only the view may lag.
+          setStatus(
+            phase === "teardown"
+              ? { text: "Your simulation blocks are restored — reload if the view looks stale", type: "error" }
+              : { text: "Could not restore the simulation blocks — the analysis workspace is unchanged", type: "error" },
+          );
         },
       }),
     [proj, sim, dbg, setStatus]
