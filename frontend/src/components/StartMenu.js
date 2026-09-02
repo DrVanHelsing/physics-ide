@@ -1,22 +1,27 @@
 /**
- * StartMenu — Phase B.5 goal-first redesign.
+ * StartMenu — Plan 10 deep IA rework (user-ordered "recommended option").
  *
- * Layout:
- *   - Sidebar: branding + quick actions (Open File, Documentation).
- *   - Main area:
- *       * Continue — saved-project list pulled from useProject.
- *       * Create New — three goal cards (Physics, Data Science, Hybrid).
- *       * Templates — existing physics templates surfaced under the
- *         Physics goal; DS / Hybrid template slots are placeholders that
- *         Phase C fills.
- *   - Wizard: when a goal card is clicked, a panel collects the project
- *     spec (title, start path, editor default, beginner toggle, plus the
- *     model-first/data-first choice for hybrid).
+ * One column, three moves a visitor can make, zero intermediate screens:
+ *   - Header: branding left, the quick actions (Open File, Help, account)
+ *     right — the 280px sidebar they used to live in is gone.
+ *   - Continue — saved-project list, unchanged.
+ *   - Start something new — the three goal cards CREATE INSTANTLY (a blank
+ *     project of that goal; the wizard is deleted), followed by every
+ *     template the product has, grouped Physics / Data science / Hybrid.
  *
- * The new flow speaks the manifest spec directly via `onCreate(spec)` and
- * `onOpenProject(id)`. Template selections still translate through the
- * existing physics template / examples lookup so we don't lose the
- * projectile / spring / orbit / pendulum content.
+ * Nothing the wizard could do is lost, it just stopped being a form:
+ *   - a title      → projects are named in the IDE (click the title);
+ *   - blank+code   → the Physics card's "Start in code instead" subaction;
+ *   - DS/Hybrid templates → surfaced on the landing (the wizard's Template
+ *     radio was the ONLY path to them before);
+ *   - hybrid model/data entry → each topic card creates with its own
+ *     default entry and carries a one-click "start from the other half"
+ *     subaction.
+ *
+ * The flow still speaks the manifest spec directly via `onCreate(spec)` and
+ * `onOpenProject(id)`; buildManifestSpec is unchanged and stays the single
+ * translation point (the welcome page's pending-template seed also routes
+ * through it).
  */
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -35,7 +40,6 @@ import {
   CodeIcon,
   SpringIcon,
   HelpIcon,
-  PlusIcon,
   UploadIcon,
   TableIcon,
   XIcon,
@@ -90,7 +94,7 @@ const CARD_ICONS = {
   blocks_pendulum: AtomIcon,
 };
 
-/* ── Map a wizard spec to a manifest spec + content ──────── */
+/* ── Map a creation spec to a manifest spec + content ────── */
 
 export function buildManifestSpec({ goal, title, startPath, templateId, editor, hybridEntry }) {
   const preferredEditor = editor === "code" ? "code" : "blocks";
@@ -171,8 +175,8 @@ export function buildManifestSpec({ goal, title, startPath, templateId, editor, 
 /**
  * resolvePendingTemplateSpec — turns a template id pending from a welcome-
  * page tile (welcome/pendingTemplate.js) into a manifest spec, via the SAME
- * buildManifestSpec the wizard's "Create project" button calls — never a
- * forked copy of its lookup logic.
+ * buildManifestSpec the template cards call — never a forked copy of its
+ * lookup logic.
  *
  * Returns null for any id that is not a real template. That check has to
  * happen HERE, before buildManifestSpec runs: an unmatched templateId falls
@@ -231,12 +235,6 @@ export default function StartMenu({
   onHelp,
 }) {
   const importRef = useRef(null);
-  const [wizardGoal, setWizardGoal] = useState(null); // null | 'physics' | 'datascience' | 'hybrid'
-  const [wizardTitle, setWizardTitle] = useState("");
-  const [wizardStartPath, setWizardStartPath] = useState("blank"); // 'blank' | 'template'
-  const [wizardTemplateId, setWizardTemplateId] = useState(null);
-  const [wizardEditor, setWizardEditor] = useState("blocks");
-  const [wizardHybridEntry, setWizardHybridEntry] = useState("model");
   const [attributions, setAttributions] = useState({});
 
   /* Offline-correct first paint (design D§7): seed from the sidecar
@@ -256,29 +254,6 @@ export default function StartMenu({
     };
   }, [projectList]);
 
-  const openWizard = (goalId) => {
-    setWizardGoal(goalId);
-    setWizardTitle("");
-    setWizardStartPath("blank");
-    setWizardTemplateId(null);
-    setWizardEditor(goalId === "datascience" ? "blocks" : "blocks");
-    setWizardHybridEntry("model");
-  };
-  const closeWizard = () => setWizardGoal(null);
-
-  const handleCreate = () => {
-    const spec = buildManifestSpec({
-      goal: wizardGoal,
-      title: wizardTitle,
-      startPath: wizardStartPath,
-      templateId: wizardTemplateId,
-      editor: wizardEditor,
-      hybridEntry: wizardHybridEntry,
-    });
-    onCreate?.(spec);
-    closeWizard();
-  };
-
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -286,97 +261,77 @@ export default function StartMenu({
     onImport?.(file);
   };
 
-  const wizardGoalDef = useMemo(
-    () => GOALS.find((g) => g.id === wizardGoal) || null,
-    [wizardGoal],
-  );
-
-  const templatesForGoal = useMemo(() => {
-    if (wizardGoal === "datascience") {
-      return DS_TEMPLATES.filter((t) => t.goal === "datascience").map((t) => ({
-        id: t.id,
-        title: t.title,
-        description: t.description,
-        kind: "blocks",
-      }));
-    }
-    if (wizardGoal === "hybrid") {
-      // Topic cards: each couples a sim with its matching analysis. Picking one
-      // also auto-sets the model/data-first entry (see WizardPanel).
-      return HYBRID_TOPICS.map((t) => ({
-        id: t.id,
-        title: t.title,
-        description: t.description,
-        kind: "blocks",
-        defaultEntry: t.defaultEntry,
-      }));
-    }
-    // Physics
-    const codeTemplates = EXAMPLES.map((ex) => ({
-      id: ex.id,
-      title: ex.title,
-      description: ex.description,
-      kind: "code",
-    }));
-    const blockTemplates = BLOCK_TEMPLATES.map((t) => ({
-      id: t.id,
-      title: t.title,
-      description: t.description,
-      kind: "blocks",
-    }));
-    return [...codeTemplates, ...blockTemplates];
-  }, [wizardGoal]);
-
-  /* The nine physics templates, surfaced on the landing instead of three
-     clicks deep behind the wizard's Template radio. Same shape the wizard
-     uses, so one card component renders both. */
-  const featuredTemplates = useMemo(
-    () => [
-      ...BLOCK_TEMPLATES.map((t) => ({ id: t.id, title: t.title, description: t.description, kind: "blocks" })),
-      ...EXAMPLES.map((e) => ({ id: e.id, title: e.title, description: e.description, kind: "code" })),
-    ],
-    [],
-  );
-
-  const openTemplate = (tpl) => {
+  /* A goal card IS the create button now: a blank project of that goal,
+     blocks editor. The Physics card's subaction covers blank-in-code. */
+  const createBlank = (goalId, editor = "blocks") => {
     onCreate?.(
       buildManifestSpec({
-        goal: "physics",
+        goal: goalId,
         title: "",
-        startPath: "template",
-        templateId: tpl.id,
-        editor: tpl.kind === "code" ? "code" : "blocks",
+        startPath: "blank",
+        editor,
       }),
     );
   };
 
+  const openTemplate = (tpl) => {
+    onCreate?.(
+      buildManifestSpec({
+        goal: tpl.goal,
+        title: "",
+        startPath: "template",
+        templateId: tpl.id,
+        editor: tpl.kind === "code" ? "code" : "blocks",
+        hybridEntry: tpl.entry,
+      }),
+    );
+  };
+
+  /* Every template the product has, on the landing — the wizard's Template
+     radio was the only path to the DS and hybrid ones before. Hybrid-goal
+     DS_TEMPLATES entries are the analysis HALVES of topics; they enter a
+     project via a topic card (or "Analyse this run →"), not their own card. */
+  const physicsTemplates = useMemo(
+    () => [
+      ...BLOCK_TEMPLATES.map((t) => ({ id: t.id, title: t.title, description: t.description, kind: "blocks", goal: "physics" })),
+      ...EXAMPLES.map((e) => ({ id: e.id, title: e.title, description: e.description, kind: "code", goal: "physics" })),
+    ],
+    [],
+  );
+  const dsTemplates = useMemo(
+    () =>
+      DS_TEMPLATES.filter((t) => t.goal === "datascience").map((t) => ({
+        id: t.id, title: t.title, description: t.description, kind: "blocks", goal: "datascience",
+      })),
+    [],
+  );
+  const hybridTopics = useMemo(
+    () =>
+      HYBRID_TOPICS.map((t) => ({
+        id: t.id, title: t.title, description: t.description, kind: "blocks", goal: "hybrid",
+        entry: t.defaultEntry,
+        altEntry: t.defaultEntry === "data" ? "model" : "data",
+      })),
+    [],
+  );
+
   return (
     <div className="start-menu-overlay">
-      {/* The decorative titlebar is gone (Plan 10 Task 9's streamline):
-          it repeated the sidebar's own logo and title one inch away. */}
       <div className="start-menu">
-        {/* ── Sidebar ── */}
-        <aside className="start-sidebar">
-          <div className="start-sidebar-header">
-            <div className="start-sidebar-logo">
-              <div className="start-sidebar-logo-icon">
-                <AtomIcon size={18} />
-              </div>
-              <div>
-                <h1 className="start-sidebar-title">Physics IDE</h1>
-                <p className="start-sidebar-sub">Modelling + Data</p>
-              </div>
+        {/* ── Header: brand left, quick actions right (the old sidebar,
+              flattened into one row) ── */}
+        <header className="start-header">
+          <div className="start-header-brand">
+            <div className="start-sidebar-logo-icon">
+              <AtomIcon size={18} />
+            </div>
+            <div>
+              <h1 className="start-sidebar-title">Physics IDE</h1>
+              <p className="start-sidebar-sub">Modelling + Data</p>
             </div>
             <span className="start-sidebar-version">v1.0 • VPython 3.2</span>
           </div>
-
-          <nav className="start-actions">
-            <p className="start-actions-label">Quick Actions</p>
-            {onHelp && (
-              <button className="start-action-btn" onClick={onHelp}>
-                <HelpIcon size={16} /> Documentation
-              </button>
-            )}
+          <div className="start-header-actions">
             <input
               ref={importRef}
               type="file"
@@ -391,113 +346,94 @@ export default function StartMenu({
             >
               <UploadIcon size={16} /> Open File…
             </button>
+            {onHelp && (
+              <button className="start-action-btn" onClick={onHelp}>
+                <HelpIcon size={16} /> Help
+              </button>
+            )}
             <AccountChip />
-          </nav>
-        </aside>
+          </div>
+        </header>
 
         {/* ── Main Content ── */}
         <main className="start-content">
-          {wizardGoal ? (
-            <WizardPanel
-              goalDef={wizardGoalDef}
-              templates={templatesForGoal}
-              title={wizardTitle}
-              setTitle={setWizardTitle}
-              startPath={wizardStartPath}
-              setStartPath={setWizardStartPath}
-              templateId={wizardTemplateId}
-              setTemplateId={setWizardTemplateId}
-              editor={wizardEditor}
-              setEditor={setWizardEditor}
-              hybridEntry={wizardHybridEntry}
-              setHybridEntry={setWizardHybridEntry}
-              onCancel={closeWizard}
-              onCreate={handleCreate}
-            />
+          {/* Continue */}
+          <p className="start-section-label">Continue</p>
+          {!loaded ? null : projectList.length > 0 ? (
+            <div className="start-project-list">
+              {projectList.map((p, i) => (
+                <ProjectRow
+                  key={p.id}
+                  project={p}
+                  mostRecent={i === 0}
+                  attribution={attributions[p.id]}
+                  onOpen={() => onOpenProject?.(p.id)}
+                  onDelete={() => onDeleteProject?.(p.id, p.title)}
+                />
+              ))}
+            </div>
           ) : (
+            <p className="start-empty">
+              Nothing saved yet. Pick a goal below to start from scratch, or open a template —
+              your work is saved on this computer automatically.
+            </p>
+          )}
+
+          {/* Start something new: the goal cards create instantly, and every
+              template lives right below them — one section, no wizard. */}
+          <p className="start-section-label">Start something new</p>
+          <div className="start-grid">
+            {GOALS.map((g) => {
+              const Icon = g.icon;
+              return (
+                <GoalCard
+                  key={g.id}
+                  goal={g}
+                  icon={<Icon size={22} />}
+                  onCreate={() => createBlank(g.id)}
+                  alt={
+                    g.id === "physics"
+                      ? { label: "Start in code instead", onClick: () => createBlank("physics", "code") }
+                      : null
+                  }
+                />
+              );
+            })}
+          </div>
+
+          <p className="start-section-sublabel">Physics templates</p>
+          <div className="start-grid start-grid--templates">
+            {physicsTemplates.map((tpl) => (
+              <TemplateCard key={tpl.id} tpl={tpl} onOpen={() => openTemplate(tpl)} />
+            ))}
+          </div>
+
+          {dsTemplates.length > 0 && (
             <>
-              {/* The "Welcome / pick up where you left off" blurb is gone
-                  (Task 9's streamline): the section labels below already
-                  say it, without a heading band spending 60px to do so. */}
-
-              {/* Continue */}
-              <p className="start-section-label">Continue</p>
-              {!loaded ? null : projectList.length > 0 ? (
-                <div className="start-project-list">
-                  {projectList.map((p, i) => (
-                    <ProjectRow
-                      key={p.id}
-                      project={p}
-                      mostRecent={i === 0}
-                      attribution={attributions[p.id]}
-                      onOpen={() => onOpenProject?.(p.id)}
-                      onDelete={() => onDeleteProject?.(p.id, p.title)}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <p className="start-empty">
-                  Nothing saved yet. Pick a goal below to start from scratch, or open a template —
-                  your work is saved on this computer automatically.
-                </p>
-              )}
-
-              {/* Create New */}
-              <p className="start-section-label">Create New</p>
-              <div className="start-grid">
-                {GOALS.map((g) => {
-                  const Icon = g.icon;
-                  return (
-                    <button
-                      key={g.id}
-                      className="start-card start-card--goal"
-                      style={{ "--card-accent": g.accent }}
-                      onClick={() => openWizard(g.id)}
-                    >
-                      <div className="start-card-icon">
-                        <Icon size={22} />
-                      </div>
-                      <div className="start-card-body">
-                        <span
-                          className="start-card-badge"
-                          style={{
-                            background: `var(${GOAL_TOKEN[g.id] || "--cat-advanced"})`,
-                            color: "#FFFFFF",
-                          }}
-                        >
-                          {GOAL_BADGE[g.id] || g.id}
-                        </span>
-                        <h3 className="start-card-title">{g.label}</h3>
-                        <p className="start-card-desc">{g.description}</p>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Start from a worked example */}
-              <p className="start-section-label">Start from a template</p>
+              <p className="start-section-sublabel">Data science templates</p>
               <div className="start-grid start-grid--templates">
-                {featuredTemplates.map((tpl) => {
-                  const Icon = CARD_ICONS[tpl.id] || (tpl.kind === "blocks" ? BlocksIcon : CodeIcon);
-                  return (
-                    <button
-                      key={tpl.id}
-                      type="button"
-                      className="start-card start-card--template"
-                      onClick={() => openTemplate(tpl)}
-                    >
-                      <div className="start-card-icon"><Icon size={20} /></div>
-                      <div className="start-card-body">
-                        <span className={`start-card-badge start-card-badge--${tpl.kind}`}>
-                          {tpl.kind === "code" ? "Code" : "Blocks"}
-                        </span>
-                        <h3 className="start-card-title">{tpl.title}</h3>
-                        <p className="start-card-desc">{tpl.description}</p>
-                      </div>
-                    </button>
-                  );
-                })}
+                {dsTemplates.map((tpl) => (
+                  <TemplateCard key={tpl.id} tpl={tpl} onOpen={() => openTemplate(tpl)} />
+                ))}
+              </div>
+            </>
+          )}
+
+          {hybridTopics.length > 0 && (
+            <>
+              <p className="start-section-sublabel">Hybrid topics — a simulation paired with its analysis</p>
+              <div className="start-grid start-grid--templates">
+                {hybridTopics.map((tpl) => (
+                  <TemplateCard
+                    key={tpl.id}
+                    tpl={tpl}
+                    onOpen={() => openTemplate(tpl)}
+                    alt={{
+                      label: tpl.altEntry === "data" ? "Start from the data instead" : "Start from the model instead",
+                      onClick: () => openTemplate({ ...tpl, entry: tpl.altEntry }),
+                    }}
+                  />
+                ))}
               </div>
             </>
           )}
@@ -542,177 +478,62 @@ function ProjectRow({ project, attribution, onOpen, onDelete, mostRecent = false
 }
 export { ProjectRow }; // test seam only
 
-function WizardPanel({
-  goalDef,
-  templates,
-  title,
-  setTitle,
-  startPath,
-  setStartPath,
-  templateId,
-  setTemplateId,
-  editor,
-  setEditor,
-  hybridEntry,
-  setHybridEntry,
-  onCancel,
-  onCreate,
-}) {
-  if (!goalDef) return null;
-  const Icon = goalDef.icon;
-  const canSubmit = startPath !== "template" || Boolean(templateId);
-
+/* A goal card: the whole card is the create button; an optional subaction
+   sits beneath the copy (a nested control, so the card itself is a div). */
+function GoalCard({ goal, icon, onCreate, alt }) {
   return (
-    <div className="start-wizard" style={{ "--card-accent": goalDef.accent }}>
-      <div className="start-wizard-header">
-        <div className="start-wizard-title">
-          <span className="start-wizard-icon"><Icon size={18} /></span>
-          <strong>New {goalDef.label} project</strong>
+    <div className="start-card start-card--goal" style={{ "--card-accent": goal.accent }}>
+      <button
+        type="button"
+        className="start-card-main"
+        onClick={onCreate}
+        title={`Create a blank ${goal.label.toLowerCase()} project`}
+      >
+        <div className="start-card-icon">{icon}</div>
+        <div className="start-card-body">
+          <span
+            className="start-card-badge"
+            style={{
+              background: `var(${GOAL_TOKEN[goal.id] || "--cat-advanced"})`,
+              color: "#FFFFFF",
+            }}
+          >
+            {GOAL_BADGE[goal.id] || goal.id}
+          </span>
+          <h3 className="start-card-title">{goal.label}</h3>
+          <p className="start-card-desc">{goal.description}</p>
         </div>
-        <button className="start-wizard-cancel" onClick={onCancel} aria-label="Cancel">
-          <XIcon size={14} />
+      </button>
+      {alt && (
+        <button type="button" className="start-card-alt" onClick={alt.onClick}>
+          {alt.label}
         </button>
-      </div>
-
-      <div className="start-wizard-body">
-        <label className="start-wizard-field">
-          <span>Project title</span>
-          <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder={`Untitled ${goalDef.label.toLowerCase()} project`}
-          />
-        </label>
-
-        <fieldset className="start-wizard-field">
-          <legend>Start path</legend>
-          <div className="start-wizard-radios">
-            <RadioCard
-              checked={startPath === "blank"}
-              onChange={() => {
-                setStartPath("blank");
-                setTemplateId(null);
-              }}
-              label="Blank"
-              hint="An empty project."
-            />
-            <RadioCard
-              checked={startPath === "template"}
-              onChange={() => setStartPath("template")}
-              label="Template"
-              hint={
-                templates.length > 0
-                  ? `${templates.length} template${templates.length === 1 ? "" : "s"} available.`
-                  : "No templates available for this goal yet."
-              }
-              disabled={templates.length === 0}
-            />
-          </div>
-        </fieldset>
-
-        {startPath === "template" && templates.length > 0 && (
-          <div className="start-wizard-templates">
-            {templates.map((tpl) => {
-              const TplIcon = CARD_ICONS[tpl.id] || (tpl.kind === "blocks" ? BlocksIcon : CodeIcon);
-              return (
-                <button
-                  key={tpl.id}
-                  type="button"
-                  className={`start-wizard-template${templateId === tpl.id ? " start-wizard-template--active" : ""}`}
-                  onClick={() => {
-                    setTemplateId(tpl.id);
-                    // Hybrid topic cards carry a default entry — picking one
-                    // auto-sets the model/data-first radio below.
-                    if (tpl.defaultEntry) setHybridEntry(tpl.defaultEntry);
-                  }}
-                >
-                  <span className="start-wizard-template-icon"><TplIcon size={14} /></span>
-                  <span className="start-wizard-template-meta">
-                    <strong>{tpl.title}</strong>
-                    <span>
-                      {tpl.defaultEntry
-                        ? tpl.description
-                        : `${tpl.kind === "code" ? "Code" : "Blocks"} · ${tpl.description}`}
-                    </span>
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        {goalDef.id === "hybrid" && (
-          <fieldset className="start-wizard-field">
-            <legend>Hybrid entry</legend>
-            <div className="start-wizard-radios">
-              <RadioCard
-                checked={hybridEntry === "model"}
-                onChange={() => setHybridEntry("model")}
-                label="Model-first"
-                hint="Run a simulation, then analyse what it produces."
-              />
-              <RadioCard
-                checked={hybridEntry === "data"}
-                onChange={() => setHybridEntry("data")}
-                label="Data-first"
-                hint="Start from a dataset, build a model to match."
-              />
-            </div>
-          </fieldset>
-        )}
-
-        <fieldset className="start-wizard-field">
-          <legend>Editor default</legend>
-          <div className="start-wizard-radios">
-            <RadioCard
-              checked={editor === "blocks"}
-              onChange={() => setEditor("blocks")}
-              label="Blocks"
-              hint="Drag-and-drop visual editor."
-              Icon={BlocksIcon}
-            />
-            <RadioCard
-              checked={editor === "code"}
-              onChange={() => setEditor("code")}
-              label="Code"
-              hint="Plain Python editor."
-              Icon={CodeIcon}
-            />
-          </div>
-        </fieldset>
-
-      </div>
-
-      <div className="start-wizard-footer">
-        <button className="start-wizard-secondary" onClick={onCancel}>Cancel</button>
-        <button
-          className="start-wizard-primary"
-          onClick={onCreate}
-          disabled={!canSubmit}
-        >
-          <PlusIcon size={14} /> Create project
-        </button>
-      </div>
+      )}
     </div>
   );
 }
 
-function RadioCard({ checked, onChange, label, hint, Icon, disabled }) {
+function TemplateCard({ tpl, onOpen, alt }) {
+  const Icon =
+    CARD_ICONS[tpl.id] ||
+    (tpl.goal === "datascience" ? TableIcon : tpl.goal === "hybrid" ? GlobeIcon : tpl.kind === "code" ? CodeIcon : BlocksIcon);
   return (
-    <label className={`start-wizard-radio${checked ? " start-wizard-radio--active" : ""}${disabled ? " start-wizard-radio--disabled" : ""}`}>
-      <input
-        type="radio"
-        checked={checked}
-        onChange={onChange}
-        disabled={disabled}
-      />
-      <span className="start-wizard-radio-body">
-        <span className="start-wizard-radio-label">
-          {Icon && <Icon size={12} />}
-          {label}
-        </span>
-        {hint && <span className="start-wizard-radio-hint">{hint}</span>}
-      </span>
-    </label>
+    <div className="start-card start-card--template">
+      <button type="button" className="start-card-main" onClick={onOpen}>
+        <div className="start-card-icon"><Icon size={20} /></div>
+        <div className="start-card-body">
+          <span className={`start-card-badge start-card-badge--${tpl.kind}`}>
+            {tpl.kind === "code" ? "Code" : "Blocks"}
+          </span>
+          <h3 className="start-card-title">{tpl.title}</h3>
+          <p className="start-card-desc">{tpl.description}</p>
+        </div>
+      </button>
+      {alt && (
+        <button type="button" className="start-card-alt" onClick={alt.onClick}>
+          {alt.label}
+        </button>
+      )}
+    </div>
   );
 }
