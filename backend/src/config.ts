@@ -28,11 +28,23 @@ const EnvSchema = z
      *  production regardless of driver (see the superRefine below) — NOT
      *  tied to MAIL_DRIVER the way MAIL_FROM/BREVO_API_KEY are. */
     MAIL_WEBHOOK_SECRET: z.string().min(1).optional(),
-    /** Whether Fastify trusts X-Forwarded-* from the reverse proxy in front
-     *  of it (DEPLOY.md's "before the GCP step" box: trustProxy for the
-     *  load balancer). z.coerce.boolean() is a trap here — Boolean("false")
-     *  is true — so this is an enum mapped by hand below instead. */
-    TRUST_PROXY: z.enum(["true", "false"]).default("false"),
+    /** Whether/how Fastify trusts X-Forwarded-* from the fronting layer
+     *  (DEPLOY.md's "before the GCP step" box). z.coerce.boolean() is a
+     *  trap here — Boolean("false") is true — so the mapping is by hand
+     *  below. "true" trusts EVERY hop, which reads the LEFTMOST
+     *  X-Forwarded-For value — a value the CLIENT controls when the
+     *  service is directly reachable, defeating every per-IP limiter. A
+     *  small integer trusts exactly that many fronting hops: Cloud Run's
+     *  front end APPENDS the real client IP, so `1` reads the rightmost,
+     *  unspoofable value — the production setting (DEPLOY-GCP.md). */
+    TRUST_PROXY: z
+      .string()
+      .regex(/^(true|false|[1-9][0-9]?)$/, "TRUST_PROXY must be true, false, or a hop count 1-99")
+      .default("false"),
+    /** Directory of a built SPA for this API to serve from its own origin
+     *  (DEPLOY-GCP.md option 1 — Firebase Hosting's rewrite cannot reach
+     *  africa-south1). Absent = API-only, byte-identical to before. */
+    STATIC_DIR: z.string().min(1).optional(),
   })
   .superRefine((val, ctx) => {
     if (val.NODE_ENV === "production" && !val.TICK_SECRET) {
@@ -90,5 +102,7 @@ export const config = {
   // under the default MAIL_DRIVER=dev, a header-less webhook request yields
   // `undefined !== undefined` -> false, and the webhook door opens to anyone.
   mailWebhookSecret: env.MAIL_WEBHOOK_SECRET ?? "dev-mail-hook",
-  trustProxy: env.TRUST_PROXY === "true",
+  trustProxy:
+    env.TRUST_PROXY === "true" ? true : env.TRUST_PROXY === "false" ? false : Number(env.TRUST_PROXY),
+  staticDir: env.STATIC_DIR,
 } as const;

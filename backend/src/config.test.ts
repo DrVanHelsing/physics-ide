@@ -127,4 +127,31 @@ describe("TRUST_PROXY — z.enum(['true','false']), not z.coerce.boolean()", () 
     stubAll({ TRUST_PROXY: "yes" });
     await expect(loadConfig()).rejects.toThrow(/TRUST_PROXY/);
   });
+
+  test("a small integer maps to a HOP COUNT — Cloud Run's spoof-proof setting (review C3)", async () => {
+    // trustProxy: true reads the LEFTMOST X-Forwarded-For value, which a
+    // direct client controls; Cloud Run's front end APPENDS the real client
+    // IP, so trusting exactly one hop reads the rightmost, unspoofable one.
+    stubAll({ TRUST_PROXY: "1" });
+    const config = await loadConfig();
+    expect(config.trustProxy).toBe(1);
+  });
+
+  test("zero hops is nonsense and rejected", async () => {
+    stubAll({ TRUST_PROXY: "0" });
+    await expect(loadConfig()).rejects.toThrow(/TRUST_PROXY/);
+  });
+});
+
+describe("STATIC_DIR — the single-origin option, absent by default", () => {
+  test("unset means API-only, exactly as before", async () => {
+    const config = await loadConfig();
+    expect(config.staticDir).toBeUndefined();
+  });
+
+  test("set, it carries through verbatim", async () => {
+    stubAll({ STATIC_DIR: "/app/frontend/dist" });
+    const config = await loadConfig();
+    expect(config.staticDir).toBe("/app/frontend/dist");
+  });
 });
