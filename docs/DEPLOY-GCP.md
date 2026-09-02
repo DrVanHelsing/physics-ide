@@ -93,7 +93,9 @@ only place a failed send is visible.
 
 Provider account; verify the sender identity; add the domain's SPF/DKIM records at the DNS
 host. Tier: **the lowest paid tier at ≥1,000 sends/day** — read the plan name and price off
-Brevo's pricing page now and record them here: `________`. (D§3's arithmetic: a marks day
+Brevo's pricing page now and record them here: **FREE tier at launch (user decision,
+2026-09-02) — UPGRADE to the lowest paid tier ≥1,000 sends/day BEFORE the first classroom
+marks release; the free ~300/day ceiling sits below the marks-day peak.** (D§3's arithmetic: a marks day
 peaks ≈450 sends at 5 emails × 30 students fan-out; the ≈300/day free tier does not fit.
 Decision settled by the user 2026-08-29.) The webhook itself is configured in step 11,
 once the public origin exists.
