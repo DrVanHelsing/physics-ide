@@ -139,6 +139,17 @@ const REGISTRY = [
     conceptLabel: "Rotate object (angle, axis)",
     keywords: ["rotate", "spin", "angle", "axis", "angular", "rotation"] },
 
+  /* ── Graphs (physics — live plotting during a run, Plan 10 R1) ── */
+  { id: "graph_display_block", category: "Graphs", domain: "physics",
+    conceptLabel: "Graph display (title, axis labels)",
+    keywords: ["graph", "display", "plot", "chart", "axes", "live", "panel"] },
+  { id: "graph_series_block", category: "Graphs", domain: "physics",
+    conceptLabel: "Graph series (line or dots, colour)",
+    keywords: ["series", "curve", "gcurve", "gdots", "line", "dots", "legend", "colour"] },
+  { id: "graph_plot_block", category: "Graphs", domain: "physics",
+    conceptLabel: "Plot a point (x, y) on a series",
+    keywords: ["plot", "point", "x", "y", "live", "loop", "graph"] },
+
   /* ── State (physics) ──────────────────────────────────────── */
   { id: "set_scalar_block", category: "State", domain: "physics",
     conceptLabel: "Set variable (x = …)",

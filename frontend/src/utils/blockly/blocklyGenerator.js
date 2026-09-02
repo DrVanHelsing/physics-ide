@@ -834,6 +834,70 @@ export function defineCustomBlocksAndGenerator(Blockly) {
         "Quick-create a box: variable name, position, width \u00d7 height \u00d7 depth, colour — all in one block.",
     },
 
+    /* ══════════════════════════════════════════════════════
+       GRAPHS — live plotting during a run (Plan 10 R1).
+       The vendored GlowScript runtime already ships graph/gcurve/gdots;
+       these three blocks are the whole surface. The display is a
+       statement-with-body container (sim_start's strip-dedent idiom —
+       VPython graph calls need no indentation of their own); the series
+       is a preset_* flat quick-create; plot() references the series by
+       field_variable, the house idiom for named references.
+       ══════════════════════════════════════════════════════ */
+    {
+      type: "graph_display_block",
+      message0: "graph display  %1  x label %2  y label %3  %4",
+      args0: [
+        { type: "field_input", name: "TITLE",  text: "My Graph" },
+        { type: "field_input", name: "XLABEL", text: "t (s)" },
+        { type: "field_input", name: "YLABEL", text: "value" },
+        { type: "input_dummy" },
+      ],
+      message1: "%1",
+      args1: [{ type: "input_statement", name: "SERIES" }],
+      previousStatement: null,
+      nextStatement: null,
+      style: "graphs_blocks",
+      tooltip:
+        "Create a live graph panel under the 3D scene. Put series blocks inside, then plot points on them during the run.",
+    },
+    {
+      type: "graph_series_block",
+      message0: "series  %1  drawn as %2  colour %3",
+      args0: [
+        { type: "field_variable", name: "NAME", variable: "data" },
+        {
+          type: "field_dropdown",
+          name: "MODE",
+          options: [
+            ["a line", "gcurve"],
+            ["dots", "gdots"],
+          ],
+        },
+        { type: "field_colour", name: "COL", colour: "#0973d1" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      style: "graphs_blocks",
+      tooltip:
+        "Add a named series to the graph display above it — a line or dots, in your colour. Plot points on it by name.",
+    },
+    {
+      type: "graph_plot_block",
+      message0: "plot ( %1 , %2 ) on %3",
+      args0: [
+        { type: "input_value", name: "X", check: ["Number"] },
+        { type: "input_value", name: "Y", check: ["Number"] },
+        { type: "field_variable", name: "SERIES", variable: "data" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      style: "graphs_blocks",
+      tooltip:
+        "Add one point (x, y) to a series — put this inside your simulation loop to draw live while it runs.",
+    },
+
     /* ── Define constant ─────────────────────────────────── */
     {
       type: "define_const_block",
@@ -2338,6 +2402,38 @@ export function defineCustomBlocksAndGenerator(Blockly) {
     const col = hexToVPythonColor(hex);
     const e = `box(pos=vector(${x}, ${y}, ${z}), size=vector(${w}, ${h}, ${d}), color=${col})`;
     return name ? `${name} = ${e}\n` : `${e}\n`;
+  };
+
+  /* ── Graphs (Plan 10 R1) ─────────────────────────────── */
+  gen["graph_display_block"] = function (block) {
+    const title = escPy(block.getFieldValue("TITLE") || "My Graph");
+    const xl = escPy(block.getFieldValue("XLABEL") || "");
+    const yl = escPy(block.getFieldValue("YLABEL") || "");
+    const raw = Python.statementToCode(block, "SERIES") || "";
+    // statementToCode adds one indent level; strip it — series creations are
+    // top-level code (sim_start_block's own idiom, same reason).
+    const indent = Python.INDENT || "  ";
+    const re = new RegExp("^" + indent.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gm");
+    const series = raw.replace(re, "");
+    return `graph(title="${title}", xtitle="${xl}", ytitle="${yl}", fast=False)\n${series}`;
+  };
+
+  gen["graph_series_block"] = function (block) {
+    const name = varName(block, "NAME", "data");
+    const mode = block.getFieldValue("MODE") === "gdots" ? "gdots" : "gcurve";
+    const hex = block.getFieldValue("COL") || "#0973d1";
+    const col = hexToVPythonColor(hex);
+    // label= puts the series name in the graph's own legend; GlowScript
+    // binds the series to the most recently created graph — which is the
+    // display block this sits inside.
+    return `${name} = ${mode}(color=${col}, label="${escPy(name)}")\n`;
+  };
+
+  gen["graph_plot_block"] = function (block) {
+    const series = varName(block, "SERIES", "data");
+    const x = val(block, "X", "0");
+    const y = val(block, "Y", "0");
+    return `${series}.plot(${x}, ${y})\n`;
   };
 
   gen["define_const_block"] = function (block) {

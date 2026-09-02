@@ -112,15 +112,16 @@ describe("blockRegistry guarantees", () => {
     expect(hybrid.every((e) => allowed.has(e.domain))).toBe(true);
   });
 
-  test("the registry is 120 entries across 19 categories", () => {
+  test("the registry is 123 entries across 20 categories", () => {
     const entries = getAllBlockEntries();
-    expect(entries).toHaveLength(120);
+    expect(entries).toHaveLength(123);
     const byCat = {};
     for (const e of entries) byCat[e.category] = (byCat[e.category] || 0) + 1;
     expect(byCat).toEqual({
       "Values": 10,
       "Objects": 15,
       "Motion": 5,
+      "Graphs": 3,
       "State": 5,
       "Control": 10,
       "Logic": 4,
