@@ -341,7 +341,7 @@ ${SWITCH_OFF_FOOTER}`,
     html: wrapHtml(
       para("Hi,") +
         para(`Your teacher has sent "${title}" (${className}) back for changes.`) +
-        `<blockquote style="margin:0 0 14px 0; padding:10px 14px; border-left:3px solid ${ACCENT}; background:#f5f8fc; border-radius:0 6px 6px 0; font-size:15px; line-height:1.55; color:#24292f;">${escHtml(p.comment)}</blockquote>` +
+        `<blockquote style="margin:0 0 14px 0; padding:10px 14px; border-left:3px solid ${ACCENT}; background:#f5f8fc; border-radius:0 6px 6px 0; font-size:15px; line-height:1.55; color:#24292f; white-space:pre-wrap;">${escHtml(p.comment)}</blockquote>` +
         para("You can resubmit when you're ready."),
       { switchable: true },
     ),
