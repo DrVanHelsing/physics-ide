@@ -58,6 +58,13 @@ describe("performAnalyseSwap — stash strictly before replacement", () => {
     expect(await performAnalyseSwap(deps, "<xml/>")).toBe(true);
     expect(deps.loadWorkspaceXml).toHaveBeenCalled();
   });
+
+  test("a throwing REPLACEMENT surfaces through onError too — no unhandled rejection half-swap", async () => {
+    const boom = new Error("workspace gone");
+    const { deps } = swapDeps({ loadWorkspaceXml: vi.fn(() => { throw boom; }) });
+    expect(await performAnalyseSwap(deps, "<xml/>")).toBe(false);
+    expect(deps.onError).toHaveBeenCalledWith(boom);
+  });
 });
 
 function returnDeps(overrides = {}) {
@@ -96,5 +103,12 @@ describe("performAnalyseReturn — restore strictly before teardown", () => {
     expect(await performAnalyseReturn(deps)).toBe(false);
     expect(deps.onError).toHaveBeenCalledWith(boom);
     expect(deps.stopRun).not.toHaveBeenCalled();
+  });
+
+  test("a throwing TEARDOWN surfaces through onError — never an unhandled rejection", async () => {
+    const boom = new Error("stop failed");
+    const deps = returnDeps({ stopRun: vi.fn(() => { throw boom; }) });
+    expect(await performAnalyseReturn(deps)).toBe(false);
+    expect(deps.onError).toHaveBeenCalledWith(boom);
   });
 });
