@@ -1,6 +1,9 @@
+import path from "node:path";
+import fs from "node:fs";
 import Fastify, { type FastifyInstance } from "fastify";
 import cookie from "@fastify/cookie";
 import rateLimit from "@fastify/rate-limit";
+import fastifyStatic from "@fastify/static";
 import type { Db } from "./db/types.js";
 import type { Mailer } from "./email/mailer.js";
 import { withPreferences } from "./email/withPreferences.js";
@@ -75,6 +78,48 @@ export function buildApp(deps: AppDeps): FastifyInstance {
   // ignored. Any route that needs a rate limit must live in a plugin
   // registered below (like authRoutes).
   app.get("/api/health", async () => ({ ok: true, service: "physics-ide-api" }));
+
+  /* ── Single-origin static serving (Task 10b / DEPLOY-GCP.md option 1) ──
+     Firebase Hosting's rewrite-to-Cloud-Run does not support africa-south1,
+     so the container carries its own static story: with STATIC_DIR set (the
+     image bakes it; nothing else does), this API serves the built SPA from
+     the same origin — which is what `credentials: "same-origin"`,
+     `SameSite=Lax` and the absent CORS plugin were always counting on. The
+     header rules mirror vercel.json/firebase.json: hashed /assets immutable
+     for a year; the unhashed runtime-fetched /vendor and /blockly-media a
+     day (the Locked repeat-Run-offline term, product-contract.md); the
+     COOP/COEP pair on everything. Unknown non-API paths fall back to the
+     SPA shell; the /api namespace keeps its own 404s. Without STATIC_DIR
+     this whole block is inert and the app is byte-identical to before. */
+  const staticRoot = config.staticDir;
+  if (staticRoot && fs.existsSync(path.join(staticRoot, "index.html"))) {
+    app.register(fastifyStatic, { root: staticRoot, index: "index.html" });
+    /* One hook, not setHeaders: it also covers the SPA-fallback response
+       below, which setHeaders never sees. API responses are left alone —
+       these are the HOSTING layer's headers, exactly what firebase.json/
+       vercel.json apply to their files. */
+    app.addHook("onSend", async (req, reply) => {
+      const url = req.url;
+      if (url.startsWith("/api")) return;
+      if (url.startsWith("/assets/")) {
+        reply.header("Cache-Control", "public, max-age=31536000, immutable");
+      } else if (url.startsWith("/vendor/") || url.startsWith("/blockly-media/")) {
+        reply.header("Cache-Control", "public, max-age=86400");
+      }
+      reply.header("Cross-Origin-Opener-Policy", "same-origin");
+      reply.header("Cross-Origin-Embedder-Policy", "unsafe-none");
+    });
+    app.setNotFoundHandler((req, reply) => {
+      if (req.method === "GET" && !req.url.startsWith("/api")) {
+        return reply.sendFile("index.html");
+      }
+      return reply.code(404).send({ error: "Not found." });
+    });
+  } else if (staticRoot) {
+    // A configured directory with no index.html is a broken deploy, not a
+    // quiet API-only fallback — say so at boot, loudly.
+    app.log.error({ staticRoot }, "STATIC_DIR is set but holds no index.html — serving API only");
+  }
 
   app.register(authRoutes);
   app.register(adminRoutes);

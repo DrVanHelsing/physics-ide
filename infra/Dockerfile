@@ -43,6 +43,15 @@ COPY --from=deps /app /app
 COPY shared ./shared
 COPY backend ./backend
 
+# The built SPA (run `npm run build -w frontend` BEFORE docker build — the
+# COPY fails loudly if dist is missing, which is the honest failure). With
+# STATIC_DIR set the API serves it same-origin: DEPLOY-GCP.md option 1,
+# because Firebase Hosting's rewrite cannot reach africa-south1. app.ts
+# applies the hosting headers (assets immutable; vendor/blockly-media a
+# day; COOP/COEP) and the SPA fallback itself.
+COPY frontend/dist ./frontend/dist
+ENV STATIC_DIR=/app/frontend/dist
+
 # node:20-slim ships the unprivileged `node` user; a root API process buys
 # nothing.
 USER node
