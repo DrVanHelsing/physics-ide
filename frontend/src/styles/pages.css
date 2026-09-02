@@ -1205,3 +1205,9 @@ mark.help-search-highlight {
   cursor: not-allowed;
 }
 
+
+/* The most-recent project row — the one the front door would have
+   auto-opened (Plan 10 Task 9): a quiet accent, not a shout. */
+.start-project-row--recent {
+  border-left: 2px solid var(--accent-blue);
+}

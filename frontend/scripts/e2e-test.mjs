@@ -619,7 +619,16 @@ try {
   check('Hybrid: has Values (physics)', cats.some(c => /^values$/i.test(c)));
   check('Hybrid: has Motion (physics)', cats.some(c => /^motion$/i.test(c)));
   check('Hybrid: has Data Science', cats.some(c => /^data.?science$/i.test(c)));
+  check('Hybrid: has Graphs (physics domain reaches hybrid)', cats.some(c => /^graphs$/i.test(c)));
   check('Hybrid: has Advanced', cats.some(c => /^advanced$/i.test(c)));
+  // Plan 10 R6: the 3D/data split is a REAL divider now, keyboard-reachable.
+  const hybridDivider = await page.evaluate(() => {
+    const d = document.querySelector('.pane-divider--row');
+    return d ? { role: d.getAttribute('role'), orient: d.getAttribute('aria-orientation'), tab: d.tabIndex } : null;
+  });
+  check('Hybrid: the 3D/data split is a real divider (separator, horizontal, focusable)',
+    !!hybridDivider && hybridDivider.role === 'separator' && hybridDivider.orient === 'horizontal' && hybridDivider.tab === 0,
+    JSON.stringify(hybridDivider));
   const svgText = await getAllSvgText(page);
   check('Hybrid: ds_start hat present', svgText.some(t => /start.?analysis/i.test(t)));
   check('Hybrid: 3D viewport pane present', await page.evaluate(() =>
@@ -768,7 +777,19 @@ try {
     }
     return false;
   });
-  await delay(800);
+  await delay(400);
+  // Plan 10 win 9: deleting a whole PROJECT asks first now (it used to be
+  // the one destructive action WITHOUT a confirm). Assert the dialog, then
+  // accept it.
+  const confirmShown = await page.evaluate(() => {
+    const dlg = document.querySelector('.vdialog');
+    if (!dlg || !/Delete "E2E_Gamma"/.test(dlg.textContent)) return false;
+    const ok = dlg.querySelector('.vdialog-btn--ok');
+    if (ok) { ok.click(); return true; }
+    return false;
+  });
+  check('Delete project: asks first, naming the project (win 9)', confirmShown);
+  await delay(600);
   const afterDelete = await page.$$eval('.start-project-title', els => els.map(e => e.textContent.trim()));
   check('Delete project: Gamma removed', !afterDelete.some(t => /E2E_Gamma/i.test(t)));
   check('Delete project: Alpha still present', afterDelete.some(t => /E2E_Alpha/i.test(t)));
@@ -825,7 +846,8 @@ try {
   // "Back to Blocks" is DELETED (Plan 10 Stage C, audit win 3): it
   // duplicated the mode toggle's Blocks tab and rendered even in blocks
   // mode. The reset slot now exists ONLY as the hybrid analyse return
-  // ("Back to Simulation"), asserted in the hybrid flows. Here: absence.
+  // ("Back to Simulation" - unit-pinned in Toolbar.test.js; an e2e drive of
+  // the analyse stash is on the wrap list). Here: absence.
   const ghostReset = await page.evaluate(() => {
     const btns = [...document.querySelectorAll('.tb-btn')];
     return btns.some(b => /back.?to.?blocks/i.test(b.textContent));
@@ -1518,13 +1540,32 @@ try {
         // The STRUCTURAL claim only — no bare-canvas fallback, which any
         // future canvas (even a graph's) would satisfy vacuously.
         sceneCanvas: !!document.querySelector('.glowscript-canvas-wrapper canvas'),
+        // The VISIBILITY claim (review I2): the scene must have YIELDED —
+        // its canvas shorter than the pane, and the first graph's top edge
+        // inside the pane's visible height.
+        yield: (() => {
+          const c = document.querySelector('.glowscript-canvas-wrapper canvas');
+          const root = document.getElementById('glowscript-root');
+          const g = document.querySelector('.glowscript-graph');
+          if (!c || !root || !g) return null;
+          return {
+            canvasH: Math.round(c.getBoundingClientRect().height),
+            rootH: root.clientHeight,
+            graphTop: Math.round(g.getBoundingClientRect().top),
+          };
+        })(),
       }))
-    : { graphPanels: 0, graphSvgs: 0, sceneCanvas: false };
+    : { graphPanels: 0, graphSvgs: 0, sceneCanvas: false, yield: null };
   check('B.4 a live graph panel renders inside the viewport pane during the run',
     graphState.graphPanels >= 1 && graphState.graphSvgs >= 1,
     `panels: ${graphState.graphPanels}, svgs: ${graphState.graphSvgs}`);
   check('B.4 the 3D scene canvas coexists with the graph — neither replaced the other',
     graphState.sceneCanvas === true);
+  check('B.4 the scene YIELDS and the first graph is above the fold — visible, not just present',
+    !!graphState.yield &&
+      graphState.yield.canvasH < graphState.yield.rootH * 0.8 &&
+      graphState.yield.graphTop < graphState.yield.rootH,
+    JSON.stringify(graphState.yield));
   await screenshot(page, 'B4-live-graph'); // DURING the run — the visible-outcome evidence
   const stopBtn4 = await page.$('.tb-btn--stop');
   if (stopBtn4) await stopBtn4.click();

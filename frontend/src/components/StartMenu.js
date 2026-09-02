@@ -352,13 +352,8 @@ export default function StartMenu({
 
   return (
     <div className="start-menu-overlay">
-      {/* VS Code title bar */}
-      <div className="start-titlebar">
-        <span className="start-titlebar-text">
-          <strong>Physics IDE</strong> — Welcome
-        </span>
-      </div>
-
+      {/* The decorative titlebar is gone (Plan 10 Task 9's streamline):
+          it repeated the sidebar's own logo and title one inch away. */}
       <div className="start-menu">
         {/* ── Sidebar ── */}
         <aside className="start-sidebar">
@@ -421,22 +416,22 @@ export default function StartMenu({
             />
           ) : (
             <>
-              <div className="start-welcome">
-                <h2>Welcome</h2>
-                <p>Pick up where you left off, or start a new project.</p>
-              </div>
+              {/* The "Welcome / pick up where you left off" blurb is gone
+                  (Task 9's streamline): the section labels below already
+                  say it, without a heading band spending 60px to do so. */}
 
               {/* Continue */}
               <p className="start-section-label">Continue</p>
               {!loaded ? null : projectList.length > 0 ? (
                 <div className="start-project-list">
-                  {projectList.map((p) => (
+                  {projectList.map((p, i) => (
                     <ProjectRow
                       key={p.id}
                       project={p}
+                      mostRecent={i === 0}
                       attribution={attributions[p.id]}
                       onOpen={() => onOpenProject?.(p.id)}
-                      onDelete={() => onDeleteProject?.(p.id)}
+                      onDelete={() => onDeleteProject?.(p.id, p.title)}
                     />
                   ))}
                 </div>
@@ -514,16 +509,20 @@ export default function StartMenu({
 
 /* ── Subcomponents ───────────────────────────────────────── */
 
-function ProjectRow({ project, attribution, onOpen, onDelete }) {
+function ProjectRow({ project, attribution, onOpen, onDelete, mostRecent = false }) {
   const Icon = project.goal === "datascience" ? TableIcon : project.goal === "hybrid" ? GlobeIcon : AtomIcon;
   return (
-    <div className="start-project-row">
+    <div className={`start-project-row${mostRecent ? " start-project-row--recent" : ""}`}>
       <button className="start-project-open" onClick={onOpen}>
         <span className="start-project-icon"><Icon size={16} /></span>
         <span className="start-project-meta">
           <span className="start-project-title">{project.title}</span>
           <span className="start-project-sub">
             {project.goal} · {relativeTime(project.updatedAt)}
+            {/* The one the front door would have auto-opened (Plan 10 R4 /
+                the Stage A review's M5): the CHOICE is the menu's, but the
+                most recent row says which project that choice was about. */}
+            {mostRecent ? " · last opened" : ""}
           </span>
           {attribution ? (
             <span className="start-project-attrib">{attributionSentence(attribution.sharerName)}</span>

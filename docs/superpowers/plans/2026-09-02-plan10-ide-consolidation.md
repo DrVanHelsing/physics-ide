@@ -153,6 +153,19 @@ in the workspace XML load path.
 - [ ] Commit: `refactor(ide): the chrome diet - fewer bands, honest buttons`
 
 ### Task 9: Safety symmetry + the split + the menu (win 9, R6, start-menu streamline)
+
+> **Shipped overnight (2026-09-02):** the delete confirm (naming the project — win 9's
+> inverted safety closed); the hybrid 3D/data divider (pointer + keyboard, 25–75% clamp,
+> the editor split's contract rotated); and the menu's low-risk streamline — the decorative
+> titlebar and the "Welcome" blurb bands deleted, the most-recent row marked
+> "· last opened" with a quiet accent (the Stage A review's M5).
+>
+> **For the user's morning eye — the DEEPER menu IA, deliberately not decided at 6am:**
+> (a) collapse the wizard's blank-path steps (goal → name → create could be one screen with
+> the goal cards doing double duty); (b) fold "Create New" and "Start from a template" into
+> one section with a Blank card leading the template rail; (c) whether the sidebar's Quick
+> Actions earn their column or move into the content header. Each changes what a student
+> sees first — a taste call the user should make awake.
 - [ ] Project delete gets the confirm idiom; the hybrid viewport/data split gets a real
   divider (useSplitPane); the start menu is streamlined to its essentials (Continue, New,
   the template rail, Join) — every control it keeps must answer "what does this let me

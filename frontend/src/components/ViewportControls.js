@@ -21,7 +21,7 @@ import { useAssignmentContext } from "../contexts/AssignmentContext";
  * and window.vec all behaved as expected once resolved that way.
  */
 /** Resolve a data URL against the 32x32 blank-frame probe (same pattern as
- *  useExport.js's screenshot verification): returns true only when the pixels
+ *  the deleted File-menu screenshot path once shared this verification): returns true only when the pixels
  *  are not a uniform/blank rectangle. */
 function verifyNonBlank(dataUrl) {
   return new Promise((resolve) => {

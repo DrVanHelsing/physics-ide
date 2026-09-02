@@ -585,8 +585,9 @@ export default function HelpPage({ onClose, focusBlockId }) {
                   support. Drag its edge to resize it.
                 </li>
                 <li>
-                  <strong>The toolbar grows a debug group</strong> — Pause / Resume, Next frame, Next
-                  value and Record, next to the Run button you already know.
+                  <strong>The toolbar grows a debug group</strong> — Pause / Resume, Next frame and
+                  Next value, next to the Run button you already know. Recording lives in the
+                  trace panel itself.
                 </li>
               </ul>
 
@@ -683,7 +684,7 @@ export default function HelpPage({ onClose, focusBlockId }) {
               <ol className="help-list">
                 <li>Click <Tag color="red">Record</Tag> to start recording.</li>
                 <li>Run or step through the simulation — every trace update is captured.</li>
-                <li>Click <Tag color="red">Stop Rec</Tag> to end the recording.</li>
+                <li>Click <Tag color="red">REC</Tag> again to end the recording (the button shows REC while it runs).</li>
                 <li>Click <Tag color="blue">Rec.CSV</Tag> to download the recorded data as a CSV
                     file containing variable, value, delta, min, max, and timestamp columns.</li>
               </ol>
@@ -2079,9 +2080,11 @@ angle = clamp(input_angle, -30, 30)`}</Pre>
                     <td>Assessment submissions, handouts, printed documentation</td>
                   </tr>
                   <tr>
-                    <td><Tag color="blue">Screenshot Viewport (.png)</Tag></td>
-                    <td>PNG image</td>
-                    <td>Current 3D viewport frame</td>
+                    {/* The File-menu screenshot item is gone (Plan 10): the
+                        camera button ON the 3D viewport is the one path. */}
+                    <td><Tag color="blue">Viewport camera button</Tag></td>
+                    <td>PNG image (opens in a new tab — right-click to save)</td>
+                    <td>Current 3D viewport frame, taken where the picture is</td>
                     <td>Capturing a simulation state for reports or presentations</td>
                   </tr>
                   <tr>
@@ -2117,7 +2120,7 @@ angle = clamp(input_angle, -30, 30)`}</Pre>
               <h3 className="help-h3">Exporting trace data (Debug Mode)</h3>
               <p>
                 In Debug Mode, press <Tag color="red">Record</Tag>, run or step through the
-                simulation, press <Tag color="red">Stop Rec</Tag>, then click{" "}
+                simulation, press <Tag color="red">REC</Tag> again to stop, then click{" "}
                 <Tag color="blue">CSV</Tag> to download the trace data as a CSV file containing
                 variable, value, delta, min, max, and timestamp columns for every captured event.
               </p>

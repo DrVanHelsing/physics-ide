@@ -221,7 +221,8 @@ export function viewportStyleText({ bg, text, link }) {
          forced CSS 100% would stretch/desync the GL viewport (the measured
          failure mode the resize comment records). */
       #glowscript:has(.glowscript-graph) .glowscript-canvas-wrapper,
-      #glowscript:has(.glowscript-graph) .glowscript-canvas-wrapper canvas {
+      #glowscript:has(.glowscript-graph) .glowscript-canvas-wrapper canvas,
+      #glowscript:has(.glowscript-graph) > canvas {
         height: auto !important;
       }
       /* Live graph panels: white cards whatever the theme — Plotly draws
@@ -931,10 +932,13 @@ export function applyRuntimeTheme(isDark) {
 let lastResize = { w: 0, h: 0 };
 
 export function resizeRuntimeCanvas(cssWidth, cssHeight, dpr = window.devicePixelRatio || 1) {
+  if (cssWidth < 1 || cssHeight < 1) return false;
+  // Remembered even when nothing is running: the next run's post-execute
+  // re-apply must not replay a pane size from before a splitter drag.
+  lastResize = { w: cssWidth, h: cssHeight };
   const win = getRuntimeWindow();
   const canvas = getRuntimeCanvas();
-  if (!win || !canvas || cssWidth < 1 || cssHeight < 1) return false;
-  lastResize = { w: cssWidth, h: cssHeight };
+  if (!win || !canvas) return false;
   try {
     /* When graph panels exist, the scene YIELDS: full height put every
        graph below the fold with no visible affordance, and the wheel over
@@ -945,7 +949,12 @@ export function resizeRuntimeCanvas(cssWidth, cssHeight, dpr = window.devicePixe
        (height auto) in the same :has() condition, so buffer and display
        stay 1:1 — the desync the comment above warns about cannot occur. */
     const hasGraphs = !!win.document.querySelector(".glowscript-graph");
-    const sceneHeight = hasGraphs ? Math.max(240, Math.round(cssHeight * 0.55)) : cssHeight;
+    // The 240px floor is itself clamped to the pane: on a very short pane an
+    // unclamped floor would make the scene TALLER than the pane and push
+    // every graph back below the fold — the original bug, worse.
+    const sceneHeight = hasGraphs
+      ? Math.min(Math.round(cssHeight), Math.max(240, Math.round(cssHeight * 0.55)))
+      : Math.round(cssHeight);
     const scene = getRuntimeScene();
     if (scene && typeof scene.width === "number") {
       /* Preferred path: GlowScript owns the buffer. Its GL viewport tracks
