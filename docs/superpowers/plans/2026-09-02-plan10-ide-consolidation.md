@@ -80,7 +80,11 @@ never shrink). Tasks touching portal surfaces add `portal-e2e.mjs` 80/80.
 
 ## Stage 0 — the way in
 
-### Task 1: The plain door lands on the menu
+### Task 1: The plain door lands on the menu — **DONE (commit 4b2925e, 2026-09-02)**
+
+> Shipped as `WANT_MENU_SESSION_KEY` (constants/index.js) stamped by the three plain
+> welcome doors and consumed by useProject's restore effect — the machinery any later
+> Stage C menu work builds ON, not around.
 **Files:** `frontend/src/welcome/WelcomePage.js` (CTA), `frontend/src/hooks/useProject.js`
 (the bootstrap auto-open effect), `frontend/src/components/StartMenu.js` (the Continue
 affordance), tests beside each.

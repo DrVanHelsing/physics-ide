@@ -8,13 +8,18 @@
  * sequencing with fakes.
  */
 
+/* onError receives (err, phase): phase "op" = the stash/restore itself threw
+   (nothing was persisted/applied for swap; nothing restored for return);
+   phase "teardown" = the persisted half SUCCEEDED and only the view work
+   after it threw. The distinction exists so user-facing copy can be honest
+   about data state (review M3). */
 export async function performAnalyseSwap(deps, xml) {
   const { analyseStash, exitDebug, loadWorkspaceXml, bumpReloadKey, closeChart, onError } = deps;
   let stashed;
   try {
     stashed = await analyseStash();
   } catch (err) {
-    onError(err);
+    onError(err, "op");
     return false;
   }
   // Cancelled (or no project): the workspace is untouched, byte-identical.
@@ -25,8 +30,8 @@ export async function performAnalyseSwap(deps, xml) {
     bumpReloadKey();
     closeChart();
   } catch (err) {
-    // The stash is safe either way — surface the half-swap loudly.
-    onError(err);
+    // The stash persisted before anything was replaced — recoverable.
+    onError(err, "teardown");
     return false;
   }
   return true;
@@ -38,7 +43,7 @@ export async function performAnalyseReturn(deps) {
   try {
     restored = await analyseRestore();
   } catch (err) {
-    onError(err);
+    onError(err, "op");
     return false;
   }
   if (!restored) return false;
@@ -48,7 +53,8 @@ export async function performAnalyseReturn(deps) {
     bumpReloadKey();
     closeChart();
   } catch (err) {
-    onError(err);
+    // The restore persisted AND applied before this — the blocks are back.
+    onError(err, "teardown");
     return false;
   }
   return true;

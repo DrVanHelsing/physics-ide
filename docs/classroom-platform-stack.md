@@ -115,7 +115,7 @@ The mapping is one-to-one because the interfaces above were designed for it:
 | Files | Cloud Storage bucket | ~R10–30/mo |
 | Daily reminder tick | Cloud Scheduler | R0 (free tier) |
 | Secrets (DB password, cookie key) | Secret Manager | ~R0 |
-| Email | Provider chosen then (e.g., Brevo free tier ≈ 300 emails/day) | R0 at this scale |
+| Email | **Brevo, lowest paid tier ≥1,000 sends/day** *(settled 2026-08-29 — a marks day peaks ≈450 sends at 5×30 fan-out, so the ≈300/day free tier does not fit; price read off the live pricing page at the deploy session, DEPLOY-GCP.md step 5)* | second standing cost beside the DB |
 
 - **Region: `africa-south1` (Johannesburg)** — Google's South African region, keeping student data in-country, which strengthens the POPIA story from spec §11. *(Amended, Plan 9 Task 11 / D§10 fiat 12: mail — and only mail — leaves the region. Outbound email is delivered by Brevo, whose infrastructure is not in-country; recipient addresses and message content transit it. Everything else stays in `africa-south1`.)*
 - **Total expectation: roughly R250–400/month**, dominated by the database — in line with everything you've budgeted before.

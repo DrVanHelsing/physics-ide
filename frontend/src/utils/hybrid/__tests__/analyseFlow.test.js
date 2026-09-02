@@ -44,12 +44,12 @@ describe("performAnalyseSwap — stash strictly before replacement", () => {
     expect(deps.onError).not.toHaveBeenCalled();
   });
 
-  test("a THROWING stash replaces nothing and surfaces through onError", async () => {
+  test("a THROWING stash replaces nothing and surfaces through onError as an 'op' failure", async () => {
     const boom = new Error("quota");
     const { deps } = swapDeps({ analyseStash: vi.fn(async () => { throw boom; }) });
     const ok = await performAnalyseSwap(deps, "<xml/>");
     expect(ok).toBe(false);
-    expect(deps.onError).toHaveBeenCalledWith(boom);
+    expect(deps.onError).toHaveBeenCalledWith(boom, "op");
     expect(deps.loadWorkspaceXml).not.toHaveBeenCalled();
   });
 
@@ -59,11 +59,11 @@ describe("performAnalyseSwap — stash strictly before replacement", () => {
     expect(deps.loadWorkspaceXml).toHaveBeenCalled();
   });
 
-  test("a throwing REPLACEMENT surfaces through onError too — no unhandled rejection half-swap", async () => {
+  test("a throwing REPLACEMENT surfaces as a 'teardown' failure — the stash is already safe", async () => {
     const boom = new Error("workspace gone");
     const { deps } = swapDeps({ loadWorkspaceXml: vi.fn(() => { throw boom; }) });
     expect(await performAnalyseSwap(deps, "<xml/>")).toBe(false);
-    expect(deps.onError).toHaveBeenCalledWith(boom);
+    expect(deps.onError).toHaveBeenCalledWith(boom, "teardown");
   });
 });
 
@@ -101,14 +101,14 @@ describe("performAnalyseReturn — restore strictly before teardown", () => {
     const boom = new Error("save failed");
     const deps = returnDeps({ analyseRestore: vi.fn(async () => { throw boom; }) });
     expect(await performAnalyseReturn(deps)).toBe(false);
-    expect(deps.onError).toHaveBeenCalledWith(boom);
+    expect(deps.onError).toHaveBeenCalledWith(boom, "op");
     expect(deps.stopRun).not.toHaveBeenCalled();
   });
 
-  test("a throwing TEARDOWN surfaces through onError — never an unhandled rejection", async () => {
+  test("a throwing TEARDOWN surfaces as such — the restore already persisted and applied", async () => {
     const boom = new Error("stop failed");
     const deps = returnDeps({ stopRun: vi.fn(() => { throw boom; }) });
     expect(await performAnalyseReturn(deps)).toBe(false);
-    expect(deps.onError).toHaveBeenCalledWith(boom);
+    expect(deps.onError).toHaveBeenCalledWith(boom, "teardown");
   });
 });
