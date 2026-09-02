@@ -20,7 +20,7 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, '..');
-const BASE = 'http://localhost:3000';
+const BASE = process.env.E2E_BASE || 'http://localhost:3000';
 const E2E_DIR = path.join(ROOT, 'e2e');
 if (!fs.existsSync(E2E_DIR)) fs.mkdirSync(E2E_DIR, { recursive: true });
 
