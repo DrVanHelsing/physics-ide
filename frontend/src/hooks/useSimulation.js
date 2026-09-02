@@ -24,8 +24,8 @@ import { BLOCK_TEMPLATES }     from "../utils/blockTemplates";
 import { DEFAULT_PYTHON_CODE, GLOWSCRIPT_HOST_ID } from "../constants";
 
 /**
- * Ends a run through every teardown path this IDE has — Stop, Reset to
- * blocks, and Home. Entering or leaving DEBUG mode is deliberately not one of
+ * Ends a run through every teardown path this IDE has — Stop, Home, and
+ * the workspace-replacing loads (loadWorkspaceXml, the analyse flows). Entering or leaving DEBUG mode is deliberately not one of
  * them: debug is a mode of this shell, not a separate screen, so useDebug
  * pauses on the way in and resumes on the way out (see its handleEnterDebug /
  * handleExitDebug) and never calls this. That is load-bearing in both
@@ -114,7 +114,7 @@ export function useSimulation() {
   }, [setRunning, setStatus, runGenerationRef]);
 
   /* runGenerationRef (from SimulationContext) is bumped at the top of every
-     handleRun/handleStop/handleResetToBlocks/handleHome call — and by those
+     handleRun/handleStop/handleHome call — and by those
      only. Entering or leaving debug mode does NOT bump it: useDebug pauses
      and resumes rather than tearing the run down, and its pause-ack timers
      compare against this generation to tell "the session moved on" from "the
@@ -204,16 +204,10 @@ export function useSimulation() {
     );
   }, [runGenerationRef, setRunning, setBooting, setPaused, setPauseState, setStatus]);
 
-  /* ── Reset to blocks mode ────────────────────────────── */
-  const handleResetToBlocks = useCallback(() => {
-    endRun({ runGenerationRef, setRunning, setBooting, setPaused, setPauseState, setStatus });
-    setMode("blocks");
-    if (workspaceRef.current) {
-      const code = generatePythonFromWorkspace(workspaceRef.current);
-      setPythonCode(code || DEFAULT_PYTHON_CODE);
-    }
-    setStatus({ text: "Reset to blocks mode", type: "" });
-  }, [runGenerationRef, setRunning, setBooting, setPaused, setPauseState, setMode, setPythonCode, setStatus, workspaceRef]);
+  /* handleResetToBlocks is GONE (Plan 10 Stage C, audit win 3): it
+     duplicated the mode toggle's Blocks tab, rendered even in blocks mode
+     where its only effect was an unlabeled stop, and its header slot now
+     belongs solely to the hybrid analyse return (Back to Simulation). */
 
   /* ── Mode toggle ─────────────────────────────────────── */
   const handleModeChange = useCallback(
@@ -408,7 +402,6 @@ export function useSimulation() {
     /* handlers */
     handleRun,
     handleStop,
-    handleResetToBlocks,
     handleModeChange,
     handleZoomChange,
     handleWorkspaceReady,

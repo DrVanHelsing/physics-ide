@@ -112,15 +112,21 @@ describe("Toolbar — simulation group", () => {
 });
 
 describe("Toolbar — workspace group", () => {
-  test("Reset is always present; Clear only in blocks mode", () => {
+  test("Reset exists ONLY as the analyse return (Plan 10 win 3); Clear only in blocks mode", () => {
     const { container, h } = render();
-    click(byText(container, "Back to Blocks"));
-    expect(h.onReset).toHaveBeenCalledTimes(1);
+    // No stash, no slot — the old "Back to Blocks" duplicate is gone.
+    expect(byText(container, "Back to Blocks")).toBeNull();
+    expect(byText(container, "Back to Simulation")).toBeNull();
     click(byText(container, "Clear"));
     expect(h.onClearWorkspace).toHaveBeenCalledTimes(1);
+    mounted.unmount();
 
+    const withReturn = render({ analysisReturn: true });
+    click(byText(withReturn.container, "Back to Simulation"));
+    expect(withReturn.h.onReset).toHaveBeenCalledTimes(1);
     mounted.unmount();
     mounted = null;
+
     const code = render({ mode: "text" });
     expect(byText(code.container, "Clear")).toBeNull();
   });
@@ -174,8 +180,10 @@ describe("Toolbar — file group", () => {
     const menu = container.querySelector(".tb-dropdown-menu");
     expect(menu).not.toBeNull();
 
+    // Eight since Plan 10's win 7: "Screenshot Viewport" left the menu —
+    // the on-canvas camera is the one screenshot path.
     const items = [...menu.querySelectorAll(".tb-dropdown-item")];
-    expect(items).toHaveLength(9);
+    expect(items).toHaveLength(8);
     // Every item is exposed to assistive tech as a menu item of the
     // role="menu" container above it.
     expect(items.every((it) => it.getAttribute("role") === "menuitem")).toBe(true);
@@ -183,7 +191,7 @@ describe("Toolbar — file group", () => {
     expect(h.onExportPy).toHaveBeenCalledTimes(1);
     // The menu closes on selection — reopen for the next assertion.
     click(container.querySelector(".tb-btn--dropdown"));
-    click([...container.querySelectorAll(".tb-dropdown-item")][8]);
+    click([...container.querySelectorAll(".tb-dropdown-item")][7]);
     expect(h.onExportProject).toHaveBeenCalledTimes(1);
   });
 
@@ -294,7 +302,7 @@ describe("Toolbar — workspace rules (Task 12)", () => {
     expect(byText(container, "Export Project Bundle (.physide.json)")).not.toBeNull();
   });
 
-  test("exportAndCopy:false hides every export item, Copy Code, both PDFs and the fileMenu Screenshot item; imports stay", () => {
+  test("exportAndCopy:false hides every export item, Copy Code and both PDFs; imports stay", () => {
     useAssignmentContext.mockReturnValue({ rules: { ...LOCKED, importFiles: true } });
     const { container } = render();
     click(container.querySelector(".tb-btn--dropdown"));
@@ -306,7 +314,6 @@ describe("Toolbar — workspace rules (Task 12)", () => {
       "Export Blocks (.xml)",
       "Code as PDF",
       "Blocks as PDF",
-      "Screenshot Viewport (.png)",
       "Copy Code to Clipboard",
       "Export Project Bundle (.physide.json)",
     ]) {
@@ -314,12 +321,12 @@ describe("Toolbar — workspace rules (Task 12)", () => {
     }
   });
 
-  test("rules: null (no assignment context) leaves the file menu exactly as today — nine items, one divider", () => {
+  test("rules: null (no assignment context) leaves the file menu exactly as today — eight items, one divider", () => {
     useAssignmentContext.mockReturnValue(null);
     const { container } = render();
     click(container.querySelector(".tb-btn--dropdown"));
     const menu = container.querySelector(".tb-dropdown-menu");
-    expect(menu.querySelectorAll(".tb-dropdown-item")).toHaveLength(9);
+    expect(menu.querySelectorAll(".tb-dropdown-item")).toHaveLength(8);
     expect(menu.querySelector(".tb-dropdown-divider")).not.toBeNull();
   });
 });

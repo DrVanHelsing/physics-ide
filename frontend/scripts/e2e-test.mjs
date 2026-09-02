@@ -822,15 +822,15 @@ try {
   check('A15: Clear workspace: workspace text minimised', svgAfterClear.length < 10, `svg text count: ${svgAfterClear.length}`);
   await screenshot(page, 'A15-clear-workspace');
 
-  // Reset — the header's Reset action was renamed "Back to Blocks" (Task 9)
-  const resetClicked = await page.evaluate(() => {
+  // "Back to Blocks" is DELETED (Plan 10 Stage C, audit win 3): it
+  // duplicated the mode toggle's Blocks tab and rendered even in blocks
+  // mode. The reset slot now exists ONLY as the hybrid analyse return
+  // ("Back to Simulation"), asserted in the hybrid flows. Here: absence.
+  const ghostReset = await page.evaluate(() => {
     const btns = [...document.querySelectorAll('.tb-btn')];
-    const r = btns.find(b => /back.?to.?blocks/i.test(b.textContent));
-    if (r) { r.click(); return true; }
-    return false;
+    return btns.some(b => /back.?to.?blocks/i.test(b.textContent));
   });
-  await delay(1000);
-  check('A15: "Back to Blocks" button clickable', resetClicked);
+  check('A15: the "Back to Blocks" duplicate stays deleted (mode toggle owns mode)', ghostReset === false);
 } catch (e) {
   check('A15: Reset & clear', false, e.message);
 }

@@ -47,7 +47,7 @@ import BatonChip    from "./BatonChip";
 import AttributionChip from "./AttributionChip";
 import RunErrorBanner from "./RunErrorBanner";
 import BriefPane    from "../assignments/BriefPane";
-import { BlocksIcon, CodeIcon, GlobeIcon } from "../Icons";
+import { GlobeIcon } from "../Icons";
 
 import * as dialogService from "../../utils/export/dialogService";
 
@@ -203,7 +203,12 @@ export default function IDELayout() {
      and deliberately left it unwired for this task to supply the handler. */
   const [traceVisible, setTraceVisible] = useState(false);
   const handleToggleTrace = useCallback(() => setTraceVisible((v) => !v), []);
-  const traceOpen = dbg.debugMode || traceVisible;
+  /* traceVisible ALONE (Plan 10 Stage C, audit win 4): `debugMode ||`
+     made the Trace button inert-and-lying in debug — the drawer could not
+     be closed while the button still read "Show live trace table".
+     Entering debug OPENS the drawer (below); the button then genuinely
+     toggles it, active state and all. */
+  const traceOpen = traceVisible;
 
   /* Task 12: the active assignment's workspace rules, mirrored down from
      WorkspaceRulesEnforcer (rendered below, inside AssignmentProvider) since
@@ -636,14 +641,11 @@ export default function IDELayout() {
       paused={paused}
       pauseState={dbg.pauseState}
       iteration={iteration}
-      recording={trc.recording}
       breakpointCount={dbg.breakpoints.size}
       onPause={dbg.handlePause}
       onResume={dbg.handleResume}
       onStepFrame={dbg.handleStepFrame}
       onStepValue={dbg.handleStep}
-      onStartRecord={trc.handleStartRecord}
-      onStopRecord={trc.handleStopRecord}
     />
   );
 
@@ -671,12 +673,14 @@ export default function IDELayout() {
         onExportBlocks={exp.handleExportBlocks}
         onExportBlocksPdf={exp.handleExportBlocksPdf}
         onExportCodePdf={exp.handleExportCodePdf}
-        onExportScreenshot={exp.handleExportScreenshot}
         onCopyCode={exp.handleCopyCode}
         onImport={sim.handleImport}
         onExportProject={handleExportProject}
         onImportProject={handleImportProject}
-        onReset={hasAnalysisStash ? handleReturnToSim : sim.handleResetToBlocks}
+        /* The reset slot exists ONLY as the hybrid analyse return (Plan 10
+           Stage C, audit win 3): "Back to Blocks" duplicated the mode
+           toggle's Blocks tab and rendered even in blocks mode. */
+        onReset={hasAnalysisStash ? handleReturnToSim : undefined}
         analysisReturn={hasAnalysisStash}
         onClearWorkspace={sim.handleClearWorkspace}
         onToggleTheme={toggleTheme}
@@ -690,7 +694,16 @@ export default function IDELayout() {
         onToggleViewport={sim.handleToggleViewport}
         /* ── Debug group — one toolbar, one button vocabulary ── */
         debugMode={dbg.debugMode}
-        onDebugMode={dbg.debugMode ? dbg.handleExitDebug : dbg.handleEnterDebug}
+        onDebugMode={
+          dbg.debugMode
+            ? dbg.handleExitDebug
+            : () => {
+                // Debug needs the drawer; opening it HERE (win 4) is what
+                // lets the Trace button stay a genuine toggle inside debug.
+                setTraceVisible(true);
+                dbg.handleEnterDebug();
+              }
+        }
         traceVisible={traceVisible}
         onToggleTrace={handleToggleTrace}
         paused={paused}
@@ -711,6 +724,14 @@ export default function IDELayout() {
           lockedMode={lockedMode}
           codeLabel={isCustom ? "Code View Only" : "Code"}
         />
+        {/* The read-only state moved here from the deleted editor
+            pane-headers (Plan 10 win 5): a chip beside the toggle instead
+            of a 36px band whose only other content repeated the tab. */}
+        {(isGroupReadOnly || isReadOnlyView) && (
+          <span className="tb-chip" title={isGroupReadOnly ? "A group member holds the editing baton" : "This view is read-only"}>
+            Read only
+          </span>
+        )}
       </Toolbar>
 
       {/* One banner for the whole shell — not one per canvas-pane variant.
@@ -729,21 +750,9 @@ export default function IDELayout() {
         >
           {mode === "blocks" ? (
             <>
-              <div
-                className={`pane-header pane-header--blocks${
-                  isReadOnlyView ? " pane-header--code-preview" : ""
-                }`}
-              >
-                <BlocksIcon size={14} />{" "}
-                {/* "Block Reference" names the template case specifically; a
-                    group member locked out by the baton is looking at the
-                    group's own blocks, so it says so instead. */}
-                {isGroupReadOnly
-                  ? "Blocks (Read Only)"
-                  : isReadOnlyView
-                  ? "Block Reference (Read Only)"
-                  : "Block Editor"}
-              </div>
+              {/* The 36px "Block Editor" band is gone (Plan 10 win 5): its
+                  label repeated the mode toggle 20px above, and the
+                  read-only state now lives as a chip beside that toggle. */}
               {isReadOnlyView ? (
                 <ReadOnlyBlockly xml={workspaceXml} isDark={isDark} />
               ) : (
@@ -799,20 +808,9 @@ export default function IDELayout() {
             </>
           ) : (
             <>
-              <div
-                className={`pane-header pane-header--code${
-                  isReadOnlyView ? " pane-header--code-preview" : ""
-                }`}
-              >
-                <CodeIcon size={14} />{" "}
-                {isCustom
-                  ? "Code View Only"
-                  : isGroupReadOnly
-                  ? "Code (Read Only)"   /* not necessarily GENERATED code — see the blocks pane */
-                  : isReadOnlyView
-                  ? "Generated Code (Read Only)"
-                  : "Code Editor"}
-              </div>
+              {/* The "Code Editor" band is gone too (win 5) — in
+                  Code-View-Only projects its text was byte-identical to
+                  the tab above it. */}
               <CodeEditor
                 value={pythonCode}
                 isDark={isDark}
