@@ -1,5 +1,27 @@
 # Deploying to GCP — the runbook
 
+> **✅ DEPLOYED 2026-09-02 (option 1, container serves the SPA).**
+> Service URL: **https://physics-ide-api-813605380088.africa-south1.run.app**
+> Revision physics-ide-api-00002-sgm · image digest `a6ad5697…` · SA `pide-api-runtime` ·
+> secrets DATABASE_URL / TICK_SECRET / MAIL_WEBHOOK_SECRET / BREVO_API_KEY · env
+> NODE_ENV=production, TRUST_PROXY=1, MAIL_DRIVER=brevo, APP_BASE_URL=<the service URL>.
+> Cloud Scheduler `daily-tick` in **europe-west1** (Scheduler is not offered in
+> africa-south1; the job just POSTs the public URL) — 05:00 Africa/Johannesburg,
+> x-tick-secret header, 600s attempt deadline.
+> Smoke 2026-09-02: SPA root 200, deep-route fallback 200, `/api/*` JSON 404 kept,
+> `/api/health` ok, signup 201 → `emails` row written (status `failed` — Brevo's
+> authorized-IP restriction blocks Cloud Run egress, exactly as warned), tick 403
+> bare / 200 with secret, and 14 signins under a rotating forged
+> `x-forwarded-for` still hit 429 at the limit (TRUST_PROXY=1 is spoof-proof).
+> Smoke user deleted after the run; 1 user (seeded admin) in prod.
+>
+> **Still user-side:** (1) Brevo → Security → turn the authorized-IP restriction
+> **off entirely** — until then every production send fails; (2) paste
+> `MAIL_WEBHOOK_SECRET` from `pide-secrets.env` into a Brevo transactional webhook
+> pointed at `<service URL>/api/mail/events`; (3) upgrade off the free tier before
+> the first classroom marks release.
+
+
 > **⛔ ONE DECISION BEFORE STEP 8 — the hosting/origin model (the user owns it).**
 > Firebase Hosting's rewrite-to-Cloud-Run supports an enumerated region list and
 > **`africa-south1` is not in it** (verified against Google's live docs twice, 2026-09-02) —
