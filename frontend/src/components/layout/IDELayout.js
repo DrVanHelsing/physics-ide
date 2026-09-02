@@ -202,7 +202,18 @@ export default function IDELayout() {
      work. Plan 2 built the toggle (Task 9's secondaryActions 'trace' entry)
      and deliberately left it unwired for this task to supply the handler. */
   const [traceVisible, setTraceVisible] = useState(false);
-  const handleToggleTrace = useCallback(() => setTraceVisible((v) => !v), []);
+  const handleToggleTrace = useCallback(() => {
+    setTraceVisible((v) => {
+      /* The trace panel is the ONLY home of Record now (win 1), and it is
+         genuinely closable inside debug (win 4) — so closing it while a
+         recording runs must END the recording, not orphan a silent
+         recorder with no indicator anywhere (review I3). The buffer
+         survives for Save-as-dataset on reopen. */
+      if (v && trc.recording) trc.handleStopRecord();
+      return !v;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trc.recording, trc.handleStopRecord]);
   /* traceVisible ALONE (Plan 10 Stage C, audit win 4): `debugMode ||`
      made the Trace button inert-and-lying in debug — the drawer could not
      be closed while the button still read "Show live trace table".
@@ -368,6 +379,31 @@ export default function IDELayout() {
       console.warn("Could not insert starter block:", err);
     }
   }, [workspaceRef]);
+
+  /* ── Hybrid 3D/data split (Plan 10 ruling R6): the one split the audit
+     found hard-coded at 55/45 becomes a real divider — pointer drag and
+     keyboard, the same contract the editor split holds. Local state: the
+     split is a viewing preference, not project data. */
+  const hybridPaneRef = useRef(null);
+  const hybridDragRef = useRef(false);
+  const [hybridSplit, setHybridSplit] = useState(55);
+  const clampHybridSplit = (v) => Math.min(75, Math.max(25, v));
+  const handleHybridDividerPointerDown = useCallback((e) => {
+    hybridDragRef.current = true;
+    e.currentTarget.setPointerCapture(e.pointerId);
+  }, []);
+  const handleHybridDividerPointerMove = useCallback((e) => {
+    if (!hybridDragRef.current) return;
+    const host = hybridPaneRef.current;
+    if (!host) return;
+    const rect = host.getBoundingClientRect();
+    if (rect.height < 1) return;
+    setHybridSplit(clampHybridSplit(((e.clientY - rect.top) / rect.height) * 100));
+  }, []);
+  const handleHybridDividerPointerUp = useCallback((e) => {
+    hybridDragRef.current = false;
+    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* already released */ }
+  }, []);
 
   /* ── Chart overlay (Phase A spike) ── */
   const [chartDataset, setChartDataset] = useState(null);
@@ -610,7 +646,16 @@ export default function IDELayout() {
           projectList={proj.projectList}
           loaded={proj.loaded}
           onOpenProject={(id) => { sim.handleStop(); proj.selectProject(id); }}
-          onDeleteProject={(id) => { proj.removeProject(id); }}
+          onDeleteProject={async (id, title) => {
+            /* Symmetric safety (Plan 10 win 9): clearing BLOCKS asked first
+               while deleting a whole PROJECT did not — inverted. Same house
+               confirm idiom as Clear Workspace, naming what dies. */
+            const ok = await dialogService.confirm(
+              `Delete "${title || "this project"}"? The whole project and its datasets go. This cannot be undone.`,
+            );
+            if (!ok) return;
+            proj.removeProject(id);
+          }}
           onCreate={(spec) => { proj.createNew(spec); }}
           onImport={(file) => { proj.noteExplicitOpen(); sim.handleImport(file); setShowStart(false); }}
           onHelp={handleHelp}
@@ -622,6 +667,10 @@ export default function IDELayout() {
           />
         )}
         {chartDataset && <ChartOverlay dataset={chartDataset} onClose={handleCloseChart} />}
+        {/* The dialog host must live in THIS branch too (win 9): the
+            start menu's delete confirm otherwise falls back to the native
+            window.confirm — unstyled, and auto-denied in headless runs. */}
+        <VariableDialog />
       </>
     );
   }
@@ -706,17 +755,6 @@ export default function IDELayout() {
         }
         traceVisible={traceVisible}
         onToggleTrace={handleToggleTrace}
-        paused={paused}
-        pauseState={dbg.pauseState}
-        iteration={iteration}
-        recording={trc.recording}
-        breakpointCount={dbg.breakpoints.size}
-        onPause={dbg.handlePause}
-        onResume={dbg.handleResume}
-        onStepFrame={dbg.handleStepFrame}
-        onStepValue={dbg.handleStep}
-        onStartRecord={trc.handleStartRecord}
-        onStopRecord={trc.handleStopRecord}
       >
         <ModeToggle
           mode={mode}
@@ -727,8 +765,15 @@ export default function IDELayout() {
         {/* The read-only state moved here from the deleted editor
             pane-headers (Plan 10 win 5): a chip beside the toggle instead
             of a 36px band whose only other content repeated the tab. */}
-        {(isGroupReadOnly || isReadOnlyView) && (
-          <span className="tb-chip" title={isGroupReadOnly ? "A group member holds the editing baton" : "This view is read-only"}>
+        {isReadOnlyView && (
+          <span
+            className="tb-chip"
+            title={
+              isGroupReadOnly
+                ? "A group member holds the editing baton — the workspace is read-only until it is passed"
+                : "This is a reference view — the workspace is read-only"
+            }
+          >
             Read only
           </span>
         )}
@@ -854,7 +899,9 @@ export default function IDELayout() {
           </section>
         ) : isHybridGoal ? (
           <section
+            ref={hybridPaneRef}
             className={`canvas-pane canvas-pane--hybrid${viewportHidden ? " canvas-pane--hidden" : ""}`}
+            style={{ "--hybrid-split": `${hybridSplit}%` }}
           >
             <div className="hybrid-viewport">
               <div className="pane-header pane-header--viewport">
@@ -867,6 +914,23 @@ export default function IDELayout() {
                 {debugDrawer}
               </GlowCanvas>
             </div>
+            <div
+              className="pane-divider pane-divider--row"
+              role="separator"
+              aria-orientation="horizontal"
+              aria-label="Resize 3D viewport and data panel"
+              tabIndex={0}
+              onPointerDown={handleHybridDividerPointerDown}
+              onPointerMove={handleHybridDividerPointerMove}
+              onPointerUp={handleHybridDividerPointerUp}
+              onKeyDown={(e) => {
+                if (e.key === "ArrowUp") setHybridSplit((v) => clampHybridSplit(v - 3));
+                else if (e.key === "ArrowDown") setHybridSplit((v) => clampHybridSplit(v + 3));
+                else if (e.key === "Home") setHybridSplit(55);
+                else return;
+                e.preventDefault();
+              }}
+            />
             <div className="hybrid-datapanel">
               <DataPanel
                 goal={goal}

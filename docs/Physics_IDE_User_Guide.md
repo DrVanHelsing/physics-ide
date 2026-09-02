@@ -387,7 +387,7 @@ Click **File** in the toolbar (a dropdown, not a separate Export/Open pair — t
 | Export Blocks (.xml) | `.xml` file — Blockly workspace | Sharing block programs; backup |
 | Code as PDF | PDF — syntax-highlighted code | Assessment submission |
 | Blocks as PDF | PDF — block canvas screenshot | Showing block structure |
-| Screenshot Viewport (.png) | PNG — current 3D viewport frame | Reports; presentations |
+| Viewport camera button (on the 3D viewport itself) | PNG — opens in a new tab, right-click to save | Reports; presentations |
 | Copy Code to Clipboard | Clipboard — VPython source | Pasting into an LMS or external editor |
 | Export Project Bundle (.physide.json) | JSON — complete project manifest | Portable save; moving between browsers or machines |
 

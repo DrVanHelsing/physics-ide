@@ -57,6 +57,20 @@
   left: -4px; right: -4px;
 }
 
+/* Horizontal variant — the hybrid 3D/data split (Plan 10 R6). Same
+   contract, rotated: row cursor, full-width bar, taller hit area. */
+.pane-divider--row {
+  width: auto;
+  min-width: 0;
+  height: 5px;
+  min-height: 5px;
+  cursor: row-resize;
+}
+.pane-divider--row::before {
+  top: -4px; bottom: -4px;
+  left: 0; right: 0;
+}
+
 /* ── Pane Headers (VS Code tab headers) ───────────────── */
 .pane-header { color: var(--text-dim); }
 .pane-header svg { opacity: 0.7; }

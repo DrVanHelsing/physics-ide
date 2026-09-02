@@ -380,7 +380,10 @@ function Toolbar({
                 hotkeys used to print the tooltip, so items read
                 "Hide Hide 3D viewport". The full label IS the item text. */}
             {secondaryActions.map((a) => (
-              <button key={a.key} type="button" className="tb-dropdown-item" onClick={a.onClick} title={a.label}>
+              // aria-label carries the FULL label (review I4): the visible
+              // text is the short form, and title never wins accessible-name
+              // computation — a screen reader must not hear a bare "Hide".
+              <button key={a.key} type="button" className="tb-dropdown-item" onClick={a.onClick} title={a.label} aria-label={a.label}>
                 <a.icon size={14} />
                 <span>{a.short}</span>
               </button>

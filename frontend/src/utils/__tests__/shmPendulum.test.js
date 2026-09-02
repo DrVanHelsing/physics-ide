@@ -28,6 +28,7 @@ describe("the SHM pendulum's period is real physics", () => {
     let t = 0;
     const upCrossings = [];
     let prev = theta;
+    let maxAbsTheta = 0;
     // Twenty seconds of simulated time — seven periods, plenty of crossings.
     while (t < 20) {
       const alpha = -(G / L) * theta; // the template's exact law
@@ -35,6 +36,7 @@ describe("the SHM pendulum's period is real physics", () => {
       theta += omega * DT; // then theta from the NEW omega
       t += DT;
       if (prev < 0 && theta >= 0) upCrossings.push(t);
+      if (Math.abs(theta) > maxAbsTheta) maxAbsTheta = Math.abs(theta);
       prev = theta;
     }
     expect(upCrossings.length).toBeGreaterThanOrEqual(5);
@@ -43,10 +45,11 @@ describe("the SHM pendulum's period is real physics", () => {
     // Small-angle at 8°: period error ≈ theta0²/16 ≈ 0.12%, plus dt
     // discretisation — 1% tolerance holds both with headroom.
     expect(Math.abs(meanT - T_ANALYTIC) / T_ANALYTIC).toBeLessThan(0.01);
-    // And amplitude is conserved (undamped, symplectic — no energy drift
-    // beyond bounded oscillation): theta never exceeds theta0 by more
-    // than the integrator's wobble.
-    expect(Math.abs(theta)).toBeLessThanOrEqual(THETA0 * 1.01);
+    // And amplitude is conserved over the WHOLE run (running max, not one
+    // phase-lucky sample — review): symplectic Euler's exact invariant
+    // bounds the overshoot at theta0*(1 + w^2 dt^2/8) ≈ +0.0015%; an
+    // explicit-Euler regression grows ~28% over these 4000 steps.
+    expect(maxAbsTheta).toBeLessThanOrEqual(THETA0 * 1.01);
   });
 
   test("the template's generated Python carries the same recurrence, dt and initial angle", () => {
@@ -66,9 +69,12 @@ describe("the SHM pendulum's period is real physics", () => {
       const thetaAt = code.indexOf("theta = theta + omega * dt");
       expect(omegaAt).toBeGreaterThan(-1);
       expect(thetaAt).toBeGreaterThan(omegaAt);
-      // dt and theta0 as designed.
+      // dt, theta0, L and the time advance — the full parameter set half 1
+      // assumes (review: either drifting silently would fake the 2.84s).
       expect(code).toContain("dt = 0.005");
       expect(code).toContain("theta = radians(8)");
+      expect(code).toContain("L = 2");
+      expect(code).toContain("t = t + dt");
       // The three graphs of motion, plotting against t.
       for (const s of ["s_disp.plot(t, theta)", "s_vel.plot(t, omega)", "s_acc.plot(t, alpha)"]) {
         expect(code).toContain(s);
