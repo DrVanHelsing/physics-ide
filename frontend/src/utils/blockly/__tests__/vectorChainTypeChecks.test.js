@@ -67,11 +67,22 @@ function sha256(text) {
 // Re-captured after commit 7b41d04 (scene.background strip from three templates):
 // projectile, spring, and orbits templates no longer emit scene.background assignments,
 // so their hashes changed legitimately during cross-lane merge reconciliation.
+//
+// Re-captured 2026-09-02 (Plan 10 Stage B, Task 5): projectile, spring and
+// pendulum each gained ONE live graph — a graph_display + gcurve series in
+// setup and a plot() in the loop, plotting the quantity the paired hybrid
+// analysis fits (vy, stretch, theta vs t). Orbits deliberately unchanged —
+// its hash matching the old value is the proof the graph insertions leaked
+// into no other template (an earlier draft put spring's display into orbits;
+// this pin caught it).
 const EXPECTED_HASHES = {
-  blocks_projectile: "0b8e144f42eddd6519c411ecc9403ef96b39e10744f41051ba55ee4274824093",
-  blocks_spring:      "8c322f2de61ceb68d9174c7ef85d66521af541441dfea9fa685c9ec7e818743b",
+  blocks_projectile: "3490c4cd56864d381f5a9b2e00baadc014b44e0dcc213f9d5c19c3cf4a43e5df",
+  blocks_spring:      "9616dc3b18ef1884aa1ad610ca9c87aaa89abfcd4d57ef7681b93715a61978e1",
   blocks_orbits:      "456590d618a349e051b9ce3e6b6c653343492057f00c0ad8dc3386fb5ece16b3",
-  blocks_pendulum:    "c81e6a7e38688631c6ade1d1049d77826a9751ad21d7815e35defea6578447f1",
+  blocks_pendulum:    "ff270c4f084b8af54a325195236b08b90eeada776fa71978bf8d89b8f45a65da",
+  // The SHM pendulum (Plan 10 Task 6): three live graphs of motion,
+  // alpha = -(g/L)*theta small-angle, captured at template birth.
+  blocks_pendulum_shm: "cf76627c7a39ff930891f6d7fcee8d7463a62b85233071c2c489d63b89e801ea",
 };
 
 describe("vector chain type checks — template regression proof", () => {

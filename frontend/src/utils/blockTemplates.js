@@ -61,6 +61,26 @@ function expr(text) {
   return { type: "expr_block", fields: { EXPR: text } };
 }
 
+/* ── Live graphs (Plan 10 Stage B) ───────────────────────────
+ * One display + one series per hybrid template, plotting the very quantity
+ * its paired analysis later fits — the live view and the post-run fit tell
+ * one story. */
+function graphDisplay(title, xlabel, ylabel, seriesName) {
+  return {
+    type: "graph_display_block",
+    fields: { TITLE: title, XLABEL: xlabel, YLABEL: ylabel },
+    body: [{ type: "graph_series_block", fields: { NAME: seriesName, MODE: "gcurve" } }],
+  };
+}
+
+function graphPlot(seriesName, xExprText, yExprText) {
+  return {
+    type: "graph_plot_block",
+    fields: { SERIES: seriesName },
+    values: { X: expr(xExprText), Y: expr(yExprText) },
+  };
+}
+
 function v(name) {
   return { type: "variables_get", fields: { VAR: name } };
 }
@@ -227,13 +247,16 @@ function buildChain(blocks, isFirst) {
     }
   }
 
-  // Statement inputs: BODY, BODY_IF, BODY_ELSE
+  // Statement inputs: BODY, BODY_IF, BODY_ELSE (and SETUP/SERIES for the
+  // two container blocks whose statement input is named after its content)
   if (block.body) {
     const stmtName =
       block.type === "if_else_block"
         ? "BODY_IF"
         : block.type === "sim_start_block"
         ? "SETUP"
+        : block.type === "graph_display_block"
+        ? "SERIES"
         : "BODY";
     content += `<statement name="${stmtName}">${buildChain(block.body, false)}</statement>`;
   }
@@ -476,6 +499,9 @@ const PROJECTILE_BLOCKS = [
     values: { POS: vec(8.5, 9.2, 0), HEIGHT: num(12) },
   },
 
+  /* ── Live graph: the quantity the paired analysis fits ── */
+  graphDisplay("Vertical velocity", "t (s)", "vy (m/s)", "s_vy"),
+
   /* ── Animation loop ────────────────────────────────────── */
   {
     type: "forever_loop_block",
@@ -677,6 +703,9 @@ const PROJECTILE_BLOCKS = [
         fields: { LABEL: "telemetry", M: "vy", D: 2, U: "m/s" },
         values: { V: getComp(getProp("ball","velocity"),"y") },
       },
+
+      // Live plot — the same vy the analysis fits against t to find g
+      graphPlot("s_vy", "t", "ball.velocity.y"),
 
       // Advance time
       {
@@ -1255,6 +1284,9 @@ const SPRING_BLOCKS = [
     },
   },
 
+  /* ── Live graph: the quantity the paired analysis fits ── */
+  graphDisplay("Stretch", "t (s)", "stretch (m)", "s_stretch"),
+
   /* ── Animation loop ────────────────────────────────────── */
   {
     type: "forever_loop_block",
@@ -1429,6 +1461,9 @@ const SPRING_BLOCKS = [
         values: { V: v("Fspring") },
       },
 
+      // Live plot — stretch vs t, the oscillation the k-fit rides on
+      graphPlot("s_stretch", "t", "stretch"),
+
       // Advance time
       {
         type: "set_scalar_block",
@@ -1478,6 +1513,9 @@ const PENDULUM_BLOCKS = [
     values: { VALUE: trig("radians", num(30)) },
   },
   { type: "set_scalar_block", fields: { NAME: "omega" }, values: { VALUE: num(0) } },
+
+  /* ── Live graph: watch the swing decay ───────────────── */
+  graphDisplay("Swing angle", "t (s)", "theta (rad)", "s_theta"),
 
   /* ── Time step ───────────────────────────────────────── */
   { type: "time_step_block", fields: { DT: "0.005" } },
@@ -1648,6 +1686,9 @@ const PENDULUM_BLOCKS = [
         values: { V: v("E_total") },
       },
 
+      /* Live plot — theta vs t, the decay the damping fit measures */
+      graphPlot("s_theta", "t", "theta"),
+
       /* Advance time */
       {
         type: "set_scalar_block",
@@ -1659,6 +1700,147 @@ const PENDULUM_BLOCKS = [
 
   /* ── Simulation end ─────────────────────────────────────── */
   { type: "sim_end_block", fields: { MSG: "Pendulum simulation complete." } },
+];
+
+/* ═══════════════════════════════════════════════════════════
+   SHM PENDULUM TEMPLATE (Plan 10 Task 6 — user-ordered)
+   Small-angle simple harmonic motion: alpha = -(g/L)*theta, undamped —
+   the three graphs of motion (displacement, velocity, acceleration vs
+   time) drawn LIVE while the bob swings. theta0 = 8° keeps the
+   small-angle approximation honest (sin θ ≈ θ within 0.3%), so the
+   period the student reads off the displacement graph really is
+   T = 2π·√(L/g) ≈ 2.84 s for L = 2.0 m.
+   ═══════════════════════════════════════════════════════════ */
+
+const SHM_PENDULUM_BLOCKS = [
+  { type: "sim_start_block", fields: { TITLE: "SHM Pendulum" } },
+
+  /* ── Scene setup ─────────────────────────────────────── */
+  { type: "comment_block", fields: { TEXT: "Scene setup" } },
+  { type: "scene_camera_block", fields: { PROP: "background" }, values: { VALUE: vec(0.05, 0.05, 0.10) } },
+  { type: "scene_camera_block", fields: { PROP: "range" },      values: { VALUE: num(3) } },
+  { type: "scene_camera_block", fields: { PROP: "center" },     values: { VALUE: vec(0, -1, 0) } },
+
+  /* ── Physics parameters ──────────────────────────────── */
+  { type: "comment_block", fields: { TEXT: "SHM: small angle, no damping. T = 2*pi*sqrt(L/g)" } },
+  { type: "set_scalar_block", fields: { NAME: "L" }, values: { VALUE: num(2.0) } },
+
+  /* ── Initial conditions (SMALL angle — that is the whole point) ── */
+  { type: "comment_block", fields: { TEXT: "Initial angle 8 degrees — small enough that sin(theta) ≈ theta" } },
+  { type: "set_scalar_block", fields: { NAME: "theta" }, values: { VALUE: trig("radians", num(8)) } },
+  { type: "set_scalar_block", fields: { NAME: "omega" }, values: { VALUE: num(0) } },
+
+  /* ── The three graphs of motion, live ────────────────── */
+  graphDisplay("Displacement", "t (s)", "theta (rad)", "s_disp"),
+  graphDisplay("Velocity", "t (s)", "omega (rad/s)", "s_vel"),
+  graphDisplay("Acceleration", "t (s)", "alpha (rad/s^2)", "s_acc"),
+
+  /* ── Time step ───────────────────────────────────────── */
+  { type: "time_step_block", fields: { DT: "0.005" } },
+  { type: "set_scalar_block", fields: { NAME: "t" }, values: { VALUE: num(0) } },
+
+  /* ── 3D Objects ──────────────────────────────────────── */
+  { type: "comment_block", fields: { TEXT: "Pivot, rod and bob" } },
+  {
+    type: "cylinder_block",
+    fields: { NAME: "support" },
+    values: { POS: vec(0, 0, 0), AXIS: vec(0, 0.25, 0), RADIUS: num(0.04), COL: vec(0.60, 0.60, 0.65) },
+  },
+  {
+    type: "cylinder_block",
+    fields: { NAME: "rod" },
+    values: { POS: vec(0, 0, 0), AXIS: vec(0.28, -1.98, 0), RADIUS: num(0.025), COL: vec(0.85, 0.80, 0.60) },
+  },
+  {
+    type: "sphere_block",
+    fields: { NAME: "bob" },
+    values: { POS: vec(0.28, -1.98, 0), RADIUS: num(0.18), COL: vec(0.30, 0.75, 0.95) },
+  },
+
+  /* ── Telemetry label ─────────────────────────────────── */
+  {
+    type: "label_full_block",
+    fields: { NAME: "telemetry", TEXT: "" },
+    values: { POS: vec(1.8, 0.6, 0), HEIGHT: num(12) },
+  },
+
+  /* ── Animation loop ──────────────────────────────────── */
+  {
+    type: "forever_loop_block",
+    body: [
+      { type: "rate_block", fields: { N: 200 } },
+
+      /* The SHM law — linear restoring "force", the small-angle signature */
+      { type: "comment_block", fields: { TEXT: "SHM: alpha = -(g/L) * theta (NOT sin(theta) — small angle)" } },
+      {
+        type: "set_scalar_block",
+        fields: { NAME: "alpha" },
+        values: { VALUE: mul(mul(num(-1), div(physicsConst("g"), v("L"))), v("theta")) },
+      },
+
+      /* Symplectic Euler */
+      { type: "comment_block", fields: { TEXT: "Symplectic Euler: omega first, then theta" } },
+      {
+        type: "set_scalar_block",
+        fields: { NAME: "omega" },
+        values: { VALUE: add(v("omega"), mul(v("alpha"), v("dt"))) },
+      },
+      {
+        type: "set_scalar_block",
+        fields: { NAME: "theta" },
+        values: { VALUE: add(v("theta"), mul(v("omega"), v("dt"))) },
+      },
+
+      /* Geometry */
+      {
+        type: "set_scalar_block",
+        fields: { NAME: "bob_x" },
+        values: { VALUE: mul(v("L"), trig("sin", v("theta"))) },
+      },
+      {
+        type: "set_scalar_block",
+        fields: { NAME: "bob_y" },
+        values: { VALUE: mul(mul(num(-1), v("L")), trig("cos", v("theta"))) },
+      },
+      {
+        type: "set_attr_expr_block",
+        fields: { OBJ: "rod", ATTR: "axis" },
+        values: { VALUE: vecC(v("bob_x"), v("bob_y"), num(0)) },
+      },
+      {
+        type: "set_attr_expr_block",
+        fields: { OBJ: "bob", ATTR: "pos" },
+        values: { VALUE: vecC(v("bob_x"), v("bob_y"), num(0)) },
+      },
+
+      /* Telemetry */
+      {
+        type: "telemetry_update_block",
+        fields: { LABEL: "telemetry", M: "t", D: 2, U: "s" },
+        values: { V: v("t") },
+      },
+      {
+        type: "telemetry_update_block",
+        fields: { LABEL: "telemetry", M: "theta", D: 3, U: "rad" },
+        values: { V: v("theta") },
+      },
+
+      /* The three graphs of motion, one point each per frame */
+      graphPlot("s_disp", "t", "theta"),
+      graphPlot("s_vel", "t", "omega"),
+      graphPlot("s_acc", "t", "alpha"),
+
+      /* Advance time */
+      {
+        type: "set_scalar_block",
+        fields: { NAME: "t" },
+        values: { VALUE: add(v("t"), v("dt")) },
+      },
+    ],
+  },
+
+  /* ── Simulation end ──────────────────────────────────── */
+  { type: "sim_end_block", fields: { MSG: "SHM run complete — read the period off the displacement graph." } },
 ];
 
 /* ── DS / Hybrid template XML helpers ───────────────── */
@@ -2221,6 +2403,39 @@ const HYBRID_SPRING_K_XML = `<xml xmlns="https://developers.google.com/blockly/x
   </block>
 </xml>`;
 
+const HYBRID_PENDULUM_SHM_XML = `<xml xmlns="https://developers.google.com/blockly/xml">
+  <variables>
+    <variable id="hy-shm-run">run_data</variable>
+  </variables>
+  <block type="ds_start_block" x="40" y="40">
+    <field name="TITLE">SHM pendulum: measure the period</field>
+    <statement name="BODY">
+      <block type="ds_load_trace_block">
+        <field name="VAR" id="hy-shm-run">run_data</field>
+        <field name="DATASET_NAME">paste-trace-label-here</field>
+        <next>
+          <block type="ds_show_table_block">
+            <field name="VAR" id="hy-shm-run">run_data</field>
+            <next>
+              <block type="ds_chart_scatter_block">
+                <field name="VAR" id="hy-shm-run">run_data</field>
+                <field name="X_COL">t</field>
+                <field name="Y_COL">theta</field>
+                <field name="TITLE">theta vs t — read the period T between peaks</field>
+                <next>
+                  <block type="ds_state_conclusion_block">
+                    <field name="TEXT">Small-angle SHM: theta(t) = theta0·cos(2πt/T). Read T off the chart as the time between two successive peaks — for L = 2.0 m the theory says T = 2π√(L/g) ≈ 2.84 s. If your measured T matches, the small-angle approximation held; try a larger starting angle in the simulation and watch the period drift away from the formula.</field>
+                  </block>
+                </next>
+              </block>
+            </next>
+          </block>
+        </next>
+      </block>
+    </statement>
+  </block>
+</xml>`;
+
 const HYBRID_PENDULUM_DAMP_XML = `<xml xmlns="https://developers.google.com/blockly/xml">
   <variables>
     <variable id="hy-pd-run">run_data</variable>
@@ -2359,6 +2574,14 @@ export const DS_TEMPLATES = [
     xml: HYBRID_SPRING_K_XML,
   },
   {
+    id: "hybrid_pendulum_shm",
+    title: "SHM pendulum: measure the period",
+    description: "Run the SHM Pendulum sim (three live graphs of motion), save a run with t and theta, then read the period off the chart and compare it with T = 2π√(L/g).",
+    kind: "blocks",
+    goal: "hybrid",
+    xml: HYBRID_PENDULUM_SHM_XML,
+  },
+  {
     id: "hybrid_pendulum_damp",
     title: "Pendulum: measure the damping coefficient",
     description: "Run the Pendulum sim, save a run with t and E_total, then regress ln(E) vs t — the slope is −γ.",
@@ -2401,6 +2624,14 @@ export const BLOCK_TEMPLATES = [
       "Full nonlinear ODE \u03b1 = \u2212(g/L)\u00b7sin(\u03b8) \u2212 b\u00b7\u03c9 with symplectic Euler integration. Live KE, PE, and E_total telemetry. Rod and bob geometry update every frame.",
     xml: buildTemplate(normalizeSimulationFlow(PENDULUM_BLOCKS)),
   },
+  {
+    id: "blocks_pendulum_shm",
+    title: "SHM Pendulum (Blocks Template)",
+    subtitle: "The three graphs of motion, drawn live",
+    description:
+      "Small-angle simple harmonic motion: α = −(g/L)·θ, undamped. Displacement, velocity and acceleration graphs draw live under the 3D scene while the bob swings — read the period straight off the displacement curve and compare it with T = 2π√(L/g).",
+    xml: buildTemplate(normalizeSimulationFlow(SHM_PENDULUM_BLOCKS)),
+  },
 ];
 
 /* ── Hybrid topics ──────────────────────────────────────────
@@ -2436,6 +2667,15 @@ export const HYBRID_TOPICS = [
     description: "Run the spring oscillator, save a run, then fit Fspring vs stretch to find the spring constant k.",
     simTemplateId: "blocks_spring",
     analysisTemplateId: "hybrid_spring_k",
+    defaultEntry: "model",
+  },
+  {
+    id: "pendulum_shm",
+    title: "SHM pendulum: the three graphs of motion",
+    description:
+      "Watch displacement, velocity and acceleration draw live while the bob swings, save a run, then measure the period and compare it with T = 2π√(L/g).",
+    simTemplateId: "blocks_pendulum_shm",
+    analysisTemplateId: "hybrid_pendulum_shm",
     defaultEntry: "model",
   },
 ];
