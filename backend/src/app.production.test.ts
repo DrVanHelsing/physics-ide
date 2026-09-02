@@ -78,6 +78,39 @@ describe("trustProxy reaches Fastify (DEPLOY.md box 2)", () => {
     }
   });
 
+  test("TRUST_PROXY=1 reads the RIGHTMOST X-Forwarded-For hop — the spoof-proof Cloud Run setting; true reads the client-controlled leftmost", async () => {
+    // The whole of review C3's closure lives in this semantic: a spoofer
+    // sends "x-forwarded-for: 1.1.1.1" and the fronting layer APPENDS the
+    // real client, so the header arrives "1.1.1.1, 2.2.2.2". Trusting one
+    // hop must yield 2.2.2.2 (unspoofable); trusting everything yields the
+    // forged 1.1.1.1. Pinned behaviorally so a fastify bump cannot silently
+    // change what the runbook's TRUST_PROXY=1 means.
+    const SPOOFED = { "x-forwarded-for": "1.1.1.1, 2.2.2.2" };
+
+    stubAll({ TRUST_PROXY: "1" });
+    let mod = await import("./app.js");
+    let app = mod.buildApp({ db: testDb });
+    app.get("/__test-only/ip", async (req) => ({ ip: req.ip }));
+    try {
+      const res = await app.inject({ method: "GET", url: "/__test-only/ip", headers: SPOOFED, remoteAddress: "5.5.5.5" });
+      expect(res.json().ip).toBe("2.2.2.2");
+    } finally {
+      await app.close();
+    }
+
+    vi.resetModules();
+    stubAll({ TRUST_PROXY: "true" });
+    mod = await import("./app.js");
+    app = mod.buildApp({ db: testDb });
+    app.get("/__test-only/ip", async (req) => ({ ip: req.ip }));
+    try {
+      const res = await app.inject({ method: "GET", url: "/__test-only/ip", headers: SPOOFED, remoteAddress: "5.5.5.5" });
+      expect(res.json().ip).toBe("1.1.1.1"); // the forged value — why the runbook forbids "true"
+    } finally {
+      await app.close();
+    }
+  });
+
   test("the TRUST_PROXY default (unset -> false) uses the raw socket address, not X-Forwarded-For", async () => {
     // Hermetic against the ambient environment: backend/.env has no
     // TRUST_PROXY today, but .env.example documents it, so a developer who

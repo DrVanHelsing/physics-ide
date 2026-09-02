@@ -296,8 +296,9 @@ export function useProject() {
     if (!ok) return null;
     /* An autosave timer armed BEFORE this ran was built on the pre-stash
        manifest; letting it fire mid-persist would write a manifest with no
-       stash right before the swap — the original loss. Same hazard, same
-       one-liner as the sync-pull path above. */
+       stash right before the swap — the original loss. This is a
+       capture-and-persist site (no apply follows), so it fences itself;
+       the adopt-state sites get theirs from applyManifestToWorkingState. */
     debouncedSaveRef.current.cancel();
     /* Capture first (renameProject's idiom), so the stash and the manifest
        both carry what the student typed since the last autosave. Latest
