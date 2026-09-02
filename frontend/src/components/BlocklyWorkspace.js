@@ -6,7 +6,7 @@ import {
   BLOCK_CATALOGUE,
   customConstantsRegistry,
 } from "../utils/blockly/blocklyGenerator";
-import { SearchIcon, XIcon, MaximizeIcon } from "./Icons";
+import { SearchIcon, XIcon } from "./Icons";
 import WorkspaceTrash from "./WorkspaceTrash";
 import * as dialogService from "../utils/export/dialogService";
 import { buildToolboxXml } from "../utils/blockly/toolbox";
@@ -114,25 +114,10 @@ function BlockSearch({ workspaceRef }) {
           <button className="block-search-clear" onClick={() => setQuery("")} tabIndex={-1}><XIcon size={10} /></button>
         )}
       </div>
-      <button
-        type="button"
-        className="block-search-fit"
-        title="Fit all blocks on screen"
-        aria-label="Fit all blocks on screen"
-        onMouseDown={(e) => e.preventDefault()}
-        onClick={() => {
-          const ws = workspaceRef.current;
-          if (!ws) return;
-          try {
-            ws.zoomToFit();
-            ws.scrollCenter();
-          } catch (e) {
-            console.warn("Could not fit blocks to view:", e);
-          }
-        }}
-      >
-        <MaximizeIcon size={12} />
-      </button>
+      {/* The search bar's own fit button is gone (Plan 10 Stage C, audit
+          win 2): the on-canvas zoom cluster owns "Fit blocks to view" and
+          shows the resulting %, 620px away with a different icon was a
+          duplicate, not an affordance. */}
       {open && query && (
         <div className="block-search-dropdown">
           {results.length > 0

@@ -170,7 +170,7 @@ describe("useSimulation — booting phase", () => {
     expect(latestCtx.booting).toBe(true);
 
     act(() => {
-      latestSim.handleResetToBlocks();
+      latestSim.loadWorkspaceXml(""); // a workspace-replacing teardown path
     });
 
     expect(latestCtx.booting).toBe(false);
@@ -697,7 +697,7 @@ describe("useSimulation — Run and Stop resync pauseState (Task 17 fix round 1)
   });
 
   test("every teardown path resets it, not just Stop", () => {
-    for (const teardown of ["handleHome", "handleResetToBlocks", "loadWorkspaceXml"]) {
+    for (const teardown of ["handleHome", "loadWorkspaceXml"]) {
       mounted = mountComponent(<Wrapped />);
       act(() => {
         latestDebug.setPauseState("paused");

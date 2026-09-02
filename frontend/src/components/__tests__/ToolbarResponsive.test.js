@@ -94,7 +94,9 @@ describe("header collapse — stage 2 (<= 1120px)", () => {
     click(trigger);
 
     const menu = container.querySelector(".tb-dropdown-menu");
-    for (const label of ["Debug", "Hide 3D viewport", "Back to Blocks", "Clear", "Help"]) {
+    // Short labels only (Plan 10 win 10 removed the fake-shortcut span that
+    // used to print the long tooltip); "Back to Blocks" is gone (win 3).
+    for (const label of ["Debug", "Hide", "Clear", "Help"]) {
       expect(menu.textContent).toContain(label);
     }
     click([...menu.querySelectorAll(".tb-dropdown-item")].find((b) => b.textContent.includes("Debug")));
@@ -129,7 +131,7 @@ describe("header collapse — stage 2 (<= 1120px)", () => {
     const menu = container.querySelector(".tb-dropdown-menu");
     expect(menu.textContent).not.toContain("Debug");
     // The rest of the overflow list is untouched by rules.
-    for (const label of ["Hide 3D viewport", "Back to Blocks", "Clear", "Help"]) {
+    for (const label of ["Hide", "Clear", "Help"]) {
       expect(menu.textContent).toContain(label);
     }
   });

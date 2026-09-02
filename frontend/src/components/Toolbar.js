@@ -10,7 +10,6 @@ import {
   FileCodeIcon,
   FileBlocksIcon,
   FilePdfIcon,
-  ImageIcon,
   CopyIcon,
   ShareIcon,
   PanelRightCloseIcon,
@@ -45,7 +44,6 @@ function Toolbar({
   onExportBlocks,
   onExportBlocksPdf,
   onExportCodePdf,
-  onExportScreenshot,
   onCopyCode,
   onImport,
   onExportProject,
@@ -101,7 +99,7 @@ function Toolbar({
      are item-level, just below — save/fileMenu themselves must always stay. */
   const assignment = useAssignmentContext();
   const rules = assignment?.rules ?? null;
-  const zones = visibleControls({ mode, goal, role, isTeacher, runState, debugMode, traceVisible, rules });
+  const zones = visibleControls({ mode, goal, role, isTeacher, runState, debugMode, traceVisible, rules, analysisReturn });
   /* Compute both group flags before rendering the divider between them — a
      dangling divider (one side hidden, the other not) is the trap here. */
   const importsAllowed = !rules || rules.importFiles;
@@ -214,12 +212,9 @@ function Toolbar({
               <span>Blocks as PDF</span>
             </button>
           ) : null}
-          {exportsAllowed && onExportScreenshot ? (
-            <button type="button" className="tb-dropdown-item" onClick={onExportScreenshot}>
-              <ImageIcon size={14} />
-              <span>Screenshot Viewport (.png)</span>
-            </button>
-          ) : null}
+          {/* "Screenshot Viewport" left this menu (Plan 10 Stage C, audit
+              win 7): the on-canvas camera is the one screenshot path — the
+              picture belongs where the picture is. */}
           {exportsAllowed && onCopyCode ? (
             <button type="button" className="tb-dropdown-item" onClick={onCopyCode}>
               <CopyIcon size={14} />
@@ -317,11 +312,11 @@ function Toolbar({
     },
     reset: onReset && {
       key: "reset",
-      /* While a hybrid analyse stash exists, this slot IS the way back to
-         the stashed simulation blocks (IDELayout passes the restore
-         handler); otherwise it is the ordinary text→blocks return. */
-      label: analysisReturn ? "Return to the simulation blocks" : "Return to the block editor",
-      short: analysisReturn ? "Back to Simulation" : "Back to Blocks",
+      /* This slot exists ONLY while a hybrid analyse stash does (win 3):
+         the way back to the stashed simulation blocks. The old
+         "Back to Blocks" duplicate of the mode toggle is gone. */
+      label: "Return to the simulation blocks",
+      short: "Back to Simulation",
       icon: RefreshIcon,
       onClick: onReset,
     },
@@ -381,11 +376,13 @@ function Toolbar({
             chevron={false}
             trigger={<MoreHorizontalIcon size={16} />}
           >
+            {/* No fake-shortcut span (Plan 10 win 10): the slot styled for
+                hotkeys used to print the tooltip, so items read
+                "Hide Hide 3D viewport". The full label IS the item text. */}
             {secondaryActions.map((a) => (
-              <button key={a.key} type="button" className="tb-dropdown-item" onClick={a.onClick}>
+              <button key={a.key} type="button" className="tb-dropdown-item" onClick={a.onClick} title={a.label}>
                 <a.icon size={14} />
                 <span>{a.short}</span>
-                <span className="tb-dropdown-shortcut">{a.label}</span>
               </button>
             ))}
           </DropdownMenu>

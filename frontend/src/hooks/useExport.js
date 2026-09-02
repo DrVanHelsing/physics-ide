@@ -10,8 +10,6 @@ import { exportBlocksPdf, exportCodePdf } from "../utils/export/pdfExport";
 import * as dialogService from "../utils/export/dialogService";
 import { generatePythonFromWorkspace } from "../utils/blockly/blocklyGenerator";
 import { useSimulationContext } from "../contexts/SimulationContext";
-import { captureRuntimeCanvas } from "../utils/runner/glowRunner";
-import { isUniformImageData } from "../utils/image";
 
 export function useExport() {
   const {
@@ -108,57 +106,10 @@ export function useExport() {
     );
   }, [mode, pythonCode, syncFromBlocks, setStatus]);
 
-  /* ── Export screenshot of 3D viewport ─────────────────────
-     Captured from the runtime canvas (glowRunner.captureRuntimeCanvas), then
-     VERIFIED: a WebGL read-back can succeed and still be a blank buffer, and
-     reporting success on an empty PNG is worse than reporting failure. */
-  const handleExportScreenshot = useCallback(async () => {
-    const dataUrl = await captureRuntimeCanvas();
-    if (!dataUrl) {
-      setStatus({
-        text: "Nothing to capture — press Run first, then take the screenshot while it is running.",
-        type: "error",
-      });
-      return;
-    }
-    const name = await getExportName();
-    if (!name) return;
-    setStatus({ text: "Capturing screenshot...", type: "" });
-    try {
-      const ok = await new Promise((resolve) => {
-        const img = new Image();
-        img.onload = () => {
-          try {
-            const probe = document.createElement("canvas");
-            probe.width = 32;
-            probe.height = 32;
-            const ctx = probe.getContext("2d");
-            ctx.drawImage(img, 0, 0, 32, 32);
-            resolve(!isUniformImageData(ctx.getImageData(0, 0, 32, 32).data));
-          } catch {
-            resolve(false);
-          }
-        };
-        img.onerror = () => resolve(false);
-        img.src = dataUrl;
-      });
-      if (!ok) {
-        setStatus({
-          text: "Screenshot came out blank — the 3D engine did not keep the last frame. Try again while the simulation is running.",
-          type: "error",
-        });
-        return;
-      }
-      const link = document.createElement("a");
-      link.download = `${name}.png`;
-      link.href = dataUrl;
-      link.click();
-      setStatus({ text: `Screenshot saved as ${name}.png`, type: "success" });
-    } catch (err) {
-      console.error(err);
-      setStatus({ text: "Screenshot failed", type: "error" });
-    }
-  }, [getExportName, setStatus]);
+  /* "Screenshot Viewport" left the File menu (Plan 10 Stage C, audit
+     win 7): the on-canvas camera (ViewportControls) is the one screenshot
+     path. The old menu handler and its capture pipeline were deleted whole
+     with it. */
 
   return {
     getExportName,
@@ -167,6 +118,5 @@ export function useExport() {
     handleExportBlocksPdf,
     handleExportCodePdf,
     handleCopyCode,
-    handleExportScreenshot,
   };
 }

@@ -46,6 +46,10 @@ export function visibleControls({
      import/export item visibility is gated at the item level in Toolbar,
      not here, because save/fileMenu themselves must always stay. */
   rules = null,
+  /* Plan 10 win 3: the reset slot is no longer unconditional — it exists
+     ONLY as the hybrid analyse return ("Back to Simulation"), keyed off
+     the stash the analyse flow parks in the manifest. */
+  analysisReturn = false,
 }) {
   const sim = SIM_GOALS.has(goal);
   const live = runState !== "idle";
@@ -60,7 +64,7 @@ export function visibleControls({
        would leave a self-opened drawer with no control to close it. */
     ...(sim && (live || traceVisible || debugMode) ? ["trace"] : []),
     ...(sim && (live || debugMode) ? ["debug"] : []),
-    "reset",
+    ...(analysisReturn ? ["reset"] : []),
     ...(mode === "blocks" ? ["clear"] : []),
     "help",
   ];

@@ -4,7 +4,6 @@ import {
   StopIcon,
   PauseIcon,
   StepForwardIcon,
-  RecordIcon,
 } from "./Icons";
 import { MOD_LABEL } from "../utils/hotkeys";
 import { useMediaQuery } from "../hooks/useMediaQuery";
@@ -40,14 +39,11 @@ function SimControls({
   paused = false,
   pauseState = "running",
   iteration = 0,
-  recording = false,
   breakpointCount = 0,
   onPause,
   onResume,
   onStepFrame,
   onStepValue,
-  onStartRecord,
-  onStopRecord,
 }) {
   /* Stage 2 is active AT the declared 1024px floor. The readout SHORTENS
      there rather than hiding, so the narrowest supported viewport still gets
@@ -122,15 +118,11 @@ function SimControls({
           >
             <span className="tb-btn-label">Next value</span>
           </button>
-          <button
-            type="button"
-            className={`tb-btn${recording ? " tb-btn--active" : ""}`}
-            onClick={recording ? onStopRecord : onStartRecord}
-            title={recording ? "Stop recording" : "Record every value to CSV"}
-          >
-            <RecordIcon size={12} />
-            <span className="tb-btn-label">{recording ? "Stop Rec" : "Record"}</span>
-          </button>
+          {/* Record lives in the trace panel ONLY (Plan 10 Stage C, audit
+              win 1): this strip used to render a second Record wired to the
+              same handlers with different labels and enabled rules —
+              recording is a trace-panel action, and the panel is always
+              open in debug mode. */}
           {breakpointCount > 0 && (
             <span
               className="tb-chip"

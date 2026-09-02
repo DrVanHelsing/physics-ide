@@ -72,12 +72,14 @@ describe("visibleControls", () => {
     const view = v({ runState: "running" }).view;
     expect(view.indexOf("trace")).toBeLessThan(view.indexOf("debug"));
   });
-  test("clear is blocks-mode only; help and reset always", () => {
+  test("clear is blocks-mode only; help always; reset ONLY as the analyse return (Plan 10 win 3)", () => {
     expect(v({ mode: "text" }).view).not.toContain("clear");
     expect(v({ mode: "blocks" }).view).toContain("clear");
     for (const mode of ["blocks", "text"]) {
       expect(v({ mode }).view).toContain("help");
-      expect(v({ mode }).view).toContain("reset");
+      // The old unconditional "Back to Blocks" duplicated the mode toggle.
+      expect(v({ mode }).view).not.toContain("reset");
+      expect(v({ mode, analysisReturn: true }).view).toContain("reset");
     }
   });
   test("guest sees sign-in, others the account chip; file basics always", () => {

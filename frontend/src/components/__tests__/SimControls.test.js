@@ -135,18 +135,13 @@ describe("SimControls — debug group", () => {
     expect(byText(container, "Next value").disabled).toBe(true);
   });
 
-  test("Record toggles to Stop Rec and fires the matching handler", () => {
-    const onStartRecord = vi.fn();
-    const onStopRecord = vi.fn();
-    let container = render({ debugMode: true, running: true, onStartRecord, onStopRecord });
-    click(byText(container, "Record"));
-    expect(onStartRecord).toHaveBeenCalledTimes(1);
-
-    container = render({ debugMode: true, running: true, recording: true, onStartRecord, onStopRecord });
-    const stop = byText(container, "Stop Rec");
-    expect(stop.className).toContain("tb-btn--active");
-    click(stop);
-    expect(onStopRecord).toHaveBeenCalledTimes(1);
+  test("Record does NOT render here — it lives in the trace panel only (Plan 10, audit win 1)", () => {
+    /* This strip used to render a second Record wired to the same handlers
+       with a different label and enabled rule, visible at the same instant
+       as the trace panel's own — one action, one control. */
+    const container = render({ debugMode: true, running: true });
+    expect(byText(container, "Record")).toBeNull();
+    expect(byText(container, "Stop Rec")).toBeNull();
   });
 
   test("the debug group never collapses — it is what squashed the old header", () => {
@@ -156,7 +151,7 @@ describe("SimControls — debug group", () => {
        hiding it here either. */
     setViewport(HEADER_STAGE2_QUERY);
     const container = render({ debugMode: true, running: true });
-    for (const label of ["Next frame", "Next value", "Record"]) {
+    for (const label of ["Next frame", "Next value"]) {
       expect(byText(container, label)).toBeTruthy();
     }
   });
