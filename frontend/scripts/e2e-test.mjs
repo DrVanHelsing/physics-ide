@@ -353,6 +353,22 @@ check('Hybrid topics group present on landing', /hybrid.?topics/i.test(bodyConte
 check('Open File action present', /open.?file/i.test(bodyContent));
 await screenshot(page, 'A1-bootstrap');
 
+// ── A1b: the guest-entry loop stays dead (root cause fixed 2026-09-02) ──
+// The v1-era SimulationContext autosave used to write physics-lab-state-v1
+// every 2 s even on the menu; the bootstrap then "migrated" that blob into
+// a phantom "Recovered project" that skipped the menu on the next direct
+// visit. Dwell past the old interval, then return to '/' cold.
+await delay(3000);
+const legacyKey = await page.evaluate(() => localStorage.getItem('physics-lab-state-v1'));
+check('A1b: legacy v1 key is never written by the running app', legacyKey === null, String(legacyKey).slice(0, 60));
+await page.goto(BASE, { waitUntil: 'networkidle0', timeout: 30000 });
+await delay(2000);
+const returnVisit = await page.evaluate(() => ({
+  menu: !!document.querySelector('.start-menu-overlay'),
+  phantom: document.body.innerText.includes('Recovered project'),
+}));
+check('A1b: a direct return visit lands on the menu, no phantom project', returnVisit.menu && !returnVisit.phantom, JSON.stringify(returnVisit));
+
 // ── Suite A2: Physics Project — Blank (Blocks) ────────────────────────────────
 console.log('\n═══ A2: Physics Blank Project (Blocks) ══════════════════════════════');
 try {

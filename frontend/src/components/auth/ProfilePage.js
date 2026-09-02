@@ -28,7 +28,7 @@ export default function ProfilePage() {
   const [error, setError] = useState(null);
 
   if (isLoading) return null;
-  if (!me) return <Navigate to="/auth/signin" replace />;
+  if (!me) return <Navigate to="/auth/signin" replace state={{ returnTo: "/profile" }} />;
 
   // `prefs` seeds from me.notificationPrefs on every render until the user
   // edits a switch, same fallback shape as `name ?? me.name` above — a plain

@@ -21,7 +21,7 @@ export default function AdminConsole() {
   const tabRefs = useRef({});
 
   if (isLoading) return null;
-  if (!me) return <Navigate to="/auth/signin" replace />;
+  if (!me) return <Navigate to="/auth/signin" replace state={{ returnTo: "/admin" }} />;
   if (me.role !== "admin") return <Navigate to="/" replace />;
 
   /* Roving tabindex (WAI-ARIA tabs pattern): the arrow key both selects and

@@ -91,21 +91,37 @@ function Note({ type = "info", children }) {
 function Kbd({ children }) {
   return <kbd className="help-kbd">{children}</kbd>;
 }
-/* A silent looping demo clip with a caption. preload="metadata" keeps the
-   dozen clips on the page from all downloading up front; the poster paints
-   until the loop starts. */
+/* A silent looping demo clip with a caption. Motion is polite: under
+   prefers-reduced-motion the clip does NOT autoplay (the poster stands,
+   native controls appear); otherwise it loops muted and a click pauses or
+   resumes it (WCAG 2.2.2 — moving content needs a pause). The figcaption
+   is the accessible context, so the video carries no duplicate label. */
 function HelpVideo({ src, poster, caption }) {
+  const ref = useRef(null);
+  const [reduced] = useState(
+    () => typeof window !== "undefined" &&
+      !!window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches,
+  );
+  const toggle = () => {
+    const v = ref.current;
+    if (!v) return;
+    if (v.paused) v.play()?.catch?.(() => {});
+    else v.pause();
+  };
   return (
     <figure className="help-video">
       <video
+        ref={ref}
         src={src}
         poster={poster}
-        autoPlay
+        autoPlay={!reduced}
+        controls={reduced}
         loop
         muted
         playsInline
-        preload="metadata"
-        aria-label={caption || "Demo clip"}
+        preload={reduced ? "none" : "metadata"}
+        onClick={reduced ? undefined : toggle}
+        title={reduced ? undefined : "Click to pause or resume"}
       />
       {caption && <figcaption>{caption}</figcaption>}
     </figure>
@@ -151,12 +167,12 @@ const SEARCH_INDEX = [
   {
     id: "overview",
     title: "Overview",
-    content: "Physics IDE browser-based physics simulation data science environment three goals Physics Modelling Data Science Hybrid block editor VPython GlowScript 3D viewport WebGL architecture project goal wizard multi-project",
+    content: "Physics IDE browser-based physics simulation data science environment three goals Physics Modelling Data Science Hybrid block editor VPython GlowScript 3D viewport WebGL architecture project goal multi-project",
   },
   {
     id: "getting-started",
     title: "Getting Started",
-    content: "start menu goal card Physics Modelling Data Science Hybrid blank template wizard title project list run simulation stop toolbar 3D viewport orbit pan zoom camera auto-save localForage multi-project open delete",
+    content: "start menu goal card Physics Modelling Data Science Hybrid blank template title project list run simulation stop toolbar 3D viewport orbit pan zoom camera auto-save localForage multi-project open delete",
   },
   {
     id: "debug-mode",
@@ -2506,7 +2522,7 @@ s_theta.plot(t, theta)`}</Pre>
               <h3 className="help-h3">Accounts, emails and working offline</h3>
               <ul className="help-list">
                 <li>
-                  <strong>Your account</strong> — the profile page (open it from the account chip)
+                  <strong>Your account</strong> — the profile page (open it from the account menu in the header)
                   changes your name and password. Signup sends a confirmation email; a forgotten
                   password is reset by an emailed link.
                 </li>

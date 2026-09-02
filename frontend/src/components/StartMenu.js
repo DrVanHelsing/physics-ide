@@ -358,7 +358,7 @@ export default function StartMenu({
         {/* ── Main Content ── */}
         <main className="start-content">
           {/* Continue */}
-          <p className="start-section-label">Continue</p>
+          <h2 className="start-section-label">Continue</h2>
           {!loaded ? null : projectList.length > 0 ? (
             <div className="start-project-list">
               {projectList.map((p, i) => (
@@ -381,7 +381,7 @@ export default function StartMenu({
 
           {/* Start something new: the goal cards create instantly, and every
               template lives right below them — one section, no wizard. */}
-          <p className="start-section-label">Start something new</p>
+          <h2 className="start-section-label">Start something new</h2>
           <div className="start-grid">
             {GOALS.map((g) => {
               const Icon = g.icon;
@@ -392,8 +392,8 @@ export default function StartMenu({
                   icon={<Icon size={22} />}
                   onCreate={() => createBlank(g.id)}
                   alt={
-                    g.id === "physics"
-                      ? { label: "Start in code instead", onClick: () => createBlank("physics", "code") }
+                    g.id === "physics" || g.id === "hybrid"
+                      ? { label: "Start in code instead", onClick: () => createBlank(g.id, "code") }
                       : null
                   }
                 />
@@ -401,7 +401,7 @@ export default function StartMenu({
             })}
           </div>
 
-          <p className="start-section-sublabel">Physics templates</p>
+          <h3 className="start-section-sublabel">Physics templates</h3>
           <div className="start-grid start-grid--templates">
             {physicsTemplates.map((tpl) => (
               <TemplateCard key={tpl.id} tpl={tpl} onOpen={() => openTemplate(tpl)} />
@@ -410,7 +410,7 @@ export default function StartMenu({
 
           {dsTemplates.length > 0 && (
             <>
-              <p className="start-section-sublabel">Data science templates</p>
+              <h3 className="start-section-sublabel">Data science templates</h3>
               <div className="start-grid start-grid--templates">
                 {dsTemplates.map((tpl) => (
                   <TemplateCard key={tpl.id} tpl={tpl} onOpen={() => openTemplate(tpl)} />
@@ -421,7 +421,7 @@ export default function StartMenu({
 
           {hybridTopics.length > 0 && (
             <>
-              <p className="start-section-sublabel">Hybrid topics — a simulation paired with its analysis</p>
+              <h3 className="start-section-sublabel">Hybrid topics — a simulation paired with its analysis</h3>
               <div className="start-grid start-grid--templates">
                 {hybridTopics.map((tpl) => (
                   <TemplateCard
@@ -487,6 +487,7 @@ function GoalCard({ goal, icon, onCreate, alt }) {
         type="button"
         className="start-card-main"
         onClick={onCreate}
+        aria-label={`Create a blank ${goal.label} project`}
         title={`Create a blank ${goal.label.toLowerCase()} project`}
       >
         <div className="start-card-icon">{icon}</div>
@@ -519,7 +520,12 @@ function TemplateCard({ tpl, onOpen, alt }) {
     (tpl.goal === "datascience" ? TableIcon : tpl.goal === "hybrid" ? GlobeIcon : tpl.kind === "code" ? CodeIcon : BlocksIcon);
   return (
     <div className="start-card start-card--template">
-      <button type="button" className="start-card-main" onClick={onOpen}>
+      <button
+        type="button"
+        className="start-card-main"
+        onClick={onOpen}
+        aria-label={`Open the ${tpl.title} template`}
+      >
         <div className="start-card-icon"><Icon size={20} /></div>
         <div className="start-card-body">
           <span className={`start-card-badge start-card-badge--${tpl.kind}`}>

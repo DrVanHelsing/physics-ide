@@ -17,10 +17,8 @@ import React, {
   useMemo,
   useRef,
   useState,
-  useEffect,
 } from "react";
-import { loadState, saveState } from "../utils/storage";
-import { AUTOSAVE_INTERVAL_MS, DEFAULT_PYTHON_CODE, ZOOM_DEFAULT, SPLIT_DEFAULT } from "../constants";
+import { DEFAULT_PYTHON_CODE, ZOOM_DEFAULT, SPLIT_DEFAULT } from "../constants";
 import useLocalStorage from "../hooks/useLocalStorage";
 import { clampSplit, clampZoom } from "../utils/layoutPrefs";
 import {
@@ -67,26 +65,14 @@ export function SimulationProvider({ children }) {
      separate one. */
   const runGenerationRef = useRef(0);
 
-  /* ── Auto-save (every 2 s) ───────────────────────────── */
-  const stateRef = useRef({ mode, pythonCode, workspaceXml });
-  stateRef.current = { mode, pythonCode, workspaceXml };
-  useEffect(() => {
-    const id = window.setInterval(() => saveState(stateRef.current), AUTOSAVE_INTERVAL_MS);
-    return () => window.clearInterval(id);
-  }, []);
-
-  /* ── Restore persisted state on first mount ──────────── */
-  useEffect(() => {
-    const saved = loadState();
-    if (!saved) return;
-    if (saved.mode === "blocks" || saved.mode === "text") setMode(saved.mode);
-    if (typeof saved.pythonCode === "string" && saved.pythonCode.length > 0) {
-      setPythonCode(saved.pythonCode);
-    }
-    if (typeof saved.workspaceXml === "string") {
-      setWorkspaceXml(saved.workspaceXml);
-    }
-  }, []);
+  /* The v1-era localStorage autosave/restore that used to live here is
+     GONE (guest-entry root cause, 2026-09-02): it wrote the working state
+     to the legacy `physics-lab-state-v1` key every 2 s — even while the
+     start menu was up — and ProjectContext's bootstrap then "migrated"
+     that self-made blob into a phantom "Recovered project" that skipped
+     the menu on the next visit. The manifest layer owns persistence;
+     the legacy key is now read once at bootstrap (true v1 users) and
+     deleted on adoption. */
 
   /* Every consumer reads this object identity on every render (React context
      has no selector mechanism), so a fresh literal here would invalidate every

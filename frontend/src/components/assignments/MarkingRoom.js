@@ -102,7 +102,7 @@ export default function MarkingRoom() {
   const backToInbox = { to: `/classes/${id}/assignments/${aid}/inbox`, label: "Back to inbox" };
 
   if (meLoading) return null;
-  if (!me) return <Navigate to="/auth/signin" replace />;
+  if (!me) return <Navigate to="/auth/signin" replace state={{ returnTo: window.location.pathname }} />;
   if (classQuery.isLoading) return null;
   if (classQuery.error) {
     return gatedPage(

@@ -93,6 +93,14 @@
   width: 100%;
 }
 
+/* Native radio/checkbox glyphs take the product accent — the sign-up
+   doors and the consent checkbox were the last browser-default artifacts
+   on an otherwise tokenized card (visual audit, 2026-09-02). */
+input[type="radio"],
+input[type="checkbox"] {
+  accent-color: var(--accent);
+}
+
 /* ═══════════════════════════════════════════════════════════
    PRIMITIVES — .card
    ═══════════════════════════════════════════════════════════ */

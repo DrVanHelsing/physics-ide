@@ -27,13 +27,12 @@
      portal's classes, not only the IDE's. */
   .btn           { min-height: 32px; }
   .btn--sm       { min-height: 32px; padding: var(--space-1) var(--space-2); }
-  .input,
-  .auth-input    { min-height: 32px; }
-  .tab,
-  .admin-tab     { min-height: 36px; }
+  .input         { min-height: 32px; }
+  .tab           { min-height: 36px; }
   .auth-door     { min-height: 36px; }
-  .class-card    { padding: var(--space-5); }
   .range         { height: 36px; }
+  /* The card subaction is a text link a finger still has to land on. */
+  .start-card-alt { min-height: 32px; padding: 6px 8px; margin-left: -8px; }
 }
 
 /* The dividers are focusable separators now. Plan 1's global :focus-visible

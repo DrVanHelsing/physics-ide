@@ -37,7 +37,7 @@ export default function ClassChrome({
   });
 
   if (isLoading) return null;
-  if (!me) return <Navigate to="/auth/signin" replace />;
+  if (!me) return <Navigate to="/auth/signin" replace state={{ returnTo: window.location.pathname }} />;
   if (classQuery.error) {
     return (
       <div className="page">

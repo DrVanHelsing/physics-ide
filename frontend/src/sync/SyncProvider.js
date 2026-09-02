@@ -4,7 +4,7 @@ import { listProjects, saveProject, onProjectSaved, onProjectDeleted } from "../
 import { getSyncMeta, listSyncMeta } from "../utils/storage/syncMeta";
 import { getAssignmentMeta } from "../utils/storage/assignmentMeta";
 import { getGlobalSyncEngine } from "../utils/sync/syncEngine";
-import { readLegacyV1, migrate } from "../utils/manifest/migrate";
+import { readLegacyV1, migrate, LEGACY_V1_KEY } from "../utils/manifest/migrate";
 import GuestImportPrompt from "./GuestImportPrompt";
 
 /**
@@ -108,6 +108,8 @@ export default function SyncProvider({ children }) {
           if (legacy) {
             const saved = await saveProject(migrate(legacy));
             resurrectedId = saved.id;
+            // One-shot adoption, same rule as ProjectContext's bootstrap.
+            try { localStorage.removeItem(LEGACY_V1_KEY); } catch { /* storage blocked */ }
           }
         }
       } catch (err) {
