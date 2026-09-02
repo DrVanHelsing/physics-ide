@@ -202,8 +202,9 @@ export function viewportStyleText({ bg, text, link }) {
       #glowscript-root { width: 100%; height: 100%; overflow-y: auto; overflow-x: hidden; background: ${bg}; }
       #glowscript { width: 100%; height: 100%; background: ${bg}; }
       /* Scoped to the SCENE canvas (wrapper child, or a bare direct child on
-         older layouts) — graph panels carry their own flot-sized canvases
-         (two per graph, base + overlay) that a forced 100% would corrupt. */
+         older layouts) — graph panels are Plotly SVG plots
+         (.glowscript-graph.js-plotly-plot) whose own sizing a forced 100%
+         would corrupt. */
       #glowscript .glowscript-canvas-wrapper canvas,
       #glowscript > canvas {
         display: block !important;
@@ -213,14 +214,17 @@ export function viewportStyleText({ bg, text, link }) {
         outline: none;
         border: none;
       }
-      /* Live graph panels: white cards whatever the theme — flot draws its
-         axes and labels onto the canvas in dark ink, so the card supplies
-         the contrast the theme cannot. */
+      /* Live graph panels: white cards whatever the theme — Plotly draws
+         its axes and labels in dark ink on white paper, so the card
+         supplies the contrast the dark theme cannot. Fixed-width plots
+         scroll within their own card on narrow panes rather than being
+         clipped by the root's hidden x-overflow. */
       #glowscript .glowscript-graph {
         margin: 10px 12px;
         padding: 6px;
         background: #ffffff;
         border-radius: 6px;
+        overflow-x: auto;
       }
       #glowscript-root * { color: ${text} !important; }
       #glowscript a { color: ${link} !important; }
@@ -603,7 +607,11 @@ async function executeCompiled(frameWindow, compiledCode, traceEntries, initialB
   ].filter((fn) => typeof fn === "function");
 
   if (
-    !frameWindow.document.querySelector("canvas") &&
+    // The same "drew something" vocabulary as the guard below (review I1):
+    // a scene-less pure-plot program has no canvas but HAS its graph panel,
+    // and re-invoking the entrypoints would run the program twice —
+    // duplicate panels, doubled series, two concurrent rate() loops.
+    !frameWindow.document.querySelector("canvas, .glowscript-graph") &&
     fallbackEntrypoints.length > 0
   ) {
     for (const entrypoint of fallbackEntrypoints) {
@@ -691,9 +699,9 @@ export async function runPython(codeString, hostId = "glowscript-host", opts = {
 
     /* A graph panel counts as drawing (Plan 10 Task 3): a pure-plotting
        program — graph display + series + plot, no 3D object — is legitimate
-       Trinket-style output, and its .glowscript-graph div exists as soon as
-       graph() runs even when flot's canvases materialise a frame later.
-       Only a program that made NEITHER a canvas NOR a graph "drew nothing". */
+       Trinket-style output, and its .glowscript-graph div (a Plotly SVG
+       plot) exists as soon as graph() runs. Only a program that made
+       NEITHER a canvas NOR a graph "drew nothing". */
     const renderedCanvas = frameWindow.document.querySelector("canvas, .glowscript-graph");
     if (!renderedCanvas) {
       const preview = compiledCode.slice(0, 300).replace(/\s+/g, " ");

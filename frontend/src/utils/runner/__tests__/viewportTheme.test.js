@@ -15,7 +15,9 @@ describe("viewport theme", () => {
 
   test("the style text carries the theme into every surface the scene paints", () => {
     const css = viewportStyleText(VIEWPORT_THEME.light);
-    for (const part of ["html, body", "#glowscript-root", "#glowscript canvas"]) {
+    // The canvas rule is scoped to the SCENE canvas since Plan 10 Task 3 —
+    // graph panels (Plotly) size themselves and must not inherit 100%.
+    for (const part of ["html, body", "#glowscript-root", "#glowscript .glowscript-canvas-wrapper canvas"]) {
       expect(css).toContain(part);
     }
     // The background appears on body, the root, the host and the canvas.
