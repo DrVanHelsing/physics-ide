@@ -1707,7 +1707,7 @@ const PENDULUM_BLOCKS = [
    Small-angle simple harmonic motion: alpha = -(g/L)*theta, undamped —
    the three graphs of motion (displacement, velocity, acceleration vs
    time) drawn LIVE while the bob swings. theta0 = 8° keeps the
-   small-angle approximation honest (sin θ ≈ θ within 0.3%), so the
+   small-angle approximation honest (sin θ ≈ θ within 0.33%), so the
    period the student reads off the displacement graph really is
    T = 2π·√(L/g) ≈ 2.84 s for L = 2.0 m.
    ═══════════════════════════════════════════════════════════ */

@@ -327,7 +327,7 @@ export default function StartMenu({
     return [...codeTemplates, ...blockTemplates];
   }, [wizardGoal]);
 
-  /* The eight physics templates, surfaced on the landing instead of three
+  /* The nine physics templates, surfaced on the landing instead of three
      clicks deep behind the wizard's Template radio. Same shape the wizard
      uses, so one card component renders both. */
   const featuredTemplates = useMemo(

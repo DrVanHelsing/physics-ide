@@ -198,7 +198,9 @@ export function viewportStyleText({ bg, text, link }) {
       /* overflow-y auto, not hidden (Plan 10 Task 3): GlowScript appends
          graph panels as .glowscript-graph siblings BELOW the 3D canvas
          wrapper, and a hidden overflow made every live graph invisible.
-         The scene keeps the full pane; graphs scroll beneath it. */
+         With graphs present the scene YIELDS to ~55% (resizeRuntimeCanvas)
+         and the canvas renders attr-sized below, so the first graph's top
+         edge is above the fold — the pane scrolls for the rest. */
       #glowscript-root { width: 100%; height: 100%; overflow-y: auto; overflow-x: hidden; background: ${bg}; }
       #glowscript { width: 100%; height: 100%; background: ${bg}; }
       /* Scoped to the SCENE canvas (wrapper child, or a bare direct child on
@@ -213,6 +215,14 @@ export function viewportStyleText({ bg, text, link }) {
         background: ${bg};
         outline: none;
         border: none;
+      }
+      /* With graphs present, the canvas displays at its ATTRIBUTE size —
+         resizeRuntimeCanvas sets scene.height to the yielded split, and a
+         forced CSS 100% would stretch/desync the GL viewport (the measured
+         failure mode the resize comment records). */
+      #glowscript:has(.glowscript-graph) .glowscript-canvas-wrapper,
+      #glowscript:has(.glowscript-graph) .glowscript-canvas-wrapper canvas {
+        height: auto !important;
       }
       /* Live graph panels: white cards whatever the theme — Plotly draws
          its axes and labels in dark ink on white paper, so the card
@@ -695,6 +705,12 @@ export async function runPython(codeString, hostId = "glowscript-host", opts = {
       return;
     }
 
+    /* The program may have just CREATED graph panels the observer's last
+       resize could not know about (or torn down last run's). Re-apply the
+       pane split so the scene yields — or reclaims — immediately, without
+       waiting for a real pane resize (Stage B review I1). */
+    if (lastResize.w > 0) resizeRuntimeCanvas(lastResize.w, lastResize.h);
+
     await new Promise((resolve) => window.setTimeout(resolve, 120));
 
     /* A graph panel counts as drawing (Plan 10 Task 3): a pure-plotting
@@ -909,11 +925,27 @@ export function applyRuntimeTheme(isDark) {
  *  divisor by dpr together — sizing the buffer alone from the outside cannot
  *  fix this, because the same canvas.width the render path wants scaled is
  *  the same value the input path reads to normalize the cursor. */
+/** The last pane size the host reported, so a run that CREATES graphs after
+ *  the observer's last fire can re-apply the split without a real resize
+ *  (Stage B review I1: the graphs were invisible below a full-height scene). */
+let lastResize = { w: 0, h: 0 };
+
 export function resizeRuntimeCanvas(cssWidth, cssHeight, dpr = window.devicePixelRatio || 1) {
   const win = getRuntimeWindow();
   const canvas = getRuntimeCanvas();
   if (!win || !canvas || cssWidth < 1 || cssHeight < 1) return false;
+  lastResize = { w: cssWidth, h: cssHeight };
   try {
+    /* When graph panels exist, the scene YIELDS: full height put every
+       graph below the fold with no visible affordance, and the wheel over
+       the scene zooms rather than scrolls (Stage B review I1 — four
+       templates' whole value is the live graph). ~55% keeps the scene
+       readable while the first graph's top edge shows above the fold; the
+       root scrolls for the rest. The CSS switches the canvas to attr-sized
+       (height auto) in the same :has() condition, so buffer and display
+       stay 1:1 — the desync the comment above warns about cannot occur. */
+    const hasGraphs = !!win.document.querySelector(".glowscript-graph");
+    const sceneHeight = hasGraphs ? Math.max(240, Math.round(cssHeight * 0.55)) : cssHeight;
     const scene = getRuntimeScene();
     if (scene && typeof scene.width === "number") {
       /* Preferred path: GlowScript owns the buffer. Its GL viewport tracks
@@ -923,7 +955,7 @@ export function resizeRuntimeCanvas(cssWidth, cssHeight, dpr = window.devicePixe
          mode when both were written, and for the DPR-sharp spike that was
          tried and reverted). */
       scene.width = Math.round(cssWidth);
-      scene.height = Math.round(cssHeight);
+      scene.height = sceneHeight;
       return true;
     }
     /* Fallback: no scene reachable (nothing running, or between frame
