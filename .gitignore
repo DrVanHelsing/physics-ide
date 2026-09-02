@@ -33,3 +33,4 @@ backend/.env
 
 # Generated UX audit report (frontend/scripts/ux-audit.mjs) - regenerated, not committed
 frontend/docs/
+pide-secrets.env
