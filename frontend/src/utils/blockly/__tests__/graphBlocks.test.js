@@ -48,9 +48,9 @@ describe("the Graphs blocks generate the GlowScript they promise", () => {
       </block>`);
     expect(code).toContain('graph(title="Motion", xtitle="t (s)", ytitle="x (m)", fast=False)\n');
     // Dedented: the series line starts at column 0, directly plottable.
-    // (The colour is the block's default — FieldColour rejects values
-    // outside its picker palette when set via XML, so the conversion is
-    // asserted against the default here and in the dots test below.)
+    // (The colour is the block's default — COL is a named-colour DROPDOWN
+    // whose value is a hex; the conversion is asserted against the default
+    // here and in the dots test below.)
     expect(code).toMatch(/^xs = gcurve\(color=vector\(0\.04, 0\.45, 0\.82\), label="xs"\)$/m);
   });
 
