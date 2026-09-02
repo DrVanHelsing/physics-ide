@@ -752,6 +752,12 @@ export default function IDELayout() {
                     key={`ws-${workspaceReloadKey}`}
                     initialXml={workspaceXml}
                     onWorkspaceReady={sim.handleWorkspaceReady}
+                    onXmlSanitized={(types) =>
+                      setStatus({
+                        text: `Some blocks in this project came from an older version and were skipped: ${types.join(", ")}`,
+                        type: "",
+                      })
+                    }
                     onWorkspaceChange={handleWorkspaceChange}
                     onBlockCountChange={setBlockCount}
                     onScaleChange={setBlocklyZoom}

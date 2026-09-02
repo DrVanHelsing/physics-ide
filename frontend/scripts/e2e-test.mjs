@@ -1515,7 +1515,9 @@ try {
         // forever while the graph is drawing happily.
         graphPanels: document.querySelectorAll('.glowscript-graph').length,
         graphSvgs: document.querySelectorAll('.glowscript-graph svg').length,
-        sceneCanvas: !!document.querySelector('.glowscript-canvas-wrapper canvas') || !!document.querySelector('canvas'),
+        // The STRUCTURAL claim only — no bare-canvas fallback, which any
+        // future canvas (even a graph's) would satisfy vacuously.
+        sceneCanvas: !!document.querySelector('.glowscript-canvas-wrapper canvas'),
       }))
     : { graphPanels: 0, graphSvgs: 0, sceneCanvas: false };
   check('B.4 a live graph panel renders inside the viewport pane during the run',
@@ -1523,10 +1525,62 @@ try {
     `panels: ${graphState.graphPanels}, svgs: ${graphState.graphSvgs}`);
   check('B.4 the 3D scene canvas coexists with the graph — neither replaced the other',
     graphState.sceneCanvas === true);
+  await screenshot(page, 'B4-live-graph'); // DURING the run — the visible-outcome evidence
   const stopBtn4 = await page.$('.tb-btn--stop');
   if (stopBtn4) await stopBtn4.click();
   await delay(500);
-  await screenshot(page, 'B4-live-graph');
+
+  // ── B.4b: a SCENE-LESS pure-plot program is legitimate output ─────────
+  // (the drew-nothing guard change, and I1's double-execution guard, have
+  // no coverage from the hybrid program above — a scene canvas was always
+  // present there)
+  const PURE_GRAPH_XML = `<xml xmlns="https://developers.google.com/blockly/xml">
+    <block type="sim_start_block" x="20" y="20"><field name="TITLE">Pure plot</field>
+      <statement name="SETUP">
+        <block type="graph_display_block">
+          <field name="TITLE">Only a graph</field><field name="XLABEL">t</field><field name="YLABEL">y</field>
+          <statement name="SERIES">
+            <block type="graph_series_block"><field name="NAME">ys</field><field name="MODE">gdots</field></block>
+          </statement>
+          <next>
+            <block type="forever_loop_block">
+              <statement name="BODY">
+                <block type="rate_block"><field name="N">60</field>
+                  <next>
+                    <block type="graph_plot_block"><field name="SERIES">ys</field>
+                      <value name="X"><block type="expr_block"><field name="EXPR">1</field></block></value>
+                      <value name="Y"><block type="expr_block"><field name="EXPR">2</field></block></value>
+                    </block>
+                  </next>
+                </block>
+              </statement>
+            </block>
+          </next>
+        </block>
+      </statement>
+    </block>
+  </xml>`;
+  const loadedPure = await loadDsWorkspace(page, PURE_GRAPH_XML);
+  check('B.4b pure-plot workspace injects cleanly', loadedPure === 'ok', String(loadedPure));
+  const runBtnPure = await page.$('.tb-btn--run');
+  if (runBtnPure) await runBtnPure.click();
+  await delay(5000);
+  const pureError = await page.evaluate(() => {
+    const el = document.querySelector('.console-bar--error');
+    return el ? el.textContent.trim() : null;
+  });
+  check('B.4b a graphs-only program is NOT torn down as "drew nothing"',
+    pureError === null || !/drew nothing/i.test(pureError), String(pureError));
+  const frameElPure = await page.$('#glowscript-host iframe');
+  const runtimePure = frameElPure ? await frameElPure.contentFrame() : null;
+  const pureState = runtimePure
+    ? await runtimePure.evaluate(() => document.querySelectorAll('.glowscript-graph').length)
+    : 0;
+  check('B.4b exactly ONE graph panel — the program did not run twice',
+    pureState === 1, `panels: ${pureState}`);
+  const stopBtnPure = await page.$('.tb-btn--stop');
+  if (stopBtnPure) await stopBtnPure.click();
+  await delay(500);
 } catch (e) {
   check('B.4 live graphs', false, e.message);
 }

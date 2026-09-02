@@ -14,6 +14,7 @@ import {
 } from "../utils/runner/glowRunner";
 import { describeRunError } from "../utils/runner/describeRunError";
 import { generatePythonFromWorkspace } from "../utils/blockly/blocklyGenerator";
+import { sanitizeWorkspaceDom } from "../utils/blockly/sanitizeWorkspaceDom";
 import { breakableIds as breakableIdsFromRegistry } from "../utils/blockly/traceRegistry";
 import { useSimulationContext } from "../contexts/SimulationContext";
 import { useDebugContext }      from "../contexts/DebugContext";
@@ -344,10 +345,17 @@ export function useSimulation() {
         if (file.name.endsWith(".xml")) {
           endRun({ runGenerationRef, setRunning, setBooting, setPaused, setPauseState, setStatus });
           setProjectType("custom");
+          let droppedTypes = [];
           if (workspaceRef.current) {
             try {
               workspaceRef.current.clear();
               const dom = Blockly.utils.xml.textToDom(content);
+              /* The one path where a workspace authored against an OLDER
+                 build genuinely arrives (review I2): a since-retired block
+                 type must load minus the ghost, not crash — and the status
+                 line below must say so rather than claim a clean import. */
+              const { dropped } = sanitizeWorkspaceDom(Blockly, dom);
+              droppedTypes = dropped;
               Blockly.Xml.domToWorkspace(dom, workspaceRef.current);
               const newCode = generatePythonFromWorkspace(workspaceRef.current);
               setPythonCode(newCode || DEFAULT_PYTHON_CODE);
@@ -357,7 +365,11 @@ export function useSimulation() {
           }
           setWorkspaceXml(content);
           setMode("blocks");
-          setStatus({ text: `Imported blocks from ${file.name}`, type: "success" });
+          setStatus(
+            droppedTypes.length
+              ? { text: `Imported blocks from ${file.name} — skipped retired block types: ${droppedTypes.join(", ")}`, type: "" }
+              : { text: `Imported blocks from ${file.name}`, type: "success" },
+          );
         } else if (file.name.endsWith(".py")) {
           endRun({ runGenerationRef, setRunning, setBooting, setPaused, setPauseState, setStatus });
           setPythonCode(content);

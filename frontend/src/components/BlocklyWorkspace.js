@@ -320,6 +320,7 @@ function decorateToolboxRows(workspace) {
 
 function BlocklyWorkspace({
   initialXml, onWorkspaceReady, onWorkspaceChange, onBlockCountChange, onScaleChange,
+  onXmlSanitized,
   isDark, goal = "physics", initialZoom,
   /* Debug-mode props (optional). IDELayout threads the real ones now that
      debug is a mode of the shell; the defaults keep the context-menu
@@ -493,6 +494,10 @@ function BlocklyWorkspace({
         const { dropped } = sanitizeWorkspaceDom(Blockly, dom);
         if (dropped.length) {
           console.warn(`Workspace XML referenced retired block types (skipped): ${dropped.join(", ")}`);
+          /* The user-visible half (review I3): the first edit will autosave
+             the sanitized XML over the original, so the student must be
+             TOLD the repair happened, not just the console. */
+          onXmlSanitized?.(dropped);
         }
         Blockly.Xml.domToWorkspace(dom, workspace);
       } catch (err) {

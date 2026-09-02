@@ -46,7 +46,7 @@ function hueOf(hex) {
 }
 
 /**
- * v2 colour palette: 26 categories with WCAG AA verification
+ * v2 colour palette: 27 categories with WCAG AA verification
  */
 const BLOCK_PALETTE = {
   Objects: {
