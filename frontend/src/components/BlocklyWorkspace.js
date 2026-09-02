@@ -13,6 +13,7 @@ import { buildToolboxXml } from "../utils/blockly/toolbox";
 import { getBlocklyTheme, gridColourFor } from "../utils/blockly/blocklyTheme";
 import { BLOCK_PALETTE } from "../utils/blockly/blockPalette";
 import { ANCHOR_TYPES, planOrphanState, applyOrphanState, readTopBlocks } from "../utils/blockly/orphans";
+import { sanitizeWorkspaceDom } from "../utils/blockly/sanitizeWorkspaceDom";
 
 /* ── Block search bar component ────────────────────────── */
 function BlockSearch({ workspaceRef }) {
@@ -486,6 +487,13 @@ function BlocklyWorkspace({
     if (xml) {
       try {
         const dom = Blockly.utils.xml.textToDom(xml);
+        /* Retirement is deletion (Plan 10 Task 4): a workspace saved while
+           a since-deleted block type existed must load minus the ghost, not
+           crash the whole IDE on domToWorkspace's unknown-type throw. */
+        const { dropped } = sanitizeWorkspaceDom(Blockly, dom);
+        if (dropped.length) {
+          console.warn(`Workspace XML referenced retired block types (skipped): ${dropped.join(", ")}`);
+        }
         Blockly.Xml.domToWorkspace(dom, workspace);
       } catch (err) {
         console.warn("Could not restore Blockly XML:", err);
@@ -728,6 +736,10 @@ function ReadOnlyBlockly({ xml, isDark }) {
     if (xml) {
       try {
         const dom = Blockly.utils.xml.textToDom(xml);
+        const { dropped } = sanitizeWorkspaceDom(Blockly, dom); // same safeguard as the editable mount
+        if (dropped.length) {
+          console.warn(`ReadOnlyBlockly: skipped retired block types: ${dropped.join(", ")}`);
+        }
         Blockly.Xml.domToWorkspace(dom, ws);
       } catch (e) {
         console.warn("ReadOnlyBlockly: could not load XML", e);
