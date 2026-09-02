@@ -25,8 +25,8 @@
  * an assertion against a constructed instance's `.helpUrl` — read the same
  * way `Block.prototype.showHelp()` reads it — does.
  *
- * The registry (blockRegistry.js) has 120 entries; 4 are stock, so exactly
- * 116 get a derived `#/help?block=` URL. That is asserted here by deriving
+ * The registry (blockRegistry.js) has 123 entries; 4 are stock, so exactly
+ * 119 get a derived `#/help?block=` URL. That is asserted here by deriving
  * "custom" as "registry entry minus the stock set", not hard-coded from the
  * brief, so this test fails loudly if a future block addition changes
  * either number.
@@ -55,11 +55,11 @@ describe("block helpUrl derivation (Task 11)", () => {
     ws.dispose();
   });
 
-  test("the registry is 120 entries, 4 stock + 116 custom", () => {
+  test("the registry is 123 entries, 4 stock + 119 custom", () => {
     const entries = getAllBlockEntries();
-    expect(entries).toHaveLength(120);
+    expect(entries).toHaveLength(123);
     const custom = entries.filter((e) => !STOCK_IDS.has(e.id));
-    expect(custom).toHaveLength(116);
+    expect(custom).toHaveLength(119);
   });
 
   test("every custom registry block's real instance gets a #/help?block=<id> helpUrl", () => {

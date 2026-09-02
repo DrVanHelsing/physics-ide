@@ -26,10 +26,10 @@ describe("colour helpers", () => {
 });
 
 describe("BLOCK_PALETTE v2", () => {
-  test("26 categories, unique fills, unique slugs", () => {
-    expect(CATEGORY_NAMES).toHaveLength(26);
-    expect(new Set(CATEGORY_NAMES.map((n) => BLOCK_PALETTE[n].fill)).size).toBe(26);
-    expect(new Set(CATEGORY_NAMES.map((n) => BLOCK_PALETTE[n].slug)).size).toBe(26);
+  test("27 categories, unique fills, unique slugs", () => {
+    expect(CATEGORY_NAMES).toHaveLength(27);
+    expect(new Set(CATEGORY_NAMES.map((n) => BLOCK_PALETTE[n].fill)).size).toBe(27);
+    expect(new Set(CATEGORY_NAMES.map((n) => BLOCK_PALETTE[n].slug)).size).toBe(27);
   });
   test("every fill and secondary clears AA under white", () => {
     for (const n of CATEGORY_NAMES) {

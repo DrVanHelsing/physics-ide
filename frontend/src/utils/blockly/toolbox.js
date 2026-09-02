@@ -182,6 +182,15 @@ export const MASTER_TOOLBOX_XML = `
     </block>
   </category>
 
+  <category name="Graphs" categorystyle="graphs_category">
+    <block type="graph_display_block"></block>
+    <block type="graph_series_block"></block>
+    <block type="graph_plot_block">
+      <value name="X"><shadow type="expr_block"><field name="EXPR">t</field></shadow></value>
+      <value name="Y"><shadow type="expr_block"><field name="EXPR">x</field></shadow></value>
+    </block>
+  </category>
+
   <!-- ── STATE (physics) ────────────────────────────────── -->
   <category name="State" categorystyle="state_category">
     <block type="define_const_block">

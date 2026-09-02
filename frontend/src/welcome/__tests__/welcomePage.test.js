@@ -454,12 +454,12 @@ describe("the front page's numerals trace to source", () => {
   );
   const BUILTINS = resolve(__dirname, "../../utils/dataset/builtins");
 
-  test("151 toolbox block types, and the ribbon says so", () => {
+  test("154 toolbox block types, and the ribbon says so", () => {
     const uniq = new Set(
       [...TOOLBOX.matchAll(/<block type="([a-zA-Z0-9_]+)"/g)].map((m) => m[1]),
     );
-    expect(uniq.size).toBe(151);
-    expect(SRC).toMatch(/\b151\b/);
+    expect(uniq.size).toBe(154);
+    expect(SRC).toMatch(/\b154\b/);
   });
 
   test("6 chart types — the ds_chart_* blocks, which is not the same as the Charts drawer's block count", () => {
@@ -512,7 +512,7 @@ describe("the front page's numerals trace to source", () => {
     const items = [...container.querySelectorAll(".welcome-ribbon__list li")];
     expect(items).toHaveLength(6);
     expect(items.map((li) => li.textContent.replace(/\s+/g, " ").trim())).toEqual([
-      "151 block types",
+      "154 block types",
       "18 worked projects",
       "6 built-in datasets",
       "6 chart types",

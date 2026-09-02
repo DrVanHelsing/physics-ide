@@ -38,7 +38,7 @@
  * same way lived in §7's chip row (retired; see the report), so only the
  * "6" total survives as a ribbon numeral, unbroken down.
  *
- *   151 block types      utils/blockly/toolbox.js — unique <block type=…>
+ *   154 block types      utils/blockly/toolbox.js — unique <block type=…>
  *   18 worked projects   precodedExamples.js EXAMPLES = 4; blockTemplates.js
  *                          BLOCK_TEMPLATES = 4, DS_TEMPLATES = 10 (7 data-science
  *                          + 3 hybrid analyses) → 4+4+7+3
@@ -241,7 +241,7 @@ const PYTHON = [
    hover-reveals, no per-item target: redesign brief, numbers strip
    "compressed to a single quiet one-line ribbon"). [numeral, label]. */
 const RIBBON = [
-  ["151", "block types"],
+  ["154", "block types"],
   ["18", "worked projects"],
   ["6", "built-in datasets"],
   ["6", "chart types"],

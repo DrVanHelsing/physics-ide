@@ -65,6 +65,14 @@ const BLOCK_PALETTE = {
     bright: "#FF860A",
     on: "#FFFFFF",
   },
+  Graphs: {
+    slug: "graphs",
+    fill: "#00707B",
+    secondary: "#0A747C",
+    tertiary: "#4DD0E1",
+    bright: "#0AE8FF",
+    on: "#FFFFFF",
+  },
   Values: {
     slug: "values",
     fill: "#743BF7",
