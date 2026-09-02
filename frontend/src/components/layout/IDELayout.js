@@ -190,7 +190,8 @@ export default function IDELayout() {
   const proj = useProject();
   /* The welcome page's worked-project tiles (welcome/pendingTemplate.js):
      picks up a pending template id, if any, and seeds a project from it
-     through the wizard's own creation path. No-ops when nothing is
+     through buildManifestSpec — the same path the start menu's own
+     cards use. No-ops when nothing is
      pending. */
   usePendingTemplateSeed(proj);
   const { splitPct, handleDividerPointerDown, handleDividerKeyDown } = useSplitPane();

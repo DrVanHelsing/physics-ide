@@ -12,6 +12,21 @@ import {
   TableIcon, GraduationCapIcon,
 } from "./Icons";
 import { BLOCK_PALETTE, cssVarFor } from "../utils/blockly/blockPalette";
+import { ChartIcon } from "./Icons";
+
+/* ── Mini demo clips (captured by scripts/help-video-capture.mjs) ──
+   Muted, looping, a few seconds each — they show the gesture the prose
+   describes. Vite serves these as hashed asset URLs. */
+import runBlocksVideo from "../assets/help/run-blocks.webm";
+import runBlocksPoster from "../assets/help/run-blocks-poster.webp";
+import liveGraphsVideo from "../assets/help/live-graphs.webm";
+import liveGraphsPoster from "../assets/help/live-graphs-poster.webp";
+import debugRecordVideo from "../assets/help/debug-record.webm";
+import debugRecordPoster from "../assets/help/debug-record-poster.webp";
+import analyseRoundtripVideo from "../assets/help/analyse-roundtrip.webm";
+import analyseRoundtripPoster from "../assets/help/analyse-roundtrip-poster.webp";
+import dataScienceVideo from "../assets/help/data-science.webm";
+import dataSciencePoster from "../assets/help/data-science-poster.webp";
 
 /* ── Tiny inline components ──────────────────────────────── */
 function Code({ children }) {
@@ -68,6 +83,26 @@ function Note({ type = "info", children }) {
 function Kbd({ children }) {
   return <kbd className="help-kbd">{children}</kbd>;
 }
+/* A silent looping demo clip with a caption. preload="metadata" keeps the
+   dozen clips on the page from all downloading up front; the poster paints
+   until the loop starts. */
+function HelpVideo({ src, poster, caption }) {
+  return (
+    <figure className="help-video">
+      <video
+        src={src}
+        poster={poster}
+        autoPlay
+        loop
+        muted
+        playsInline
+        preload="metadata"
+        aria-label={caption || "Demo clip"}
+      />
+      {caption && <figcaption>{caption}</figcaption>}
+    </figure>
+  );
+}
 function SectionAnchor({ id }) {
   return <div id={id} className="help-section-anchor" />;
 }
@@ -79,6 +114,7 @@ const SECTION_ICON_MAP = {
   "debug-mode":      BugIcon,
   "block-editor":    BlocksIcon,
   "block-reference": BookOpenIcon,
+  "live-graphs":     ChartIcon,
   "data-science":    TableIcon,
   "code-editor":     CodeIcon,
   "templates":       LayersIcon,
@@ -130,6 +166,11 @@ const SEARCH_INDEX = [
     content: "block reference objects motion forces physics constants values math logic control loops functions lists text advanced raw Python sphere box cylinder arrow helix ring trail velocity acceleration gravity mass bounce friction scene background expr_block expression custom code python_raw_block python_raw_expr_block define_const_block constant sim_start_block sim_end_block simulation structure rotate_object_block scene_camera_block cross_product_block dot_product_block math_trig_block sin cos tan radians degrees sqrt abs vector_compose_block math_pow_block math_min_block math_max_block math_clamp_block clamp power exponent 3D math trig",
   },
   {
+    id: "live-graphs",
+    title: "Live Graphs",
+    content: "live graphs graph display series plot gcurve gdots line dots colour color legend graph panel under scene plot points during run graph_display_block graph_series_block graph_plot_block xtitle ytitle axis labels scene yields 55% real-time telemetry velocity displacement acceleration SHM pendulum graphs of motion",
+  },
+  {
     id: "data-science",
     title: "Data Science",
     content: "data science DS blocks toolbox load dataset penguins weather planets pendulum spring free fall freefall CSV trace filter sort group mean median mode min max range sum count stddev statistics regression slope intercept R squared linear fit uncertainty standard error linearization chart bar line scatter histogram box plot communicate note conclusion result Data panel Arquero Observable Plot ds_start_block ds_load_builtin_block ds_show_table_block ds_calc_mean_block ds_filter_eq_block ds_group_count_block ds_chart_bar_block ds_linear_regression_block ds_chart_scatter_fit_block ds_multiply_columns_block ds_print_uncertainty_block",
@@ -167,7 +208,7 @@ const SEARCH_INDEX = [
   {
     id: "educators",
     title: "For Educators",
-    content: "educators teachers classroom students physics data science guided learning assessment print PDF trace table lesson plan curriculum deployment Vercel classes class code join QR invite assignments instructions starter project workspace rules open practice standard classwork locked assessment guides submissions submit receipt fingerprint late marking marking room test copy teaching assistant draft release return gradebook CSV export pairs groups editing baton accounts sign in teacher account backend Fastify PostgreSQL 200 account cap",
+    content: "educators teachers classroom students physics data science guided learning assessment print PDF trace table lesson plan curriculum deployment Vercel classes class code join QR invite assignments instructions starter project workspace rules open practice standard classwork locked assessment guides submissions submit receipt fingerprint late marking marking room test copy teaching assistant draft release return gradebook CSV export pairs groups editing baton accounts sign in teacher account backend Fastify PostgreSQL 200 account cap profile notifications email switches bell password reset confirm offline local-first",
   },
   {
     id: "shortcuts",
@@ -221,6 +262,7 @@ const NAV = [
   { id: "debug-mode",      label: "Debug Mode",             Icon: BugIcon },
   { id: "block-editor",    label: "Block Editor",           Icon: BlocksIcon },
   { id: "block-reference", label: "Block Reference",        Icon: BookOpenIcon },
+  { id: "live-graphs",     label: "Live Graphs",            Icon: ChartIcon },
   { id: "data-science",    label: "Data Science",           Icon: TableIcon },
   { id: "code-editor",     label: "Code Editor",            Icon: CodeIcon },
   { id: "templates",       label: "Built-in Templates",     Icon: LayersIcon },
@@ -476,8 +518,9 @@ export default function HelpPage({ onClose, focusBlockId }) {
               <h3 className="help-h3">The Start Menu</h3>
               <p>
                 When you launch Physics IDE you land on the <strong>Start Menu</strong>. It shows
-                your saved projects at the top and three <strong>goal cards</strong> below. Click
-                a goal card to open the creation wizard.
+                your saved projects at the top, then one <strong>Start something new</strong>{" "}
+                section: three goal cards that create a blank project instantly, followed by every
+                template — Physics, Data science, and Hybrid topics.
               </p>
               <table className="help-table">
                 <thead>
@@ -486,36 +529,32 @@ export default function HelpPage({ onClose, focusBlockId }) {
                 <tbody>
                   <tr>
                     <td><Tag color="blue">Physics Modelling</Tag></td>
-                    <td>A block or code workspace connected to the 3D viewport. Choose Blank for an empty workspace or Template to start from a pre-built simulation.</td>
+                    <td>A block workspace connected to the 3D viewport — or click the card's <em>Start in code instead</em> link for a plain Python editor.</td>
                   </tr>
                   <tr>
                     <td><Tag color="green">Data Science</Tag></td>
-                    <td>A block workspace with the Data panel. A <Code>ds_start_block</Code> hat is pre-seeded. Choose Blank or one of seven DS templates.</td>
+                    <td>A block workspace with the Data panel. A <Code>ds_start_block</Code> hat is pre-seeded; the DS templates sit right below the goal cards.</td>
                   </tr>
                   <tr>
                     <td><Tag color="purple">Hybrid</Tag></td>
-                    <td>Both the 3D viewport and Data panel active. Simulate and analyse in the same project. Choose Blank or a coupled <strong>Hybrid topic</strong> (Pendulum, Projectile, or Spring) that wires the simulation to its matching analysis automatically.</td>
+                    <td>Both the 3D viewport and Data panel active. Simulate and analyse in the same project — or pick a coupled <strong>Hybrid topic</strong> from the templates below the cards.</td>
                   </tr>
                 </tbody>
               </table>
 
               <h3 className="help-h3">Creating a project</h3>
-              <ol className="help-list">
-                <li>Click a goal card.</li>
-                <li>Enter a project title in the wizard (optional — a default is provided).</li>
-                <li>Choose <strong>Blank</strong> for an empty workspace or <strong>Template</strong> to pick from pre-built examples.</li>
-                <li>Select an editor default (<strong>Blocks</strong> or <strong>Code</strong>).</li>
-                <li>Click <strong>Create project</strong>.</li>
-              </ol>
+              <p>
+                <strong>One click.</strong> A goal card creates a blank project of that goal; a
+                template card creates a project from that template. There is no form in between —
+                name the project afterwards by clicking its title in the IDE header.
+              </p>
               <Note type="tip">
-                In a <Tag color="purple">Hybrid</Tag> project, the Template path shows{" "}
-                <strong>topic cards</strong> instead of a flat list. Picking a topic — Pendulum,
-                Projectile, or Spring — loads the matching simulation <em>and</em> remembers its
-                paired analysis. It also auto-sets the <strong>Model-first / Data-first</strong>{" "}
-                entry: Model-first opens the simulation ready to run; Data-first opens straight into
-                the analysis. After you save a run, the chart offers an{" "}
-                <strong>"Analyse this run →"</strong> button that loads the paired analysis with the
-                run label already filled in.
+                <strong>Hybrid topic</strong> cards — Pendulum, Projectile, Spring, SHM pendulum —
+                load a simulation <em>and</em> remember its paired analysis. Each opens on its
+                natural side (the simulation, or the data), and carries a{" "}
+                <em>"Start from the other half"</em> link if you want the reverse. After you save a
+                run, the chart offers <strong>"Analyse this run →"</strong>, which loads the paired
+                analysis with the run label already filled in.
               </Note>
 
               <h3 className="help-h3">Managing projects</h3>
@@ -530,6 +569,11 @@ export default function HelpPage({ onClose, focusBlockId }) {
               </p>
 
               <h3 className="help-h3">Running a physics simulation</h3>
+              <HelpVideo
+                src={runBlocksVideo}
+                poster={runBlocksPoster}
+                caption="Run a blocks project: the 3D scene starts, the trail draws, the graph plots."
+              />
               <ol className="help-list">
                 <li>Open or create a Physics Modelling or Hybrid project.</li>
                 <li>Click <Tag color="green">Run</Tag> in the toolbar (or press <Kbd>Ctrl+Enter</Kbd>).</li>
@@ -566,6 +610,11 @@ export default function HelpPage({ onClose, focusBlockId }) {
                 the toolbar. The simulation pauses immediately. Your blocks stay on screen; the
                 trace panel opens beside the viewport.
               </p>
+              <HelpVideo
+                src={debugRecordVideo}
+                poster={debugRecordPoster}
+                caption="Enter Debug during a run, resume, and record the trace — variables stream live."
+              />
 
               <h3 className="help-h3">What changes when you enter</h3>
               <p>Nothing is replaced — the editor grows debug controls:</p>
@@ -1387,6 +1436,90 @@ angle = clamp(input_angle, -30, 30)`}</Pre>
               </div>
             </section>
 
+            {/* ══════════════ LIVE GRAPHS ══════════════ */}
+            <SectionAnchor id="live-graphs" />
+            <section className="help-section">
+              <SectionHeader id="live-graphs">Live Graphs</SectionHeader>
+              <p>
+                Three blocks in the <CategoryTag category="Graphs" /> category draw
+                graphs <strong>while the simulation runs</strong> — the curve grows in real
+                time under the 3D scene, so students watch the motion and its graph take
+                shape together.
+              </p>
+              <HelpVideo
+                src={liveGraphsVideo}
+                poster={liveGraphsPoster}
+                caption="A pendulum swings while its graph draws itself point by point."
+              />
+              <h3 className="help-h3">How the three blocks fit together</h3>
+              <ol className="help-list">
+                <li>
+                  A <Code>graph display</Code> block (in your setup, after the 3D objects)
+                  creates the graph panel — give it a title and axis labels.
+                </li>
+                <li>
+                  <Code>series</Code> blocks snap <em>inside</em> the display block. Each
+                  series has a name, a style (a line or dots), and a colour — the name
+                  appears in the graph's legend.
+                </li>
+                <li>
+                  A <Code>plot (x, y) on …</Code> block goes <em>inside your animation
+                  loop</em>: every frame it adds one point to the named series.
+                </li>
+              </ol>
+              <Pre>{`graph(title="Swing angle", xtitle="t (s)", ytitle="theta (rad)", fast=False)
+s_theta = gcurve(color=color.blue, label="s_theta")
+
+# …inside the loop:
+s_theta.plot(t, theta)`}</Pre>
+              <Note type="tip">
+                When a project has graphs, the 3D scene automatically shares the pane —
+                the scene takes the top and the first graph is visible right below it.
+                Scroll the pane to see more graphs.
+              </Note>
+              <Note type="info">
+                Try the <strong>SHM pendulum</strong> template (Hybrid topics on the start
+                menu): it draws displacement, velocity and acceleration live — the three
+                graphs of motion, from a real simulation.
+              </Note>
+
+              <h3 className="help-h3">Graph blocks <CategoryTag category="Graphs" /></h3>
+              <div className="help-block-table">
+                <div className="help-block-row" id="help-block-graph_display_block">
+                  <div className="help-block-name">graph_display_block</div>
+                  <div className="help-block-desc">
+                    Creates a live graph panel below the 3D scene. Set the title and the
+                    x/y axis labels in the block's fields; snap one or more series blocks
+                    into its body. Place it in setup — after your 3D objects, before the
+                    animation loop.
+                    <Pre>graph(title="My Graph", xtitle="t (s)", ytitle="value", fast=False)</Pre>
+                  </div>
+                </div>
+                <div className="help-block-row" id="help-block-graph_series_block">
+                  <div className="help-block-name">graph_series_block</div>
+                  <div className="help-block-desc">
+                    Adds a named series to the display block it sits inside — drawn as a
+                    line (<Code>gcurve</Code>) or dots (<Code>gdots</Code>), in a colour you
+                    pick. The series name is a variable: the plot block refers to it, and
+                    it labels the curve in the graph's legend.
+                    <Pre>s_theta = gcurve(color=color.blue, label="s_theta")</Pre>
+                  </div>
+                </div>
+                <div className="help-block-row" id="help-block-graph_plot_block">
+                  <div className="help-block-name">graph_plot_block</div>
+                  <div className="help-block-desc">
+                    Adds one point (x, y) to a series. Put it inside your simulation loop
+                    so a point lands every frame and the curve draws live — typically
+                    <Code>plot (t, theta) on s_theta</Code>.
+                    <Pre>s_theta.plot(t, theta)</Pre>
+                    <Note type="tip">Plot <em>time</em> on x to see motion graphs; plot one
+                    variable against another (say <Code>F</Code> vs <Code>x</Code>) to see
+                    relationships, like Hooke's law's straight line.</Note>
+                  </div>
+                </div>
+              </div>
+            </section>
+
             {/* ══════════════ DATA SCIENCE ══════════════ */}
             <SectionAnchor id="data-science" />
             <section className="help-section">
@@ -1397,6 +1530,11 @@ angle = clamp(input_angle, -30, 30)`}</Pre>
                 output — tables, charts, numeric values, or conclusion cards — in the Data panel
                 on the right. The analysis re-executes automatically on every workspace change.
               </p>
+              <HelpVideo
+                src={dataScienceVideo}
+                poster={dataSciencePoster}
+                caption="A dataset loads, statistics compute, and a chart renders — all from blocks."
+              />
               <Note type="info">
                 Data Science analyses run in an async JavaScript sandbox (not the GlowScript
                 iframe). The Run button is not used — the analysis fires automatically as you build.
@@ -1835,11 +1973,16 @@ angle = clamp(input_angle, -30, 30)`}</Pre>
 
               <h3 className="help-h3">Hybrid Topics <Tag color="purple">simulate → analyse</Tag></h3>
               <p>
-                Hybrid projects couple a simulation with its matching analysis. Pick a topic in the
-                creation wizard, run the simulation, save a run, then use{" "}
+                Hybrid projects couple a simulation with its matching analysis. Pick a topic card
+                on the start menu, run the simulation, save a run, then use{" "}
                 <strong>"Analyse this run →"</strong> on the chart to load the paired analysis with
                 the run label pre-filled.
               </p>
+              <HelpVideo
+                src={analyseRoundtripVideo}
+                poster={analyseRoundtripPoster}
+                caption="A hybrid project: the 3D scene and the data pane share the window — drag the divider to rebalance."
+              />
               <table className="help-table">
                 <thead><tr><th>Topic</th><th>Simulation telemetry</th><th>Analysis (slope)</th></tr></thead>
                 <tbody>
@@ -2332,6 +2475,29 @@ angle = clamp(input_angle, -30, 30)`}</Pre>
                 submitted; what moves is the saved work, never the running of it.
               </Note>
 
+              <h3 className="help-h3">Accounts, emails and working offline</h3>
+              <ul className="help-list">
+                <li>
+                  <strong>Your account</strong> — the profile page (open it from the account chip)
+                  changes your name and password. Signup sends a confirmation email; a forgotten
+                  password is reset by an emailed link.
+                </li>
+                <li>
+                  <strong>Emails the platform sends</strong> — submission receipts, due-date
+                  reminders, marks-released and work-returned notices, and class invites. Five of
+                  these are switchable per person under <strong>Profile → Notifications</strong>;
+                  switching an email off never hides anything — the bell in the header always
+                  shows everything.
+                </li>
+                <li>
+                  <strong>Offline</strong> — the IDE itself is local-first: projects live in the
+                  browser and every simulation and analysis runs on your machine, connection or
+                  not. Only the classroom actions — joining a class, starting and handing in
+                  work, marking — need to reach the server; the IDE tells you when one of those
+                  cannot.
+                </li>
+              </ul>
+
               <h3 className="help-h3">Deploying to students</h3>
               <p>
                 The IDE itself is a static React single-page application: it runs entirely in the
@@ -2344,7 +2510,8 @@ angle = clamp(input_angle, -30, 30)`}</Pre>
                 The classroom half needs one more piece alongside that static build: accounts,
                 classes, assignments, submissions and marks live in a Fastify and PostgreSQL
                 service. It is one small server for one school, hard-capped at 200 accounts, and
-                it never runs anybody's physics.
+                it never runs anybody's physics. In production the two ship together: the same
+                container serves the built IDE and the API from one origin.
               </p>
               <Pre>{`# Run locally:\nnpm install\nnpm start\n\n# Build for production:\nnpm run build\n\n# Deploy to Vercel:\nvercel --prod`}</Pre>
               <p>
@@ -2380,6 +2547,8 @@ angle = clamp(input_angle, -30, 30)`}</Pre>
                   <tr><td>Debug Mode</td><td><Kbd>Space</Kbd></td><td>Pause / Resume simulation</td></tr>
                   <tr><td>Debug Mode</td><td><Kbd>F10</Kbd></td><td>Next frame — one whole timestep</td></tr>
                   <tr><td>Debug Mode</td><td><Kbd>Shift</Kbd> + <Kbd>F10</Kbd></td><td>Next value — one reported value</td></tr>
+                  <tr><td>Hybrid divider</td><td><Kbd>↑</Kbd> / <Kbd>↓</Kbd></td><td>Rebalance scene vs data pane (focus the divider first)</td></tr>
+                  <tr><td>Hybrid divider</td><td><Kbd>Home</Kbd></td><td>Reset the split to its default</td></tr>
                 </tbody>
               </table>
             </section>
