@@ -136,3 +136,55 @@ describe("workReturned still carries the comment — minimisation is targeted, n
     expect(mail.text).toContain("Redo section 2.");
   });
 });
+
+/* ── The designed HTML layer (2026-09-02, user-ordered) ─────────────────── */
+import { MAIL_CONTACT, MAIL_ORG_LINE } from "./templates.js";
+
+describe("every template ships a designed html body beside its text", () => {
+  const ALL = {
+    confirm: confirmEmail({ name: "Amy", confirmUrl: "https://x.test/auth/confirm?token=T1" }),
+    reset: resetEmail({ name: "Amy", resetUrl: "https://x.test/auth/reset?token=T2" }),
+    teacherAlert: teacherSignupAlert({ name: "Mr T", email: "t@x.test", time: "now", consoleUrl: "https://x.test/admin" }),
+    invite: classInvite({ className: "P1", inviterName: "Mr T", joinUrl: "https://x.test/join/invite?token=T3", role: "student" as const }),
+    receipt: submissionReceipt({ title: "Ramp", className: "P1", submittedAt: "now", attempt: 1, fingerprint: "abc" }),
+    dueReminder: dueReminder({ name: "Amy", title: "Ramp", className: "P1", dueAt: null }),
+    dueTomorrow: dueTomorrow({ name: "Amy", title: "Ramp", className: "P1", dueAt: null }),
+    marks: marksReleased({ title: "Ramp", className: "P1" }),
+    returned: workReturned({ title: "Ramp", className: "P1", comment: "Redo section 2." }),
+  };
+
+  test("html exists everywhere, and every footer carries the org line and the contact", () => {
+    for (const [key, mail] of Object.entries(ALL)) {
+      expect((mail as { html?: string }).html, key).toBeTruthy();
+      const html = (mail as { html: string }).html;
+      expect(html, key).toContain(MAIL_ORG_LINE);
+      expect(html, key).toContain(MAIL_CONTACT);
+      expect(html, key).toContain("Physics<span"); // the wordmark header
+    }
+  });
+
+  test("the token links survive into html — the recipient's button must work", () => {
+    expect(ALL.confirm.html).toContain("token=T1");
+    expect(ALL.reset.html).toContain("token=T2");
+    expect(ALL.invite.html).toContain("token=T3");
+  });
+
+  test("the switch-off sentence appears in html for exactly the five switchable templates", () => {
+    for (const key of ["receipt", "dueReminder", "dueTomorrow", "marks", "returned"] as const) {
+      expect(ALL[key].html, key).toContain(SWITCH_OFF_FOOTER);
+    }
+    for (const key of ["confirm", "reset", "teacherAlert", "invite"] as const) {
+      expect(ALL[key].html, key).not.toContain(SWITCH_OFF_FOOTER);
+    }
+  });
+
+  test("user-supplied text is HTML-escaped — a hostile comment cannot inject markup", () => {
+    const hostile = workReturned({ title: "Ramp", className: "P1", comment: '<script>alert("x")</script>' });
+    expect(hostile.html).not.toContain("<script>");
+    expect(hostile.html).toContain("&lt;script&gt;");
+  });
+
+  test("marksReleased html is a notification, not the mark (fiat 12 holds in html too)", () => {
+    expect(ALL.marks.html).not.toMatch(/points|score|comment|\d+\s*\/\s*\d+/i);
+  });
+});

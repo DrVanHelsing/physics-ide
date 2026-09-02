@@ -129,7 +129,10 @@ describe("createBrevoMailer — the documented wire format", () => {
       accept: "application/json",
     });
     expect(JSON.parse(String(init.body))).toEqual({
-      sender: { email: "no-reply@physics-ide.test" },
+      // The sender carries the product's display name (mail design,
+      // 2026-09-02); htmlContent is absent here because this msg ships no
+      // html — templates that do add it beside textContent.
+      sender: { name: "Physics IDE", email: "no-reply@physics-ide.test" },
       to: [{ email: "shape@example.com" }],
       subject: "Confirm your address",
       textContent: TOKEN_BODY,
