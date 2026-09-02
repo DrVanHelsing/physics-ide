@@ -144,73 +144,66 @@ async function goHome(page) {
   await delay(300);
 }
 
-async function createProject(page, goalPattern, { title = '', startPath = 'blank', editor = 'blocks' } = {}) {
+async function createProject(page, goalPattern, { title = '', editor = 'blocks' } = {}) {
   await goHome(page);
-  // Click the goal card
-  await page.evaluate((pat) => {
-    const cards = [...document.querySelectorAll('button.start-card--goal')];
+  // Plan 10 deep IA: the goal card IS the create button (blank project,
+  // blocks). Blank-in-code rides the physics card's subaction link.
+  await page.evaluate((pat, ed) => {
+    const cards = [...document.querySelectorAll('.start-card--goal')];
     const card = cards.find(c => new RegExp(pat, 'i').test(c.textContent));
-    if (card) card.click();
-    else throw new Error('goal card not found: ' + pat);
-  }, goalPattern);
-  await delay(600);
-
-  // Fill title — target the label's input specifically (not radio fieldsets), use
-  // nativeInputValueSetter so React's controlled input state updates correctly
-  if (title) {
-    const inp = await page.$('label.start-wizard-field input');
-    if (inp) {
-      await inp.focus();
-      await inp.evaluate((el, t) => {
-        const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
-        nativeSetter.call(el, t);
-        el.dispatchEvent(new Event('input', { bubbles: true }));
-        el.dispatchEvent(new Event('change', { bubbles: true }));
-      }, title);
-      await delay(300);
+    if (!card) throw new Error('goal card not found: ' + pat);
+    if (ed === 'code') {
+      const alt = card.querySelector('.start-card-alt');
+      if (!alt) throw new Error('code subaction not found on goal card: ' + pat);
+      alt.click();
+    } else {
+      card.querySelector('.start-card-main').click();
     }
-  }
+  }, goalPattern, editor);
+  await delay(3000);
 
-  // Start path: template vs blank
-  if (startPath === 'template') {
-    // Click "Template" radio
+  // Titles are set in the IDE now (click the header title) — the wizard's
+  // title field is gone.
+  if (title) {
     await page.evaluate(() => {
-      const radios = [...document.querySelectorAll('.start-wizard-radio')];
-      const tmpl = radios.find(r => /template/i.test(r.textContent));
-      if (tmpl) tmpl.click();
-    });
-    await delay(400);
-  }
-
-  // Editor default
-  if (editor === 'code') {
-    await page.evaluate(() => {
-      const radios = [...document.querySelectorAll('.start-wizard-radio')];
-      const codeRadio = radios.find(r => /^code$/i.test(r.textContent.trim()) || /plain python/i.test(r.textContent));
-      if (codeRadio) codeRadio.click();
+      const t = document.querySelector('button.project-title');
+      if (!t) throw new Error('project title button not found for rename');
+      t.click();
     });
     await delay(300);
+    const inp = await page.$('input.project-title-input');
+    if (!inp) throw new Error('project title input did not appear');
+    await inp.evaluate((el, t) => {
+      const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+      nativeSetter.call(el, t);
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+    }, title);
+    await page.keyboard.press('Enter');
+    await delay(600);
   }
-
-  // Click Create project
-  const created = await page.evaluate(() => {
-    const btn = [...document.querySelectorAll('button')]
-      .find(b => /create.?project/i.test(b.textContent) && !b.disabled);
-    if (btn) { btn.click(); return true; }
-    return false;
-  });
-  if (!created) throw new Error('Create project button not found or disabled');
-  await delay(3000);
 }
 
-async function selectTemplate(page, templatePattern) {
-  await page.evaluate((pat) => {
-    const templates = [...document.querySelectorAll('.start-wizard-template')];
-    const t = templates.find(el => new RegExp(pat, 'i').test(el.textContent));
-    if (t) t.click();
-    else throw new Error('template not found: ' + pat);
-  }, templatePattern);
-  await delay(300);
+/* Open a template straight from the landing rail (every template lives
+   there now — physics, DS, and hybrid topics). */
+async function openTemplateCard(page, templatePattern, { alt = false } = {}) {
+  await goHome(page);
+  await page.evaluate((pat, useAlt) => {
+    const cards = [...document.querySelectorAll('.start-card--template')];
+    const re = new RegExp(pat, 'i');
+    // Prefer a TITLE match — a description mentioning the same words must
+    // not shadow the card actually asked for.
+    const card = cards.find(el => re.test(el.querySelector('.start-card-title')?.textContent || ''))
+      || cards.find(el => re.test(el.textContent));
+    if (!card) throw new Error('template card not found: ' + pat);
+    if (useAlt) {
+      const a = card.querySelector('.start-card-alt');
+      if (!a) throw new Error('template card has no subaction: ' + pat);
+      a.click();
+    } else {
+      card.querySelector('.start-card-main').click();
+    }
+  }, templatePattern, alt);
+  await delay(3500);
 }
 
 async function getToolboxCategories(page) {
@@ -354,7 +347,9 @@ check('Physics Modelling card visible', /physics.?modelling/i.test(bodyContent))
 check('Data Science card visible', /data.?science/i.test(bodyContent));
 check('Hybrid card visible', /hybrid/i.test(bodyContent));
 check('Version string present (v1.0)', /v1\.0/i.test(bodyContent));
-check('Documentation quick action present', /documentation/i.test(bodyContent));
+check('Help quick action present', /help/i.test(bodyContent));
+check('Start something new section present', /start.?something.?new/i.test(bodyContent));
+check('Hybrid topics group present on landing', /hybrid.?topics/i.test(bodyContent));
 check('Open File action present', /open.?file/i.test(bodyContent));
 await screenshot(page, 'A1-bootstrap');
 
@@ -398,26 +393,7 @@ console.log('\n═══ A4: Physics Templates ═══════════
 const physicsTemplates = ['Projectile', 'Spring', 'Orbital', 'Pendulum'];
 for (const tmplName of physicsTemplates) {
   try {
-    await goHome(page);
-    await page.evaluate(() => {
-      const cards = [...document.querySelectorAll('button.start-card--goal')];
-      const card = cards.find(c => /physics.?modelling/i.test(c.textContent));
-      if (card) card.click();
-    });
-    await delay(600);
-    // Select Template
-    await page.evaluate(() => {
-      const radios = [...document.querySelectorAll('.start-wizard-radio')];
-      const t = radios.find(r => /template/i.test(r.textContent));
-      if (t) t.click();
-    });
-    await delay(400);
-    await selectTemplate(page, tmplName);
-    await page.evaluate(() => {
-      const btn = [...document.querySelectorAll('button')].find(b => /create.?project/i.test(b.textContent) && !b.disabled);
-      if (btn) btn.click();
-    });
-    await delay(3500);
+    await openTemplateCard(page, tmplName);
     // Switch to blocks mode if not already there
     await page.evaluate(() => {
       const btns = [...document.querySelectorAll('.app-header button, [role="tab"]')];
@@ -582,25 +558,7 @@ console.log('\n═══ A9: DS Templates ════════════�
 const dsTemplates = ['penguins', 'weather', 'planet'];
 for (const tmpl of dsTemplates) {
   try {
-    await goHome(page);
-    await page.evaluate(() => {
-      const cards = [...document.querySelectorAll('button.start-card--goal')];
-      const c = cards.find(c => /data.?science/i.test(c.textContent));
-      if (c) c.click();
-    });
-    await delay(600);
-    await page.evaluate(() => {
-      const radios = [...document.querySelectorAll('.start-wizard-radio')];
-      const t = radios.find(r => /template/i.test(r.textContent));
-      if (t) t.click();
-    });
-    await delay(400);
-    await selectTemplate(page, tmpl);
-    await page.evaluate(() => {
-      const btn = [...document.querySelectorAll('button')].find(b => /create.?project/i.test(b.textContent) && !b.disabled);
-      if (btn) btn.click();
-    });
-    await delay(3500);
+    await openTemplateCard(page, tmpl);
     const svgText = await getAllSvgText(page);
     check(`DS template "${tmpl}": workspace non-empty`, svgText.length > 3, `svg texts: ${svgText.length}`);
     await screenshot(page, `A9-ds-tmpl-${tmpl}`);
@@ -1366,25 +1324,7 @@ console.log('══════════════════════�
 // These are softer checks (±10%) due to simulation timestep variance.
 
 async function runPhysicsTemplate(templateName) {
-  await goHome(page);
-  await page.evaluate(() => {
-    const cards = [...document.querySelectorAll('button.start-card--goal')];
-    const c = cards.find(c => /physics.?modelling/i.test(c.textContent));
-    if (c) c.click();
-  });
-  await delay(600);
-  await page.evaluate(() => {
-    const radios = [...document.querySelectorAll('.start-wizard-radio')];
-    const t = radios.find(r => /template/i.test(r.textContent));
-    if (t) t.click();
-  });
-  await delay(400);
-  await selectTemplate(page, templateName);
-  await page.evaluate(() => {
-    const btn = [...document.querySelectorAll('button')].find(b => /create.?project/i.test(b.textContent) && !b.disabled);
-    if (btn) btn.click();
-  });
-  await delay(3000);
+  await openTemplateCard(page, templateName);
 }
 
 async function captureTraceAndRun(page, runSeconds = 3) {
@@ -1413,7 +1353,7 @@ async function captureTraceAndRun(page, runSeconds = 3) {
 // ── B.1: Projectile (soft physics validation) ─────────────────────────────────
 console.log('\n═══ B.1: Projectile Motion Validation ════════════════════════════════');
 try {
-  await runPhysicsTemplate('Projectile');
+  await runPhysicsTemplate('Projectile Motion');
   const trace = await captureTraceAndRun(page, 3);
 
   if (trace && trace.length > 0) {
@@ -1439,7 +1379,7 @@ try {
 // ── B.2: Spring (soft validation) ─────────────────────────────────────────────
 console.log('\n═══ B.2: Spring Oscillator Validation ════════════════════════════════');
 try {
-  await runPhysicsTemplate('Spring');
+  await runPhysicsTemplate('Spring-Mass Oscillator');
   const trace = await captureTraceAndRun(page, 3);
   if (trace && trace.length > 0) {
     const velValues = trace.filter(t => /vel|velocity|v/i.test(t.name)).map(t => parseFloat(t.value));
@@ -2042,19 +1982,11 @@ try {
   await fbPage.waitForSelector('.start-menu-overlay', { timeout: 8000 }).catch(() => {});
   await delay(300);
   await fbPage.evaluate(() => {
-    const c = [...document.querySelectorAll('button.start-card--goal')].find((c) => /physics.?modelling/i.test(c.textContent));
-    if (c) c.click();
-  });
-  await delay(600);
-  await fbPage.evaluate(() => {
-    const codeRadio = [...document.querySelectorAll('.start-wizard-radio')]
-      .find((r) => /^code$/i.test(r.textContent.trim()) || /plain python/i.test(r.textContent));
-    if (codeRadio) codeRadio.click();
-  });
-  await delay(300);
-  await fbPage.evaluate(() => {
-    const btn = [...document.querySelectorAll('button')].find((b) => /create.?project/i.test(b.textContent) && !b.disabled);
-    if (btn) btn.click();
+    const card = [...document.querySelectorAll('.start-card--goal')].find((c) => /physics.?modelling/i.test(c.textContent));
+    if (!card) throw new Error('physics goal card not found');
+    const alt = card.querySelector('.start-card-alt');
+    if (!alt) throw new Error('code subaction not found');
+    alt.click();
   });
   await delay(3000);
   const fallbackState = await fbPage.evaluate(() => ({
