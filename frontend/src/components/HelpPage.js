@@ -208,7 +208,7 @@ const SEARCH_INDEX = [
   {
     id: "educators",
     title: "For Educators",
-    content: "educators teachers classroom students physics data science guided learning assessment print PDF trace table lesson plan curriculum deployment Vercel classes class code join QR invite assignments instructions starter project workspace rules open practice standard classwork locked assessment guides submissions submit receipt fingerprint late marking marking room test copy teaching assistant draft release return gradebook CSV export pairs groups editing baton accounts sign in teacher account backend Fastify PostgreSQL 200 account cap",
+    content: "educators teachers classroom students physics data science guided learning assessment print PDF trace table lesson plan curriculum deployment Vercel classes class code join QR invite assignments instructions starter project workspace rules open practice standard classwork locked assessment guides submissions submit receipt fingerprint late marking marking room test copy teaching assistant draft release return gradebook CSV export pairs groups editing baton accounts sign in teacher account backend Fastify PostgreSQL 200 account cap profile notifications email switches bell password reset confirm offline local-first",
   },
   {
     id: "shortcuts",
@@ -2475,6 +2475,29 @@ s_theta.plot(t, theta)`}</Pre>
                 submitted; what moves is the saved work, never the running of it.
               </Note>
 
+              <h3 className="help-h3">Accounts, emails and working offline</h3>
+              <ul className="help-list">
+                <li>
+                  <strong>Your account</strong> — the profile page (open it from the account chip)
+                  changes your name and password. Signup sends a confirmation email; a forgotten
+                  password is reset by an emailed link.
+                </li>
+                <li>
+                  <strong>Emails the platform sends</strong> — submission receipts, due-date
+                  reminders, marks-released and work-returned notices, and class invites. Five of
+                  these are switchable per person under <strong>Profile → Notifications</strong>;
+                  switching an email off never hides anything — the bell in the header always
+                  shows everything.
+                </li>
+                <li>
+                  <strong>Offline</strong> — the IDE itself is local-first: projects live in the
+                  browser and every simulation and analysis runs on your machine, connection or
+                  not. Only the classroom actions — joining a class, starting and handing in
+                  work, marking — need to reach the server; the IDE tells you when one of those
+                  cannot.
+                </li>
+              </ul>
+
               <h3 className="help-h3">Deploying to students</h3>
               <p>
                 The IDE itself is a static React single-page application: it runs entirely in the
@@ -2487,7 +2510,8 @@ s_theta.plot(t, theta)`}</Pre>
                 The classroom half needs one more piece alongside that static build: accounts,
                 classes, assignments, submissions and marks live in a Fastify and PostgreSQL
                 service. It is one small server for one school, hard-capped at 200 accounts, and
-                it never runs anybody's physics.
+                it never runs anybody's physics. In production the two ship together: the same
+                container serves the built IDE and the API from one origin.
               </p>
               <Pre>{`# Run locally:\nnpm install\nnpm start\n\n# Build for production:\nnpm run build\n\n# Deploy to Vercel:\nvercel --prod`}</Pre>
               <p>
