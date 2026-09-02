@@ -12,6 +12,7 @@ import {
   TableIcon, GraduationCapIcon,
 } from "./Icons";
 import { BLOCK_PALETTE, cssVarFor } from "../utils/blockly/blockPalette";
+import { TOURS } from "../walkthrough/tours";
 import { ChartIcon } from "./Icons";
 
 /* ── Mini demo clips (captured by scripts/help-video-capture.mjs) ──
@@ -172,7 +173,7 @@ const SEARCH_INDEX = [
   {
     id: "getting-started",
     title: "Getting Started",
-    content: "start menu goal card Physics Modelling Data Science Hybrid blank template title project list run simulation stop toolbar 3D viewport orbit pan zoom camera auto-save localForage multi-project open delete",
+    content: "guided tour walkthrough interactive tutorial spotlight learn step by step start menu goal card Physics Modelling Data Science Hybrid blank template title project list run simulation stop toolbar 3D viewport orbit pan zoom camera auto-save localForage multi-project open delete",
   },
   {
     id: "debug-mode",
@@ -301,7 +302,7 @@ const NAV = [
 /* ═══════════════════════════════════════════════════════════
    MAIN COMPONENT
    ═══════════════════════════════════════════════════════════ */
-export default function HelpPage({ onClose, focusBlockId }) {
+export default function HelpPage({ onClose, focusBlockId, onStartTour }) {
   const [activeSection, setActiveSection] = useState("overview");
   const [searchQuery, setSearchQuery] = useState("");
   const contentRef = useRef(null);
@@ -538,6 +539,32 @@ export default function HelpPage({ onClose, focusBlockId }) {
             <SectionAnchor id="getting-started" />
             <section className="help-section">
               <SectionHeader id="getting-started">Getting Started</SectionHeader>
+
+              {onStartTour && (
+                <>
+                  <h3 className="help-h3">Guided tours</h3>
+                  <p>
+                    The fastest way to learn: a tour closes this page, spotlights the real
+                    interface step by step, and performs the actions for you — opening a
+                    template, running a simulation — while you read. <Kbd>Esc</Kbd> ends a
+                    tour at any point.
+                  </p>
+                  <div className="help-tours">
+                    {TOURS.map((t) => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        className="help-tour-card"
+                        onClick={() => onStartTour(t.id)}
+                      >
+                        <strong>{t.title}</strong>
+                        <span>{t.blurb}</span>
+                        <em>{t.steps.length} steps — start tour</em>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
 
               <h3 className="help-h3">The Start Menu</h3>
               <p>

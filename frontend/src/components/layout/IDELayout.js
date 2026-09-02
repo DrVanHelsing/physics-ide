@@ -79,6 +79,9 @@ import SimControls       from "../SimControls";
 import { useHotkeys }     from "../../hooks/useHotkeys";
 import { useDebugHotkeys } from "../../hooks/useDebugHotkeys";
 import { useRunErrorBanner } from "../../hooks/useRunErrorBanner";
+import WalkthroughOverlay from "../walkthrough/WalkthroughOverlay";
+import { getTour } from "../../walkthrough/tours";
+import { resolvePendingTemplateSpec } from "../StartMenu";
 
 /**
  * WorkspaceRulesEnforcer — Task 12 (fix round: review Ruling R3, "content
@@ -257,6 +260,47 @@ export default function IDELayout() {
 
   /* ── Simple UI handlers (defined here to avoid extra hook) */
   const handleHelp = useCallback(() => setShowHelp(true), [setShowHelp]);
+
+  /* ── Guided tours (Plan 10's ordered last step) ──────────
+     State lives HERE because a tour spans both branches below — its first
+     steps narrate the start menu, an openTemplate action flips the branch
+     to the IDE shell, and the overlay must survive that flip. Help launches
+     a tour and closes itself; Escape or Finish ends it. The executor is the
+     ONLY door a tour has into app state — the shade blocks direct clicks,
+     so a tour can never be stranded by a half-done gesture. */
+  const [activeTour, setActiveTour] = useState(null);
+  /* The tour's cross-mount memory — see WalkthroughOverlay's session prop.
+     A ref, not state: mutated in place by the engine, never re-renders. */
+  const tourSessionRef = useRef(null);
+  const handleStartTour = useCallback((tourId) => {
+    const tour = getTour(tourId);
+    if (!tour) return;
+    setShowHelp(false);
+    setHelpBlockId(null);
+    tourSessionRef.current = { index: 0, done: new Set() };
+    setActiveTour(tour);
+  }, [setShowHelp]);
+  const runTourAction = useCallback(async (action) => {
+    if (action.startsWith("openTemplate:")) {
+      const spec = resolvePendingTemplateSpec(action.slice("openTemplate:".length));
+      if (spec) proj.createNew(spec);
+      return;
+    }
+    if (action === "run") { sim.handleRun(); return; }
+    if (action === "stop") { sim.handleStop(); return; }
+    if (action === "mode:code") { sim.handleModeChange("text"); return; }
+    if (action === "mode:blocks") { sim.handleModeChange("blocks"); return; }
+    console.warn(`walkthrough: unknown action ${action}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [proj.createNew, sim.handleRun, sim.handleStop, sim.handleModeChange]);
+  const walkthrough = activeTour ? (
+    <WalkthroughOverlay
+      tour={activeTour}
+      session={tourSessionRef.current}
+      execute={runTourAction}
+      onEnd={() => setActiveTour(null)}
+    />
+  ) : null;
 
   /* Blockly opens helpUrl by navigating; intercept the hash instead of
      letting it change the route. */
@@ -664,6 +708,7 @@ export default function IDELayout() {
         {showHelp && (
           <HelpPage
             focusBlockId={helpBlockId}
+            onStartTour={handleStartTour}
             onClose={() => { setShowHelp(false); setHelpBlockId(null); }}
           />
         )}
@@ -672,6 +717,9 @@ export default function IDELayout() {
             start menu's delete confirm otherwise falls back to the native
             window.confirm — unstyled, and auto-denied in headless runs. */}
         <VariableDialog />
+        {/* A tour's opening steps narrate this branch before an action
+            flips to the IDE shell — see the walkthrough block above. */}
+        {walkthrough}
       </>
     );
   }
@@ -707,9 +755,11 @@ export default function IDELayout() {
       {showHelp && (
         <HelpPage
           focusBlockId={helpBlockId}
+          onStartTour={handleStartTour}
           onClose={() => { setShowHelp(false); setHelpBlockId(null); }}
         />
       )}
+      {walkthrough}
 
       <Toolbar
         goal={goal}
