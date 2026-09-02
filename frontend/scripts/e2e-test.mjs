@@ -1461,6 +1461,76 @@ for (const tmpl of ['Orbital', 'Pendulum']) {
   }
 }
 
+// ── B.4: Live graphs render in the viewport pane (Plan 10 Task 3) ────────────
+console.log('\n═══ B.4: Live graph renders during a run ═════════════════════════════');
+try {
+  // The BLOCKS template, named unambiguously — a bare /Projectile/ matches
+  // the precoded code-view example first, which mounts no Blockly workspace
+  // to inject into (found the hard way: 'no-workspace').
+  await runPhysicsTemplate('Projectile \\(Blocks');
+  // Replace the workspace with a minimal graph program: a display + one
+  // series in setup, then a rate-limited forever loop plotting a point.
+  const GRAPH_XML = `<xml xmlns="https://developers.google.com/blockly/xml">
+    <block type="sim_start_block" x="20" y="20"><field name="TITLE">Graph check</field>
+      <statement name="SETUP">
+        <block type="preset_sphere_block"><field name="NAME">ball</field>
+          <next>
+        <block type="graph_display_block">
+          <field name="TITLE">Live test</field><field name="XLABEL">t</field><field name="YLABEL">y</field>
+          <statement name="SERIES">
+            <block type="graph_series_block"><field name="NAME">ys</field><field name="MODE">gcurve</field></block>
+          </statement>
+          <next>
+            <block type="forever_loop_block">
+              <statement name="BODY">
+                <block type="rate_block"><field name="N">60</field>
+                  <next>
+                    <block type="graph_plot_block"><field name="SERIES">ys</field>
+                      <value name="X"><block type="expr_block"><field name="EXPR">1</field></block></value>
+                      <value name="Y"><block type="expr_block"><field name="EXPR">2</field></block></value>
+                    </block>
+                  </next>
+                </block>
+              </statement>
+            </block>
+          </next>
+        </block>
+          </next>
+        </block>
+      </statement>
+    </block>
+  </xml>`;
+  const loaded = await loadDsWorkspace(page, GRAPH_XML);
+  check('B.4 graph workspace injects cleanly', loaded === 'ok', String(loaded));
+  const runBtn4 = await page.$('.tb-btn--run');
+  if (runBtn4) await runBtn4.click();
+  await delay(5000);
+  const frameEl = await page.$('#glowscript-host iframe');
+  const runtime = frameEl ? await frameEl.contentFrame() : null;
+  const graphState = runtime
+    ? await runtime.evaluate(() => ({
+        // GlowScript 3.2 renders graphs through PLOTLY — an SVG plot inside
+        // a .glowscript-graph div (e.g. "glowscript-graph js-plotly-plot"),
+        // NOT flot canvases. Found live: probing for canvases here reads 0
+        // forever while the graph is drawing happily.
+        graphPanels: document.querySelectorAll('.glowscript-graph').length,
+        graphSvgs: document.querySelectorAll('.glowscript-graph svg').length,
+        sceneCanvas: !!document.querySelector('.glowscript-canvas-wrapper canvas') || !!document.querySelector('canvas'),
+      }))
+    : { graphPanels: 0, graphSvgs: 0, sceneCanvas: false };
+  check('B.4 a live graph panel renders inside the viewport pane during the run',
+    graphState.graphPanels >= 1 && graphState.graphSvgs >= 1,
+    `panels: ${graphState.graphPanels}, svgs: ${graphState.graphSvgs}`);
+  check('B.4 the 3D scene canvas coexists with the graph — neither replaced the other',
+    graphState.sceneCanvas === true);
+  const stopBtn4 = await page.$('.tb-btn--stop');
+  if (stopBtn4) await stopBtn4.click();
+  await delay(500);
+  await screenshot(page, 'B4-live-graph');
+} catch (e) {
+  check('B.4 live graphs', false, e.message);
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // PART C — TASK 15: LIVE-CHECK VERIFICATION (MakeCode overhaul, browser-only)
 // ═══════════════════════════════════════════════════════════════════════════════
