@@ -2547,6 +2547,8 @@ s_theta.plot(t, theta)`}</Pre>
                   <tr><td>Debug Mode</td><td><Kbd>Space</Kbd></td><td>Pause / Resume simulation</td></tr>
                   <tr><td>Debug Mode</td><td><Kbd>F10</Kbd></td><td>Next frame — one whole timestep</td></tr>
                   <tr><td>Debug Mode</td><td><Kbd>Shift</Kbd> + <Kbd>F10</Kbd></td><td>Next value — one reported value</td></tr>
+                  <tr><td>Hybrid divider</td><td><Kbd>↑</Kbd> / <Kbd>↓</Kbd></td><td>Rebalance scene vs data pane (focus the divider first)</td></tr>
+                  <tr><td>Hybrid divider</td><td><Kbd>Home</Kbd></td><td>Reset the split to its default</td></tr>
                 </tbody>
               </table>
             </section>
