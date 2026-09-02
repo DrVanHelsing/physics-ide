@@ -1046,3 +1046,115 @@ mark.help-search-highlight {
 .start-project-row--recent {
   border-left: 2px solid var(--accent-blue);
 }
+
+/* ═══ Guided tours (walkthrough engine) ═══════════════════════
+   A spotlight and a popover; the shade blocks interaction while
+   a tour narrates. The spot's giant box-shadow IS the shade, so
+   the cutout needs no SVG mask and moves with one transition. */
+.walkthrough { position: fixed; inset: 0; z-index: 1200; pointer-events: none; }
+.walkthrough-shade,
+.walkthrough-spot { pointer-events: auto; }
+.walkthrough-shade { position: fixed; inset: 0; background: rgba(4, 8, 16, 0.55); }
+.walkthrough-spot {
+  position: fixed;
+  border-radius: var(--radius-md);
+  box-shadow: 0 0 0 200vmax rgba(4, 8, 16, 0.55);
+  border: 1.5px solid var(--accent-bright);
+  transition: left 0.25s ease, top 0.25s ease, width 0.25s ease, height 0.25s ease;
+}
+.walkthrough-popover {
+  position: fixed;
+  width: 340px;
+  max-width: calc(100vw - 24px);
+  pointer-events: auto;
+  /* Opaque, same surface as the house dialog — card-bg is translucent and
+     let the page bleed through the narration (caught on camera). */
+  background: var(--bg-surface);
+  border: 1px solid var(--border-hl);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  padding: 12px 14px;
+  outline: none;
+}
+.walkthrough-popover-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.walkthrough-tourname {
+  font-size: var(--label-fs);
+  font-weight: var(--label-weight);
+  text-transform: var(--label-transform);
+  letter-spacing: var(--label-tracking);
+  color: var(--label-color);
+}
+.walkthrough-close {
+  display: inline-flex;
+  padding: 4px;
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+.walkthrough-close:hover { color: var(--text-bright); background: var(--hover-bg); }
+.walkthrough-step-title { margin: 0 0 4px; font-size: var(--fs-lg); color: var(--text-bright); }
+.walkthrough-step-body { margin: 0 0 10px; font-size: var(--fs-md); line-height: var(--lh-normal); color: var(--text); }
+.walkthrough-popover-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.walkthrough-dots { display: flex; gap: 5px; }
+.walkthrough-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  /* --border-strong vanished against the popover surface on camera. */
+  background: var(--text-dim);
+  opacity: 0.45;
+}
+.walkthrough-dot--on { opacity: 1; }
+.walkthrough-dot--on { background: var(--accent-bright); }
+.walkthrough-nav { display: flex; gap: 6px; }
+.walkthrough-btn {
+  padding: 5px 12px;
+  font-size: var(--btn-fs);
+  color: var(--text);
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.walkthrough-btn:hover { background: var(--hover-bg); }
+.walkthrough-btn--primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #ffffff;
+}
+.walkthrough-btn--primary:hover { background: var(--accent-bright); }
+.walkthrough-btn--primary:disabled { opacity: 0.55; cursor: default; }
+
+/* Tour cards on the Help page */
+.help-tours {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 10px;
+  margin: 10px 0 16px;
+}
+.help-tour-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 12px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  text-align: left;
+  cursor: pointer;
+}
+.help-tour-card:hover { border-color: var(--accent); background: var(--hover-bg); }
+.help-tour-card strong { font-size: var(--fs-md); color: var(--text-bright); }
+.help-tour-card span { font-size: var(--fs-sm); color: var(--text-muted); }
+.help-tour-card em {
+  font-style: normal;
+  font-size: var(--fs-2xs);
+  color: var(--accent-bright);
+  margin-top: 4px;
+}

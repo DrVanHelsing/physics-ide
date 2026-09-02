@@ -831,6 +831,58 @@ try {
   check('A15: Reset & clear', false, e.message);
 }
 
+// ── Suite A15b: Guided tours (the walkthrough engine, Plan 10's last step) ─────
+console.log('\n═══ A15b: Guided tours ═══════════════════════════════════════════════');
+try {
+  await goHome(page);
+  // Launch Help, find the tour cards in Getting Started
+  await page.evaluate(() => {
+    [...document.querySelectorAll('.start-action-btn')].find(b => /help/i.test(b.textContent))?.click();
+  });
+  await page.waitForSelector('.help-tour-card', { timeout: 10000 });
+  const tourCount = await page.evaluate(() => document.querySelectorAll('.help-tour-card').length);
+  check('A15b: Help offers the guided tours (six fundamentals)', tourCount >= 6, `${tourCount} cards`);
+
+  // Start "Your first simulation": Help closes, the spotlight lands on a goal card
+  await page.evaluate(() => {
+    [...document.querySelectorAll('.help-tour-card')]
+      .find(c => /your first simulation/i.test(c.textContent))?.click();
+  });
+  await page.waitForSelector('.walkthrough-popover', { timeout: 10000 });
+  const step1 = await page.evaluate(() => ({
+    helpGone: !document.querySelector('.help-shell'),
+    spot: !!document.querySelector('.walkthrough-spot'),
+    label: document.querySelector('.walkthrough-popover')?.getAttribute('aria-label') || '',
+  }));
+  check('A15b: starting a tour closes Help and spotlights the first target',
+    step1.helpGone && step1.spot && /step 1 of/i.test(step1.label), JSON.stringify(step1));
+
+  // Next twice: the third step's action opens a template — the IDE shell appears
+  for (let i = 0; i < 2; i++) {
+    await page.evaluate(() => {
+      [...document.querySelectorAll('.walkthrough-btn--primary')]
+        .find(b => !b.disabled)?.click();
+    });
+    await delay(600);
+  }
+  await page.waitForSelector('.tb-btn--run', { timeout: 20000 });
+  const step3 = await page.evaluate(() => ({
+    popover: !!document.querySelector('.walkthrough-popover'),
+    toolbox: !!document.querySelector('.blocklyToolboxDiv'),
+  }));
+  check('A15b: a tour action crosses from the menu into the IDE, popover surviving',
+    step3.popover && step3.toolbox, JSON.stringify(step3));
+
+  // Escape ends the tour cleanly
+  await page.keyboard.press('Escape');
+  await delay(400);
+  const after = await page.evaluate(() => !document.querySelector('.walkthrough'));
+  check('A15b: Escape ends the tour', after);
+  await screenshot(page, 'A15b-guided-tour');
+} catch (e) {
+  check('A15b: guided tours', false, e.message);
+}
+
 // ── Suite A16: Error State ─────────────────────────────────────────────────────
 console.log('\n═══ A16: Error State (invalid code run) ══════════════════════════════');
 suppressConsoleErrors = true; // intentionally running bad code — errors are expected
