@@ -195,15 +195,32 @@ export function viewportStyleText({ bg, text, link }) {
         font-family: system-ui, -apple-system, sans-serif;
         font-size: 13px;
       }
-      #glowscript-root { width: 100%; height: 100%; overflow: hidden; background: ${bg}; }
+      /* overflow-y auto, not hidden (Plan 10 Task 3): GlowScript appends
+         graph panels as .glowscript-graph siblings BELOW the 3D canvas
+         wrapper, and a hidden overflow made every live graph invisible.
+         The scene keeps the full pane; graphs scroll beneath it. */
+      #glowscript-root { width: 100%; height: 100%; overflow-y: auto; overflow-x: hidden; background: ${bg}; }
       #glowscript { width: 100%; height: 100%; background: ${bg}; }
-      #glowscript canvas {
+      /* Scoped to the SCENE canvas (wrapper child, or a bare direct child on
+         older layouts) — graph panels carry their own flot-sized canvases
+         (two per graph, base + overlay) that a forced 100% would corrupt. */
+      #glowscript .glowscript-canvas-wrapper canvas,
+      #glowscript > canvas {
         display: block !important;
         width: 100% !important;
         height: 100% !important;
         background: ${bg};
         outline: none;
         border: none;
+      }
+      /* Live graph panels: white cards whatever the theme — flot draws its
+         axes and labels onto the canvas in dark ink, so the card supplies
+         the contrast the theme cannot. */
+      #glowscript .glowscript-graph {
+        margin: 10px 12px;
+        padding: 6px;
+        background: #ffffff;
+        border-radius: 6px;
       }
       #glowscript-root * { color: ${text} !important; }
       #glowscript a { color: ${link} !important; }
@@ -672,7 +689,12 @@ export async function runPython(codeString, hostId = "glowscript-host", opts = {
 
     await new Promise((resolve) => window.setTimeout(resolve, 120));
 
-    const renderedCanvas = frameWindow.document.querySelector("canvas");
+    /* A graph panel counts as drawing (Plan 10 Task 3): a pure-plotting
+       program — graph display + series + plot, no 3D object — is legitimate
+       Trinket-style output, and its .glowscript-graph div exists as soon as
+       graph() runs even when flot's canvases materialise a frame later.
+       Only a program that made NEITHER a canvas NOR a graph "drew nothing". */
+    const renderedCanvas = frameWindow.document.querySelector("canvas, .glowscript-graph");
     if (!renderedCanvas) {
       const preview = compiledCode.slice(0, 300).replace(/\s+/g, " ");
       throw new Error(
@@ -757,7 +779,14 @@ export function getRuntimeWindow() {
 /** The <canvas> GlowScript draws into, or null. */
 export function getRuntimeCanvas() {
   try {
-    return activeFrameWindow?.document?.querySelector("canvas") || null;
+    // The SCENE canvas, never a graph's: live graphs (Plan 10 Task 3) add
+    // flot canvases to the same document, and "first canvas in the DOM"
+    // would become order-dependent. The wrapper-scoped selector names the
+    // 3D canvas structurally; the bare fallback keeps pre-wrapper layouts
+    // (and the between-runs window) working as before.
+    const doc = activeFrameWindow?.document;
+    if (!doc) return null;
+    return doc.querySelector(".glowscript-canvas-wrapper canvas") || doc.querySelector("canvas") || null;
   } catch {
     return null;   // cross-document access can throw if the frame was replaced
   }
