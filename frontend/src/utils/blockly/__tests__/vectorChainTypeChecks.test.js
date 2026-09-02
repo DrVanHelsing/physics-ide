@@ -79,10 +79,12 @@ const EXPECTED_HASHES = {
   blocks_projectile: "3490c4cd56864d381f5a9b2e00baadc014b44e0dcc213f9d5c19c3cf4a43e5df",
   blocks_spring:      "9616dc3b18ef1884aa1ad610ca9c87aaa89abfcd4d57ef7681b93715a61978e1",
   blocks_orbits:      "456590d618a349e051b9ce3e6b6c653343492057f00c0ad8dc3386fb5ece16b3",
-  blocks_pendulum:    "ff270c4f084b8af54a325195236b08b90eeada776fa71978bf8d89b8f45a65da",
+  // Re-pinned 2026-09-02: graph displays moved AFTER the 3D objects
+  // (creation order = runtime stacking order; scene belongs on top).
+  blocks_pendulum:    "216b4294de6bd80e597b2a412a7016608a35aa788d841bbc0d28464663a0af31",
   // The SHM pendulum (Plan 10 Task 6): three live graphs of motion,
   // alpha = -(g/L)*theta small-angle, captured at template birth.
-  blocks_pendulum_shm: "cf76627c7a39ff930891f6d7fcee8d7463a62b85233071c2c489d63b89e801ea",
+  blocks_pendulum_shm: "590c64bf7c464eb8ee92a80c0dd3c5e16ebe2bcf25b5597f139040bebdfb5988",
 };
 
 describe("vector chain type checks — template regression proof", () => {

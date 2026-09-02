@@ -1514,9 +1514,6 @@ const PENDULUM_BLOCKS = [
   },
   { type: "set_scalar_block", fields: { NAME: "omega" }, values: { VALUE: num(0) } },
 
-  /* ── Live graph: watch the swing decay ───────────────── */
-  graphDisplay("Swing angle", "t (s)", "theta (rad)", "s_theta"),
-
   /* ── Time step ───────────────────────────────────────── */
   { type: "time_step_block", fields: { DT: "0.005" } },
   { type: "set_scalar_block", fields: { NAME: "t" }, values: { VALUE: num(0) } },
@@ -1563,6 +1560,13 @@ const PENDULUM_BLOCKS = [
     fields: { NAME: "telemetry", TEXT: "" },
     values: { POS: vec(3.0, 1.5, 0), HEIGHT: num(14) },
   },
+
+  /* ── Live graph: watch the swing decay ────────────────────
+     AFTER the 3D objects: GlowScript stacks the runtime pane in
+     creation order, so a display created before the sphere would
+     put the graph ABOVE the scene (caught on camera by the help-
+     video capture, 2026-09-02). Scene first, graph beneath. */
+  graphDisplay("Swing angle", "t (s)", "theta (rad)", "s_theta"),
 
   /* ── Animation loop ──────────────────────────────────── */
   {
@@ -1730,11 +1734,6 @@ const SHM_PENDULUM_BLOCKS = [
   { type: "set_scalar_block", fields: { NAME: "theta" }, values: { VALUE: trig("radians", num(8)) } },
   { type: "set_scalar_block", fields: { NAME: "omega" }, values: { VALUE: num(0) } },
 
-  /* ── The three graphs of motion, live ────────────────── */
-  graphDisplay("Displacement", "t (s)", "theta (rad)", "s_disp"),
-  graphDisplay("Velocity", "t (s)", "omega (rad/s)", "s_vel"),
-  graphDisplay("Acceleration", "t (s)", "alpha (rad/s^2)", "s_acc"),
-
   /* ── Time step ───────────────────────────────────────── */
   { type: "time_step_block", fields: { DT: "0.005" } },
   { type: "set_scalar_block", fields: { NAME: "t" }, values: { VALUE: num(0) } },
@@ -1763,6 +1762,13 @@ const SHM_PENDULUM_BLOCKS = [
     fields: { NAME: "telemetry", TEXT: "" },
     values: { POS: vec(1.8, 0.6, 0), HEIGHT: num(12) },
   },
+
+  /* ── The three graphs of motion, live ─────────────────────
+     AFTER the 3D objects — creation order is stacking order in
+     the runtime pane, and the scene belongs on top. */
+  graphDisplay("Displacement", "t (s)", "theta (rad)", "s_disp"),
+  graphDisplay("Velocity", "t (s)", "omega (rad/s)", "s_vel"),
+  graphDisplay("Acceleration", "t (s)", "alpha (rad/s^2)", "s_acc"),
 
   /* ── Animation loop ──────────────────────────────────── */
   {
