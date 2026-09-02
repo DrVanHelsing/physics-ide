@@ -603,7 +603,15 @@ later run must not "fix" any of them by weakening the check:
 - **Check 20** failed every run: Start work landed on the start menu instead of
   in the work — `LAST_PROJECT_KEY` is only read at app boot, but `navigate("/")`
   is a client-side transition. Fixed by `utils/projectOpenRequest.js`, the
-  announcement half of that hand-off.
+  announcement half of that hand-off. **And then again (Plan 9, 2026-09-02):
+  the announcement was only HALF the fix** — it fired on the portal page
+  before the IDE (and useProject, the only thing that can apply the manifest
+  and dismiss the menu) was mounted, so landing in the work was a timing
+  accident that resurfaced on a fresh server (where `bootstrapResult.kind`
+  is not `"existing"` and the restore effect never fires). The request bus
+  now keeps the pending id and useProject consumes it strictly on manifest
+  match — deterministic in both mount orders, pinned by
+  `useProjectOpenHandoff.test.js`.
 - **Check 40** failed every run: `.brief-pane__footer` and `.rich-text-editor`
   carried no CSS rule. Both now have one (`styles/assignments.css`).
 - **Check 19** failed **intermittently — roughly half the runs** (2 of 4 at

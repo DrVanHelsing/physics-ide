@@ -19,7 +19,7 @@ import { ProjectProvider } from "../../contexts/ProjectContext";
 import { SimulationProvider, useSimulationContext } from "../../contexts/SimulationContext";
 import { useProject } from "../useProject";
 import { createManifest } from "../../utils/manifest/factory";
-import { requestProjectOpen, consumeRequestedOpen } from "../../utils/projectOpenRequest";
+import { requestProjectOpen, consumeRequestedOpen, peekRequestedOpen } from "../../utils/projectOpenRequest";
 
 vi.mock("../../utils/storage/projectStore", () => ({
   listProjects: vi.fn(),
@@ -121,6 +121,7 @@ describe("the portal hand-off — announce, then land IN the work", () => {
     expect(latestProj.activeProjectId).toBe(project.id);
     expect(latestSim.workspaceXml).toBe("<xml>assignment-blocks</xml>");
     expect(latestSim.showStart).toBe(false);
+    expect(peekRequestedOpen()).toBeNull(); // consumed on match, gone for good
   });
 
   test("announce while the IDE is mounted: same landing", async () => {
@@ -140,9 +141,32 @@ describe("the portal hand-off — announce, then land IN the work", () => {
     expect(latestProj.activeProjectId).toBe(project.id);
     expect(latestSim.workspaceXml).toBe("<xml>test-copy</xml>");
     expect(latestSim.showStart).toBe(false);
+    expect(peekRequestedOpen()).toBeNull();
   });
 
-  test("an unannounced active manifest does NOT dismiss the menu — bootstrap and ordinary state stay untouched", async () => {
+  test("a manifest becoming active under a DIFFERENT pending id neither consumes it nor fires the hand-off", async () => {
+    const store = wireStore();
+    const projectA = storedProject(store, "<xml>a-blocks</xml>");
+    mountHarness();
+    await act(async () => {
+      await flush();
+    });
+
+    // Announce something else entirely, then activate A through the
+    // ordinary door (selectProject — the start menu's own path).
+    requestProjectOpen("p-something-else");
+    await act(async () => {
+      await latestProj.selectProject(projectA.id);
+      await flush();
+    });
+
+    // selectProject dismissed the menu itself; the pending id was NOT
+    // consumed by A's activation — strictly-on-match is the contract.
+    expect(latestProj.activeProjectId).toBe(projectA.id);
+    expect(peekRequestedOpen()).toBe("p-something-else");
+  });
+
+  test("no announcement at all: an empty bootstrap leaves the menu up", async () => {
     wireStore();
     mountHarness();
     await act(async () => {

@@ -26,9 +26,22 @@ export function useProject() {
   const proj = useProjectContext();
   const sim = useSimulationContext();
 
+  /* Declared up here so applyManifestToWorkingState below can disarm it; the
+     debounce itself is built lazily further down, once saveCurrent exists. */
+  const debouncedSaveRef = useRef(null);
+
   const applyManifestToWorkingState = useCallback(
     (manifest) => {
       if (!manifest) return;
+      /* Every caller of this function ADOPTS persisted state — bootstrap
+         restore, the portal hand-off, a sync pull, the analyse restore —
+         never an edit. The render where manifest and sim briefly disagree
+         arms the dirty-check debounce, and the "unchanged" pass afterwards
+         cannot disarm it — ~3s later a byte-identical restamp would claim
+         most-recent-wins recency for a possibly-stale copy (review round 2,
+         the exact hazard the dirty check was written against). Adopting
+         state therefore always disarms the autosave first, in one place. */
+      debouncedSaveRef.current?.cancel();
       sim.setMode(manifest.preferredEditor === "code" ? "text" : "blocks");
       sim.setProjectType(manifest.projectType || "custom");
       sim.setPythonCode(manifest.source?.python || "");
@@ -65,7 +78,6 @@ export function useProject() {
   useEffect(() => {
     saveCurrentRef.current = saveCurrent;
   });
-  const debouncedSaveRef = useRef(null);
   if (!debouncedSaveRef.current) {
     debouncedSaveRef.current = debounce(() => {
       Promise.resolve(saveCurrentRef.current?.()).catch((err) => {
@@ -310,13 +322,7 @@ export function useProject() {
       source: { ...(rest.source || {}), python: typeof stash.python === "string" ? stash.python : "" },
       updatedAt: Date.now(),
     });
-    applyManifestToWorkingState(saved);
-    /* The render between persistActive's setActiveManifest and the apply
-       above can arm the dirty-check debounce (manifest holds sim XML, sim
-       still holds analysis XML for that one frame); the "unchanged" pass
-       afterwards never disarms it. Cancel so a content-identical restamp
-       doesn't push ~3s after every restore. */
-    debouncedSaveRef.current.cancel();
+    applyManifestToWorkingState(saved); // apply disarms the debounce itself
     return saved;
   }, [applyManifestToWorkingState, proj]);
 

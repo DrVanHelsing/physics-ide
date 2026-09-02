@@ -19,10 +19,16 @@ export async function performAnalyseSwap(deps, xml) {
   }
   // Cancelled (or no project): the workspace is untouched, byte-identical.
   if (!stashed) return false;
-  exitDebug?.();
-  loadWorkspaceXml(xml);
-  bumpReloadKey();
-  closeChart();
+  try {
+    exitDebug?.();
+    loadWorkspaceXml(xml);
+    bumpReloadKey();
+    closeChart();
+  } catch (err) {
+    // The stash is safe either way — surface the half-swap loudly.
+    onError(err);
+    return false;
+  }
   return true;
 }
 
@@ -36,9 +42,14 @@ export async function performAnalyseReturn(deps) {
     return false;
   }
   if (!restored) return false;
-  exitDebug?.();
-  stopRun();
-  bumpReloadKey();
-  closeChart();
+  try {
+    exitDebug?.();
+    stopRun();
+    bumpReloadKey();
+    closeChart();
+  } catch (err) {
+    onError(err);
+    return false;
+  }
   return true;
 }
