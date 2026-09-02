@@ -27,6 +27,14 @@ import analyseRoundtripVideo from "../assets/help/analyse-roundtrip.webm";
 import analyseRoundtripPoster from "../assets/help/analyse-roundtrip-poster.webp";
 import dataScienceVideo from "../assets/help/data-science.webm";
 import dataSciencePoster from "../assets/help/data-science-poster.webp";
+import blocksBasicsVideo from "../assets/help/blocks-basics.webm";
+import blocksBasicsPoster from "../assets/help/blocks-basics-poster.webp";
+import codeModeVideo from "../assets/help/code-mode.webm";
+import codeModePoster from "../assets/help/code-mode-poster.webp";
+import templatesGalleryVideo from "../assets/help/templates-gallery.webm";
+import templatesGalleryPoster from "../assets/help/templates-gallery-poster.webp";
+import saveProjectsVideo from "../assets/help/save-projects.webm";
+import saveProjectsPoster from "../assets/help/save-projects-poster.webp";
 
 /* ── Tiny inline components ──────────────────────────────── */
 function Code({ children }) {
@@ -548,6 +556,11 @@ export default function HelpPage({ onClose, focusBlockId }) {
                 template card creates a project from that template. There is no form in between —
                 name the project afterwards by clicking its title in the IDE header.
               </p>
+              <HelpVideo
+                src={templatesGalleryVideo}
+                poster={templatesGalleryPoster}
+                caption="Browse the template rail and click a card — the project opens ready to run."
+              />
               <Note type="tip">
                 <strong>Hybrid topic</strong> cards — Pendulum, Projectile, Spring, SHM pendulum —
                 load a simulation <em>and</em> remember its paired analysis. Each opens on its
@@ -592,6 +605,11 @@ export default function HelpPage({ onClose, focusBlockId }) {
               </p>
 
               <h3 className="help-h3">Saving your work</h3>
+              <HelpVideo
+                src={saveProjectsVideo}
+                poster={saveProjectsPoster}
+                caption="Click the header title to rename, save, and find the project on the start menu."
+              />
               <p>
                 Physics IDE <strong>auto-saves</strong> every project to the browser's IndexedDB
                 storage after each change. Your projects are restored when you reopen the app. For
@@ -763,6 +781,11 @@ export default function HelpPage({ onClose, focusBlockId }) {
                 others, and click <Tag color="green">Run</Tag> — Physics IDE translates the block
                 stack into VPython and executes it instantly.
               </p>
+              <HelpVideo
+                src={blocksBasicsVideo}
+                poster={blocksBasicsPoster}
+                caption="The core gestures: drag a block from the toolbox, connect it, drop one on the trashcan."
+              />
 
               <h3 className="help-h3">Key interactions</h3>
               <ul className="help-list">
@@ -1760,6 +1783,11 @@ s_theta.plot(t, theta)`}</Pre>
                 The Code Editor uses <strong>Monaco Editor</strong> (the engine powering Visual Studio
                 Code) with Python syntax highlighting, line numbers, and bracket matching.
               </p>
+              <HelpVideo
+                src={codeModeVideo}
+                poster={codeModePoster}
+                caption="Toggle Blocks → Code to read the generated Python, and back again."
+              />
 
               <h3 className="help-h3">When is code editable?</h3>
               <table className="help-table">

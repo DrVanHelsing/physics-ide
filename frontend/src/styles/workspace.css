@@ -398,7 +398,7 @@
 }
 /* Flyout group headers (toolbox.js passes web-class="tb-label" on 21 of them,
    and until Tranche 3 the class had no rules at all). Matches the micro-label
-   voice Plan 1 established for .account-chip-head. */
+   voice Plan 1 established for the portal micro-labels. */
 .tb-label {
   font-size: var(--fs-2xs);
   font-weight: var(--label-weight);
