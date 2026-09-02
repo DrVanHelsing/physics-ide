@@ -93,61 +93,6 @@
 .auth-text { color: var(--text); font-size: var(--fs-lg); line-height: var(--lh-normal); }
 .auth-text--dim { color: var(--text-muted); font-size: var(--fs-sm); }
 
-.account-chip {
-  margin-top: var(--space-4);
-  padding-top: var(--space-3);
-  border-top: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-.account-chip-head {
-  font-size: var(--label-fs);
-  font-weight: var(--label-weight);
-  text-transform: var(--label-transform);
-  letter-spacing: var(--label-tracking);
-  color: var(--label-color);
-}
-.account-chip-name { color: var(--text-bright); font-size: var(--fs-md); }
-/* The account chip's rows are navigation, not buttons: left-aligned, full
-   width, no button chrome to undo. They were aliased onto .btn purely so
-   Plan 1 didn't have to touch this markup, and primitives.css then had to
-   override justify-content to make the alias behave. */
-.nav-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  width: 100%;
-  min-height: var(--control-h);
-  padding: var(--space-2) var(--space-3);
-  font-size: var(--btn-fs);
-  color: var(--text);
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  text-align: left;
-  text-decoration: none;
-  cursor: pointer;
-  transition: background var(--transition), border-color var(--transition),
-              color var(--transition);
-}
-.nav-row:hover:not(:disabled) {
-  background: var(--card-bg-hover);
-  border-color: var(--border-hl);
-  color: var(--text-bright);
-}
-.nav-row:disabled { opacity: 0.5; cursor: not-allowed; }
-.nav-row--primary {
-  background: var(--btn-primary-bg);
-  border-color: var(--btn-primary-bg);
-  color: var(--on-accent);
-  font-weight: var(--fw-semibold);
-}
-.nav-row--primary:hover:not(:disabled) {
-  background: var(--btn-primary-bg-hover);
-  border-color: var(--btn-primary-bg-hover);
-  color: var(--on-accent);
-}
 /* ---- Portal page shell (Admin / Classes) ----
    One shell for both — .admin-page/.admin-header/.admin-body and
    .classes-page/.classes-header/.classes-body were byte-for-byte

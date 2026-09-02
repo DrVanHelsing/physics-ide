@@ -31,7 +31,7 @@ import { DEFAULT_PYTHON_CODE } from "../constants";
 import { relativeTime } from "../utils/relativeTime";
 import { listShareAttribution } from "../utils/storage/shareMeta";
 import { refreshShareAttributions, attributionSentence } from "../utils/sharing/attribution";
-import AccountChip from "./auth/AccountChip";
+import HeaderAccount from "./auth/HeaderAccount";
 import {
   RocketIcon,
   AtomIcon,
@@ -351,7 +351,7 @@ export default function StartMenu({
                 <HelpIcon size={16} /> Help
               </button>
             )}
-            <AccountChip />
+            <HeaderAccount />
           </div>
         </header>
 

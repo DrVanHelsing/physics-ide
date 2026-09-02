@@ -5,9 +5,9 @@ import { UserIcon } from "../Icons";
 import { useMe, useSignout } from "../../auth/useAuth";
 
 /**
- * Header account control. The sidebar's <AccountChip> is a stacked block of
- * links built for StartMenu.js:308 — it cannot live in a 44px bar, so this is
- * the compact form. Same destinations, same guest/member split.
+ * Header account control — the compact guest/member dropdown. The stacked
+ * sidebar AccountChip it replaced retired with the start menu's sidebar
+ * (Plan 10 deep IA): this is the one account control everywhere now.
  */
 export default function HeaderAccount() {
   const { data: me, isLoading } = useMe();
