@@ -175,7 +175,7 @@ export default function AssignmentEditorPage() {
     : { to: `/classes/${id}/assignments/${aid}`, label: "Back to the assignment" };
 
   if (meLoading) return null;
-  if (!me) return <Navigate to="/auth/signin" replace />;
+  if (!me) return <Navigate to="/auth/signin" replace state={{ returnTo: window.location.pathname }} />;
   if (classQuery.isLoading) return null;
   if (classQuery.error) {
     return gatedPage(

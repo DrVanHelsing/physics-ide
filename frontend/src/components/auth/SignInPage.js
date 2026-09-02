@@ -1,10 +1,15 @@
 import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import AuthLayout from "./AuthLayout";
 import { useSignin } from "../../auth/useAuth";
 
 export default function SignInPage() {
   const navigate = useNavigate();
+  /* A guarded page that bounced here says where it was going (route state).
+     After sign-in the user lands THERE — a teacher following a /classes
+     bookmark must not end up in the IDE. The pending-invite hop still wins:
+     it is itself a stored destination, and older than this mechanism. */
+  const returnTo = useLocation().state?.returnTo || "/";
   const signin = useSignin();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -15,7 +20,7 @@ export default function SignInPage() {
     setError(null);
     try {
       await signin.mutateAsync({ email: email.trim().toLowerCase(), password });
-      navigate(sessionStorage.getItem("pide_pending_invite") ? "/join/invite" : "/");
+      navigate(sessionStorage.getItem("pide_pending_invite") ? "/join/invite" : returnTo);
     } catch (err) {
       setError(err.message);
     }

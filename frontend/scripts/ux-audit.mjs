@@ -168,34 +168,25 @@ async function goHome() {
   await delay(500);
 }
 
-async function createPhysicsProject() {
+async function createGoalProject(pattern) {
   await goHome();
-  await page.evaluate(() => {
-    const cards = [...document.querySelectorAll('button.start-card--goal')];
-    const c = cards.find(c => /physics.?modelling/i.test(c.textContent));
-    if (c) c.click();
-  });
-  await delay(700);
-  await page.evaluate(() => {
-    const btn = [...document.querySelectorAll('button')].find(b => /create.?project/i.test(b.textContent));
-    if (btn) btn.click();
-  });
+  const clicked = await page.evaluate((pat) => {
+    const cards = [...document.querySelectorAll('.start-card--goal')];
+    const c = cards.find(c => new RegExp(pat, 'i').test(c.textContent));
+    if (!c) return false;
+    c.querySelector('.start-card-main').click();
+    return true;
+  }, pattern);
+  if (!clicked) throw new Error('goal card not found: ' + pattern);
   await delay(3000);
 }
 
+async function createPhysicsProject() {
+  await createGoalProject('physics.?modelling');
+}
+
 async function createDsProject() {
-  await goHome();
-  await page.evaluate(() => {
-    const cards = [...document.querySelectorAll('button.start-card--goal')];
-    const c = cards.find(c => /data.?science/i.test(c.textContent));
-    if (c) c.click();
-  });
-  await delay(700);
-  await page.evaluate(() => {
-    const btn = [...document.querySelectorAll('button')].find(b => /create.?project/i.test(b.textContent));
-    if (btn) btn.click();
-  });
-  await delay(3000);
+  await createGoalProject('data.?science');
 }
 
 // ─── C.1: Colour Contrast ─────────────────────────────────────────────────────
@@ -279,7 +270,8 @@ const FONT_CHECKS = [
   { selector: '.ds-value-num', label: 'DS value number', minPx: 12, ref: 'min 12px' },
   { selector: '.ds-table td', label: 'DS table cell', minPx: 12, ref: 'min 12px' },
   { selector: '.start-card-title', label: 'Goal card title', minPx: 14, ref: 'min 14px' },
-  { selector: '.start-wizard-radio-label', label: 'Wizard radio label', minPx: 13, ref: 'min 13px' },
+  { selector: '.start-section-sublabel', label: 'Template group sublabel', minPx: 11, ref: 'min 11px' },
+  { selector: '.start-card-alt', label: 'Card subaction link', minPx: 12, ref: 'min 12px' },
 ];
 
 await createPhysicsProject();
@@ -385,9 +377,9 @@ const SIZE_CHECKS = [
   { selector: '.tb-btn--nav', label: 'Menu/Help button' },
   { selector: '.tb-btn--theme', label: 'Theme toggle' },
   { selector: '.tb-btn--dropdown', label: 'Export dropdown' },
-  { selector: 'button.start-card--goal', label: 'Goal card (start menu)' },
+  { selector: '.start-card--goal .start-card-main', label: 'Goal card (start menu)' },
   { selector: '.start-project-delete', label: 'Project delete button' },
-  { selector: '.start-wizard-primary', label: 'Create project button' },
+  { selector: '.start-card-alt', label: 'Card subaction link' },
 ];
 
 for (const sc of SIZE_CHECKS) {
@@ -542,26 +534,8 @@ for (const ac of a11yChecks) {
     hasLabel ? 'PASS' : 'FAIL');
 }
 
-// Modal accessibility
-await goHome();
-await page.evaluate(() => {
-  const cards = [...document.querySelectorAll('button.start-card--goal')];
-  const c = cards.find(c => /physics.?modelling/i.test(c.textContent));
-  if (c) c.click();
-});
-await delay(600);
-const wizardModal = await page.evaluate(() => {
-  const dialog = document.querySelector('[role="dialog"], .start-wizard');
-  if (!dialog) return null;
-  return {
-    role: dialog.getAttribute('role'),
-    ariaModal: dialog.getAttribute('aria-modal'),
-    ariaLabel: dialog.getAttribute('aria-label') || dialog.getAttribute('aria-labelledby'),
-  };
-});
-record('C.7 A11y', 'Create project wizard modal',
-  wizardModal ? `role="${wizardModal.role}" aria-modal="${wizardModal.ariaModal}"` : 'no role="dialog" found',
-  wizardModal?.role === 'dialog' ? 'PASS' : 'WARN');
+// The creation wizard is gone (goal cards create instantly) — the product
+// has no creation modal to audit; the Help overlay dialog is audited below.
 
 // Project delete button aria-label
 await goHome();

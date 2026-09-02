@@ -64,6 +64,11 @@ export function ProjectProvider({ children }) {
           if (legacy) {
             const migrated = migrate(legacy);
             const saved = await saveProject(migrated);
+            /* Adoption is one-shot: the blob now lives as a real project,
+               so the legacy key goes — leaving it would re-migrate a
+               duplicate "Recovered project" on every later empty-list
+               bootstrap (e.g. after the user deletes it). */
+            try { localStorage.removeItem(LEGACY_V1_KEY); } catch { /* storage blocked */ }
             if (cancelled) return;
             setProjectList([
               {

@@ -44,7 +44,7 @@ export default function HistoryPage() {
   });
 
   if (meLoading) return null;
-  if (!me) return <Navigate to="/auth/signin" replace />;
+  if (!me) return <Navigate to="/auth/signin" replace state={{ returnTo: window.location.pathname }} />;
   if (versionsQuery.isLoading) return null;
 
   const handleRestore = (versionId) => {

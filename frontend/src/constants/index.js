@@ -5,7 +5,6 @@
  */
 
 // ── Storage keys ──────────────────────────────────────────────────────────
-export const STORAGE_KEY       = "physics-lab-state-v1";
 export const THEME_STORAGE_KEY = "physics-ide-theme";
 
 /* Layout preferences — restored on reload so a lab machine keeps its arrangement. */
@@ -51,7 +50,6 @@ export const PAUSE_ACK_TIMEOUT_MS = 1000;
 
 // ── Auto-save ─────────────────────────────────────────────────────────────
 /** How often the workspace state is persisted to localStorage (ms). */
-export const AUTOSAVE_INTERVAL_MS = 2000;
 /** Trailing-debounce delay before an editor change is saved into the active project manifest (ms). */
 export const MANIFEST_AUTOSAVE_MS = 3000;
 

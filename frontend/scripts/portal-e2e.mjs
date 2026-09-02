@@ -855,7 +855,9 @@ try {
   await delay(300);
 
   // So the student has something of their own to share: a plain project, made
-  // through the start menu's wizard the way any student makes one.
+  // from the start menu the way any student makes one — a goal card creates
+  // instantly now (the wizard is gone), and the title is set in the IDE
+  // header, which is the same path a real student renames through.
   await student.click('.app-header__identity .tb-btn--nav');
   await student.waitForSelector('.start-menu-overlay .start-card--goal', { timeout: 20000 });
   const knownProjects = await student.evaluate(async () => {
@@ -863,11 +865,14 @@ try {
     const data = res.ok ? await res.json() : { projects: [] };
     return (data.projects ?? []).map((p) => p.id);
   });
-  await student.click('.start-grid .start-card--goal');
-  await student.waitForSelector('.start-wizard', { timeout: 15000 });
-  await setInput(student, '.start-wizard-body .start-wizard-field input', PERSONAL_TITLE);
-  await clickByText(student, '.start-wizard-footer button', /create project/);
+  await student.click('.start-grid .start-card--goal .start-card-main');
   await student.waitForSelector('.app-header', { timeout: 25000 });
+  await student.waitForSelector('button.project-title', { timeout: 15000 });
+  await student.click('button.project-title');
+  await student.waitForSelector('input.project-title-input', { timeout: 8000 });
+  await setInput(student, 'input.project-title-input', PERSONAL_TITLE);
+  await student.keyboard.press('Enter');
+  await delay(800);
   const personalId = await waitForPushedProject(student, knownProjects);
   const personalTitleShown = await textOf(student, '.status-bar__project');
   check('The student\'s own project is created from the start menu and reaches the server',

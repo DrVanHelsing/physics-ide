@@ -8,7 +8,7 @@ import PortalHeader from "../layout/PortalHeader";
 export default function ClassesHome() {
   const { data: me, isLoading } = useMe();
   if (isLoading) return null;
-  if (!me) return <Navigate to="/auth/signin" replace />;
+  if (!me) return <Navigate to="/auth/signin" replace state={{ returnTo: "/classes" }} />;
   return (
     <div className="page">
       <PortalHeader title="My classes" />
