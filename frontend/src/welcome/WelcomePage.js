@@ -133,7 +133,7 @@ import {
   TableIcon,
   PrivacyIcon,
 } from "../components/Icons";
-import { WELCOME_PASSED_SESSION_KEY } from "../constants";
+import { WELCOME_PASSED_SESSION_KEY, WANT_MENU_SESSION_KEY } from "../constants";
 import demoRunWebm from "../assets/welcome/demo-run.webm";
 import demoRunPoster from "../assets/welcome/demo-run-poster.webp";
 import demoAnalysisWebm from "../assets/welcome/demo-analysis.webm";
@@ -408,6 +408,20 @@ export default function WelcomePage() {
     [navigate],
   );
 
+  /* The PLAIN IDE doors (hero, header, footer) are a choice moment (Plan 10
+     R4): they stamp a one-shot "I want the menu" key so the IDE lands on the
+     start menu — a previous session's project becomes the Continue choice
+     rather than an auto-open ambush. Tiles below deliberately skip this:
+     picking a template IS the choice. */
+  const goToIde = useCallback(() => {
+    try {
+      sessionStorage.setItem(WANT_MENU_SESSION_KEY, "1");
+    } catch {
+      /* storage blocked: the door still opens */
+    }
+    go("/");
+  }, [go]);
+
   /* A worked-project tile: stamp the template id, then the same go("/") every
      other CTA on this page uses — the gate stamp and navigation discipline
      stay untouched (hard constraint 2, above). */
@@ -458,13 +472,13 @@ export default function WelcomePage() {
             Build a simulation with blocks or Python, run it live in 3D, then analyse the
             data it produces — free, in your browser, no account needed.
           </p>
-          <button className="btn btn--primary btn--lg" type="button" onClick={() => go("/")}>
+          <button className="btn btn--primary btn--lg" type="button" onClick={goToIde}>
             Use the IDE — no account needed
           </button>
         </div>
       </header>
 
-      <WelcomeHeader onSignIn={() => go("/auth/signin")} onOpenIde={() => go("/")} />
+      <WelcomeHeader onSignIn={() => go("/auth/signin")} onOpenIde={goToIde} />
 
       <div id="welcome-main" tabIndex={-1} />
 
@@ -656,7 +670,7 @@ export default function WelcomePage() {
         <p className="welcome-foot__scope">
           The IDE needs a laptop or desktop — 1024px or wider. This page reads fine on a phone.
         </p>
-        <button className="btn btn--primary btn--lg" type="button" onClick={() => go("/")}>
+        <button className="btn btn--primary btn--lg" type="button" onClick={goToIde}>
           Open the IDE
         </button>
         <div className="welcome-foot__links">

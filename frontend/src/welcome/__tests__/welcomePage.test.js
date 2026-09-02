@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import { MemoryRouter } from "react-router-dom";
 import { mountComponent, click, byText } from "../../test/renderHelpers";
 import WelcomePage from "../WelcomePage";
-import { WELCOME_PASSED_SESSION_KEY } from "../../constants";
+import { WELCOME_PASSED_SESSION_KEY, WANT_MENU_SESSION_KEY } from "../../constants";
 import { BLOCK_TEMPLATES, DS_TEMPLATES } from "../../utils/blockTemplates";
 
 const PENDING_TEMPLATE_KEY = "pide_pending_template";
@@ -75,6 +75,27 @@ describe("the front page", () => {
       click(cta);
       expect(sessionStorage.getItem(WELCOME_PASSED_SESSION_KEY)).toBe("1");
     }
+    unmount();
+  });
+
+  test("the plain IDE doors ask for the menu; a template tile does not (Plan 10 R4)", () => {
+    /* Walking through the front door is a choice moment — the IDE must land
+       on the start menu, not auto-open last session's project. Picking a
+       tile IS the choice, so tiles skip the stamp and keep direct-open. */
+    const { container, unmount } = mount();
+    const doors = [
+      byText(container, "Use the IDE — no account needed", ".welcome-hero__content button"),
+      byText(container, "Open the IDE", ".welcome-foot button"),
+    ];
+    for (const door of doors) {
+      sessionStorage.clear();
+      click(door);
+      expect(sessionStorage.getItem(WANT_MENU_SESSION_KEY)).toBe("1");
+    }
+    sessionStorage.clear();
+    click(container.querySelector(".welcome-tile"));
+    expect(sessionStorage.getItem(WANT_MENU_SESSION_KEY)).toBeNull();
+    expect(sessionStorage.getItem(WELCOME_PASSED_SESSION_KEY)).toBe("1"); // the tile still gates
     unmount();
   });
 

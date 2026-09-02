@@ -19,6 +19,7 @@ import { useSimulationContext } from "../contexts/SimulationContext";
 import { createManifest } from "../utils/manifest/factory";
 import { onProjectSaved } from "../utils/storage/projectStore";
 import { peekRequestedOpen, consumeRequestedOpen } from "../utils/projectOpenRequest";
+import { WANT_MENU_SESSION_KEY } from "../constants";
 import { debounce } from "../utils/debounce";
 import { MANIFEST_AUTOSAVE_MS } from "../constants";
 
@@ -218,18 +219,34 @@ export function useProject() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [proj.activeManifest]);
 
-  /* A bootstrap-restored project should open straight into the IDE — the
-     start menu is for choosing, not for re-choosing what was already open.
-     Runs at most once, after the bootstrap settles. */
+  /* A bootstrap-restored project opens straight into the IDE — the start
+     menu is for choosing, not for re-choosing what was already open — with
+     ONE exception (Plan 10 R4): the welcome page's plain IDE door stamps a
+     one-shot "I want the menu" key, because walking through the front door
+     is itself a choice moment, and a guest was being taken straight into
+     last session's block project with the chooser skipped. The manifest is
+     STILL applied either way, so the working state matches the active
+     manifest — selectProject's save-before-switch would otherwise capture
+     empty state over the restored project. The key is consumed on arrival
+     whatever the bootstrap found, so a later reload auto-opens as ever. */
   const restoreAppliedRef = useRef(false);
+  const wantMenuRef = useRef(null); // null = not read yet this mount
   useEffect(() => {
     if (!proj.loaded || restoreAppliedRef.current) return;
+    if (wantMenuRef.current === null) {
+      try {
+        wantMenuRef.current = !!sessionStorage.getItem(WANT_MENU_SESSION_KEY);
+        sessionStorage.removeItem(WANT_MENU_SESSION_KEY);
+      } catch {
+        wantMenuRef.current = false; // storage blocked: behave as before
+      }
+    }
     if (proj.bootstrapResult?.kind !== "existing") return;
     const m = proj.activeManifest;
     if (!m) return;
     restoreAppliedRef.current = true;
     applyManifestToWorkingState(m);
-    sim.setShowStart(false);
+    if (!wantMenuRef.current) sim.setShowStart(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [proj.loaded, proj.bootstrapResult, proj.activeManifest]);
 

@@ -14,6 +14,11 @@ export const LAYOUT_VIEWPORT_HIDDEN_KEY = "pide_layout_viewport_hidden";
 export const LAYOUT_ZOOM_KEY            = "pide_layout_zoom";
 /* Id of the last project the student had open, so a reload returns them to it. */
 export const LAST_PROJECT_KEY           = "pide_last_project";
+/* One-shot, session-scoped: the welcome page's PLAIN IDE door stamps this so
+   the IDE lands on the start menu (the restored project becomes a Continue
+   choice, not an ambush — Plan 10 R4). Template tiles and reloads never
+   stamp it, so continuity keeps auto-opening. Consumed on the next arrival. */
+export const WANT_MENU_SESSION_KEY      = "pide_want_menu";
 
 // ── Default values ────────────────────────────────────────────────────────
 export const DEFAULT_PYTHON_CODE =
