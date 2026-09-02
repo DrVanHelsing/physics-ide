@@ -39,9 +39,10 @@
  * "6" total survives as a ribbon numeral, unbroken down.
  *
  *   154 block types      utils/blockly/toolbox.js — unique <block type=…>
- *   18 worked projects   precodedExamples.js EXAMPLES = 4; blockTemplates.js
- *                          BLOCK_TEMPLATES = 4, DS_TEMPLATES = 10 (7 data-science
- *                          + 3 hybrid analyses) → 4+4+7+3
+ *   20 worked projects   precodedExamples.js EXAMPLES = 4; blockTemplates.js
+ *                          BLOCK_TEMPLATES = 5 (SHM pendulum joined, Plan 10),
+ *                          DS_TEMPLATES = 11 (7 data-science
+ *                          + 4 hybrid analyses) → 4+5+7+4
  *   6 built-in datasets  utils/dataset/dataset.js BUILTIN_LOADERS — 6 files
  *                          in utils/dataset/builtins/*.json
  *   6 chart types        the six ds_chart_* blocks: bar, line, scatter,
@@ -111,7 +112,8 @@
  *    The site nav (WelcomeHeader.js) is a child component, not a bare Link in
  *    this file, so it does not trip the grep below — but it holds the same
  *    discipline: this page passes it onSignIn={() => go("/auth/signin")} and
- *    onOpenIde={() => go("/")}, so its Sign in and Open the IDE controls still
+ *    onOpenIde={goToIde} (the plain-door helper: session pass + the
+ *    want-menu stamp), so its Sign in and Open the IDE controls still
  *    stamp the pass. WelcomeSubpage.js (/about, /contact) passes neither —
  *    those two routes are gate-free, like /join, so their header falls back
  *    to plain Links, the same shape JoinClassPage.js already uses.
@@ -242,7 +244,7 @@ const PYTHON = [
    "compressed to a single quiet one-line ribbon"). [numeral, label]. */
 const RIBBON = [
   ["154", "block types"],
-  ["18", "worked projects"],
+  ["20", "worked projects"],
   ["6", "built-in datasets"],
   ["6", "chart types"],
   ["14", "documentation sections"],
@@ -584,7 +586,7 @@ export default function WelcomePage() {
           old hero — "everything else leaves the hero"). */}
       <section className={`welcome-section welcome-cat-${CAT.open} welcome-reveal`} aria-labelledby="s-open">
         <Eyebrow Icon={BookOpenIcon}>Open something real</Eyebrow>
-        <h2 id="s-open">18 worked projects. Four are one click away.</h2>
+        <h2 id="s-open">20 worked projects. Four are one click away.</h2>
         <p>
           Open a real template as a guest, no setup — or start from nothing inside the IDE.
         </p>

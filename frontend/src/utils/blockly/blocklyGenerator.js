@@ -873,7 +873,22 @@ export function defineCustomBlocksAndGenerator(Blockly) {
             ["dots", "gdots"],
           ],
         },
-        { type: "field_colour", name: "COL", colour: "#0973d1" },
+        /* A named-colour dropdown, NOT field_colour: that field type is not
+           registered in Blockly 11 (jsonInit warns and silently skips it —
+           found the hard way; the preset_* blocks carry the same latent
+           gap). The dropdown VALUE is the hex the generator converts. */
+        {
+          type: "field_dropdown",
+          name: "COL",
+          options: [
+            ["blue", "#0973d1"],
+            ["red", "#e04444"],
+            ["green", "#2f9e44"],
+            ["orange", "#f08c00"],
+            ["purple", "#7048e8"],
+            ["gold", "#f5b301"],
+          ],
+        },
       ],
       inputsInline: true,
       previousStatement: null,

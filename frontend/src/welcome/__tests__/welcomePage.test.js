@@ -513,7 +513,7 @@ describe("the front page's numerals trace to source", () => {
     expect(items).toHaveLength(6);
     expect(items.map((li) => li.textContent.replace(/\s+/g, " ").trim())).toEqual([
       "154 block types",
-      "18 worked projects",
+      "20 worked projects",
       "6 built-in datasets",
       "6 chart types",
       "14 documentation sections",
