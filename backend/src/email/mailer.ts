@@ -10,6 +10,10 @@ export type MailMessage = {
   template: string;
   subject: string;
   text: string;
+  /** Designed HTML body (templates.ts's wrapHtml). Optional: the wire
+   *  carries it when present; the STORED body stays the plain text —
+   *  the pretend inbox and the redaction rules are text-body contracts. */
+  html?: string;
 };
 
 export interface Mailer {

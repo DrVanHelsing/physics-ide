@@ -128,11 +128,15 @@ export function createBrevoMailer(
             accept: "application/json",
           },
           body: JSON.stringify({
-            sender: { email: config.mailFrom },
+            sender: { name: "Physics IDE", email: config.mailFrom },
             to: [{ email: msg.to }],
             subject: msg.subject,
             // The REAL text — the recipient needs a link that works.
             textContent: msg.text,
+            // The designed body, when the template ships one; text stays
+            // the fallback for clients that refuse HTML. The STORED body
+            // remains the (redacted) text — html never touches the log.
+            ...(msg.html ? { htmlContent: msg.html } : {}),
           }),
           signal: AbortSignal.timeout(SEND_TIMEOUT_MS),
         });
